@@ -2179,17 +2179,19 @@ html[data-theme="dark"] .theme-toggle-btn .icon-sun { display: inline-block; }
   position: fixed;
   bottom: 0; left: 0; right: 0;
   z-index: 50;
-  padding: 13px 16px 15px;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
-  background: rgba(240, 226, 204, 0.94);
-  border-top: 1px solid rgba(139, 111, 71, 0.28);
-  box-shadow: 0 -10px 30px rgba(62, 39, 35, 0.10);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
-  backdrop-filter: blur(10px) saturate(130%);
+  background: linear-gradient(180deg, rgba(250, 243, 231, 0) 0%, rgba(240, 226, 204, 0.85) 38%, rgba(240, 226, 204, 0.94) 100%);
+  border-top: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
-  min-height: 60px;
+  min-height: 38px;
   transition: padding 360ms var(--ease-premium), min-height 360ms var(--ease-premium);
 }
+/* Ensure no screen content gets buried under the ticker */
+#app > section.screen { padding-bottom: 56px; }
 .review-row {
   pointer-events: auto;
   display: flex; align-items: center; justify-content: center;
@@ -2281,114 +2283,6 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
   .review-row { gap: 6px; }
 }
 
-/* ================================================================
-   Subtle reviews ticker — fades in/out, low contrast
-   ================================================================ */
-.reviews-bar {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  z-index: 50;
-  padding: 22px 22px 24px;
-  pointer-events: none;
-  background: rgba(240, 226, 204, 0.94);
-  border-top: 1px solid rgba(139, 111, 71, 0.28);
-  box-shadow: 0 -10px 30px rgba(62, 39, 35, 0.10);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
-  backdrop-filter: blur(10px) saturate(130%);
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100px;
-  transition: padding 360ms var(--ease-premium), min-height 360ms var(--ease-premium);
-}
-.review-row {
-  pointer-events: auto;
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  font-size: 22px;
-  line-height: 1.35;
-  color: var(--deep);
-  max-width: 96%;
-  text-align: center;
-  opacity: 0;
-  transform: translateX(40px) scale(0.92);
-  transition: opacity 480ms ease, transform 580ms var(--ease-spring);
-}
-.review-row.show {
-  opacity: 1;
-  transform: translateX(0) scale(1);
-}
-.review-row:hover { opacity: 1; }
-.review-stars {
-  color: var(--brown);
-  letter-spacing: 2.5px;
-  font-size: 24px;
-  flex-shrink: 0;
-  display: inline-flex; align-items: center;
-}
-.review-text {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  min-width: 0;
-  flex: 1 1 auto;
-  max-width: 100%;
-}
-
-/* Compact variant — applied automatically when on design/result screens */
-.reviews-bar.compact {
-  padding: 10px 16px 12px;
-  min-height: 42px;
-}
-.reviews-bar.compact .review-row {
-  font-size: 12px;
-  gap: 10px;
-  max-width: 460px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.reviews-bar.compact .review-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.reviews-bar.compact .review-stars {
-  font-size: 12px;
-  letter-spacing: 1.5px;
-}
-.review-stars .half {
-  display: inline-block;
-  width: 0.42em;
-  overflow: hidden;
-  letter-spacing: 0;
-}
-.review-stars .empty { opacity: 0.32; }
-.review-text {
-  font-style: italic;
-  color: var(--brown-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.review-author {
-  color: var(--deep);
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-html[data-theme="dark"] .reviews-bar {
-  background: rgba(36, 26, 20, 0.94);
-  border-top-color: rgba(212, 176, 126, 0.28);
-}
-html[data-theme="dark"] .review-row { color: var(--ink); }
-html[data-theme="dark"] .review-text { color: var(--ink); opacity: 0.95; }
-html[data-theme="dark"] .review-author { color: var(--deep); }
-html[data-theme="dark"] .review-stars { color: var(--tan); }
-
-@media (max-width: 380px) {
-  .review-author { display: none; }
-  .review-row { gap: 6px; }
-}
 
 /* ================================================================
    Premium motion system
