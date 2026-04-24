@@ -670,69 +670,47 @@
     </div>
   </div>
 
-  <!-- Paywall modal -->
+  <!-- Paywall modal (Furnish Pro) -->
   <div class="modal" id="paywallModal" aria-hidden="true">
     <div class="modal-card paywall-card">
       <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
       <div class="paywall-glow" aria-hidden="true"></div>
       <div class="paywall-badge">FURNISH PRO</div>
-      <h3>Design your whole household</h3>
-      <p class="subtle paywall-sub">Give every person in your home their own taste profile — and unlock trending collections as they drop.</p>
-      <ul class="paywall-list">
-        <li><span class="bullet">✓</span> Unlimited profiles</li>
-        <li><span class="bullet">✓</span> Early access to new collections</li>
-        <li><span class="bullet">✓</span> HD room exports & social kits</li>
-        <li><span class="bullet">✓</span> Priority partner pricing</li>
-      </ul>
-      <div class="paywall-actions">
-        <button class="btn btn-primary big" id="paywallCta">Join the waitlist</button>
-        <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
-      </div>
-      <p class="muted small center paywall-footnote">Launching soon. We'll email you when it's live.</p>
-    </div>
-  </div>
+      <h3 id="paywallTitle">Design rooms without limits</h3>
+      <p class="subtle paywall-sub" id="paywallSub">You've used your free redesigns. Join 12,000+ members redesigning their homes with Furnish.</p>
 
-  <!-- Paywall modal -->
-  <div class="modal" id="paywallModal" aria-hidden="true">
-    <div class="modal-card paywall-card">
-      <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
-      <div class="paywall-glow" aria-hidden="true"></div>
-      <div class="paywall-badge">FURNISH PRO</div>
-      <h3>Design your whole household</h3>
-      <p class="subtle paywall-sub">Give every person in your home their own taste profile — and unlock trending collections as they drop.</p>
-      <ul class="paywall-list">
-        <li><span class="bullet">✓</span> Unlimited profiles</li>
-        <li><span class="bullet">✓</span> Early access to new collections</li>
-        <li><span class="bullet">✓</span> HD room exports & social kits</li>
-        <li><span class="bullet">✓</span> Priority partner pricing</li>
-      </ul>
-      <div class="paywall-actions">
-        <button class="btn btn-primary big" id="paywallCta">Join the waitlist</button>
-        <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
+      <div class="paywall-social">
+        <span class="paywall-stars">★★★★★</span>
+        <span class="paywall-social-text">4.8 · 2,400+ reviews</span>
       </div>
-      <p class="muted small center paywall-footnote">Launching soon. We'll email you when it's live.</p>
-    </div>
-  </div>
 
-  <!-- Paywall modal -->
-  <div class="modal" id="paywallModal" aria-hidden="true">
-    <div class="modal-card paywall-card">
-      <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
-      <div class="paywall-glow" aria-hidden="true"></div>
-      <div class="paywall-badge">FURNISH PRO</div>
-      <h3>Design your whole household</h3>
-      <p class="subtle paywall-sub">Give every person in your home their own taste profile — and unlock trending collections as they drop.</p>
+      <div class="paywall-toggle" role="tablist" aria-label="Billing period">
+        <button class="pw-toggle-btn" data-plan="monthly" role="tab" aria-selected="false">Monthly</button>
+        <button class="pw-toggle-btn active" data-plan="annual" role="tab" aria-selected="true">
+          Annual <span class="pw-save">Save 49%</span>
+        </button>
+      </div>
+
+      <div class="paywall-price">
+        <span class="paywall-price-amount" id="paywallPrice">$4.08</span>
+        <span class="paywall-price-unit" id="paywallUnit">/month, billed annually ($49/yr)</span>
+      </div>
+
       <ul class="paywall-list">
-        <li><span class="bullet">✓</span> Unlimited profiles</li>
-        <li><span class="bullet">✓</span> Early access to new collections</li>
-        <li><span class="bullet">✓</span> HD room exports & social kits</li>
-        <li><span class="bullet">✓</span> Priority partner pricing</li>
+        <li><span class="bullet">✓</span> Unlimited redesigns &amp; reshuffles</li>
+        <li><span class="bullet">✓</span> HD room exports + social kit (IG, Pinterest, TikTok)</li>
+        <li><span class="bullet">✓</span> Unlimited style profiles for your household</li>
+        <li><span class="bullet">✓</span> Early access to seasonal collections</li>
+        <li><span class="bullet">✓</span> Priority support &amp; price-drop alerts</li>
       </ul>
+
+      <div class="paywall-urgency">Founding-member pricing — locks in for life if you join this month.</div>
+
       <div class="paywall-actions">
-        <button class="btn btn-primary big" id="paywallCta">Join the waitlist</button>
+        <button class="btn btn-primary big" id="paywallCta">Start 7-day free trial</button>
         <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
       </div>
-      <p class="muted small center paywall-footnote">Launching soon. We'll email you when it's live.</p>
+      <p class="muted small center paywall-footnote">Cancel anytime before day 7 — no charge.</p>
     </div>
   </div>
 
@@ -834,26 +812,6 @@
       <button class="link ps-cancel" id="psCancel">Cancel</button>
     </div>
   </div>
-
-  <!-- Profile photo source modal -->
-  <div class="modal" id="photoSourceModal" aria-hidden="true">
-    <div class="modal-card photo-source-card">
-      <button class="modal-close" id="psClose" aria-label="Close">×</button>
-      <h3>Profile Photo</h3>
-      <p class="subtle ps-sub">Choose how you'd like to add a photo.</p>
-      <div class="ps-actions">
-        <button class="btn btn-primary big" id="psTakePhoto"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take a Photo</button>
-        <button class="btn btn-ghost" id="psFromGallery"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M12 4v11M7 9l5-5 5 5M4 20h16"/></svg>Import</button>
-        <button class="btn btn-ghost ps-remove" id="psRemove" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Remove Current Photo</button>
-      </div>
-      <button class="link ps-cancel" id="psCancel">Cancel</button>
-    </div>
-  </div>
-
-  <!-- Subtle reviews ticker -->
-  <aside id="reviewsBar" class="reviews-bar" aria-label="Recent reviews">
-    <div class="review-row" id="reviewRow"></div>
-  </aside>
 
   <!-- Subtle reviews ticker -->
   <aside id="reviewsBar" class="reviews-bar" aria-label="Recent reviews">

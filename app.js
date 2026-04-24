@@ -363,7 +363,7 @@
           toast('Sign in to switch');
           break;
         case 'furnish-plus':
-          openPaywall();
+          openPaywall('generic');
           break;
         case 'support':
           openSupportModal();
@@ -523,7 +523,7 @@
   $('#addProfileBtn').addEventListener('click', () => {
     // Adding extra profiles is gated behind Pro.
     if (!state.user?.isPro) {
-      openPaywall();
+      openPaywall('profile');
       return;
     }
     const n = state.profiles.length + 1;
@@ -534,8 +534,34 @@
   });
 
   // ---------- Paywall ----------
-  function openPaywall() {
+  // Per Reforge Convert And Activate (p.4): context-aware pricing page.
+  const PAYWALL_COPY = {
+    redesign: {
+      title: 'Design rooms without limits',
+      sub: "You've used your free redesigns. Join 12,000+ members redesigning with Furnish.",
+    },
+    profile: {
+      title: 'One Furnish for every person',
+      sub: 'Give every person in your home their own taste profile — partners, roommates, kids.',
+    },
+    export: {
+      title: 'Export your room in HD',
+      sub: 'Ready-to-post kits for Instagram, Pinterest, and TikTok.',
+    },
+    generic: {
+      title: 'Unlock Furnish Pro',
+      sub: 'Unlimited redesigns, HD exports, and every style profile your household needs.',
+    },
+  };
+
+  function openPaywall(context = 'generic') {
+    const copy = PAYWALL_COPY[context] || PAYWALL_COPY.generic;
+    const titleEl = $('#paywallTitle');
+    const subEl = $('#paywallSub');
+    if (titleEl) titleEl.textContent = copy.title;
+    if (subEl) subEl.textContent = copy.sub;
     const m = $('#paywallModal');
+    m.dataset.context = context;
     m.classList.add('open');
     m.setAttribute('aria-hidden', 'false');
   }
@@ -544,11 +570,33 @@
     m.classList.remove('open');
     m.setAttribute('aria-hidden', 'true');
   }
+
+  // Monthly ↔ Annual toggle (anchor per Figma critique, Convert p.4)
+  $$('.pw-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.pw-toggle-btn').forEach(b => {
+        const on = b === btn;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      const annual = btn.dataset.plan === 'annual';
+      const priceEl = $('#paywallPrice');
+      const unitEl = $('#paywallUnit');
+      if (priceEl) priceEl.textContent = annual ? '$4.08' : '$7.99';
+      if (unitEl) unitEl.textContent = annual ? '/month, billed annually ($49/yr)' : '/month';
+    });
+  });
+
   $('#paywallClose').addEventListener('click', closePaywall);
   $('#paywallDismiss').addEventListener('click', closePaywall);
   $('#paywallCta').addEventListener('click', () => {
-    toast("You're on the waitlist — we'll be in touch");
+    // TODO: wire to Stripe/RevenueCat. For now, mock Pro to unblock flow testing.
+    if (!state.user) state.user = {};
+    state.user.isPro = true;
+    save();
+    toast("Welcome to Furnish Pro — 7-day trial started");
     closePaywall();
+    if (typeof renderProfilePage === 'function') renderProfilePage();
   });
   $('#paywallModal').addEventListener('click', e => {
     if (e.target.id === 'paywallModal') closePaywall();
@@ -719,12 +767,13 @@
       pieces.push({ el, leftPct, landY, spin });
     }
 
-    // Assign drop delays in TOP-TO-BOTTOM order: pieces that land higher
-    // on the screen start dropping first, pieces that land lower drop
-    // last. Small jitter keeps it from looking mechanical.
-    pieces.sort((a, b) => a.landY - b.landY);
-    const STAGGER_TOTAL = 2400;
-    const JITTER = 160;
+    // Assign drop delays in BOTTOM-UP fill order: pieces that land LOWEST
+    // (largest landY) drop FIRST — so the furniture "falls to the floor"
+    // right away, then the pile grows upward. Small jitter keeps it from
+    // looking mechanical.
+    pieces.sort((a, b) => b.landY - a.landY); // descending: bottom first
+    const STAGGER_TOTAL = 1400;   // faster fill (was 2400ms)
+    const JITTER = 140;
     pieces.forEach((p, i) => {
       const t = i / (pieces.length - 1 || 1);
       const base = Math.floor(t * STAGGER_TOTAL);
@@ -741,9 +790,9 @@
     // next frame, start rain
     requestAnimationFrame(() => scrim.classList.add('raining'));
 
-    // Pop after rain completes. With top-to-bottom stagger the last piece
-    // lands at STAGGER_TOTAL (2400ms) + drop duration (1400ms) = ~3800ms.
-    // Hold the fully-filled screen an extra 500ms so the fill registers.
+    // Pop after rain completes. With bottom-up stagger the last (topmost)
+    // piece lands at STAGGER_TOTAL (1400ms) + drop duration (1400ms) =
+    // ~2800ms. Hold the fully-filled screen ~500ms so the fill registers.
     const popTimer = setTimeout(() => {
       // For each piece: burst outward AWAY from screen center, based on
       // where it landed. dy is the *delta* added to landY in the keyframe
@@ -782,7 +831,7 @@
 
       // Reveal the congrats card after the pop peaks (and after the flicker settles)
       setTimeout(() => scrim.classList.add('reveal'), 600);
-    }, 4300);
+    }, 3300);
 
     // Continue → cleanup + proceed
     const cleanup = () => {
@@ -1318,13 +1367,14 @@
       $('#profileProBtn').textContent = 'Manage';
     } else {
       const used = user.redesignsUsed || 0;
+      const remaining = Math.max(0, FREE_REDESIGN_LIMIT - used);
       $('#profileProTitle').textContent = 'Free plan';
-      $('#profileProSub').textContent = used >= 1
-        ? 'Free redesign used — upgrade for unlimited'
-        : '1 free redesign included — upgrade for unlimited';
+      $('#profileProSub').textContent = remaining > 0
+        ? `${remaining} free redesign${remaining === 1 ? '' : 's'} left — upgrade anytime`
+        : 'Free redesigns used — upgrade for unlimited';
       $('#profileProBtn').textContent = 'Upgrade';
     }
-    $('#profileProBtn').onclick = () => openPaywall();
+    $('#profileProBtn').onclick = () => openPaywall('generic');
 
     // Active design profile
     const ap = $('#profileActiveRow');
@@ -1545,7 +1595,7 @@
   function startFromTemplate(t) {
     const p = getActiveProfile();
     if (!p) { toast('Pick a profile first'); return; }
-    if (!canRedesign()) { openPaywall(); return; }
+    if (!canRedesign()) { openPaywall('redesign'); return; }
     state.draft = {
       photo: placeholderImageFor(t.type),
       type: t.type,
@@ -1713,7 +1763,7 @@
   $('#analyzeBtn').addEventListener('click', async () => {
     if (!state.draft?.photo) return;
     // Premium gate: first redesign is free, then upsell (PDR §12).
-    if (!canRedesign()) { openPaywall(); return; }
+    if (!canRedesign()) { openPaywall('redesign'); return; }
     showScreen('analyzing');
     await runAnalyzerAnimation();
     const room = buildRoomFromDraft();
@@ -1724,11 +1774,13 @@
     openRoom(room.id);
   });
 
-  // Free tier = 1 redesign. Pro = unlimited.
+  // Free tier = 3 redesigns (lets the habit moment land per Reforge Convert p.6–10).
+  // Pro = unlimited.
+  const FREE_REDESIGN_LIMIT = 3;
   function canRedesign() {
     if (state.user?.isPro) return true;
     const used = state.user?.redesignsUsed || 0;
-    return used < 1;
+    return used < FREE_REDESIGN_LIMIT;
   }
   function incrementRedesignCount() {
     if (!state.user) state.user = {};
