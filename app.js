@@ -708,18 +708,31 @@
       el.setAttribute('data-size', sizes[i % sizes.length]);
       el.innerHTML = GLYPHS[i % GLYPHS.length];
       const leftPct = Math.random() * 97 + 1.5;                      // 1.5%..98.5%
-      const delay = Math.floor(Math.random() * 1400);                 // 0..1400ms stagger
       const spin  = Math.floor((Math.random() * 720) - 360);
       // Fill across the full height — 0%..97%
       const landY = Math.floor(H * Math.random() * 0.97);
       el.style.left = leftPct + '%';
-      el.style.setProperty('--delay', delay + 'ms');
       el.style.setProperty('--spin', spin + 'deg');
       // Raw NUMBER (no 'px') so we can math it in pop keyframe
       el.style.setProperty('--landY', landY);
       rain.appendChild(el);
       pieces.push({ el, leftPct, landY, spin });
     }
+
+    // Assign drop delays in TOP-TO-BOTTOM order: pieces that land higher
+    // on the screen start dropping first, pieces that land lower drop
+    // last. Small jitter keeps it from looking mechanical.
+    pieces.sort((a, b) => a.landY - b.landY);
+    const STAGGER_TOTAL = 2400;
+    const JITTER = 160;
+    pieces.forEach((p, i) => {
+      const t = i / (pieces.length - 1 || 1);
+      const base = Math.floor(t * STAGGER_TOTAL);
+      const jitter = Math.floor(Math.random() * JITTER) - (JITTER / 2);
+      const delay = Math.max(0, base + jitter);
+      p.el.style.setProperty('--delay', delay + 'ms');
+      p.delay = delay;
+    });
 
     // Show and start raining
     scrim.classList.remove('popping', 'reveal');
@@ -728,8 +741,9 @@
     // next frame, start rain
     requestAnimationFrame(() => scrim.classList.add('raining'));
 
-    // Pop after rain completes (longest drop ≈ 1400 + 1400 stagger = ~2800ms,
-    // then hold full fill for ~500ms so the user registers the density)
+    // Pop after rain completes. With top-to-bottom stagger the last piece
+    // lands at STAGGER_TOTAL (2400ms) + drop duration (1400ms) = ~3800ms.
+    // Hold the fully-filled screen an extra 500ms so the fill registers.
     const popTimer = setTimeout(() => {
       // For each piece: burst outward AWAY from screen center, based on
       // where it landed. dy is the *delta* added to landY in the keyframe
@@ -768,7 +782,7 @@
 
       // Reveal the congrats card after the pop peaks (and after the flicker settles)
       setTimeout(() => scrim.classList.add('reveal'), 600);
-    }, 3300);
+    }, 4300);
 
     // Continue → cleanup + proceed
     const cleanup = () => {
