@@ -322,15 +322,20 @@
       </header>
       <div class="home-hero">
         <h2>Design a new room</h2>
-        <p class="subtle">Snap a photo, or start from a template.</p>
-        <div class="home-ctas">
+        <p class="subtle">Snap a photo, import one you already have, or start from a template.</p>
+        <div class="home-ctas three">
           <button class="btn btn-primary" data-go="capture">
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-            New from photo
+            New from Photo
           </button>
-          <button class="btn btn-ghost" data-go="templates">
+          <label class="btn btn-ghost" id="homeImportBtn">
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Import
+            <input type="file" id="homeImportInput" accept="image/*" hidden />
+          </label>
+          <button class="btn btn-ghost" data-go="templates">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Use Template
           </button>
         </div>
       </div>
@@ -881,6 +886,25 @@
 
   <!-- Toast -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Quiz finale: furniture rain → pop → congrats card -->
+  <div class="quiz-finale" id="quizFinale" aria-hidden="true">
+    <div class="qf-rain" id="qfRain"></div>
+    <div class="qf-card" id="qfCard">
+      <div class="qf-crown" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M8 44l8-24 16 20 16-20 8 24z"/>
+          <path d="M8 44h48" />
+          <circle cx="16" cy="20" r="3" fill="currentColor"/>
+          <circle cx="32" cy="40" r="3" fill="currentColor"/>
+          <circle cx="48" cy="20" r="3" fill="currentColor"/>
+        </svg>
+      </div>
+      <h3>Your style is locked in</h3>
+      <p class="qf-sub" id="qfSub">We mixed your answers into a personal palette.</p>
+      <button class="btn btn-primary" id="qfContinue">Continue</button>
+    </div>
+  </div>
 
   <script src="supabase-config.js"></script>
   <script src="supabase-client.js"></script>

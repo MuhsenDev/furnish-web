@@ -652,8 +652,106 @@
     }
     state.quiz = null;
     save();
-    toast('Styles set from your answers');
-    openPreferences(state.activeProfileId);
+    // Play the "furniture rain → pop → congrats" finale, then route to preferences.
+    playQuizFinale(top, () => openPreferences(state.activeProfileId));
+  }
+
+  // ---------- Quiz finale animation ----------
+  function playQuizFinale(topStyles, onDone) {
+    const scrim = document.getElementById('quizFinale');
+    const rain  = document.getElementById('qfRain');
+    const sub   = document.getElementById('qfSub');
+    const cont  = document.getElementById('qfContinue');
+    if (!scrim || !rain || !cont) { onDone && onDone(); return; }
+
+    // Update subhead with the top styles
+    const styleLabels = (topStyles || [])
+      .map(id => (window.STYLES || []).find(s => s.id === id)?.label || id)
+      .slice(0, 3);
+    if (sub) sub.textContent = styleLabels.length
+      ? `You lean ${styleLabels.join(' · ')}. Your palette is ready.`
+      : "We mixed your answers into a personal palette.";
+
+    // Tiny themed furniture glyphs (simple outlined silhouettes).
+    const GLYPHS = [
+      // chair
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M6 12V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v7"/><path d="M4 12h16"/><path d="M7 12v9M17 12v9"/></svg>`,
+      // lamp
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M8 3h8l2 6H6z"/><path d="M12 9v9"/><path d="M7 21h10"/></svg>`,
+      // sofa
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 14a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5H3z"/><path d="M6 12V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/><path d="M6 19v2M18 19v2"/></svg>`,
+      // table
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 9h18"/><path d="M5 9v12M19 9v12"/><path d="M8 13h8"/></svg>`,
+      // plant / leaf
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 21v-8"/><path d="M12 13C7 12 5 8 5 4c4 0 8 2 9 7"/><path d="M12 13c5-1 7-5 7-9-4 0-8 2-9 7"/></svg>`,
+      // frame / art
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 15l5-5 5 5"/><circle cx="15" cy="9" r="1.5"/></svg>`,
+      // rug (oval)
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="12" cy="12" rx="9" ry="5"/><ellipse cx="12" cy="12" rx="5.5" ry="2.5"/></svg>`,
+      // bookshelf
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16"/></svg>`
+    ];
+
+    // Prepare a batch of pieces
+    rain.innerHTML = '';
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const COUNT = Math.min(48, Math.max(26, Math.floor(W / 14)));
+    const pieces = [];
+    for (let i = 0; i < COUNT; i++) {
+      const el = document.createElement('div');
+      el.className = 'qf-piece';
+      el.innerHTML = GLYPHS[i % GLYPHS.length];
+      const leftPct = Math.random() * 94 + 3;             // 3%..97%
+      const delay = Math.floor(Math.random() * 650);       // 0..650ms stagger
+      const spin  = Math.floor((Math.random() * 720) - 360);
+      const landY = Math.floor(H * (0.58 + Math.random() * 0.30));
+      el.style.left = leftPct + '%';
+      el.style.setProperty('--delay', delay + 'ms');
+      el.style.setProperty('--spin', spin + 'deg');
+      el.style.setProperty('--landY', landY + 'px');
+      rain.appendChild(el);
+      pieces.push({ el, leftPct, landY, spin });
+    }
+
+    // Show and start raining
+    scrim.classList.remove('popping', 'reveal');
+    scrim.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    // next frame, start rain
+    requestAnimationFrame(() => scrim.classList.add('raining'));
+
+    // Pop after rain completes (longest drop ≈ 1400 + 650 stagger = ~2050)
+    const popTimer = setTimeout(() => {
+      // Compute random burst vectors relative to card center (50%,50%)
+      pieces.forEach(({ el, leftPct, landY }) => {
+        const px = (leftPct / 100) * W;
+        const cx = W / 2, cy = H / 2;
+        const vx = px - cx;
+        const vy = landY - cy;
+        const mag = Math.sqrt(vx * vx + vy * vy) || 1;
+        const dx = (vx / mag) * (260 + Math.random() * 160);
+        const dy = (vy / mag) * (260 + Math.random() * 160) - 180; // bias upward
+        el.style.setProperty('--dx', dx.toFixed(0));
+        el.style.setProperty('--dy', dy.toFixed(0));
+      });
+      scrim.classList.remove('raining');
+      scrim.classList.add('popping');
+      // After the pop, reveal the congrats card
+      setTimeout(() => scrim.classList.add('reveal'), 380);
+    }, 2100);
+
+    // Continue → cleanup + proceed
+    const cleanup = () => {
+      clearTimeout(popTimer);
+      cont.removeEventListener('click', onContinue);
+      scrim.classList.remove('open', 'raining', 'popping', 'reveal');
+      scrim.setAttribute('aria-hidden', 'true');
+      rain.innerHTML = '';
+      onDone && onDone();
+    };
+    function onContinue() { cleanup(); }
+    cont.addEventListener('click', onContinue, { once: true });
   }
 
   // ---------- Preferences ----------
@@ -2651,10 +2749,39 @@
     cycle();
   }
 
+  // ---------- Home: Import-from-device button ----------
+  function wireHomeImport() {
+    const input = document.getElementById('homeImportInput');
+    if (!input || input.__wired) return;
+    input.__wired = true;
+    input.addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { toast('Pick an image file'); input.value = ''; return; }
+      if (file.size > 12 * 1024 * 1024)    { toast('Image too large (12MB max)'); input.value = ''; return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        state.draft = state.draft || { photo: null, type: 'living', dims: { w:12, l:14, h:9 }, keep: true };
+        state.draft.photo = ev.target.result;
+        save();
+        showScreen('capture');
+        toast('Photo imported');
+        // Pre-populate the capture screen preview if render runs later
+        const prev = document.getElementById('photoPreview');
+        if (prev) { prev.src = ev.target.result; prev.classList.add('has-image'); }
+        const ph = document.querySelector('.photo-frame .placeholder');
+        if (ph) ph.classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+      input.value = '';
+    });
+  }
+
   // ---------- Boot ----------
   function boot() {
     showScreen('welcome');
     startReviewsBar();
+    wireHomeImport();
   }
   boot();
 })();

@@ -2179,19 +2179,25 @@ html[data-theme="dark"] .theme-toggle-btn .icon-sun { display: inline-block; }
   position: fixed;
   bottom: 0; left: 0; right: 0;
   z-index: 50;
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(250, 243, 231, 0) 0%, rgba(240, 226, 204, 0.85) 38%, rgba(240, 226, 204, 0.94) 100%);
+  /* Soft cream that blends with the theme — never a hard slab */
+  background:
+    linear-gradient(180deg, rgba(250, 243, 231, 0) 0%, rgba(244, 232, 211, 0.55) 22%, rgba(241, 226, 199, 0.78) 100%);
   border-top: 0;
   box-shadow: none;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
-  min-height: 38px;
+  min-height: 48px;
   transition: padding 360ms var(--ease-premium), min-height 360ms var(--ease-premium);
 }
+html[data-theme="dark"] .reviews-bar {
+  background:
+    linear-gradient(180deg, rgba(28, 20, 16, 0) 0%, rgba(36, 26, 20, 0.55) 22%, rgba(36, 26, 20, 0.78) 100%);
+}
 /* Ensure no screen content gets buried under the ticker */
-#app > section.screen { padding-bottom: 56px; }
+#app > section.screen { padding-bottom: 64px; }
 .review-row {
   pointer-events: auto;
   display: flex; align-items: center; justify-content: center;
@@ -3888,24 +3894,169 @@ html[data-theme="dark"] .add-profile-btn .pro-lock { color: #1C1410; }
 
 /* ==== Refinements: April session ==== */
 
-/* Editable profile name input on preferences card */
+/* Editable profile name input on preferences card.
+   Looks like a heading by default; subtle pencil on hover; soft pill when focused. */
+.pp-title { position: relative; }
 .pp-name-input {
   font: inherit;
   font-weight: 700;
   font-size: 18px;
-  color: var(--ink);
+  line-height: 1.2;
+  color: var(--deep);
   background: transparent;
   border: none;
-  border-bottom: 1.5px dashed transparent;
-  padding: 2px 0;
-  width: 100%;
+  border-radius: 8px;
+  padding: 4px 30px 4px 8px;
+  margin-left: -8px;
+  width: calc(100% + 8px);
+  max-width: none;
   outline: none;
-  transition: border-color .15s ease;
+  transition: background .16s ease, box-shadow .16s ease;
+  caret-color: var(--brown);
 }
-.pp-name-input:hover,
-.pp-name-input:focus {
-  border-bottom-color: var(--brown);
+.pp-name-input:hover  { background: rgba(139,111,71,0.06); }
+.pp-name-input:focus  { background: rgba(139,111,71,0.09); box-shadow: inset 0 0 0 1.5px var(--brown); }
+.pp-title::after {
+  content: '';
+  position: absolute;
+  right: 4px; top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 14px;
+  background: center / contain no-repeat url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B6F47' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17 3l4 4L8 20H4v-4z'/></svg>");
+  opacity: 0;
+  transition: opacity .18s ease;
+  pointer-events: none;
 }
+.pp-title:hover::after,
+.pp-name-input:focus + .pp-title::after { opacity: 0.7; }
+.pp-name-input:focus ~ * { }
+/* Pencil sits right of the input — because ::after is on .pp-title which wraps the input */
+
+/* --- Home CTAs: 3-button grid (New / Import / Template) --- */
+.home-ctas.three {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.home-ctas.three .btn-primary { grid-column: 1 / -1; }
+.home-ctas.three .btn { padding: 14px 12px; font-size: 14px; }
+.home-ctas.three .btn:last-child { }
+@media (max-width: 380px) {
+  .home-ctas.three { grid-template-columns: 1fr; }
+  .home-ctas.three .btn-primary { grid-column: auto; }
+}
+/* Import button uses a <label> so the file input is tapped — make it look like a button */
+#homeImportBtn { cursor: pointer; }
+#homeImportBtn input { display: none; }
+
+/* --- Bottom nav: taller + better spacing, crisper active state --- */
+.bottom-nav {
+  padding: 10px 10px max(14px, env(safe-area-inset-bottom)) !important;
+  min-height: 68px;
+}
+.bn-tab {
+  gap: 5px !important;
+  padding: 8px 4px 6px !important;
+  font-size: 11px !important;
+  letter-spacing: 0.05em !important;
+}
+.bn-tab .bn-icon { width: 24px; height: 24px; }
+.bn-tab.active {
+  background: rgba(139,111,71,0.10);
+}
+.bn-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%; transform: translateX(-50%);
+  width: 22px; height: 3px; border-radius: 2px;
+  background: var(--brown);
+}
+.bn-tab { position: relative; }
+html[data-nav="show"] #app { padding-bottom: 104px !important; }
+
+/* --- Dark mode: saved room card legibility fix --- */
+html[data-theme="dark"] .room-card {
+  background: var(--surface) !important;
+  color: var(--ink);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  border: 1px solid rgba(212,176,126,0.14);
+}
+html[data-theme="dark"] .room-card .thumb {
+  background-color: var(--beige);
+  outline: 1px solid rgba(212,176,126,0.10);
+}
+html[data-theme="dark"] .room-card .meta .name { color: var(--ink); }
+html[data-theme="dark"] .room-card .meta .sub  { color: var(--muted); }
+html[data-theme="dark"] .room-card .bookmark-badge {
+  background: rgba(28,20,16,0.78);
+  color: var(--tan);
+}
+html[data-theme="dark"] .rooms-grid .empty-state { background: var(--surface); color: var(--muted); }
+
+/* --- Quiz finale: furniture rain → pop → congrats --- */
+.quiz-finale {
+  position: fixed; inset: 0;
+  z-index: 9000;
+  display: none;
+  background: radial-gradient(circle at 50% 40%, rgba(250, 243, 231, 0.96) 0%, rgba(235, 199, 147, 0.92) 100%);
+  overflow: hidden;
+  pointer-events: none;
+}
+html[data-theme="dark"] .quiz-finale {
+  background: radial-gradient(circle at 50% 40%, rgba(36, 26, 20, 0.96) 0%, rgba(20, 14, 10, 0.96) 100%);
+}
+.quiz-finale.open { display: block; pointer-events: auto; }
+.qf-rain { position: absolute; inset: 0; }
+.qf-piece {
+  position: absolute;
+  width: 34px; height: 34px;
+  color: var(--brown);
+  opacity: 0;
+  transform: translateY(-80px) rotate(var(--spin, 0deg));
+  will-change: transform, opacity;
+}
+.qf-piece svg { width: 100%; height: 100%; display: block; }
+html[data-theme="dark"] .qf-piece { color: var(--tan); }
+.quiz-finale.raining .qf-piece {
+  animation: qfDrop 1400ms cubic-bezier(.35, .05, .25, 1) var(--delay, 0ms) both;
+}
+.quiz-finale.popping .qf-piece {
+  animation: qfPop 700ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
+@keyframes qfDrop {
+  0%   { transform: translateY(-120px) rotate(var(--spin, 0deg)) scale(0.7); opacity: 0; }
+  8%   { opacity: 1; }
+  100% { transform: translateY(var(--landY, 80vh)) rotate(calc(var(--spin, 0deg) * 2)) scale(1); opacity: 1; }
+}
+@keyframes qfPop {
+  0%   { opacity: 1; }
+  100% { transform: translate(calc(var(--dx, 0) * 1px), calc(var(--dy, -400) * 1px)) rotate(calc(var(--spin, 0deg) * 3)) scale(1.8); opacity: 0; }
+}
+.qf-card {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -46%) scale(0.8);
+  width: min(86vw, 340px);
+  padding: 28px 24px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 24px 80px rgba(62, 39, 35, 0.18);
+  text-align: center;
+  opacity: 0;
+  transition: opacity .36s ease, transform .55s cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: none;
+}
+.quiz-finale.reveal .qf-card {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+}
+.qf-crown { color: var(--brown); margin-bottom: 10px; display: flex; justify-content: center; }
+.qf-card h3 { margin: 0 0 8px; font-size: 22px; color: var(--deep); }
+.qf-card .qf-sub { margin: 0 0 22px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.qf-card .btn { width: 100%; }
 
 /* Home: Saved Rooms next to Saved Items */
 .saved-pair {
