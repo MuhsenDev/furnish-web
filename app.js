@@ -648,6 +648,7 @@
     const p = state.profiles.find(x => x.id === state.quiz.profileId);
     if (p) {
       p.styles = top;
+      p.seenFinale = true; // quiz counts as the finale moment
       save();
     }
     state.quiz = null;
@@ -692,20 +693,23 @@
       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16"/></svg>`
     ];
 
-    // Prepare a batch of pieces
+    // Prepare a dense batch of pieces that fill the entire screen.
     rain.innerHTML = '';
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const COUNT = Math.min(48, Math.max(26, Math.floor(W / 14)));
+    const COUNT = Math.min(130, Math.max(70, Math.floor((W * H) / 9500)));
     const pieces = [];
+    const sizes = ['s', 'm', 'm', 'l']; // weighted toward medium
     for (let i = 0; i < COUNT; i++) {
       const el = document.createElement('div');
       el.className = 'qf-piece';
+      el.setAttribute('data-size', sizes[i % sizes.length]);
       el.innerHTML = GLYPHS[i % GLYPHS.length];
-      const leftPct = Math.random() * 94 + 3;             // 3%..97%
-      const delay = Math.floor(Math.random() * 650);       // 0..650ms stagger
+      const leftPct = Math.random() * 96 + 2;                       // 2%..98%
+      const delay = Math.floor(Math.random() * 1100);                // 0..1100ms stagger
       const spin  = Math.floor((Math.random() * 720) - 360);
-      const landY = Math.floor(H * (0.58 + Math.random() * 0.30));
+      // Land across the ENTIRE screen height (not just bottom) for a full-fill feel
+      const landY = Math.floor(H * (0.02 + Math.random() * 0.95));   // 2%..97% of H
       el.style.left = leftPct + '%';
       el.style.setProperty('--delay', delay + 'ms');
       el.style.setProperty('--spin', spin + 'deg');
@@ -721,7 +725,8 @@
     // next frame, start rain
     requestAnimationFrame(() => scrim.classList.add('raining'));
 
-    // Pop after rain completes (longest drop ≈ 1400 + 650 stagger = ~2050)
+    // Pop after rain completes (longest drop ≈ 1400 + 1100 stagger = ~2500ms,
+    // then hold full fill for ~450ms so the user registers it)
     const popTimer = setTimeout(() => {
       // Compute random burst vectors relative to card center (50%,50%)
       pieces.forEach(({ el, leftPct, landY }) => {
@@ -739,7 +744,7 @@
       scrim.classList.add('popping');
       // After the pop, reveal the congrats card
       setTimeout(() => scrim.classList.add('reveal'), 380);
-    }, 2100);
+    }, 2950);
 
     // Continue → cleanup + proceed
     const cleanup = () => {
@@ -1001,6 +1006,14 @@
     const p = getActiveProfile();
     if (!p) { showScreen('profile-select'); return; }
     if (p.styles.length === 0) { toast('Pick at least one style'); return; }
+    // First-time save for this profile (whether they used the quiz or not):
+    // play the same finale so every profile gets the "locked in" moment.
+    if (!p.seenFinale) {
+      p.seenFinale = true;
+      save();
+      playQuizFinale(p.styles, () => { showScreen('home'); renderHome(); });
+      return;
+    }
     toast('Preferences saved');
     showScreen('home');
     renderHome();

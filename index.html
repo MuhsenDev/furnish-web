@@ -891,13 +891,18 @@
   <div class="quiz-finale" id="quizFinale" aria-hidden="true">
     <div class="qf-rain" id="qfRain"></div>
     <div class="qf-card" id="qfCard">
-      <div class="qf-crown" aria-hidden="true">
-        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M8 44l8-24 16 20 16-20 8 24z"/>
-          <path d="M8 44h48" />
-          <circle cx="16" cy="20" r="3" fill="currentColor"/>
-          <circle cx="32" cy="40" r="3" fill="currentColor"/>
-          <circle cx="48" cy="20" r="3" fill="currentColor"/>
+      <div class="qf-heart" aria-hidden="true">
+        <span class="qf-heart-glow"></span>
+        <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+          <defs>
+            <linearGradient id="qfHeartGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"  stop-color="#EBC793"/>
+              <stop offset="55%" stop-color="#A47C4D"/>
+              <stop offset="100%" stop-color="#5C4128"/>
+            </linearGradient>
+          </defs>
+          <path fill="url(#qfHeartGrad)"
+                d="M32 56s-20-12-20-28a10 10 0 0 1 18-6 10 10 0 0 1 18 6c0 16-16 28-16 28z"/>
         </svg>
       </div>
       <h3>Your style is locked in</h3>

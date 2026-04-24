@@ -4053,10 +4053,55 @@ html[data-theme="dark"] .qf-piece { color: var(--tan); }
   transform: translate(-50%, -50%) scale(1);
   pointer-events: auto;
 }
-.qf-crown { color: var(--brown); margin-bottom: 10px; display: flex; justify-content: center; }
 .qf-card h3 { margin: 0 0 8px; font-size: 22px; color: var(--deep); }
 .qf-card .qf-sub { margin: 0 0 22px; font-size: 14px; color: var(--muted); line-height: 1.5; }
 .qf-card .btn { width: 100%; }
+
+/* Heartbeat glowing heart */
+.qf-heart {
+  position: relative;
+  width: 72px; height: 72px;
+  margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.qf-heart svg {
+  position: relative; z-index: 1;
+  animation: qfHeartBeat 1.2s ease-in-out infinite;
+  transform-origin: 50% 55%;
+  filter: drop-shadow(0 4px 10px rgba(139, 111, 71, 0.35));
+}
+.qf-heart-glow {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(235, 199, 147, 0.65) 0%, rgba(164, 124, 77, 0.35) 45%, rgba(92, 65, 40, 0) 72%);
+  filter: blur(4px);
+  animation: qfHeartGlow 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+html[data-theme="dark"] .qf-heart-glow {
+  background: radial-gradient(circle, rgba(212, 176, 126, 0.5) 0%, rgba(139, 111, 71, 0.3) 45%, rgba(0,0,0,0) 72%);
+}
+@keyframes qfHeartBeat {
+  0%, 100% { transform: scale(1); }
+  12%      { transform: scale(1.14); }
+  22%      { transform: scale(0.98); }
+  34%      { transform: scale(1.10); }
+  46%      { transform: scale(1); }
+}
+@keyframes qfHeartGlow {
+  0%, 100% { opacity: 0.6; transform: scale(0.95); }
+  12%      { opacity: 1;   transform: scale(1.18); }
+  22%      { opacity: 0.7; transform: scale(1); }
+  34%      { opacity: 1;   transform: scale(1.12); }
+  46%      { opacity: 0.65; transform: scale(1); }
+}
+
+/* --- Rain pieces: give them size variation for depth when filling the screen --- */
+.qf-piece { will-change: transform, opacity; }
+.qf-piece[data-size="s"] { width: 24px; height: 24px; opacity: 0; }
+.qf-piece[data-size="m"] { width: 34px; height: 34px; opacity: 0; }
+.qf-piece[data-size="l"] { width: 44px; height: 44px; opacity: 0; }
 
 /* Home: Saved Rooms next to Saved Items */
 .saved-pair {
