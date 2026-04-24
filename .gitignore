@@ -1,0 +1,11 @@
+# Reconstruction safety nets — kept on disk, but not in git history
+_before-recovery/
+_my-rebuild-backup/
+
+# Local-only configs (user pastes their own keys)
+supabase-config.local.js
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini

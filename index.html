@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>Furnish — Design your room with AI</title>
+  <meta name="theme-color" content="#8B6F47" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1C1410" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Furnish" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- SCREEN: Welcome -->
+    <section class="screen active" data-screen="welcome">
+      <button class="btn-icon theme-toggle-btn welcome-theme-toggle" id="welcomeThemeBtn" aria-label="Toggle theme" title="Toggle theme">
+        <svg class="icon icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="icon icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
+      </button>
+      <div class="hero">
+        <div class="brand">
+          <span class="logo" aria-label="Furnish logo">
+            <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Furnish">
+              <defs>
+                <linearGradient id="furnishMark" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%"   stop-color="#EBC793"/>
+                  <stop offset="55%"  stop-color="#A47C4D"/>
+                  <stop offset="100%" stop-color="#5C4128"/>
+                </linearGradient>
+                <linearGradient id="furnishHi" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="14" fill="url(#furnishMark)"/>
+              <rect width="64" height="32" rx="14" fill="url(#furnishHi)"/>
+              <rect x="20" y="20" width="13" height="24" rx="2" fill="#FAF3E7"/>
+              <rect x="20" y="20" width="24" height="12" rx="2" fill="#FAF3E7"/>
+              <rect x="20" y="29" width="18" height="10" rx="2" fill="#FAF3E7"/>
+            </svg>
+          </span>
+          <h1>Furnish</h1>
+        </div>
+        <p class="tagline">Your room. Your style. Designed by AI.</p>
+        <div class="hero-art" aria-hidden="true">
+          <div class="chair"></div>
+          <div class="lamp"></div>
+          <div class="rug"></div>
+        </div>
+        <button class="btn btn-primary" id="welcomeStartBtn">Get Started</button>
+        <p class="muted small">Takes under a minute</p>
+      </div>
+    </section>
+
+    <!-- SCREEN: Sign in -->
+    <section class="screen" data-screen="signin">
+      <header class="topbar">
+        <button class="btn-icon" data-go="welcome" aria-label="Back">‹</button>
+        <h2 id="signinTitle">Sign In</h2>
+      </header>
+      <div class="signin-card">
+        <p class="subtle" id="signinSubtitle">Welcome back. Sign in to sync your profiles and saved rooms.</p>
+
+        <div class="signin-social">
+          <button class="btn btn-ghost signin-social-btn" data-provider="google">
+            <span class="social-glyph">G</span> Continue with Google
+          </button>
+          <button class="btn btn-ghost signin-social-btn" data-provider="apple">
+            <span class="social-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path fill="#8B6F47" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              </svg>
+            </span> Continue with Apple
+          </button>
+          <button class="btn btn-ghost signin-social-btn" data-provider="amazon">
+            <span class="social-glyph" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8B6F47" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12 Q12 21 20 12"/>
+                <path d="M16.5 9.5 L20 12 L17.5 15.5"/>
+              </svg>
+            </span> Continue with Amazon
+          </button>
+        </div>
+
+        <div class="signin-divider"><span>or</span></div>
+
+        <form id="signinForm" class="signin-form" novalidate>
+          <label class="signin-field" id="nameField" style="display:none">
+            <span>Full name</span>
+            <input type="text" id="signinName" autocomplete="name" />
+          </label>
+          <label class="signin-field">
+            <span>Email</span>
+            <input type="email" id="signinEmail" autocomplete="email" required placeholder="you@example.com" />
+          </label>
+          <label class="signin-field">
+            <span>Password</span>
+            <input type="password" id="signinPassword" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters" />
+          </label>
+          <button type="submit" class="btn btn-primary big" id="signinSubmit">Sign In</button>
+        </form>
+
+        <p class="signin-toggle">
+          <span id="signinToggleText">New to Furnish?</span>
+          <button class="link" type="button" id="signinToggleBtn">Create an Account</button>
+        </p>
+      </div>
+    </section>
+
+    <!-- SCREEN: Profile select -->
+    <section class="screen" data-screen="profile-select">
+      <header class="topbar">
+        <button class="btn-icon" data-go="welcome" aria-label="Back">‹</button>
+        <h2>Choose a Profile</h2>
+        <div class="topbar-right">
+          <div class="user-menu" id="userMenu">
+            <button class="user-pill-btn" id="userPillBtn" aria-haspopup="menu" aria-expanded="false">
+              <span class="user-pill-avatar" id="userPillAvatar"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg></span>
+              <span class="user-pill-name" id="userPillName">User</span>
+              <span class="user-pill-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="user-dropdown" id="userDropdown" role="menu">
+              <div class="user-dropdown-header">
+                <div class="udh-name" id="userDropdownName"></div>
+                <div class="udh-email" id="userDropdownEmail"></div>
+              </div>
+              <button class="user-dropdown-item" data-action="switch" role="menuitem">
+                <span class="udi-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--spin" fill="none">
+                    <circle cx="12" cy="12" r="8.5" stroke="#A57E4F" stroke-width="2.5" stroke-dasharray="40 14" stroke-linecap="round"/>
+                    <path d="M19 6 L19 11 L14 11" stroke="#6B5235" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="udi-text">Switch Account</span>
+              </button>
+              <button class="user-dropdown-item" data-action="furnish-plus" role="menuitem">
+                <span class="udi-icon udi-icon--filled" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--gleam">
+                    <defs>
+                      <linearGradient id="udiFpMark" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%"   stop-color="#EBC793"/>
+                        <stop offset="55%"  stop-color="#A47C4D"/>
+                        <stop offset="100%" stop-color="#5C4128"/>
+                      </linearGradient>
+                    </defs>
+                    <rect width="24" height="24" rx="5" fill="url(#udiFpMark)"/>
+                    <rect width="24" height="11" rx="5" fill="#FFFFFF" opacity="0.12"/>
+                    <rect x="8" y="6"  width="3" height="13" rx="0.7" fill="#FAF3E7"/>
+                    <rect x="8" y="6"  width="9" height="3"  rx="0.7" fill="#FAF3E7"/>
+                    <rect x="8" y="11" width="6" height="2.5" rx="0.7" fill="#FAF3E7"/>
+                  </svg>
+                </span>
+                <span class="udi-text">Furnish+</span>
+                <span class="udi-badge">PRO</span>
+              </button>
+              <button class="user-dropdown-item" data-action="support" role="menuitem">
+                <span class="udi-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--bubble">
+                    <path d="M5 5 H19 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-7 l-4 3.4 v-3.4 h-3 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z"
+                          fill="#E5D4B8" stroke="#6B5235" stroke-width="1.5" stroke-linejoin="round"/>
+                    <circle cx="9"  cy="11" r="1.2" fill="#6B5235"/>
+                    <circle cx="12" cy="11" r="1.2" fill="#6B5235"/>
+                    <circle cx="15" cy="11" r="1.2" fill="#6B5235"/>
+                  </svg>
+                </span>
+                <span class="udi-text">Support</span>
+              </button>
+              <div class="user-dropdown-divider"></div>
+              <button class="user-dropdown-item user-dropdown-item-danger" data-action="signout" role="menuitem">
+                <span class="udi-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--door" fill="none">
+                    <path d="M10 4 H6 a2 2 0 0 0 -2 2 v12 a2 2 0 0 0 2 2 h4" stroke="#B54B3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 12 H21" stroke="#B54B3A" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M17 8 L21 12 L17 16" stroke="#B54B3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="udi-text">Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <p class="subtle">Profiles save your style so every room you design matches your taste.</p>
+      <div class="profile-grid" id="profileGrid"></div>
+      <button class="btn btn-ghost add-profile-btn" id="addProfileBtn">
+        <span class="apb-label">+ Add profile</span>
+        <span class="pro-lock"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>PRO</span>
+      </button>
+    </section>
+
+    <!-- SCREEN: Style quiz gate -->
+    <section class="screen" data-screen="quiz-intro">
+      <header class="topbar">
+        <button class="btn-icon" data-go="profile-select" aria-label="Back">‹</button>
+        <h2 id="quizIntroTitle">Find Your Style</h2>
+      </header>
+      <div class="quiz-intro-card">
+        <div class="quiz-badge">5 questions · ~45 seconds</div>
+        <h3>Let's Match You to a Look</h3>
+        <p class="muted">We'll ask a few quick questions. Your answers pre-fill your preferences — you can tweak them after.</p>
+        <div class="quiz-intro-actions">
+          <button class="btn btn-primary" id="startQuizBtn">Take the quiz</button>
+          <button class="btn btn-ghost" id="skipQuizBtn">Skip — I'll pick manually</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN: Style quiz -->
+    <section class="screen" data-screen="quiz">
+      <header class="topbar">
+        <button class="btn-icon" id="quizBackBtn" aria-label="Back">‹</button>
+        <h2>Style Quiz</h2>
+        <div class="quiz-progress" id="quizProgress"></div>
+      </header>
+      <div class="quiz-card">
+        <h3 id="quizQuestion"></h3>
+        <div class="quiz-options" id="quizOptions"></div>
+        <button class="quiz-none-btn" id="quizNoneBtn" type="button">None of these suit me</button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Profile preferences -->
+    <section class="screen" data-screen="preferences">
+      <header class="topbar">
+        <button class="btn-icon" data-go="profile-select" aria-label="Back">‹</button>
+        <h2 id="prefTitle">Profile Preferences</h2>
+      </header>
+      <p class="subtle">Pick the styles that feel like home. You can choose more than one.</p>
+
+      <section class="pp-card">
+        <button class="pp-avatar" id="ppAvatar" type="button" aria-label="Change profile photo">
+          <span class="pp-initials" id="ppInitials">F</span>
+          <img id="ppImage" alt="" />
+          <span class="pp-camera-overlay" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+              <path fill="#FAF3E7" d="M9.4 4l-1.83 2H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-3.57L14.6 4H9.4zM12 17a5 5 0 110-10 5 5 0 010 10z"/>
+              <circle cx="12" cy="12" r="3" fill="#FAF3E7"/>
+            </svg>
+          </span>
+        </button>
+        <div class="pp-meta">
+          <div class="pp-title">
+            <input id="ppNameInput" class="pp-name-input" type="text" maxlength="30" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="pp-sub">Tap to rename · add a photo</div>
+          <div class="pp-actions">
+            <label class="btn btn-ghost small">
+              <svg class="icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              Take photo
+              <input type="file" id="ppCameraInput" accept="image/*" capture="user" hidden />
+            </label>
+            <label class="btn btn-ghost small">
+              <svg class="icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Import
+              <input type="file" id="ppGalleryInput" accept="image/*" hidden />
+            </label>
+            <button class="btn btn-ghost small" id="ppRemoveBtn" style="display:none">
+              <svg class="icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>
+              Remove
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <h3 class="section-h">Styles</h3>
+      <div class="chip-grid" id="stylesGrid"></div>
+
+      <h3 class="section-h">Color Moods</h3>
+      <div class="chip-grid color-grid" id="colorsGrid"></div>
+      <div class="custom-color">
+        <label>
+          <span>Custom Accent</span>
+          <input type="color" id="customColor" value="#8B6F47" />
+        </label>
+        <button class="btn btn-ghost small" id="addCustomColorBtn">Add to Palette</button>
+        <div class="custom-color-list" id="customColorList"></div>
+      </div>
+
+      <h3 class="section-h">Budget per Room</h3>
+      <div class="budget-card">
+        <div class="budget-display">
+          <span class="budget-label">Up to</span>
+          <span class="budget-amount" id="budgetAmount">$1,500</span>
+        </div>
+        <input type="range" id="budgetSlider" class="budget-range" min="0" max="1000" step="1" value="500" aria-label="Budget per room" />
+        <div class="budget-ticks" aria-hidden="true">
+          <span>$50</span>
+          <span>$500</span>
+          <span>$2k</span>
+          <span>$5k</span>
+          <span>$10k+</span>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Home / dashboard -->
+    <section class="screen" data-screen="home">
+      <header class="topbar">
+        <div class="profile-pill" id="activeProfilePill">
+          <span class="dot"></span>
+          <span id="activeProfileName">Profile</span>
+          <button class="link small" id="switchProfileBtn">switch</button>
+        </div>
+        <div class="topbar-right">
+          <button class="btn-icon theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+            <svg class="icon icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <svg class="icon icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
+          </button>
+          <button class="btn-icon" id="wishlistBtn" aria-label="Wishlist" title="Wishlist">♡</button>
+        </div>
+      </header>
+      <div class="home-hero">
+        <h2>Design a new room</h2>
+        <p class="subtle">Snap a photo, or start from a template.</p>
+        <div class="home-ctas">
+          <button class="btn btn-primary" data-go="capture">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            New from photo
+          </button>
+          <button class="btn btn-ghost" data-go="templates">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Import
+          </button>
+        </div>
+      </div>
+
+      <h3 class="section-h">Trending Styles</h3>
+      <div class="collections-strip" id="trendingStrip"></div>
+
+      <h3 class="section-h">Seasonal</h3>
+      <div class="collections-strip" id="collectionsStrip"></div>
+
+      <div class="saved-pair">
+        <div class="saved-pair-col">
+          <h3 class="section-h">Saved Rooms</h3>
+          <div class="rooms-grid compact" id="roomsGrid">
+            <div class="empty-state" id="roomsEmpty">
+              <div class="empty-art">◠</div>
+              <p>No rooms yet.</p>
+            </div>
+          </div>
+        </div>
+        <div class="saved-pair-col">
+          <h3 class="section-h">Saved Items</h3>
+          <div class="saved-items-strip vertical" id="homeSavedItems"></div>
+        </div>
+      </div>
+      <div style="height:32px"></div>
+    </section>
+
+    <!-- SCREEN: Saved -->
+    <section class="screen" data-screen="saved">
+      <header class="topbar">
+        <h2>Saved</h2>
+      </header>
+      <div class="saved-tabs" id="savedTabs" role="tablist" aria-label="Saved categories">
+        <button class="st-tab active" data-st="rooms" role="tab" aria-selected="true">
+          <span>Saved Rooms</span>
+          <span class="st-count" id="stRoomsCount">0</span>
+        </button>
+        <button class="st-tab" data-st="items" role="tab" aria-selected="false">
+          <span>Saved Items</span>
+          <span class="st-count" id="stItemsCount">0</span>
+        </button>
+      </div>
+      <div class="saved-pane" id="savedRoomsPane">
+        <div class="rooms-grid" id="savedRoomsGrid"></div>
+      </div>
+      <div class="saved-pane" id="savedItemsPane" style="display:none">
+        <div class="items-list" id="savedItemsGrid"></div>
+      </div>
+    </section>
+
+    <!-- SCREEN: Profile -->
+    <section class="screen" data-screen="profile">
+      <header class="topbar">
+        <h2>Profile</h2>
+      </header>
+      <div class="profile-page">
+        <div class="pp-user-card">
+          <button class="pp-page-avatar" id="profilePageAvatar" aria-label="Change profile photo">
+            <span id="profilePageInitial">U</span>
+            <img id="profilePageImage" alt="" />
+          </button>
+          <div class="pp-user-info">
+            <div class="pp-user-name" id="profilePageName">User</div>
+            <div class="pp-user-email" id="profilePageEmail"></div>
+          </div>
+        </div>
+
+        <div class="pp-pro-card" id="profileProCard">
+          <div class="pp-pro-glow" aria-hidden="true"></div>
+          <div class="pp-pro-content">
+            <div class="pp-pro-badge">FURNISH+</div>
+            <div class="pp-pro-title" id="profileProTitle">Free Plan</div>
+            <div class="pp-pro-sub" id="profileProSub">1 free redesign — upgrade for unlimited</div>
+          </div>
+          <button class="btn btn-primary small" id="profileProBtn">Upgrade</button>
+        </div>
+
+        <h3 class="section-h">Active Design Profile</h3>
+        <div class="pp-active-row" id="profileActiveRow"></div>
+
+        <h3 class="section-h">Settings</h3>
+        <div class="pp-settings">
+          <button class="pp-setting" data-action="theme">
+            <span class="pps-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </span>
+            <span class="pps-label">Appearance</span>
+            <span class="pps-value" id="ppsThemeValue">Light</span>
+          </button>
+          <button class="pp-setting" data-action="support">
+            <span class="pps-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </span>
+            <span class="pps-label">Support</span>
+            <span class="pps-arrow">›</span>
+          </button>
+          <button class="pp-setting" data-action="switch">
+            <span class="pps-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </span>
+            <span class="pps-label">Switch Account</span>
+            <span class="pps-arrow">›</span>
+          </button>
+          <button class="pp-setting" data-action="reset">
+            <span class="pps-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+            </span>
+            <span class="pps-label">Reset Profile</span>
+            <span class="pps-badge-pro">PRO · Free Preview</span>
+          </button>
+          <button class="pp-setting pp-danger" data-action="signout">
+            <span class="pps-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+            </span>
+            <span class="pps-label">Sign Out</span>
+            <span class="pps-arrow">›</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN: Room templates -->
+    <section class="screen" data-screen="templates">
+      <header class="topbar">
+        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
+        <h2>Start from a Template</h2>
+      </header>
+      <p class="subtle">Skip the photo. Pick a ready-made room to remix.</p>
+      <div class="templates-grid" id="templatesGrid"></div>
+    </section>
+
+    <!-- SCREEN: Capture room -->
+    <section class="screen" data-screen="capture">
+      <header class="topbar">
+        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
+        <h2>Capture Your Room</h2>
+      </header>
+
+      <div class="capture-card">
+        <div class="photo-frame" id="photoFrame">
+          <div class="placeholder">
+            <div class="camera-icon">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </div>
+            <p>Tap below to take a photo or upload one</p>
+          </div>
+          <img id="photoPreview" alt="" />
+        </div>
+        <div class="capture-actions">
+          <label class="btn btn-primary">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            Take photo
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
+          </label>
+          <label class="btn btn-ghost">
+            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Upload
+            <input type="file" id="uploadInput" accept="image/*" hidden />
+          </label>
+        </div>
+        <p class="muted small center">We'll measure the space from your photo.</p>
+      </div>
+
+      <h3 class="section-h">Room type</h3>
+      <div class="rt-grid" id="roomTypeGrid"></div>
+
+      <h3 class="section-h">Dimensions</h3>
+      <div class="dim-card">
+        <p class="muted small" id="dimHint">Auto-detected from your photo. Adjust if needed.</p>
+        <div class="dim-row">
+          <label>Width <span class="unit">ft</span>
+            <input type="number" id="dimW" min="4" max="60" step="0.5" value="12" />
+          </label>
+          <label>Length <span class="unit">ft</span>
+            <input type="number" id="dimL" min="4" max="60" step="0.5" value="14" />
+          </label>
+          <label>Height <span class="unit">ft</span>
+            <input type="number" id="dimH" min="6" max="20" step="0.5" value="9" />
+          </label>
+        </div>
+        <button class="btn btn-ghost small" id="rescanBtn">Rescan dimensions</button>
+      </div>
+
+      <h3 class="section-h">Keep what's already there?</h3>
+      <div class="keep-card">
+        <p class="muted small keep-hint">Pick yes to design around your existing pieces. Pick no for a clean slate — we'll propose a full room.</p>
+        <div class="yesno-toggle" id="keepToggle" role="tablist" aria-label="Keep existing items">
+          <button class="yesno-btn" data-val="yes" role="tab" aria-selected="false">
+            <span class="yesno-emoji"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+            <span class="yesno-text"><strong>Yes</strong><small>Keep everything</small></span>
+          </button>
+          <button class="yesno-btn" data-val="no" role="tab" aria-selected="false">
+            <span class="yesno-emoji"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+            <span class="yesno-text"><strong>No</strong><small>Fresh start</small></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn btn-primary" id="analyzeBtn" disabled>Design My Room →</button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Analyzing -->
+    <section class="screen" data-screen="analyzing">
+      <div class="loader-wrap">
+        <div class="loader"></div>
+        <h2>Designing your room…</h2>
+        <ul class="loader-steps" id="loaderSteps">
+          <li data-step="measuring">Measuring your space</li>
+          <li data-step="matching">Matching your style profile</li>
+          <li data-step="curating">Curating pieces from our partners</li>
+          <li data-step="arranging">Arranging the layout</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SCREEN: Results -->
+    <section class="screen" data-screen="results">
+      <header class="topbar">
+        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
+        <h2>Your Furnish plan</h2>
+        <div class="topbar-right">
+          <button class="btn-icon" id="bookmarkRoomBtn" aria-label="Bookmark room" title="Save to rooms"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg></button>
+          <button class="btn-icon" id="shareRoomBtn" aria-label="Share" title="Share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8 11l8-4M8 13l8 4"/></svg></button>
+        </div>
+      </header>
+
+      <div class="results-summary" id="resultsSummary"></div>
+
+      <!-- Before / After slider -->
+      <div class="ba-slider" id="baSlider">
+        <div class="ba-layer ba-before">
+          <img id="baBeforeImg" alt="Before" />
+          <span class="ba-label">Before</span>
+        </div>
+        <div class="ba-layer ba-after" id="baAfterLayer">
+          <img id="baAfterImg" alt="After" />
+          <div class="room-overlay" id="roomOverlay"></div>
+          <div class="price-tags" id="priceTags"></div>
+          <span class="ba-label ba-label-after">After</span>
+        </div>
+        <div class="ba-handle" id="baHandle">
+          <div class="ba-handle-line"></div>
+          <div class="ba-handle-knob">⇄</div>
+        </div>
+      </div>
+
+
+
+      <!-- Rearrange toggle -->
+      <button class="btn btn-ghost rearrange-btn" id="rearrangeBtn" type="button">
+        <span class="rb-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none">
+            <path d="M3 7h18M21 7l-3-3M21 7l-3 3M21 17H3M3 17l3-3M3 17l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="rb-label">Rearrange furniture</span>
+      </button>
+
+      <!-- Totals + Shop the whole room -->
+      <div class="totals-card" id="totalsCard"></div>
+      <button class="btn btn-primary big shop-all-btn" id="shopAllBtn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M3 4h3l2.5 12h11l2-8H7"/><circle cx="10" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>Shop the Whole Room</button>
+
+      <!-- Color picker from items -->
+      <div class="palette-bar" id="paletteBar">
+        <span class="muted small">Tap a color to filter swaps:</span>
+        <div class="palette-swatches" id="paletteSwatches"></div>
+        <button class="link small" id="clearPaletteBtn" style="display:none">clear</button>
+      </div>
+
+      <h3 class="section-h">Recommended pieces</h3>
+      <div class="items-list" id="itemsList"></div>
+
+      <!-- Version comparison -->
+      <div class="versions-card" id="versionsCard" style="display:none">
+        <div class="versions-head">
+          <strong>Versions</strong>
+          <span class="muted small" id="versionsCount"></span>
+        </div>
+        <div class="versions-list" id="versionsList"></div>
+      </div>
+
+      <div class="actions-row stacked">
+        <button class="btn btn-ghost" id="reshuffleBtn">Reshuffle all picks</button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Wishlist -->
+    <section class="screen" data-screen="wishlist">
+      <header class="topbar">
+        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
+        <h2>Wishlist</h2>
+      </header>
+      <p class="subtle">Saved items. Toggle price-drop alerts for the ones you're watching.</p>
+      <div class="items-list" id="wishlistList">
+        <div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>No saved items yet.</p></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Share modal -->
+  <div class="modal" id="shareModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" id="shareClose" aria-label="Close">×</button>
+      <h3>Share your redesign</h3>
+      <canvas id="shareCanvas" width="720" height="900"></canvas>
+      <div class="share-actions">
+        <button class="btn btn-primary" id="shareDownloadBtn">Download image</button>
+        <button class="btn btn-ghost" id="shareCopyBtn">Copy caption</button>
+      </div>
+      <div class="share-targets">
+        <span class="muted small">Ready for:</span>
+        <span class="tag">Instagram 4:5</span>
+        <span class="tag">Pinterest</span>
+        <span class="tag">TikTok still</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paywall modal -->
+  <div class="modal" id="paywallModal" aria-hidden="true">
+    <div class="modal-card paywall-card">
+      <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
+      <div class="paywall-glow" aria-hidden="true"></div>
+      <div class="paywall-badge">FURNISH PRO</div>
+      <h3>Design your whole household</h3>
+      <p class="subtle paywall-sub">Give every person in your home their own taste profile — and unlock trending collections as they drop.</p>
+      <ul class="paywall-list">
+        <li><span class="bullet">✓</span> Unlimited profiles</li>
+        <li><span class="bullet">✓</span> Early access to new collections</li>
+        <li><span class="bullet">✓</span> HD room exports & social kits</li>
+        <li><span class="bullet">✓</span> Priority partner pricing</li>
+      </ul>
+      <div class="paywall-actions">
+        <button class="btn btn-primary big" id="paywallCta">Join the waitlist</button>
+        <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
+      </div>
+      <p class="muted small center paywall-footnote">Launching soon. We'll email you when it's live.</p>
+    </div>
+  </div>
+
+  <!-- Paywall modal -->
+  <div class="modal" id="paywallModal" aria-hidden="true">
+    <div class="modal-card paywall-card">
+      <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
+      <div class="paywall-glow" aria-hidden="true"></div>
+      <div class="paywall-badge">FURNISH PRO</div>
+      <h3>Design your whole household</h3>
+      <p class="subtle paywall-sub">Give every person in your home their own taste profile — and unlock trending collections as they drop.</p>
+      <ul class="paywall-list">
+        <li><span class="bullet">✓</span> Unlimited profiles</li>
+        <li><span class="bullet">✓</span> Early access to new collections</li>
+        <li><span class="bullet">✓</span> HD room exports & social kits</li>
+        <li><span class="bullet">✓</span> Priority partner pricing</li>
+      </ul>
+      <div class="paywall-actions">
+        <button class="btn btn-primary big" id="paywallCta">Join the waitlist</button>
+        <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
+      </div>
+      <p class="muted small center paywall-footnote">Launching soon. We'll email you when it's live.</p>
+    </div>
+  </div>
+
+  <!-- Paywall modal -->
+  <div class="modal" id="paywallModal" aria-hidden="true">
+    <div class="modal-card paywall-card">
+      <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
+      <div class="paywall-glow" aria-hidden="true"></div>
+      <div class="paywall-badge">FURNISH PRO</div>
+      <h3>Design your whole household</h3>
+      <p class="subtle paywall-sub">Give every person in your home their own taste profile — and unlock trending collections as they drop.</p>
+      <ul class="paywall-list">
+        <li><span class="bullet">✓</span> Unlimited profiles</li>
+        <li><span class="bullet">✓</span> Early access to new collections</li>
+        <li><span class="bullet">✓</span> HD room exports & social kits</li>
+        <li><span class="bullet">✓</span> Priority partner pricing</li>
+      </ul>
+      <div class="paywall-actions">
+        <button class="btn btn-primary big" id="paywallCta">Join the waitlist</button>
+        <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
+      </div>
+      <p class="muted small center paywall-footnote">Launching soon. We'll email you when it's live.</p>
+    </div>
+  </div>
+
+  <!-- Item detail bottom sheet -->
+  <div class="bottom-sheet" id="itemSheet" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="bs-backdrop" id="itemSheetBackdrop"></div>
+    <div class="bs-card">
+      <div class="bs-handle" aria-hidden="true"></div>
+      <button class="bs-close" id="itemSheetClose" aria-label="Close">×</button>
+      <div class="bs-scroll">
+        <div class="bs-image" id="bsImage" aria-hidden="true"></div>
+        <div class="bs-body">
+          <div class="bs-meta-row">
+            <span class="bs-source-pill" id="bsSource"></span>
+            <span class="bs-type-pill" id="bsType"></span>
+          </div>
+          <h2 class="bs-name" id="bsName"></h2>
+          <p class="bs-desc" id="bsDesc"></p>
+          <div class="bs-price-line">
+            <span class="bs-price" id="bsPrice"></span>
+            <span class="bs-fit-warning" id="bsFit"></span>
+          </div>
+          <h3 class="bs-section-h">Details</h3>
+          <div class="bs-spec-grid" id="bsSpecs"></div>
+          <h3 class="bs-section-h">Alternatives in your style</h3>
+          <div class="bs-alts" id="bsAlts"></div>
+        </div>
+      </div>
+      <div class="bs-actions">
+        <button class="bs-act bs-act-icon" id="bsSaveBtn" aria-label="Save to wishlist" title="Save to wishlist">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </button>
+        <button class="bs-act bs-act-icon" id="bsSwapBtn" aria-label="Swap for alternative" title="Swap for alternative">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 1 21 5 17 9"/>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+            <polyline points="7 23 3 19 7 15"/>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+          </svg>
+        </button>
+        <a class="bs-act bs-act-primary" id="bsShopBtn" target="_blank" rel="noopener noreferrer">
+          <span>Shop now</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="7" y1="17" x2="17" y2="7"/>
+            <polyline points="7 7 17 7 17 17"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Support modal -->
+  <div class="modal" id="supportModal" aria-hidden="true">
+    <div class="modal-card support-card">
+      <button class="modal-close" id="supportClose" aria-label="Close">×</button>
+      <h3>Need a Hand?</h3>
+      <p class="subtle">We're a small team and we love hearing from you.</p>
+      <div class="support-options">
+        <a class="support-row" href="mailto:hello@furnish.app">
+          <span class="sr-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>
+          <div class="sr-body"><strong>Email Us</strong><small>hello@furnish.app · usually within 24h</small></div>
+          <span class="sr-arrow">›</span>
+        </a>
+        <button class="support-row" id="supportFaq" type="button">
+          <span class="sr-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 115 .5c0 1.5-2.5 1.5-2.5 3v.3"/><circle cx="12" cy="17.5" r="1.1" fill="currentColor" stroke="none"/></svg></span>
+          <div class="sr-body"><strong>Browse the FAQ</strong><small>Quick answers to common questions</small></div>
+          <span class="sr-arrow">›</span>
+        </button>
+        <button class="support-row" id="supportFeedback" type="button">
+          <span class="sr-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21h6M10 17h4M12 3a6 6 0 00-4 10.5c.8.8 1 1.5 1 3h6c0-1.5.2-2.2 1-3A6 6 0 0012 3z"/></svg></span>
+          <div class="sr-body"><strong>Suggest a Feature</strong><small>We read every note</small></div>
+          <span class="sr-arrow">›</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="photoSourceModal" aria-hidden="true">
+    <div class="modal-card photo-source-card">
+      <button class="modal-close" id="psClose" aria-label="Close">×</button>
+      <h3>Profile Photo</h3>
+      <p class="subtle ps-sub">Choose how you'd like to add a photo.</p>
+      <div class="ps-actions">
+        <button class="btn btn-primary big" id="psTakePhoto">
+          <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          Take a photo
+        </button>
+        <button class="btn btn-ghost" id="psFromGallery">
+          <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Import
+        </button>
+        <button class="btn btn-ghost ps-remove" id="psRemove" style="display:none">
+          <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>
+          Remove current photo
+        </button>
+      </div>
+      <button class="link ps-cancel" id="psCancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Profile photo source modal -->
+  <div class="modal" id="photoSourceModal" aria-hidden="true">
+    <div class="modal-card photo-source-card">
+      <button class="modal-close" id="psClose" aria-label="Close">×</button>
+      <h3>Profile Photo</h3>
+      <p class="subtle ps-sub">Choose how you'd like to add a photo.</p>
+      <div class="ps-actions">
+        <button class="btn btn-primary big" id="psTakePhoto"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take a Photo</button>
+        <button class="btn btn-ghost" id="psFromGallery"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M12 4v11M7 9l5-5 5 5M4 20h16"/></svg>Import</button>
+        <button class="btn btn-ghost ps-remove" id="psRemove" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Remove Current Photo</button>
+      </div>
+      <button class="link ps-cancel" id="psCancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Subtle reviews ticker -->
+  <aside id="reviewsBar" class="reviews-bar" aria-label="Recent reviews">
+    <div class="review-row" id="reviewRow"></div>
+  </aside>
+
+  <!-- Subtle reviews ticker -->
+  <aside id="reviewsBar" class="reviews-bar" aria-label="Recent reviews">
+    <div class="review-row" id="reviewRow"></div>
+  </aside>
+
+  <!-- Bottom navigation (visible only on home/saved/profile) -->
+  <nav class="bottom-nav" id="bottomNav" role="tablist" aria-label="Main navigation">
+    <button class="bn-tab" data-go="home" data-tab="home" role="tab">
+      <svg class="bn-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/>
+        <path d="M9 21V14h6v7"/>
+      </svg>
+      <span>Home</span>
+    </button>
+    <button class="bn-tab" data-go="saved" data-tab="saved" role="tab">
+      <svg class="bn-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+      <span>Saved</span>
+    </button>
+    <button class="bn-tab" data-go="profile" data-tab="profile" role="tab">
+      <svg class="bn-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
+      </svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="supabase-config.js"></script>
+  <script src="supabase-client.js"></script>
+  <script src="furniture.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
