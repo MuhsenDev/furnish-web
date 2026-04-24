@@ -322,17 +322,12 @@
       </header>
       <div class="home-hero">
         <h2>Design a new room</h2>
-        <p class="subtle">Snap a photo, import one you already have, or start from a template.</p>
-        <div class="home-ctas three">
+        <p class="subtle">Snap a photo, or start from a template.</p>
+        <div class="home-ctas">
           <button class="btn btn-primary" data-go="capture">
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
             New from Photo
           </button>
-          <label class="btn btn-ghost" id="homeImportBtn">
-            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Import
-            <input type="file" id="homeImportInput" accept="image/*" hidden />
-          </label>
           <button class="btn btn-ghost" data-go="templates">
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
             Use Template
@@ -481,10 +476,17 @@
     </section>
 
     <!-- SCREEN: Capture room -->
-    <section class="screen" data-screen="capture">
+    <!-- SCREEN 1/4: Capture Your Room (photo) -->
+    <section class="screen" data-screen="capture" data-flow-prev="home">
       <header class="topbar">
-        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
+        <div class="topbar-left">
+          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
+          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
+          </button>
+        </div>
         <h2>Capture Your Room</h2>
+        <div class="flow-step muted small">Step 1 of 4</div>
       </header>
 
       <div class="capture-card">
@@ -500,7 +502,7 @@
         <div class="capture-actions">
           <label class="btn btn-primary">
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-            Take photo
+            Take Photo
             <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden />
           </label>
           <label class="btn btn-ghost">
@@ -512,10 +514,45 @@
         <p class="muted small center">We'll measure the space from your photo.</p>
       </div>
 
-      <h3 class="section-h">Room type</h3>
+      <div class="actions-row">
+        <button class="btn btn-primary" data-flow-next="capture-room-type">Next →</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 2/4: Room Type -->
+    <section class="screen" data-screen="capture-room-type" data-flow-prev="capture">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
+          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
+          </button>
+        </div>
+        <h2>Room Type</h2>
+        <div class="flow-step muted small">Step 2 of 4</div>
+      </header>
+
+      <p class="subtle">Which room are you designing?</p>
       <div class="rt-grid" id="roomTypeGrid"></div>
 
-      <h3 class="section-h">Dimensions</h3>
+      <div class="actions-row">
+        <button class="btn btn-primary" data-flow-next="capture-dimensions">Next →</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 3/4: Dimensions -->
+    <section class="screen" data-screen="capture-dimensions" data-flow-prev="capture-room-type">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
+          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
+          </button>
+        </div>
+        <h2>Dimensions</h2>
+        <div class="flow-step muted small">Step 3 of 4</div>
+      </header>
+
       <div class="dim-card">
         <p class="muted small" id="dimHint">Auto-detected from your photo. Adjust if needed.</p>
         <div class="dim-row">
@@ -529,10 +566,27 @@
             <input type="number" id="dimH" min="6" max="20" step="0.5" value="9" />
           </label>
         </div>
-        <button class="btn btn-ghost small" id="rescanBtn">Rescan dimensions</button>
+        <button class="btn btn-ghost small" id="rescanBtn">Rescan Dimensions</button>
       </div>
 
-      <h3 class="section-h">Keep what's already there?</h3>
+      <div class="actions-row">
+        <button class="btn btn-primary" data-flow-next="capture-keep">Next →</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 4/4: Keep existing items? -->
+    <section class="screen" data-screen="capture-keep" data-flow-prev="capture-dimensions">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
+          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
+          </button>
+        </div>
+        <h2>Keep What's Already There?</h2>
+        <div class="flow-step muted small">Step 4 of 4</div>
+      </header>
+
       <div class="keep-card">
         <p class="muted small keep-hint">Pick yes to design around your existing pieces. Pick no for a clean slate — we'll propose a full room.</p>
         <div class="yesno-toggle" id="keepToggle" role="tablist" aria-label="Keep existing items">

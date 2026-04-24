@@ -2880,31 +2880,24 @@
     cycle();
   }
 
-  // ---------- Home: Import-from-device button ----------
-  function wireHomeImport() {
-    const input = document.getElementById('homeImportInput');
-    if (!input || input.__wired) return;
-    input.__wired = true;
-    input.addEventListener('change', e => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) { toast('Pick an image file'); input.value = ''; return; }
-      if (file.size > 12 * 1024 * 1024)    { toast('Image too large (12MB max)'); input.value = ''; return; }
-      const reader = new FileReader();
-      reader.onload = ev => {
-        state.draft = state.draft || { photo: null, type: 'living', dims: { w:12, l:14, h:9 }, keep: true };
-        state.draft.photo = ev.target.result;
-        save();
-        showScreen('capture');
-        toast('Photo imported');
-        // Pre-populate the capture screen preview if render runs later
-        const prev = document.getElementById('photoPreview');
-        if (prev) { prev.src = ev.target.result; prev.classList.add('has-image'); }
-        const ph = document.querySelector('.photo-frame .placeholder');
-        if (ph) ph.classList.add('hidden');
-      };
-      reader.readAsDataURL(file);
-      input.value = '';
+  // ---------- Multi-screen capture flow: back + next wiring ----------
+  function wireCaptureFlow() {
+    // Delegated click: any [data-go-back] button walks one screen backwards
+    // through the flow using the current screen's data-flow-prev attribute.
+    // Falls back to home if no prev is set.
+    document.addEventListener('click', e => {
+      const back = e.target.closest('[data-go-back]');
+      if (back) {
+        const cur = document.querySelector('.screen.active');
+        const prev = cur?.getAttribute('data-flow-prev') || 'home';
+        showScreen(prev);
+        return;
+      }
+      const next = e.target.closest('[data-flow-next]');
+      if (next) {
+        const dest = next.getAttribute('data-flow-next');
+        if (dest) showScreen(dest);
+      }
     });
   }
 
@@ -2912,7 +2905,7 @@
   function boot() {
     showScreen('welcome');
     startReviewsBar();
-    wireHomeImport();
+    wireCaptureFlow();
   }
   boot();
 })();
