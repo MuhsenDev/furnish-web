@@ -693,27 +693,30 @@
       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16"/></svg>`
     ];
 
-    // Prepare a dense batch of pieces that fill the entire screen.
+    // Prepare a VERY dense batch of pieces so the screen fills with only
+    // small gaps between furniture. 240 is the target; we can go slightly
+    // lower on tiny viewports to avoid overdraw lag.
     rain.innerHTML = '';
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const COUNT = Math.min(130, Math.max(70, Math.floor((W * H) / 9500)));
+    const COUNT = Math.min(240, Math.max(140, Math.floor((W * H) / 4800)));
     const pieces = [];
-    const sizes = ['s', 'm', 'm', 'l']; // weighted toward medium
+    const sizes = ['s', 's', 'm', 'm', 'm', 'l']; // weighted — more smalls for tight packing
     for (let i = 0; i < COUNT; i++) {
       const el = document.createElement('div');
       el.className = 'qf-piece';
       el.setAttribute('data-size', sizes[i % sizes.length]);
       el.innerHTML = GLYPHS[i % GLYPHS.length];
-      const leftPct = Math.random() * 96 + 2;                       // 2%..98%
-      const delay = Math.floor(Math.random() * 1100);                // 0..1100ms stagger
+      const leftPct = Math.random() * 97 + 1.5;                      // 1.5%..98.5%
+      const delay = Math.floor(Math.random() * 1400);                 // 0..1400ms stagger
       const spin  = Math.floor((Math.random() * 720) - 360);
-      // Land across the ENTIRE screen height (not just bottom) for a full-fill feel
-      const landY = Math.floor(H * (0.02 + Math.random() * 0.95));   // 2%..97% of H
+      // Fill across the full height — 0%..97%
+      const landY = Math.floor(H * Math.random() * 0.97);
       el.style.left = leftPct + '%';
       el.style.setProperty('--delay', delay + 'ms');
       el.style.setProperty('--spin', spin + 'deg');
-      el.style.setProperty('--landY', landY + 'px');
+      // Raw NUMBER (no 'px') so we can math it in pop keyframe
+      el.style.setProperty('--landY', landY);
       rain.appendChild(el);
       pieces.push({ el, leftPct, landY, spin });
     }
@@ -725,26 +728,28 @@
     // next frame, start rain
     requestAnimationFrame(() => scrim.classList.add('raining'));
 
-    // Pop after rain completes (longest drop ≈ 1400 + 1100 stagger = ~2500ms,
-    // then hold full fill for ~450ms so the user registers it)
+    // Pop after rain completes (longest drop ≈ 1400 + 1400 stagger = ~2800ms,
+    // then hold full fill for ~500ms so the user registers the density)
     const popTimer = setTimeout(() => {
-      // Compute random burst vectors relative to card center (50%,50%)
+      // For each piece: burst outward AWAY from screen center, based on
+      // where it landed. dy is the *delta* added to landY in the keyframe
+      // so the same DOM element keeps going from its current position.
       pieces.forEach(({ el, leftPct, landY }) => {
         const px = (leftPct / 100) * W;
         const cx = W / 2, cy = H / 2;
         const vx = px - cx;
         const vy = landY - cy;
         const mag = Math.sqrt(vx * vx + vy * vy) || 1;
-        const dx = (vx / mag) * (260 + Math.random() * 160);
-        const dy = (vy / mag) * (260 + Math.random() * 160) - 180; // bias upward
+        const dx  = (vx / mag) * (320 + Math.random() * 220);
+        const dyo = (vy / mag) * (320 + Math.random() * 220) - 120; // slight upward bias
         el.style.setProperty('--dx', dx.toFixed(0));
-        el.style.setProperty('--dy', dy.toFixed(0));
+        el.style.setProperty('--dy', dyo.toFixed(0));
       });
       scrim.classList.remove('raining');
       scrim.classList.add('popping');
-      // After the pop, reveal the congrats card
-      setTimeout(() => scrim.classList.add('reveal'), 380);
-    }, 2950);
+      // Reveal the congrats card after the pop peaks
+      setTimeout(() => scrim.classList.add('reveal'), 520);
+    }, 3300);
 
     // Continue → cleanup + proceed
     const cleanup = () => {

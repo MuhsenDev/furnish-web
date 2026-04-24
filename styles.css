@@ -4013,7 +4013,7 @@ html[data-theme="dark"] .quiz-finale {
   width: 34px; height: 34px;
   color: var(--brown);
   opacity: 0;
-  transform: translateY(-80px) rotate(var(--spin, 0deg));
+  transform: translateY(-120px) rotate(var(--spin, 0deg));
   will-change: transform, opacity;
 }
 .qf-piece svg { width: 100%; height: 100%; display: block; }
@@ -4022,16 +4022,25 @@ html[data-theme="dark"] .qf-piece { color: var(--tan); }
   animation: qfDrop 1400ms cubic-bezier(.35, .05, .25, 1) var(--delay, 0ms) both;
 }
 .quiz-finale.popping .qf-piece {
-  animation: qfPop 700ms cubic-bezier(.34, 1.56, .64, 1) both;
+  /* Pop from the SAME landed position — no jumping back to top */
+  animation: qfPop 900ms cubic-bezier(.34, 1.56, .64, 1) both;
 }
 @keyframes qfDrop {
   0%   { transform: translateY(-120px) rotate(var(--spin, 0deg)) scale(0.7); opacity: 0; }
   8%   { opacity: 1; }
-  100% { transform: translateY(var(--landY, 80vh)) rotate(calc(var(--spin, 0deg) * 2)) scale(1); opacity: 1; }
+  100% { transform: translateY(calc(var(--landY, 400) * 1px)) rotate(calc(var(--spin, 0deg) * 2)) scale(1); opacity: 1; }
 }
 @keyframes qfPop {
-  0%   { opacity: 1; }
-  100% { transform: translate(calc(var(--dx, 0) * 1px), calc(var(--dy, -400) * 1px)) rotate(calc(var(--spin, 0deg) * 3)) scale(1.8); opacity: 0; }
+  /* 0% matches the final frame of qfDrop so the same piece continues seamlessly */
+  0% {
+    transform: translateY(calc(var(--landY, 400) * 1px)) rotate(calc(var(--spin, 0deg) * 2)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    /* Burst outward from landed position: x moves by dx, y moves by landY + dy (dy is usually negative) */
+    transform: translate(calc(var(--dx, 0) * 1px), calc((var(--landY, 400) + var(--dy, -400)) * 1px)) rotate(calc(var(--spin, 0deg) * 3)) scale(1.8);
+    opacity: 0;
+  }
 }
 .qf-card {
   position: absolute;
@@ -4057,7 +4066,7 @@ html[data-theme="dark"] .qf-piece { color: var(--tan); }
 .qf-card .qf-sub { margin: 0 0 22px; font-size: 14px; color: var(--muted); line-height: 1.5; }
 .qf-card .btn { width: 100%; }
 
-/* Heartbeat glowing heart */
+/* Gold star with heartbeat glow (the star is still; ONLY the glow pulses) */
 .qf-heart {
   position: relative;
   width: 72px; height: 72px;
@@ -4066,35 +4075,29 @@ html[data-theme="dark"] .qf-piece { color: var(--tan); }
 }
 .qf-heart svg {
   position: relative; z-index: 1;
-  animation: qfHeartBeat 1.2s ease-in-out infinite;
-  transform-origin: 50% 55%;
   filter: drop-shadow(0 4px 10px rgba(139, 111, 71, 0.35));
 }
 .qf-heart-glow {
   position: absolute;
-  inset: -12px;
+  inset: -14px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(235, 199, 147, 0.65) 0%, rgba(164, 124, 77, 0.35) 45%, rgba(92, 65, 40, 0) 72%);
-  filter: blur(4px);
-  animation: qfHeartGlow 1.2s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(235, 199, 147, 0.75) 0%, rgba(164, 124, 77, 0.42) 45%, rgba(92, 65, 40, 0) 72%);
+  filter: blur(5px);
+  animation: qfGlowHeartbeat 1.1s ease-in-out infinite;
   pointer-events: none;
+  transform-origin: 50% 50%;
 }
 html[data-theme="dark"] .qf-heart-glow {
-  background: radial-gradient(circle, rgba(212, 176, 126, 0.5) 0%, rgba(139, 111, 71, 0.3) 45%, rgba(0,0,0,0) 72%);
+  background: radial-gradient(circle, rgba(212, 176, 126, 0.6) 0%, rgba(139, 111, 71, 0.35) 45%, rgba(0,0,0,0) 72%);
 }
-@keyframes qfHeartBeat {
-  0%, 100% { transform: scale(1); }
-  12%      { transform: scale(1.14); }
-  22%      { transform: scale(0.98); }
-  34%      { transform: scale(1.10); }
-  46%      { transform: scale(1); }
-}
-@keyframes qfHeartGlow {
-  0%, 100% { opacity: 0.6; transform: scale(0.95); }
-  12%      { opacity: 1;   transform: scale(1.18); }
-  22%      { opacity: 0.7; transform: scale(1); }
-  34%      { opacity: 1;   transform: scale(1.12); }
-  46%      { opacity: 0.65; transform: scale(1); }
+/* Two rapid pulses then a rest — actual heartbeat cadence (lub-dub ... lub-dub) */
+@keyframes qfGlowHeartbeat {
+  0%   { opacity: 0.55; transform: scale(0.95); }
+  14%  { opacity: 1;    transform: scale(1.28); }
+  28%  { opacity: 0.6;  transform: scale(1.00); }
+  42%  { opacity: 1;    transform: scale(1.22); }
+  56%  { opacity: 0.55; transform: scale(0.95); }
+  100% { opacity: 0.55; transform: scale(0.95); }
 }
 
 /* --- Rain pieces: give them size variation for depth when filling the screen --- */
