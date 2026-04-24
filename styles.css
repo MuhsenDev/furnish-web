@@ -3999,12 +3999,13 @@ html[data-theme="dark"] .rooms-grid .empty-state { background: var(--surface); c
   position: fixed; inset: 0;
   z-index: 9000;
   display: none;
-  background: radial-gradient(circle at 50% 40%, rgba(250, 243, 231, 0.96) 0%, rgba(235, 199, 147, 0.92) 100%);
+  /* Fully opaque — nothing behind the finale should peek through */
+  background: radial-gradient(circle at 50% 40%, #FAF3E7 0%, #EBC793 100%);
   overflow: hidden;
   pointer-events: none;
 }
 html[data-theme="dark"] .quiz-finale {
-  background: radial-gradient(circle at 50% 40%, rgba(36, 26, 20, 0.96) 0%, rgba(20, 14, 10, 0.96) 100%);
+  background: radial-gradient(circle at 50% 40%, #241A14 0%, #140E0A 100%);
 }
 .quiz-finale.open { display: block; pointer-events: auto; }
 .qf-rain { position: absolute; inset: 0; }
@@ -4048,7 +4049,8 @@ html[data-theme="dark"] .qf-piece { color: var(--tan); }
   transform: translate(-50%, -46%) scale(0.8);
   width: min(86vw, 340px);
   padding: 28px 24px 24px;
-  background: var(--surface);
+  /* Hard cream/surface — 100% opacity, no translucency */
+  background: #FFFFFF;
   border: 1px solid var(--line);
   border-radius: 22px;
   box-shadow: 0 24px 80px rgba(62, 39, 35, 0.18);
@@ -4056,6 +4058,15 @@ html[data-theme="dark"] .qf-piece { color: var(--tan); }
   opacity: 0;
   transition: opacity .36s ease, transform .55s cubic-bezier(.34, 1.56, .64, 1);
   pointer-events: none;
+}
+html[data-theme="dark"] .qf-card {
+  background: #1C1410;
+  border-color: #3E2723;
+}
+.qf-card .btn-primary {
+  background: var(--brown);
+  color: #FAF3E7;
+  opacity: 1;
 }
 .quiz-finale.reveal .qf-card {
   opacity: 1;

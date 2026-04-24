@@ -747,13 +747,40 @@
       });
       scrim.classList.remove('raining');
       scrim.classList.add('popping');
-      // Reveal the congrats card after the pop peaks
-      setTimeout(() => scrim.classList.add('reveal'), 520);
+
+      // Mid-explosion theme flicker: opposite -> back -> opposite -> back
+      // Light start  -> Dark, Light, Dark, Light
+      // Dark  start  -> Light, Dark, Light, Dark
+      const userTheme = (state.settings && state.settings.theme === 'dark') ? 'dark' : 'light';
+      const opposite  = userTheme === 'dark' ? 'light' : 'dark';
+      const html = document.documentElement;
+      const flicker = [
+        { at:  60, theme: opposite },
+        { at: 180, theme: userTheme },
+        { at: 300, theme: opposite },
+        { at: 460, theme: userTheme }, // settle on the user's actual theme
+      ];
+      const timers = flicker.map(f =>
+        setTimeout(() => html.setAttribute('data-theme', f.theme), f.at)
+      );
+      // Stash so cleanup can clear them if user closes early
+      scrim.__flickerTimers = timers;
+
+      // Reveal the congrats card after the pop peaks (and after the flicker settles)
+      setTimeout(() => scrim.classList.add('reveal'), 600);
     }, 3300);
 
     // Continue → cleanup + proceed
     const cleanup = () => {
       clearTimeout(popTimer);
+      // Cancel any pending theme flicker so it can't fire after we leave
+      if (scrim.__flickerTimers) {
+        scrim.__flickerTimers.forEach(t => clearTimeout(t));
+        scrim.__flickerTimers = null;
+      }
+      // Make absolutely sure the user's theme is restored
+      const userTheme = (state.settings && state.settings.theme === 'dark') ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', userTheme);
       cont.removeEventListener('click', onContinue);
       scrim.classList.remove('open', 'raining', 'popping', 'reveal');
       scrim.setAttribute('aria-hidden', 'true');
