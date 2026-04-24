@@ -431,16 +431,22 @@
     const grid = $('#profileGrid');
     grid.innerHTML = '';
 
+    // Free tier = 1 profile only. Extra profiles are a Pro feature.
     if (state.profiles.length === 0) {
-      for (let i = 1; i <= 4; i++) {
-        state.profiles.push({ id:'p'+i, name:'Profile '+i, styles:[], colors:[], customColors:[], budget:'mid' });
-      }
+      state.profiles.push({ id:'p1', name:'Profile 1', styles:[], colors:[], customColors:[], budget:'mid' });
       save();
     }
 
+    // Profiles beyond the first are locked unless user is Pro.
+    // (Existing users who had 4 profiles from the previous seed keep their
+    // data, but profile #2+ shows a lock and opens the paywall on tap.)
+    const isPro = !!state.user?.isPro;
     state.profiles.forEach((p, idx) => {
+      const locked = idx > 0 && !isPro;
       const card = document.createElement('div');
-      card.className = 'profile-card' + (state.activeProfileId === p.id ? ' selected' : '');
+      card.className = 'profile-card'
+        + (state.activeProfileId === p.id ? ' selected' : '')
+        + (locked ? ' pro-locked' : '');
       card.style.setProperty('--stagger-i', idx);
       const initials = p.name.match(/\d+|\S/)?.[0] || p.name[0];
       const stylesLine = p.styles.length
@@ -451,8 +457,18 @@
         : `style="background:${avatarGradient(idx)}"`;
       const avatarClass = p.avatar ? 'profile-avatar has-photo' : 'profile-avatar';
       const avatarBody = p.avatar ? '' : initials;
+      const lockHTML = locked
+        ? `<div class="profile-lock" aria-label="Pro only">
+             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+               <rect x="5" y="11" width="14" height="9" rx="2"/>
+               <path d="M8 11V8a4 4 0 018 0v3"/>
+             </svg>
+             PRO
+           </div>`
+        : '';
       card.innerHTML = `
         <button class="profile-edit-btn" aria-label="Rename" title="Rename">✎</button>
+        ${lockHTML}
         <div class="${avatarClass}" ${avatarStyle}>${avatarBody}</div>
         <div class="title">${p.name}</div>
         <div class="styles-line">${stylesLine}</div>
@@ -491,6 +507,10 @@
         input.addEventListener('blur', commit);
       });
       card.addEventListener('click', () => {
+        if (locked) {
+          openPaywall('profile');
+          return;
+        }
         state.activeProfileId = p.id;
         save();
         if (p.styles.length === 0) {
@@ -747,7 +767,7 @@
     rain.innerHTML = '';
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const COUNT = Math.min(240, Math.max(140, Math.floor((W * H) / 4800)));
+    const COUNT = Math.min(480, Math.max(280, Math.floor((W * H) / 2400)));
     const pieces = [];
     const sizes = ['s', 's', 'm', 'm', 'm', 'l']; // weighted — more smalls for tight packing
     for (let i = 0; i < COUNT; i++) {
