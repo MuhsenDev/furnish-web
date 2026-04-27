@@ -1580,3 +1580,35 @@ When the row was narrow but ≥540px, "Shop The Whole Room" lost width to the ot
 ## Status: ✅ COMPLETE
 
 All 4 fixes shipped + verified live. 3 new analytics events scaffolded for PostHog cutover. Auto-deferred items documented. Reforge framework citations per spec.
+
+---
+
+# Onboarding Q4 — four custom inline SVG icons (2026-04-27)
+
+**Scope:** Replace the placeholder ImageIcon SVGs on Q4 of the onboarding quiz ("What are we redesigning?") with four hand-crafted line-art icons.
+
+**Root cause:** `furniture.js` Q4 options reference svg keys (`scope-furniture`, `scope-furniture-decor`, `scope-whole-room`, `scope-surprise`), but those keys were never added to `window.QUIZ_SVGS`. The renderer fell through to `defaultPlaceholderSvg()` (a generic image-frame placeholder).
+
+**Architectural decision:** added the four SVGs from `app.js` via `Object.assign(window.QUIZ_SVGS, {...})` at boot — NOT by editing `furniture.js` directly. Reason: `furniture.js` had unrelated uncommitted working-tree changes from prior work; adding the SVGs to `furniture.js` would have bundled them with that uncommitted diff. The `Object.assign` augmentation pattern keeps this commit clean and is idempotent (`if (!window.QUIZ_SVGS['scope-furniture'])` guard).
+
+**Icons added (all `viewBox="0 0 100 100" fill="none" stroke="currentColor"` matching existing QUIZ_SVGS aesthetic):**
+1. **`scope-furniture`** — single sofa in profile (line-art only, no decor or walls; communicates "one piece of furniture")
+2. **`scope-furniture-decor`** — three balanced elements: pendant lamp top-left, framed wall-art top-right, simple bed bottom (communicates "more than just furniture" without becoming busy)
+3. **`scope-whole-room`** — full interior view: walls, window, pendant light, sofa, rug. Most complex of the four; visual weight reflects scope of redesign.
+4. **`scope-surprise`** — bold, confident question mark. Heavier stroke-width (6 vs 3) so it matches visual prominence of the other three.
+
+**Light + dark mode (verified live):**
+- Light mode: `--brown-2` brown stroke (`rgb(107, 82, 53)`) on white card surface
+- Dark mode: `--ink` cream stroke (`rgb(235, 221, 200)`) on dark surface card
+- All four icons use `currentColor` and inherit from the `.qoc-icon` parent's color token — auto-responds to mode toggle.
+
+**Existing icon system unmodified.** No changes to `furniture.js`, no changes to existing QUIZ_SVGS entries (Q3 weekend, Q5 feeling, Q6 wall density), no changes to ROOM_TYPE_SVGS. This pass is purely additive.
+
+**Reforge frameworks:**
+- *Visual Design (Dim 01):* iconography as a brand-consistency signal; placeholders read as "incomplete."
+- *Trust & Credibility (Dim 10):* visible craftsmanship in interface details is a quality signal.
+- *Conversion Optimization (Dim 03):* polish in onboarding flow reduces drop-off; placeholder content increases the "this app isn't done yet" signal that drives drop-off.
+
+**Files changed:** `app.js` only (~30 lines added — extension block right after `window.FurnishOKT` exposure).
+
+**Status:** ✅ COMPLETE

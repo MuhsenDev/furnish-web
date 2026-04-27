@@ -1434,6 +1434,37 @@
   // Public surface for future callers (settings, voice debug, etc.)
   window.FurnishOKT = FURNISH_OKT;
 
+  // [Onboarding Q4 icons] Custom inline SVGs for the "What are we redesigning?"
+  // question. furniture.js references svg keys (scope-furniture, scope-
+  // furniture-decor, scope-whole-room, scope-surprise) that weren't yet
+  // defined in window.QUIZ_SVGS, so the placeholder ImageIcon fell through.
+  // Hand-crafted to match the existing QUIZ_SVGS aesthetic (viewBox 0 0
+  // 100 100, fill="none" stroke="currentColor", stroke-width 3, round
+  // linecap/linejoin). currentColor → auto-responds to dark/light mode
+  // via the parent .qoc-icon's color token. Reforge Visual Design (Dim 01):
+  // iconography as brand-consistency signal. Reforge Trust & Credibility
+  // (Dim 10): visible craftsmanship — placeholders read as "incomplete."
+  // Reforge Conversion Optimization (Dim 03): polish in onboarding flow
+  // reduces drop-off.
+  if (window.QUIZ_SVGS && !window.QUIZ_SVGS['scope-furniture']) {
+    Object.assign(window.QUIZ_SVGS, {
+      // Just furniture — single sofa in profile, line-art only. Communicates
+      // "one piece of furniture" — no walls, no decor, no lamp.
+      'scope-furniture': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 36 V30 Q14 26 18 26 H82 Q86 26 86 30 V36"/><line x1="14" y1="36" x2="86" y2="36"/><rect x="12" y="44" width="76" height="22" rx="3"/><line x1="50" y1="46" x2="50" y2="64"/><line x1="12" y1="36" x2="12" y2="66"/><line x1="88" y1="36" x2="88" y2="66"/><line x1="22" y1="66" x2="22" y2="74"/><line x1="78" y1="66" x2="78" y2="74"/></svg>`,
+      // Furniture + decor — three balanced elements: pendant lamp top-left,
+      // framed wall-art top-right, simple bed bottom. Communicates "more
+      // than one piece" without becoming busy.
+      'scope-furniture-decor': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="28" y1="10" x2="28" y2="22"/><path d="M20 22 H36 L32 32 H24 Z"/><rect x="56" y="14" width="28" height="22" rx="2"/><path d="M60 32 L66 24 L70 28 L78 18"/><circle cx="76" cy="20" r="1.6" fill="currentColor"/><rect x="14" y="62" width="58" height="16" rx="3"/><rect x="18" y="58" width="18" height="6" rx="1.5"/><line x1="14" y1="78" x2="14" y2="86"/><line x1="72" y1="78" x2="72" y2="86"/></svg>`,
+      // Whole room — interior view with walls, window, pendant light, sofa,
+      // and rug. The "fullest" icon of the four — visual weight reflects
+      // scope of the redesign. Per spec the most complex one.
+      'scope-whole-room': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 V82 H90 V12"/><rect x="32" y="20" width="24" height="22" rx="1.5"/><line x1="44" y1="20" x2="44" y2="42"/><line x1="32" y1="31" x2="56" y2="31"/><line x1="74" y1="12" x2="74" y2="22"/><circle cx="74" cy="26" r="4"/><rect x="14" y="58" width="32" height="20" rx="2"/><line x1="14" y1="64" x2="46" y2="64"/><ellipse cx="64" cy="76" rx="22" ry="3"/></svg>`,
+      // Surprise me — bold, confident question mark. Heavier stroke
+      // matches the visual prominence of the other three icons.
+      'scope-surprise': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M32 36 Q32 14 50 14 Q68 14 68 32 Q68 44 52 50 Q50 52 50 62"/><circle cx="50" cy="80" r="4" fill="currentColor"/></svg>`
+    });
+  }
+
   // [ToS consent block] Source-of-truth version string. Bump this date
   // when terms or privacy policy materially changes; on next boot, the
   // re-consent flag fires for all signed-in users whose stored
