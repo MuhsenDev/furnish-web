@@ -5028,9 +5028,22 @@ html[data-theme="dark"] .qf-heart-glow {
   scrollbar-width: thin;
   scrollbar-color: rgba(139, 111, 71, 0.45) transparent;
   -webkit-overflow-scrolling: touch;
-  /* Soft fade at bottom hints there's more content. */
+  /* [Polish — paywall opacity glitch root cause]
+     A duplicate `.modal-card { background: linear-gradient(...) }` rule
+     elsewhere in this file overwrites the base cream color via shorthand,
+     and our scroll-fade `background-image` below then overwrites that
+     gradient — leaving the paywall card with NO solid backdrop, so the
+     dark modal overlay shows through the shared header (the "washed-out
+     title" the user saw). Re-assert a solid cream background-color here
+     so the header sits on a real surface, while keeping the soft
+     bottom-fade as the background-image. */
+  background-color: var(--cream);
   background-image:
     linear-gradient(to bottom, transparent 0, transparent calc(100% - 18px), rgba(0,0,0,0.03) 100%);
+}
+body.theme-dark #paywallModal .paywall-card,
+html[data-theme="dark"] #paywallModal .paywall-card {
+  background-color: var(--surface);
 }
 #paywallModal .paywall-card::-webkit-scrollbar { width: 6px; }
 #paywallModal .paywall-card::-webkit-scrollbar-track {
