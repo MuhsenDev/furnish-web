@@ -1,0 +1,346 @@
+# DEFERRED.md — Real-backend-phase items
+
+Single source of truth for "what still needs real backend infrastructure before it can ship."
+
+These items are explicitly out of scope for the current Model A migration. They were identified during STEP 1 of the Model A audit and called out by Hassan during STEP 2 approval. Implement when Stripe, real auth, and backend services are wired.
+
+## Anti-abuse (real backend phase) — UPDATED for compute-quality routing
+
+**Context (revised 2026-04-25):** the prior 2-lifetime quota was retired. Free users now get unlimited generations on the standard model (Flux Schnell). Pro users get the premium model (Flux Kontext Pro / Flux Depth Pro) at $5.99/mo.
+
+**New problem:** without rate limiting, a single user could trigger thousands of standard-model generations in an hour and burn the compute budget — even though each call is cheap, the aggregate is not.
+
+**Acceptable for now:** no client-side gate of any kind. Pre-launch with no real backend means no compute spend yet.
+
+**Required at backend phase:**
+
+1. **Server-side rate limiting per account + per IP** on the AI-call endpoint. Soft cap: ~30 generations/hour, ~200/day per account. Same-IP across multiple accounts compounds toward the IP cap. Returns 429 with a tasteful "We need a moment — try again in N minutes" message.
+
+2. **Premium model rate limiting (Pro)** is more lenient but still capped to prevent runaway abuse: ~100/hour, ~500/day. Pro is paying, so the bar is higher.
+
+3. **Account-creation rate limit per IP + per device.** Supabase Edge Function checks IP and device fingerprint at signup. Soft-block (CAPTCHA) on suspicious patterns: same IP creating >3 accounts in 24h, headless-browser signature, datacenter IP ranges.
+
+4. **Manual fraud review queue.** Accounts flagged by patterns above get human review. Backend dashboard.
+
+**Note:** The prior `detectQuotaTamper()` client-side log was removed during the compute-quality migration (no quota = no tamper). The `quota_tamper_suspected` analytics event is retired.
+
+**Acceptance criteria for declaring this done:**
+- A single account cannot trigger >200 standard-model generations/day (Pro: >500).
+- A single IP cannot create >3 accounts/24h without CAPTCHA.
+- Suspicious-pattern signups are queued for review, not auto-blocked.
+
+---
+
+## Compute model routing (real backend phase)
+
+The future Replicate-backed AI generation backend reads `user_settings.is_pro` for every generation request and routes accordingly:
+
+| Tier | Model | ~Cost/run | Use |
+|---|---|---|---|
+| Free (`is_pro=false`) | Flux Schnell | $0.005-0.01 | All Free generations (fresh photo + template) |
+| Pro (`is_pro=true`) | Flux Kontext Pro / Flux Depth Pro | $0.05 | All Pro generations |
+
+The client emits `generation_completed { actionId, tier }` analytics events that the backend can correlate with the actual model invocation for cost accounting.
+
+**Backend cutover contract (locked):** the client's `routeGenerationByModelTier()` middleware passes the resolved tier into the action callback. When the real backend lands, the callback wraps the call in a fetch to the AI-generation endpoint with the tier as a parameter. No further client refactor required.
+
+---
+
+## First-redesign tutorial — server sync
+
+The `state.user.firstRedesignTutorialSeen` flag controls the fire-once contract for the post-first-redesign coachmark tour (Styles → Color Moods → Budget). Currently localStorage-only. Survives in-session sign-in transitions because every `state.user = {...}` rebuild in `app.js` carries the flag forward via spread-preservation.
+
+**Gap:** if a user completes the tutorial on Device A, then opens the app on Device B for the first time, the tutorial WILL re-fire on Device B because the flag isn't pulled from the server.
+
+**Required at backend phase:**
+1. Add `first_redesign_tutorial_seen boolean default false` column to `user_settings`.
+2. In `supabase-client.pullAll()`, add: `if (typeof settings.first_redesign_tutorial_seen === 'boolean') state.user.firstRedesignTutorialSeen = settings.first_redesign_tutorial_seen;`
+3. In `supabase-client.pushAll()`, add `first_redesign_tutorial_seen: !!state.user?.firstRedesignTutorialSeen` to the `user_settings` upsert.
+
+This is a low-priority gap — the worst case is one redundant tutorial showing on a fresh device, not a security issue. Bundle with the next user_settings schema change.
+
+---
+
+## Stripe / billing
+
+Currently the paywall CTA mocks `state.user.isPro = true` on click. Production requires:
+
+1. **Stripe Checkout session creation** — backend endpoint creates session, returns URL. Frontend redirects.
+2. **Stripe webhook handler** — Edge Function listens for `customer.subscription.{created,updated,deleted}` and `invoice.payment_succeeded`. Updates Supabase `subscriptions` table + `user_settings.is_pro` ONLY (no quota field — `generations_used` is now analytics-only and doesn't need to round-trip via webhook). On `subscription.deleted` (cancellation), the next time the affected user opens the app, `furnish:backend-ready` → `pullAll()` → `reconcileTierWithBackend()` will detect the diff and call the already-wired `handleDowngrade('server_reconcile')` — no extra client work needed.
+3. **Customer portal** — for managing/canceling subscriptions. Stripe-hosted.
+4. **Price ID configuration** — two SKUs in Stripe dashboard:
+   - **Monthly**: `$5.99/month` recurring
+   - **Annual**: `$47.88/year` ($3.99/mo billed annually, "Save 33%")
+   The client UI already advertises these prices (see `app.js` `.pw-toggle-btn` handler + `index.html` `#paywallPrice`/`#paywallUnit`). Stripe price IDs replace the mock at cutover.
+5. **Trial logic** — current paywall says "7-day free trial." Backend must respect trial state and not bill until day 7.
+6. **Mid-flow upgrade resume** — after Stripe success redirect, look for `state._pendingProAction` and execute it. The stash is already populated by `analyzeBtn`, `startFromTemplate`, and the Pro-template gate (STEP 5 §16 row 2). The mock paywall CTA in `paywallCta` already replays it; the Stripe success handler can use the same code path.
+7. **Grandfather migration** — at Stripe-cutover time, anyone with `state.user.isPro === true` already has `grandfathered: true` set by `grandfatherProUsers()` at boot (STEP 5 §16 row 1). Backend just needs to read that flag at signup-time and provision a 100% coupon Stripe customer (no charge, full Pro features).
+
+**SQL needed (add to `SUPABASE_SETUP.md` when wiring):**
+
+```sql
+CREATE TABLE subscriptions (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  stripe_customer_id TEXT UNIQUE,
+  stripe_subscription_id TEXT UNIQUE,
+  status TEXT NOT NULL CHECK (status IN ('trialing','active','canceled','past_due','incomplete')),
+  plan TEXT NOT NULL CHECK (plan IN ('monthly','annual')),
+  current_period_end TIMESTAMPTZ,
+  canceled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+## Real affiliate catalog
+
+`window.FURNITURE_DB` in `furniture.js` currently has ~80 placeholder items with placeholder URLs (e.g. `https://www.ikea.com/`). Production requires:
+
+1. **Affiliate program approvals** (1–7 day each):
+   - Amazon Associates (tag = `furnish-20` placeholder)
+   - IKEA via Awin or CJ
+   - Wayfair via CJ
+   - West Elm via Rakuten
+   - Etsy direct
+   - Rugs USA via ShareASale
+
+2. **Catalog ingestion** — at minimum a CSV/JSON import script. Better: live API where allowed (Amazon Product Advertising API, Etsy API).
+
+3. **Per-item affiliate URLs** with our tracking IDs baked in. The `buildAffiliateUrl()` helper added in Layer 5 of the Model A migration is ready — it just needs real `AFFILIATE_IDS` values.
+
+4. **Stock / availability sync** — items go OOS frequently; needs daily refresh.
+
+5. **Price refresh** — for the `wishlistMeta.priceAtSave` price-drop feature to work, current price needs to be reliable.
+
+6. **Product images** — currently rendering emoji icons. Need real product photos.
+
+---
+
+## Email lifecycle
+
+Per retention pass H3 + the second retention pass (Reforge Retention + Engagement frameworks). Welcome / mid-funnel / dormant / churned sequences. Requires:
+
+1. **SMTP provider** — Resend, SendGrid, or Postmark.
+2. **Supabase Edge Functions for triggers** — cron-style (`pg_cron`) for dormant detection.
+3. **Email templates** — already specified as `LIFECYCLE_CAMPAIGNS` in `app.js`. The 8 campaigns (welcome_d1_check_prices, welcome_d3_next_room, welcome_d7_first_drop, mid_d14_price_watch, mid_d30_recap, dormant_d60_warm, dormant_d90_seasonal, churned_d180_refresh) are the backend contract — same keys, same copy, same predicates.
+4. **Unsubscribe + preference center** — CAN-SPAM/GDPR compliance.
+5. **Transactional emails** — Stripe receipts, password reset, email verification (currently uses Supabase default).
+6. **Email-list-capture form** — already built in feature-gap pass C9; intent stored in `state.emailIntent`. Backend just needs to drain it into the email service on user signup or on a periodic flush.
+
+**Backend cutover contract (locked):** The client-side `runLifecycleScheduler()` currently fires `lifecycle_would_fire` analytics events. When the backend lands, replace that event with a real send dispatch (or a queue insert). Triggers, predicates, and copy in `LIFECYCLE_CAMPAIGNS` stay unchanged — they are the source of truth. Backend reads the same constant via a shared config endpoint or a build-time bundle.
+
+---
+
+## Push notification delivery
+
+Per retention pass H8 + Model A's price-drop alerts being a Pro feature. The pre-prompt UI is already built (`maybeAskForPushPermission`). Real delivery requires:
+
+1. **Web Push setup** — VAPID keys, service worker registration (currently no `service-worker.js` file).
+2. **Per-user push subscription storage** — Supabase table `push_subscriptions`.
+3. **Native push for iOS/Android** — requires Capacitor wrap (already on the 7-item list in `CLAUDE.md`).
+4. **Trigger pipeline** — price-drop detection + nightly cron + push send.
+5. **Pro-only enforcement** — the soft-ask + permission grant is free, but the *delivery service* should only trigger pushes for Pro users (free users with the permission granted but Pro=false: ignored at send time, no fallback noise).
+
+---
+
+## SQL for `affiliate_clicks` table
+
+Foundation for attribution reconciliation. Add to `SUPABASE_SETUP.md` when wiring:
+
+```sql
+CREATE TABLE affiliate_clicks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  item_id TEXT NOT NULL,
+  item_name TEXT,
+  source TEXT NOT NULL,
+  price NUMERIC,
+  surface TEXT NOT NULL CHECK (surface IN ('item_sheet','item_card_button','shop_all','price_tag','wishlist','cart')),
+  room_id TEXT,
+  fclick_id TEXT,
+  user_agent TEXT,
+  ip_country TEXT,
+  clicked_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_affiliate_clicks_user ON affiliate_clicks(user_id, clicked_at);
+CREATE INDEX idx_affiliate_clicks_item ON affiliate_clicks(item_id, clicked_at);
+```
+
+---
+
+## Multi-room batch processing (Pro feature)
+
+Listed as a Pro tier feature in Model A. Pre-backend, surfaced as "coming soon" in the paywall feature comparison.
+
+Required for real implementation:
+
+1. **AI generation pipeline that accepts batches** — Replicate API can accept multiple inputs but our cost model needs to confirm per-room billing.
+2. **UI for selecting/uploading multiple rooms at once** — design pass needed.
+3. **Coordination logic** — keeping styles consistent across rooms in a batch.
+4. **Progress UI for long-running batches** — async job status.
+
+---
+
+## Style learning over time (Pro feature — advanced personalization)
+
+Listed as a Pro tier feature. Pre-backend, surfaced as "coming soon."
+
+Required:
+
+1. **Behavioral signal capture** — already partially in place (swap, save, bookmark events). Need a vector representation per user.
+2. **`profiles[].styleVector`** field — flagged in Model A audit as [PRO][NEW].
+3. **Scoring weight injection in `pickItemsForRoom`** — items survive multiple redesigns get a boost; rejected items get suppressed.
+4. **Backfill from existing user history** — when this ships, run a one-time migration over `state.events` to seed each user's vector.
+
+---
+
+## Pro feature backlog — items deferred until Pro entitlement ships
+
+Items that exist in the data layer + DOM but are intentionally not surfaced to users yet. When Pro tier monetization wires up (Stripe webhook + `is_pro` flag-driven UI surfacing), these graduate from "hidden but preserved" to "Pro entitlement."
+
+### Custom palette / hex color picker
+
+**Status:** preserved in DOM (`index.html` `<details class="custom-color-details" hidden>`), inert JS handlers null-guarded so they don't error on click. `profile.customColors` field preserved on profile shape.
+
+**Why deferred:** The 10-Q onboarding (approved 2026-04-26) replaced the multi-select color-mood chip grid with a single-select `color_appetite` question. The hex picker doesn't map to any of the 10 questions, but it's a real "I want exact accent control" power-user feature.
+
+**To surface as Pro:** unhide the `<details>` block when `isPro()` is true, gate the "Add to Palette" handler through `gateProFeature('advanced_palette', fn)`, add a Pro feature paywall context if it isn't already covered by `advanced_personalization`. Wire to `pickItemsForRoom` color-anchor logic so the user's hex accents bias item selection.
+
+### Q10 spatial-marking — tap-to-mark on uploaded photo
+
+**Status:** Q10 followup ships text-only (`window.ONBOARDING_QUESTIONS[9].followup.mode === 'text'`). The config carries `mode: 'text'` with a comment that points to `'tap_to_mark'` as the future value.
+
+**Why deferred:** quiz runs BEFORE capture in the current flow, so `state.draft.photo` doesn't exist at Q10 time. Reordering capture-before-quiz is a bigger change than the onboarding migration covers — it ripples into the D7 reveal-gate timing, the tutorial trigger logic, and the lifecycle-banner-on-home reflow.
+
+**To enable spatial-marking:** either (a) reorder the flow to capture-first-quiz-second (large change, separate audit), or (b) add a quiz-result-then-capture-then-marker interstitial screen between `finishQuiz` and `prepareCapture`. Option (b) is lower-risk. The marker UI itself is a canvas/SVG overlay over `state.draft.photo` with click-to-place coordinates persisted as `{x, y, label}` on `profile.answers.dealbreaker.marker`.
+
+### Supabase migration — `answers jsonb` column
+
+**Status:** `profile.answers` lives in localStorage only. The `profileToRow`/`rowToProfile` mappers in `supabase-client.js` still write the legacy `styles, colors, custom_colors, budget` columns.
+
+**To migrate:** add `answers jsonb default '{}'::jsonb` column to `profiles` table; update `profileToRow` to write `answers: p.answers || {}`; update `rowToProfile` to read `answers: r.answers || {}` and run `migrateLegacyProfileToAnswers(profile)` after deserializing. Legacy columns can stay during the transition window.
+
+---
+
+## User research plan (defer until launch user base exists)
+
+Per Hassan's decision #5 in the retention pass: research the actual loops *after* there are real users to interview. Pre-launch interviews are speculative. The plan below is locked and ready to execute the moment we have ~50+ users with at least one Aha moment behind them.
+
+### Sample design — 5 archetypes × 5–7 interviews
+
+| Archetype | Recruit from | Why they matter |
+|---|---|---|
+| **Recent renovator** (finished a room project in last 6 months) | Reddit r/DesignMyRoom, r/HomeImprovement; Instagram tag #beforeandafter | Reveals real triggers and momentum-killers across the redesign journey |
+| **Pinterest power user** (50+ saved boards, monthly+ active) | Pinterest creator community; Substack design newsletters | Validates wishlist-as-return-loop hypothesis |
+| **Mid-project abandoner** (started a room, lost steam) | Furnish users with `state.draft` set + dormant >30 days | Reveals retention killers in the active phase |
+| **Recent mover** (relocated <6 months ago) | Apartment List / Trulia retargeting lists; r/AskNYC moving threads | Captures the "forced redesign moment" use case |
+| **60–90-day Furnish dormant** (signed up, did 1 redesign, didn't return) | `lifecycle_state = DORMANT` cohort filter on internal data | Highest leverage — these are the users who almost worked but didn't |
+
+5 × 5 = **25 interviews minimum**, 5 × 7 = 35 maximum. Run as 45-minute remote sessions over 2-3 weeks. Pay $50-75 incentive per interview (Recent Mover and 60-90-day Dormant get $100 — harder to recruit).
+
+### Interview guide — 5 questions, all about *why they'd come back*
+
+1. **"Walk me through the last time you got home design inspiration. Where did you go? What did you do next?"** *(Reveals real triggers + the path between trigger and action — Reforge's natural-behavior interview pattern.)*
+2. **"Tell me about a room project that lost momentum halfway. What killed it?"** *(Reveals retention killers without leading the witness.)*
+3. **"If you used Furnish 6 months ago, what would make you open it again today?"** *(Direct natural-frequency probe. Listen for triggers, not features.)*
+4. **"When you save something on Pinterest or Instagram, do you ever go back to it? When?"** *(Validates wishlist-as-return-loop. If they don't go back, the loop is fictional.)*
+5. **"Have you ever bought furniture you regretted? What would have prevented it?"** *(Reveals trust gaps + opens the door to price-watch + alert opportunities.)*
+
+### Don't ask
+
+- **"Would you use Furnish weekly?"** — hypothetical questions produce useless data per Reforge's qualitative-research bonus material. Anything starting with "Would you…" gets dropped.
+- **"What features would you like?"** — users name solutions, not problems. Stay on problem-discovery.
+
+### Synthesis output
+
+Per Reforge: produce a **Customer Retention Canvas per archetype** — Use Case, Problem, Persona, Why, Alternative, Frequency. Then compare across archetypes to validate (or revise) the natural-frequency call from the Retention pass.
+
+Decision-gate: rebuild any of the five engagement loops whose archetype-grounded Trigger ≠ what we have today.
+
+---
+
+---
+
+## Live room counter (Welcome screen Recommendation 6 — backend phase)
+
+**Source:** Optimization Plan Dim 10 Recommendation 6, Batch 1 audit NC-4. Deferred per Hassan's lock 2026-04-26.
+
+**Why deferred:** Requires Supabase aggregation that doesn't exist. Anonymous-readable count of `rooms` rows created in last 24h, cached for 5 min. Currently the Furnish state is localStorage-only with optional Supabase sync; placeholder credentials in `supabase-config.js`.
+
+**Required at backend phase:**
+1. `rooms` table aggregates across all users (already implied in CHANGES_APPLIED.md sync wiring).
+2. Anonymous-readable count aggregation (security policy: `SELECT COUNT(*) FROM rooms WHERE created_at > now() - interval '24 hours'` permitted for `anon` role; no row data exposed, only the count).
+3. Edge Function or a cached view that returns the count without exposing rows.
+4. Client fetches at boot, falls back to "Real catalog · Real prices · Built by Hassan" (the static qualitative anchor) if count <10 OR if fetch fails.
+5. 5-minute client-side cache (sessionStorage) so each session refreshes once.
+
+**Cutover work when this lands:**
+- Wire `fetchLiveRoomCount()` per Dim 10 Recommendation 6 code sketch.
+- Replace welcome-proof line with conditional: `count >= 10 ? "{N} rooms designed today" : "Real catalog · Real prices · Built by Hassan"`.
+- Add `live_count_displayed` analytics event.
+
+---
+
+## Referral redemption ledger (Conflict 2 lock — backend phase)
+
+**Source:** CONFLICTS_RESOLVED.md Conflict 2. Locked 2026-04-26.
+
+**Why deferred:** Locked referral mechanic is "5 HD redesigns + 2 style packs over 90 days" for both inviter and invitee. Currently the share modal copy advertises this currency, but redemption tracking requires server-side balance state.
+
+**Required at backend phase:**
+1. Supabase table `referral_credits`:
+   ```sql
+   CREATE TABLE referral_credits (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+     credit_type TEXT NOT NULL CHECK (credit_type IN ('hd_redesign','style_pack')),
+     remaining INTEGER NOT NULL DEFAULT 0,
+     earned_at TIMESTAMPTZ DEFAULT now(),
+     expires_at TIMESTAMPTZ NOT NULL,  -- earned_at + 90 days
+     source_referral_id UUID,  -- pointer to the referral that issued this credit
+     consumed_at TIMESTAMPTZ
+   );
+   ```
+2. On signup-with-referral: issue 5 hd_redesign + 2 style_pack credits to BOTH users (inviter and invitee). expires_at = now() + 90 days.
+3. On HD-export attempt: decrement an `hd_redesign` credit (if user has one) before falling back to "subscribe to Pro" paywall.
+4. On style-pack download: same decrement pattern with `style_pack`.
+5. Daily cron expires credits past expires_at.
+6. Frontend reads remaining-credits at boot via supabase pull; surfaces in profile card ("3 HD redesigns left, 2 style packs left, expires {date}").
+
+**Anti-abuse:** referral credits cannot exceed 50 per inviter per 90-day window (caps farming). Per `DEFERRED.md` anti-abuse rate-limiting (~3 accounts/24h per IP) covers most fraud paths.
+
+**Cutover work when this lands:**
+- Wire `redeemReferralCredit(creditType)` helper in `app.js`.
+- Update share modal copy: when user has issued referrals, show "{N} of your friends signed up" (real count only, no fake numbers).
+- New analytics events: `referral_credit_issued`, `referral_credit_redeemed`, `referral_credit_expired`.
+
+---
+
+## Email-only cohort (Conflict 5 — pending decision, backend phase)
+
+**Source:** CONFLICTS_RESOLVED.md Conflict 5 (PENDING). Soft email-capture lane on D7 reveal-gate is proposed but undecided.
+
+**Why deferred:** If approved in the D7-reveal-gate batch, email-only users (no full signup) become a separate cohort with limited-preview access and email-driven re-engagement. Backend dependency: magic-link auth flow OR email-as-identifier without password.
+
+**Required at backend phase (only if Conflict 5 approved):**
+- Magic-link auth via Supabase email-OTP (no password).
+- New `state.user.recoveryEmail` field; resolves to existing `state.emailIntent` plumbing.
+- Lifecycle email template variant: "guest-email-only" sequence (different from full-signup welcome).
+- Cohort definition: `lifecycle_email_only` = email saved, no full provider signin.
+
+**Status:** Spec'd, not implemented. Reconcile with main email-lifecycle item (item 6 above).
+
+---
+
+## Last review
+
+Updated: 2026-04-26 during Batch 1 implementation (Dim 09 + Dim 10 + Dim 14).
+- Added: Live room counter (Dim 10 #6 deferred per NC-4)
+- Added: Referral redemption ledger (Conflict 2 lock)
+- Added: Email-only cohort spec (Conflict 5 placeholder, pending decision)
+
+Updated: 2026-04-25 during Compute-Quality Routing migration (STEP 3 Layer 11).
+
+When any of these items moves to "in progress," delete its section from this file and update `CHANGES_APPLIED.md` accordingly.

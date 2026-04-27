@@ -1617,7 +1617,7 @@ html[data-theme="dark"] .user-dropdown-item:hover .udi-icon { background: var(--
 @keyframes udiSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .user-dropdown-item:hover .udi-svg--spin { animation-duration: 1.5s; }
 
-/* Furnish+ mark: subtle gleam pulse */
+/* Furnish Pro mark: subtle gleam pulse */
 .udi-svg--gleam { transform-origin: 50% 50%; animation: udiGleam 3.4s ease-in-out infinite; }
 @keyframes udiGleam {
   0%, 100% { filter: brightness(1); }
@@ -1799,7 +1799,7 @@ html[data-theme="dark"] .user-dropdown-item:hover .udi-icon { background: var(--
 @keyframes udiSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .user-dropdown-item:hover .udi-svg--spin { animation-duration: 1.5s; }
 
-/* Furnish+ mark: subtle gleam pulse */
+/* Furnish Pro mark: subtle gleam pulse */
 .udi-svg--gleam { transform-origin: 50% 50%; animation: udiGleam 3.4s ease-in-out infinite; }
 @keyframes udiGleam {
   0%, 100% { filter: brightness(1); }
@@ -4182,27 +4182,28 @@ html[data-theme="dark"] .qf-card {
 }
 .qf-heart-glow {
   position: absolute;
-  inset: -22px;
+  inset: -18px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(235, 199, 147, 0.85) 0%, rgba(164, 124, 77, 0.48) 40%, rgba(92, 65, 40, 0) 72%);
-  filter: blur(7px);
-  animation: qfGlowHeartbeat 1.9s cubic-bezier(.4, 0, .2, 1) infinite;
+  background: radial-gradient(circle,
+    rgba(235, 199, 147, 0.42) 0%,
+    rgba(164, 124, 77, 0.22) 42%,
+    rgba(92, 65, 40, 0) 74%);
+  filter: blur(14px);
+  animation: qfGlowBreathe 3.4s ease-in-out infinite;
   pointer-events: none;
   transform-origin: 50% 50%;
+  will-change: transform, opacity;
 }
 html[data-theme="dark"] .qf-heart-glow {
-  background: radial-gradient(circle, rgba(212, 176, 126, 0.7) 0%, rgba(139, 111, 71, 0.42) 40%, rgba(0,0,0,0) 72%);
+  background: radial-gradient(circle,
+    rgba(212, 176, 126, 0.36) 0%,
+    rgba(139, 111, 71, 0.18) 42%,
+    rgba(0, 0, 0, 0) 74%);
 }
-/* Slower, more resonant heartbeat: deep lub-dub then a long echo/rest.
-   Peaks are larger and softer; long tail lets the glow feel like it's
-   breathing, not blinking. */
-@keyframes qfGlowHeartbeat {
-  0%   { opacity: 0.40; transform: scale(0.92); }
-  9%   { opacity: 1.00; transform: scale(1.50); }   /* LUB — deep, wide */
-  20%  { opacity: 0.55; transform: scale(1.05); }
-  30%  { opacity: 0.95; transform: scale(1.38); }   /* DUB — softer echo */
-  42%  { opacity: 0.48; transform: scale(1.00); }
-  100% { opacity: 0.40; transform: scale(0.92); }   /* long, slow rest */
+/* Smooth breathe — single gentle swell, no lub-dub punch. */
+@keyframes qfGlowBreathe {
+  0%,  100% { opacity: 0.50; transform: scale(1.00); }
+  50%       { opacity: 0.85; transform: scale(1.14); }
 }
 
 /* --- Rain pieces: give them size variation for depth when filling the screen --- */
@@ -4236,3 +4237,3123 @@ html[data-theme="dark"] .qf-heart-glow {
 .room-overlay .overlay-title {
   text-shadow: 0 1px 2px rgba(0,0,0,.6), 0 0 1px rgba(0,0,0,.85);
 }
+
+/* ---- Reforge onboarding batches ---- */
+
+/* Room-type grid (inline on single capture screen) — 3 columns, roomy tiles
+   so labels like "Living Room" / "Home Office" / "Dining Room" never truncate. */
+.rt-grid.rt-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.rt-grid.rt-grid-compact .rt-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px;
+  min-height: 78px;
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: center;
+}
+.rt-grid.rt-grid-compact .rt-card .rt-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: normal;
+  hyphens: none;
+}
+.rt-grid.rt-grid-compact .rt-icon svg { width: 22px; height: 22px; }
+/* 4 columns only on wider phones/tablets so labels still breathe */
+@media (min-width: 520px) {
+  .rt-grid.rt-grid-compact { grid-template-columns: repeat(4, 1fr); }
+}
+.section-h.compact { margin: 18px 0 6px; font-size: 14px; }
+
+/* Batch D — post-aha keep-existing switch on results */
+.results-keep-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; margin: 10px 0;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.rkr-label { font-size: 13px; color: var(--ink); font-weight: 500; }
+.rkr-switch {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rkr-track {
+  display: inline-block; position: relative;
+  width: 42px; height: 24px; border-radius: 14px;
+  background: var(--line); transition: background 200ms ease;
+}
+.rkr-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  transition: transform 200ms ease;
+}
+.rkr-switch.on .rkr-track { background: var(--brown); }
+.rkr-switch.on .rkr-thumb { transform: translateX(18px); }
+
+/* Batch E — welcome hero demo (before/after sweep) */
+.hero-demo {
+  position: relative; width: 100%; max-width: 340px; margin: 14px auto 20px;
+  aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden;
+  box-shadow: var(--shadow-lg); border: 1px solid var(--line);
+}
+.hero-demo .hd-frame { position: absolute; inset: 0; }
+.hero-demo .hd-before,
+.hero-demo .hd-after {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover;
+}
+.hero-demo .hd-after-wrap {
+  position: absolute; inset: 0; overflow: hidden;
+  clip-path: inset(0 100% 0 0);
+  animation: hdSweep 6s ease-in-out infinite;
+}
+.hero-demo .hd-sweep {
+  position: absolute; top: 0; bottom: 0; width: 3px; left: 0;
+  background: linear-gradient(to bottom, transparent, #fff 20%, #fff 80%, transparent);
+  box-shadow: 0 0 12px rgba(255,255,255,0.8);
+  animation: hdSweepLine 6s ease-in-out infinite;
+  pointer-events: none;
+}
+.hero-demo .hd-badge-row {
+  position: absolute; bottom: 10px; left: 10px; right: 10px;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.hero-demo .hd-badge {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--ink); background: rgba(255, 246, 232, 0.88);
+  padding: 4px 9px; border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+.hero-demo .hd-before-label,
+.hero-demo .hd-after-label {
+  position: absolute; top: 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  padding: 4px 8px; border-radius: 4px;
+  color: #fff; background: rgba(0,0,0,0.55);
+}
+.hero-demo .hd-before-label { left: 10px; }
+.hero-demo .hd-after-label  { right: 10px; }
+@keyframes hdSweep {
+  0%, 8%   { clip-path: inset(0 100% 0 0); }
+  50%, 58% { clip-path: inset(0 0 0 0); }
+  100%     { clip-path: inset(0 100% 0 0); }
+}
+@keyframes hdSweepLine {
+  0%, 8%   { left: 0; opacity: 0; }
+  12%      { opacity: 1; }
+  50%, 58% { left: calc(100% - 3px); opacity: 1; }
+  66%      { opacity: 0; }
+  100%     { left: 0; opacity: 0; }
+}
+
+/* C2 — Quiz progress bar */
+.quiz-progress-bar {
+  width: 100%; height: 4px; background: var(--line);
+  border-radius: 2px; margin: 0 0 18px;
+  overflow: hidden;
+}
+.qpb-fill {
+  height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--tan), var(--brown));
+  transition: width 360ms cubic-bezier(.2,.8,.2,1);
+  border-radius: 2px;
+}
+
+/* C3 — Welcome social-proof row */
+.welcome-proof {
+  display: flex; justify-content: center; align-items: center;
+  gap: 6px; margin-top: 14px;
+  font-size: 13px; color: var(--muted);
+}
+.wp-stars { color: #E0A15E; letter-spacing: 1px; font-size: 14px; }
+.wp-rating { font-weight: 700; color: var(--ink); }
+.wp-dot { opacity: 0.5; }
+.wp-count { font-weight: 500; }
+
+/* C5 — Coach mark for first-aha tour */
+.price-tag.coach-pulse {
+  animation: coachPulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.7);
+  z-index: 5;
+}
+@keyframes coachPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(212,165,116,0.7); }
+  50%     { box-shadow: 0 0 0 12px rgba(212,165,116,0); }
+}
+.coach-mark {
+  position: absolute; z-index: 9999;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px;
+  width: 260px; box-shadow: var(--shadow-lg);
+  animation: coachIn 300ms ease-out both;
+}
+.coach-mark.out { animation: coachOut 200ms ease-in both; }
+@keyframes coachIn  { from {opacity:0; transform:translateY(-8px);} to {opacity:1; transform:translateY(0);} }
+@keyframes coachOut { from {opacity:1; transform:translateY(0);}    to {opacity:0; transform:translateY(-8px);} }
+.coach-mark .cm-arrow {
+  position: absolute; top: -8px; left: 30px;
+  width: 14px; height: 14px; transform: rotate(45deg);
+  background: var(--surface); border-left: 1px solid var(--line); border-top: 1px solid var(--line);
+}
+.coach-mark .cm-body { font-size: 13px; color: var(--ink); line-height: 1.45; }
+.coach-mark .cm-ok {
+  margin-top: 10px; width: 100%;
+  background: var(--brown); color: #FAF3E7;
+  border: 0; padding: 8px; border-radius: 8px;
+  font-weight: 600; cursor: pointer;
+}
+
+/* C6 — Home resume card */
+.resume-card {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; margin: 14px 0 0;
+  padding: 12px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  cursor: pointer; text-align: left;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.resume-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.resume-card .rc-thumb {
+  width: 64px; height: 64px; border-radius: 10px;
+  background-size: cover; background-position: center;
+  background-color: var(--beige-2); flex-shrink: 0;
+}
+.resume-card .rc-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.resume-card .rc-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--brown);
+}
+.resume-card.resume-draft .rc-tag { color: var(--warn); }
+.resume-card strong { font-size: 14px; color: var(--ink); }
+.resume-card .rc-sub { font-size: 12px; color: var(--muted); }
+.resume-card .rc-arrow {
+  font-size: 22px; color: var(--muted); padding-right: 4px;
+}
+
+/* C7 — Aha quality feedback buttons */
+.aha-feedback {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; margin: 10px 0;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.af-q { font-size: 13px; font-weight: 600; color: var(--ink); }
+.af-buttons { display: flex; gap: 8px; }
+.af-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px; background: transparent;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 13px; color: var(--ink);
+  cursor: pointer; transition: all 150ms ease;
+}
+.af-btn:hover { background: var(--beige); }
+.af-btn.selected { background: var(--brown); color: #FAF3E7; border-color: var(--brown); }
+.af-emoji { font-size: 16px; font-weight: 700; }
+
+/* C9 — Share network buttons */
+.share-net {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 12px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 12px; color: var(--ink);
+  cursor: pointer; transition: all 150ms ease;
+}
+.share-net:hover { background: var(--beige); transform: translateY(-1px); }
+.share-targets { display: flex; gap: 8px; margin: 12px 0 8px; }
+.share-referral-note { margin: 0; text-align: center; }
+
+/* C10 — Templates grouped */
+.templates-group-h {
+  margin: 18px 0 10px;
+  font-size: 14px; font-weight: 600;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.templates-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.templates-row .template-card { margin: 0; }
+
+/* ==== Paywall gates (non-Pro users) ==== */
+
+/* [Model A] Locked-pieces wrapper retained as a passive layout container only.
+   The PRO border / blur / badge styling that previously hung off body.is-free
+   was removed because items are now FREE to view + shop (affiliate revenue
+   is the primary monetization path; gating items suppresses revenue). */
+.locked-pieces-wrap { position: relative; }
+.locked-pieces-wrap > .lpw-badge { display: none; }
+
+/* [Model A removed:]
+   - body.is-free [data-screen="results"] .locked-pieces-wrap (border/glow)
+   - body.is-free [data-screen="results"] .locked-pieces-wrap > .lpw-badge (PRO badge)
+   - body.is-free [data-screen="results"] #itemsList (blur + pointer-events:none)
+   - body.is-pro [data-screen="results"] .locked-pieces-wrap (overrides)
+   - body.is-pro [data-screen="results"] #itemsList (overrides)
+   - body.is-guest #ahaFeedback .af-q::after (sign-in prompt suffix)
+   - body.is-signedin-free #ahaFeedback .af-q::after (upgrade prompt suffix)
+   See MONETIZATION_AUDIT.md Section 11 + CHANGES_APPLIED.md Layer 3. */
+
+/* Explore welcome card (first post-signin home visit) */
+.explore-welcome {
+  position: relative;
+  background: linear-gradient(145deg, #FAF3E7 0%, #F0E2CC 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 18px 18px;
+  margin: 0 0 18px;
+  animation: ewIn 340ms cubic-bezier(.2,1.2,.3,1) both;
+  box-shadow: var(--shadow);
+}
+.explore-welcome.out { animation: ewOut 220ms ease-in both; }
+.ew-badge {
+  display: inline-block;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
+  color: var(--brown);
+  background: rgba(139, 111, 71, 0.1);
+  padding: 3px 8px; border-radius: 5px;
+  margin-bottom: 10px;
+}
+.ew-title { font-size: 18px; font-weight: 700; color: var(--ink); margin: 0 0 6px; line-height: 1.3; }
+.ew-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 14px; }
+.ew-cta   { width: 100%; margin-bottom: 6px; }
+.ew-dismiss { width: 100%; }
+@keyframes ewIn  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ewOut { from { opacity: 1; transform: translateY(0); }  to { opacity: 0; transform: translateY(-6px); } }
+
+/* [Model A removed: home-gate visual lock on non-Pro CTAs.] Home is fully
+   free under Model A; the lock-emoji suffix on home CTAs implied a wall that
+   no longer exists. */
+
+/* C12 — Lifecycle banner: matches Pro paywall gradient treatment for visual
+   consistency. Layered glow + gradient badge + subtle inner shine. */
+.lifecycle-banner {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at top right, rgba(235, 199, 147, 0.35) 0%, transparent 55%),
+    linear-gradient(140deg, #FAF3E7 0%, #F0E2CC 65%, #E5D4B8 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 18px 18px;
+  margin: 0 0 18px;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: lcbIn 380ms cubic-bezier(.2,1.2,.3,1) both;
+}
+.lifecycle-banner::before {
+  content: '';
+  position: absolute;
+  top: -40%; right: -20%;
+  width: 60%; height: 180%;
+  background: radial-gradient(circle, rgba(235, 199, 147, 0.45) 0%, transparent 60%);
+  pointer-events: none;
+  filter: blur(14px);
+}
+.lifecycle-banner.lc-at_risk { border-color: rgba(184, 140, 90, 0.6); }
+.lifecycle-banner.lc-dormant {
+  border-color: rgba(164, 124, 77, 0.75);
+  background:
+    radial-gradient(ellipse at top right, rgba(212, 165, 116, 0.4) 0%, transparent 55%),
+    linear-gradient(140deg, #FAF3E7 0%, #F0E2CC 60%, #E5D4B8 100%);
+}
+.lifecycle-banner.lc-churned {
+  border-color: rgba(92, 65, 40, 0.9);
+  background:
+    radial-gradient(ellipse at top right, rgba(212, 165, 116, 0.55) 0%, transparent 55%),
+    linear-gradient(140deg, #F0E2CC 0%, #E5D4B8 50%, #D4A574 100%);
+}
+.lcb-badge {
+  position: relative;
+  display: inline-block;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
+  color: #FAF3E7;
+  background: linear-gradient(135deg, #EBC793 0%, #A47C4D 60%, #5C4128 100%);
+  padding: 4px 10px; border-radius: 999px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(62, 39, 35, 0.18);
+}
+.lcb-title {
+  position: relative;
+  font-size: 18px; font-weight: 700; color: var(--ink);
+  margin: 0 0 6px; line-height: 1.3;
+}
+.lcb-body  {
+  position: relative;
+  font-size: 13.5px; color: var(--muted);
+  line-height: 1.5; margin: 0 0 14px;
+}
+.lcb-cta {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, #A47C4D 0%, #5C4128 100%) !important;
+  color: #FAF3E7 !important;
+  border: 0 !important;
+  box-shadow: 0 4px 12px rgba(92, 65, 40, 0.28);
+}
+.lcb-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(92, 65, 40, 0.35);
+}
+@keyframes lcbIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* C10 — Push permission soft-ask card (bottom-anchored toast-style) */
+.push-pre-prompt {
+  position: fixed;
+  bottom: 16px; left: 50%;
+  transform: translate(-50%, 120%);
+  width: calc(100% - 24px);
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 14px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon body"
+    "actions actions";
+  gap: 10px 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  transition: transform 280ms cubic-bezier(.2,1.4,.3,1), opacity 200ms ease;
+  opacity: 0;
+}
+.push-pre-prompt.show { transform: translate(-50%, 0); opacity: 1; }
+.ppp-icon { grid-area: icon; align-self: start; color: var(--brown); padding-top: 2px; }
+.ppp-body { grid-area: body; }
+.ppp-body strong { font-size: 14px; color: var(--ink); display: block; margin-bottom: 2px; }
+.ppp-body p { margin: 0; font-size: 12.5px; line-height: 1.4; }
+.ppp-actions { grid-area: actions; display: flex; gap: 8px; margin-top: 4px; }
+.ppp-actions .btn { flex: 1; }
+.ppp-close {
+  position: absolute; top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  border: 0; background: transparent; color: var(--muted);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 0;
+}
+.ppp-close:hover { color: var(--ink); }
+
+/* C13 — Style Pulse: weekly drop section */
+.style-pulse {
+  margin: 18px 0 6px;
+  position: relative;
+}
+.sp-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.sp-eyebrow {
+  display: inline-block;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.16em;
+  color: #FAF3E7;
+  background: linear-gradient(135deg, #EBC793 0%, #A47C4D 60%, #5C4128 100%);
+  padding: 3px 8px; border-radius: 4px;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 5px rgba(62, 39, 35, 0.2);
+}
+.sp-title { margin: 4px 0 2px; font-size: 18px; }
+.sp-sub   { margin: 0; font-size: 12px; }
+.sp-week {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--brown);
+  background: rgba(139, 111, 71, 0.1);
+  padding: 4px 8px; border-radius: 6px;
+  white-space: nowrap;
+}
+.sp-card { position: relative; }
+.sp-new-badge {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+  color: #FAF3E7;
+  background: #6A8F52;
+  padding: 2px 6px; border-radius: 4px;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+.mc-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* C14 — Style timeline on profile page */
+.style-timeline {
+  margin: 8px 0 16px;
+  display: flex; flex-direction: column;
+}
+.stl-item {
+  display: flex;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.stl-rail {
+  position: relative;
+  width: 14px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 14px;
+}
+.stl-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--line);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  z-index: 1;
+}
+.stl-dot-current {
+  background: linear-gradient(135deg, #EBC793, #A47C4D);
+  box-shadow: 0 0 0 1px var(--brown), 0 0 0 4px rgba(212, 165, 116, 0.25);
+}
+.stl-line {
+  position: absolute;
+  top: 24px; bottom: -4px;
+  width: 2px;
+  background: var(--line);
+  z-index: 0;
+}
+.stl-card {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.stl-item:hover .stl-card {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.stl-thumb {
+  width: 56px; height: 56px;
+  border-radius: 8px;
+  background: var(--beige-2);
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+.stl-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.stl-row1 {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 8px;
+}
+.stl-room { font-size: 14px; font-weight: 700; color: var(--ink); }
+.stl-date { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.stl-styles {
+  font-size: 12px; color: var(--brown); font-weight: 500;
+}
+.stl-stats { font-size: 11px; color: var(--muted); }
+.stl-empty { padding: 16px; text-align: center; }
+.stl-empty p { margin: 0 0 10px; }
+
+/* C15 — Resume card age badge */
+.resume-card .rc-age {
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+/* Saved-mini recall labels (saved-X-days-ago + price-drop signal) */
+.saved-mini { position: relative; }
+.saved-mini-age {
+  font-size: 10px; color: var(--muted); font-weight: 500;
+  margin-top: 2px; letter-spacing: 0.02em;
+}
+.saved-mini-drop {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 10px; font-weight: 800;
+  background: #6A8F52; color: #FAF3E7;
+  padding: 2px 6px; border-radius: 4px;
+}
+
+/* Template tip (first-time home visit only) */
+.template-tip {
+  position: absolute; z-index: 9999;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 36px 12px 14px;
+  box-shadow: var(--shadow-lg);
+  display: flex; gap: 10px; align-items: flex-start;
+  animation: ttIn 280ms cubic-bezier(.2,1.4,.3,1) both;
+}
+.template-tip.out { animation: ttOut 200ms ease-in both; }
+.template-tip .tt-arrow {
+  position: absolute; top: -8px;
+  width: 14px; height: 14px; transform: rotate(45deg);
+  background: var(--surface); border-left: 1px solid var(--line); border-top: 1px solid var(--line);
+}
+.template-tip .tt-body { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.template-tip .tt-body strong { font-size: 14px; color: var(--ink); }
+.template-tip .tt-body span  { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.template-tip .tt-close {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted);
+  font-size: 20px; line-height: 1; cursor: pointer;
+}
+.template-tip .tt-close:hover { background: var(--beige); color: var(--ink); }
+@keyframes ttIn  { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ttOut { from { opacity: 1; transform: translateY(0);  } to { opacity: 0; transform: translateY(-8px); } }
+.tt-pulse {
+  animation: ttBtnPulse 1.8s ease-in-out 2;
+  animation-delay: 150ms;
+}
+@keyframes ttBtnPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 111, 71, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(139, 111, 71, 0.22); }
+}
+
+/* Room-type tile — subtle tap-confirm pulse (replaces full grid re-animation) */
+.rt-card { transition: transform 140ms ease, background-color 160ms ease, border-color 160ms ease; }
+.rt-card.rt-confirm {
+  animation: rtConfirm 320ms cubic-bezier(.2,1.4,.3,1);
+}
+@keyframes rtConfirm {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* Welcome hero price tags (shoppability signal) */
+.hd-price-tag {
+  position: absolute;
+  padding: 4px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  color: #3E2723; background: #FAF3E7;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18), 0 1px 3px rgba(62,39,35,0.12);
+  border: 1.5px solid rgba(184,140,90,0.4);
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  animation: hdTagIn 6s ease-in-out infinite;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+.hd-price-tag::before {
+  content: ''; position: absolute; left: -4px; top: 50%;
+  width: 6px; height: 6px; background: #B89C6D;
+  border-radius: 50%; transform: translateY(-50%);
+}
+.hd-price-tag:nth-child(2) { animation-delay: 0.4s; }
+.hd-price-tag:nth-child(3) { animation-delay: 0.7s; }
+.hd-price-tag:nth-child(4) { animation-delay: 1.0s; }
+.hd-price-tag:nth-child(5) { animation-delay: 1.3s; }
+@keyframes hdTagIn {
+  0%, 10% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  25%     { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  55%     { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  70%     { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  100%    { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+}
+
+/* Template Pro badge + locked state */
+.t-pro-badge {
+  position: absolute; top: 8px; right: 8px;
+  background: linear-gradient(135deg, #EBC793, #A47C4D);
+  color: #FAF3E7; font-size: 10px; font-weight: 800;
+  padding: 3px 7px; border-radius: 6px;
+  letter-spacing: 0.08em;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+.template-card { position: relative; }
+.template-card .t-photo { position: relative; }
+.template-card.template-locked { opacity: 0.82; }
+.template-card.template-locked::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.35));
+  border-radius: inherit; pointer-events: none;
+}
+.template-card.template-locked .t-photo::after {
+  content: '\\1F512';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: rgba(255,255,255,0.85);
+}
+
+/* C11 — Live-counter entries in the reviews ticker */
+.live-counter {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--ink); font-weight: 500;
+}
+.live-counter .lc-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #6A8F52; box-shadow: 0 0 0 0 rgba(106,143,82,0.6);
+  animation: lcPulse 1.8s ease-in-out infinite;
+}
+@keyframes lcPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(106,143,82,0.6); }
+  50%     { box-shadow: 0 0 0 6px rgba(106,143,82,0); }
+}
+.live-counter .lc-icon { color: var(--brown); font-size: 14px; }
+.live-counter .lc-text strong { font-weight: 700; color: var(--deep); }
+
+/* Batch C — optional custom colors block (collapsed by default) */
+.custom-color-details { margin: 10px 0 0; }
+.custom-color-details summary {
+  cursor: pointer; padding: 8px 0; list-style: none;
+  color: var(--muted); font-size: 13px;
+}
+.custom-color-details summary::-webkit-details-marker { display: none; }
+.custom-color-details summary::before {
+  content: '+ '; font-weight: 700; color: var(--brown);
+}
+.custom-color-details[open] summary::before { content: '− '; }
+
+/* ================================================================
+   [Model A] Paywall additions — affiliate-maximalist tier UI
+   ================================================================ */
+
+/* "Coming soon" pill on Pro features in the paywall feature list. Honest
+   framing for batch-design and advanced personalization which are real
+   Pro features but require backend (DEFERRED.md). */
+.paywall-soon {
+  display: inline-block;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--muted);
+  background: rgba(139, 111, 71, 0.08);
+  padding: 1px 6px; border-radius: 4px;
+  margin-left: 4px;
+  text-transform: uppercase;
+}
+
+/* Free-tier reassurance note inside paywall. Reforge Monetization +
+   Pricing: counter the fear-based "you can't have this" framing with an
+   explicit list of what stays free. Builds trust + reduces refund risk. */
+.paywall-free-note {
+  margin: 6px 0 14px; padding: 10px 12px;
+  font-size: 12px; color: var(--muted);
+  background: rgba(106, 143, 82, 0.08);
+  border-left: 3px solid #6A8F52;
+  border-radius: 6px;
+  position: relative; z-index: 1;
+  line-height: 1.45;
+}
+
+/* [Compute-quality routing] .quota-banner removed — there's no quota.
+   Replaced by .premium-upsell-hint (defined further down) which surfaces
+   the Pro premium-quality value prop with proper pacing. */
+
+/* FTC affiliate disclosure inline + modal */
+.affiliate-disclosure {
+  font-size: 11px; color: var(--muted); text-align: center;
+  margin: 8px 0 4px; line-height: 1.5;
+}
+.affiliate-disclosure a {
+  color: var(--brown); text-decoration: underline; cursor: pointer;
+}
+.affiliate-content { font-size: 13px; line-height: 1.55; color: var(--ink); }
+.affiliate-content h4 {
+  margin: 14px 0 6px; font-size: 14px; color: var(--ink);
+}
+.affiliate-content p { margin: 6px 0; }
+.affiliate-content ul { margin: 6px 0 6px 18px; padding: 0; }
+.affiliate-content ul li { margin: 4px 0; font-size: 13px; }
+
+/* ============================================================
+   Paywall scroll fix — appended last to override the three
+   reconstruction-duplicate `.paywall-card` blocks at lines 2629,
+   3330, 3640 (all of which used overflow: hidden + no max-height
+   and clipped the founding-member footer + Pro feature list at
+   smaller viewports). See CLAUDE.md "reconstruction artifacts."
+   ============================================================ */
+#paywallModal .paywall-card {
+  /* Cap to viewport so content can scroll instead of clipping. */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Subtle themed scrollbar instead of OS default. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 111, 71, 0.45) transparent;
+  -webkit-overflow-scrolling: touch;
+  /* Soft fade at bottom hints there's more content. */
+  background-image:
+    linear-gradient(to bottom, transparent 0, transparent calc(100% - 18px), rgba(0,0,0,0.03) 100%);
+}
+#paywallModal .paywall-card::-webkit-scrollbar { width: 6px; }
+#paywallModal .paywall-card::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 12px 0;
+}
+#paywallModal .paywall-card::-webkit-scrollbar-thumb {
+  background: rgba(139, 111, 71, 0.4);
+  border-radius: 999px;
+}
+#paywallModal .paywall-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 111, 71, 0.65);
+}
+/* Note on the close (×) button: it stays `position: absolute` per the base
+   `.modal-close` rule, which means it scrolls with the card content. That's
+   acceptable because Esc + backdrop tap also dismiss the modal (both wired
+   in app.js). Keeping the close button absolute avoids the sticky/float
+   layout fragility on a card that isn't a flex container. */
+/* Dark mode — re-tint the scrollbar so it reads on the darker card bg. */
+body.theme-dark #paywallModal .paywall-card {
+  scrollbar-color: rgba(232, 193, 147, 0.35) transparent;
+}
+body.theme-dark #paywallModal .paywall-card::-webkit-scrollbar-thumb {
+  background: rgba(232, 193, 147, 0.32);
+}
+body.theme-dark #paywallModal .paywall-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 193, 147, 0.55);
+}
+
+/* ============================================================
+   D7 reveal-gate hero
+   ============================================================
+   Stages the signin screen as "the curtain before the magic" instead of
+   an auth checkout step. The user's source room photo lives behind a
+   heavy blur + warm dim — it reads as "your room, behind frosted glass"
+   and keeps the curiosity gap open. Live item count + total $ render as
+   the concrete anticipation anchors. The form drops to second visual
+   priority; the reveal-in-waiting becomes the centerpiece.
+   See app.js applySigninMode() reveal-gate branch.
+   ============================================================ */
+.signin-reveal-hero {
+  position: relative;
+  margin: 4px 12px 14px;
+  border-radius: 20px;
+  overflow: hidden;
+  isolation: isolate;
+  /* Subtle drop so the hero feels like a card sitting above the form. */
+  box-shadow: 0 6px 24px rgba(74, 51, 32, 0.08);
+}
+.signin-reveal-hero[hidden] { display: none; }
+
+/* Layer 0 — the user's actual source photo, heavily blurred + scaled out
+   slightly so the blur edges don't reveal the image's frame. */
+.srh-bg {
+  position: absolute; inset: -20px;
+  background-size: cover; background-position: center;
+  filter: blur(32px) saturate(1.15);
+  transform: scale(1.15);
+  z-index: 0;
+}
+/* Fallback gradient when no source photo (shouldn't happen, but safe). */
+.signin-reveal-hero:not(:has(#srhBg[style*="background-image"])) .srh-bg {
+  background: linear-gradient(135deg, #E8D2B4 0%, #C49A60 50%, #8B6F47 100%);
+}
+
+/* Layer 1 — warm beige veil so text reads cleanly + the photo never
+   leaks visual detail. This is the "frosted curtain" tint. */
+.srh-veil {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at top, rgba(244, 232, 208, 0.55) 0%, rgba(244, 232, 208, 0.7) 60%, rgba(244, 232, 208, 0.85) 100%),
+    linear-gradient(180deg, rgba(74, 51, 32, 0.05) 0%, rgba(74, 51, 32, 0.18) 100%);
+  z-index: 1;
+}
+
+/* Layer 2 — the content panel itself. */
+.srh-panel {
+  position: relative; z-index: 2;
+  padding: 18px 18px 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Trust eyebrow — social proof close to the form per Reforge Conversion
+   Optimization. Inline pill style so it reads as a single confidence cue. */
+.srh-trust {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--ink);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.srh-stars { color: #C49A60; letter-spacing: 1px; font-size: 10px; }
+.srh-trust-text strong { color: var(--deep); font-weight: 800; }
+
+/* Big headline — "Your room, reimagined." */
+.srh-headline {
+  margin: 4px 0 2px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--deep);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Stats row — concrete anticipation anchor (item count + $ total). */
+.srh-stats {
+  font-size: 13px;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2px;
+}
+.srh-stat { display: inline-flex; align-items: baseline; gap: 4px; }
+.srh-num {
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--deep);
+  letter-spacing: -0.01em;
+}
+.srh-dot { color: var(--brown); opacity: 0.55; font-weight: 700; }
+
+/* Faux "redesign card" with subtle shimmer — communicates "ready, locked." */
+.srh-shimmer-card {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.55) 100%
+  );
+  background-size: 200% 100%;
+  animation: srhShimmer 2800ms ease-in-out infinite;
+  font-size: 12px;
+  color: var(--brown);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 10px rgba(74, 51, 32, 0.08);
+}
+.srh-lock-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.srh-lock { color: var(--brown); }
+@keyframes srhShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Downward arrow — directional cue the eye follows to the form. */
+.srh-arrow {
+  margin-top: 6px;
+  color: var(--brown);
+  opacity: 0.7;
+  animation: srhBounce 2200ms ease-in-out infinite;
+}
+@keyframes srhBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50%      { transform: translateY(4px); opacity: 1; }
+}
+
+/* Tighten the signin-card spacing when the hero is present so the two
+   feel like one composition, not two stacked cards. */
+.signin-reveal-hero:not([hidden]) + .signin-card {
+  margin-top: 4px;
+}
+
+/* Dark mode — re-tone the veil + text contrast. */
+body.theme-dark .srh-veil {
+  background:
+    radial-gradient(ellipse at top, rgba(40, 28, 18, 0.45) 0%, rgba(40, 28, 18, 0.62) 60%, rgba(40, 28, 18, 0.82) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.25) 100%);
+}
+body.theme-dark .srh-headline {
+  color: #F5E9D7;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+body.theme-dark .srh-trust {
+  background: rgba(40, 28, 18, 0.55);
+  color: #F5E9D7;
+}
+body.theme-dark .srh-trust-text strong { color: #F5E9D7; }
+body.theme-dark .srh-stats { color: #E8D2B4; }
+body.theme-dark .srh-num { color: #F5E9D7; }
+body.theme-dark .srh-shimmer-card {
+  background: linear-gradient(
+    90deg,
+    rgba(80, 56, 36, 0.55) 0%,
+    rgba(120, 86, 56, 0.85) 50%,
+    rgba(80, 56, 36, 0.55) 100%
+  );
+  background-size: 200% 100%;
+  color: #F5E9D7;
+}
+body.theme-dark .srh-lock { color: #E8C193; }
+body.theme-dark .srh-arrow { color: #E8C193; }
+
+/* Small viewport — reduce the headline so it never wraps awkwardly. */
+@media (max-width: 360px) {
+  .srh-headline { font-size: 22px; }
+  .srh-stats    { font-size: 12px; }
+  .srh-num      { font-size: 16px; }
+  .signin-reveal-hero { margin: 4px 8px 12px; }
+}
+/* "Ready in your style" text variant — same row as the count, no big number. */
+.srh-stat-text {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13px;
+}
+body.theme-dark .srh-stat-text { color: #E8D2B4; }
+
+/* ============================================================
+   Vibrant glow upgrade — "ready · locked behind one quick step"
+   ============================================================
+   The original shimmer was subtle. Hassan asked for "vibrant + beautiful."
+   This layers three effects:
+     1. Pulsing warm-tan box-shadow halo (the glow)
+     2. Animated gradient sweep across the pill background (alive, not static)
+     3. Lock icon micro-pulse synced to the halo
+   Reforge Visual Hierarchy — energy at the moment-of-friction draws the eye
+   to the unlock affordance, not the form fields beneath it.
+   ============================================================ */
+.srh-shimmer-card {
+  /* Override the prior shimmer-only treatment with a richer glow. */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 248, 232, 0.95) 0%,
+    rgba(255, 255, 255, 1)    50%,
+    rgba(255, 248, 232, 0.95) 100%
+  ) !important;
+  background-size: 220% 100% !important;
+  border: 1px solid rgba(212, 165, 116, 0.45);
+  /* The glow itself: warm tan halo that pulses outward. */
+  box-shadow:
+    0 0 0 0 rgba(212, 165, 116, 0.55),
+    0 0 18px 4px rgba(212, 165, 116, 0.35),
+    0 4px 14px rgba(139, 111, 71, 0.18) !important;
+  animation:
+    srhShimmer 2800ms ease-in-out infinite,
+    srhGlowPulse 2400ms ease-in-out infinite !important;
+  font-weight: 700;
+}
+@keyframes srhGlowPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba(212, 165, 116, 0.55),
+      0 0 14px 2px rgba(212, 165, 116, 0.30),
+      0 4px 14px rgba(139, 111, 71, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(212, 165, 116, 0.0),
+      0 0 28px 8px rgba(235, 199, 147, 0.55),
+      0 6px 20px rgba(139, 111, 71, 0.22);
+  }
+}
+.srh-lock {
+  animation: srhLockPulse 2400ms ease-in-out infinite;
+}
+@keyframes srhLockPulse {
+  0%, 100% { transform: scale(1);    color: var(--brown); }
+  50%      { transform: scale(1.18); color: #A57E4F; }
+}
+
+/* Dark mode — keep the glow warm but brighter against dark backdrop. */
+body.theme-dark .srh-shimmer-card {
+  background: linear-gradient(
+    90deg,
+    rgba(80, 56, 36, 0.85)   0%,
+    rgba(140, 102, 64, 0.95) 50%,
+    rgba(80, 56, 36, 0.85)   100%
+  ) !important;
+  background-size: 220% 100% !important;
+  border-color: rgba(235, 199, 147, 0.55);
+}
+body.theme-dark .srh-shimmer-card {
+  animation:
+    srhShimmer 2800ms ease-in-out infinite,
+    srhGlowPulseDark 2400ms ease-in-out infinite !important;
+}
+@keyframes srhGlowPulseDark {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba(235, 199, 147, 0.55),
+      0 0 14px 2px rgba(235, 199, 147, 0.30),
+      0 4px 14px rgba(0, 0, 0, 0.30);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(235, 199, 147, 0.0),
+      0 0 30px 10px rgba(235, 199, 147, 0.55),
+      0 6px 24px rgba(0, 0, 0, 0.40);
+  }
+}
+body.theme-dark .srh-lock {
+  animation: srhLockPulseDark 2400ms ease-in-out infinite;
+}
+@keyframes srhLockPulseDark {
+  0%, 100% { transform: scale(1);    color: #E8C193; }
+  50%      { transform: scale(1.18); color: #FFE4B5; }
+}
+
+/* ============================================================
+   Style Pulse cards — fix "odd boxes" issue
+   ============================================================
+   The HTML for `.sp-card` (rendered by the Style Pulse strip on home)
+   contains `.mc-photo`, `.mc-body`, `.mc-label`, `.mc-sub` — but only
+   `.sp-card { position: relative; }` and `.mc-sub` had any styling. The
+   photos had no dimensions so they collapsed to height 0, and the cards
+   read as text-only pills. This block gives them rich-card styling.
+   ============================================================ */
+.sp-strip .sp-card {
+  flex: 0 0 168px;
+  width: 168px;
+  margin-right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 2px 10px rgba(74, 51, 32, 0.06);
+  transition: transform 240ms var(--ease-premium), box-shadow 240ms ease, border-color 240ms ease;
+  animation: none !important; /* ride the marquee, no per-card stagger */
+}
+.sp-strip .sp-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(139, 111, 71, 0.18);
+  border-color: rgba(212, 165, 116, 0.55);
+}
+.sp-strip .sp-card .mc-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background-color: var(--beige);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+/* Subtle bottom gradient on the photo so the body text reads cleanly even
+   if the underlying image is bright. */
+.sp-strip .sp-card .mc-photo::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.06) 100%);
+  pointer-events: none;
+}
+.sp-strip .sp-card .mc-body {
+  padding: 9px 12px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sp-strip .sp-card .mc-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--deep);
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+}
+.sp-strip .sp-card .mc-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* NEW badge moves to top-LEFT so it doesn't fight the brand-side-of-eye
+   for hot-style cards. The week-badge ("Wk 18") stays in the body sub. */
+.sp-strip .sp-card .sp-new-badge {
+  top: 8px; left: 8px; right: auto;
+}
+
+/* Dark-mode variants for Style Pulse cards. */
+body.theme-dark .sp-strip .sp-card {
+  background: rgba(50, 36, 24, 0.6);
+  border-color: rgba(120, 90, 60, 0.55);
+}
+body.theme-dark .sp-strip .sp-card:hover {
+  border-color: rgba(235, 199, 147, 0.55);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+body.theme-dark .sp-strip .sp-card .mc-label { color: #F5E9D7; }
+body.theme-dark .sp-strip .sp-card .mc-sub   { color: #C7B493; }
+
+/* ============================================================
+   "Explore More Designs" — results-screen habit-loop CTA
+   ============================================================
+   Reforge Retention/Engagement — this is the return-loop entry point on
+   the deepest screen of the app. Visually peer-level with "Shop The Whole
+   Room" but in a complementary palette (warm light tan vs dark brown shop
+   button), so they share weight without competing for primary attention.
+   The compass icon, animated shine sweep, layered shadow, and hover-lift
+   make it read as an inviting destination — not an escape hatch.
+   ============================================================ */
+.results-explore {
+  margin: 18px 0 28px;
+}
+.btn-explore-more {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background:
+    radial-gradient(ellipse at top left, rgba(255, 248, 232, 0.45) 0%, transparent 60%),
+    linear-gradient(135deg, #EBC793 0%, #C49A60 55%, #A47C4D 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  font-family: inherit;
+  box-shadow:
+    0 10px 28px rgba(139, 111, 71, 0.32),
+    0 2px 6px rgba(74, 51, 32, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 280ms var(--ease-premium), box-shadow 280ms ease;
+}
+/* Animated diagonal shine that sweeps every ~3.5s — premium watch-face vibe. */
+.bem-shine {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.45) 48%,
+    rgba(255, 255, 255, 0.0) 65%
+  );
+  transform: translateX(-110%);
+  animation: bemShine 3600ms ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes bemShine {
+  0%   { transform: translateX(-110%); }
+  55%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+.btn-explore-more:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 16px 38px rgba(139, 111, 71, 0.42),
+    0 4px 10px rgba(74, 51, 32, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.btn-explore-more:active { transform: translateY(-1px); }
+
+/* White-bordered circular icon — frames the compass, gives it presence. */
+.bem-icon {
+  flex-shrink: 0;
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex; align-items: center; justify-content: center;
+  color: #8B6F47;
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 4px 12px rgba(74, 51, 32, 0.25);
+  /* Slow rotational hint on hover — subtle "explore" cue, not a spinner. */
+  transition: transform 480ms var(--ease-premium);
+}
+.btn-explore-more:hover .bem-icon { transform: rotate(20deg); }
+
+.bem-text {
+  flex: 1;
+  display: flex; flex-direction: column;
+  gap: 2px;
+  position: relative; z-index: 1;
+  min-width: 0;
+}
+.bem-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(74, 51, 32, 0.28);
+}
+.bem-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 500;
+  margin-top: 2px;
+  text-shadow: 0 1px 1px rgba(74, 51, 32, 0.18);
+}
+.bem-arrow {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex; align-items: center; justify-content: center;
+  color: #FFFFFF;
+  position: relative; z-index: 1;
+  transition: transform 280ms var(--ease-premium), background 280ms ease;
+}
+.btn-explore-more:hover .bem-arrow {
+  transform: translateX(5px);
+  background: rgba(255, 255, 255, 0.32);
+}
+
+/* Dark mode — deeper gradient, brighter inner highlights, same energy. */
+body.theme-dark .btn-explore-more {
+  background:
+    radial-gradient(ellipse at top left, rgba(235, 199, 147, 0.25) 0%, transparent 60%),
+    linear-gradient(135deg, #A47C4D 0%, #6B5235 55%, #4A3320 100%);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(235, 199, 147, 0.25);
+}
+body.theme-dark .btn-explore-more:hover {
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.6),
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(235, 199, 147, 0.35);
+}
+body.theme-dark .bem-icon {
+  background: rgba(245, 233, 215, 0.95);
+  color: #6B5235;
+}
+
+/* Small viewport — keep the card substantial but trim extreme padding. */
+@media (max-width: 380px) {
+  .btn-explore-more { padding: 16px 16px; gap: 12px; border-radius: 18px; }
+  .bem-icon { width: 44px; height: 44px; }
+  .bem-icon svg { width: 22px; height: 22px; }
+  .bem-title { font-size: 16px; }
+  .bem-sub   { font-size: 11.5px; }
+  .bem-arrow { width: 32px; height: 32px; }
+  .bem-arrow svg { width: 18px; height: 18px; }
+}
+
+/* Reduced-motion users get the lift + arrow nudge but no shine sweep. */
+@media (prefers-reduced-motion: reduce) {
+  .bem-shine { animation: none; opacity: 0; }
+  .btn-explore-more:hover .bem-icon { transform: none; }
+}
+
+/* ============================================================
+   Paywall two-card layout (Free + Pro, peer-level comparison)
+   ============================================================
+   Per Reforge Monetization + Pricing (anchoring) + User Psychology (loss-
+   aversion symmetry). Free card is intentionally de-emphasized vs Pro: its
+   job is to remind the user what they keep, not compete for primary action.
+   Mobile stacks Free → Pro; ≥640px wide lays them side-by-side.
+   The FREE_PLAN_CARD source-of-truth in app.js renders into #paywallFreeCard.
+   ============================================================ */
+
+/* Widen the modal so two cards can sit comfortably side-by-side at desktop
+   widths. Overrides the prior 380px cap. Mobile still constrained by viewport. */
+#paywallModal .paywall-card {
+  max-width: 640px;
+  text-align: left;
+  padding: 22px 18px 18px;
+}
+
+/* Shared header sits above the cards — context-specific copy, centered. */
+#paywallModal .paywall-header {
+  text-align: center;
+  margin-bottom: 14px;
+  padding: 0 6px;
+}
+#paywallModal .paywall-header h3 {
+  margin: 4px 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--deep);
+}
+#paywallModal .paywall-header .paywall-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 auto;
+  max-width: 480px;
+}
+
+/* Two-card row — stack mobile, side-by-side ≥640px. */
+.paywall-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+@media (min-width: 640px) {
+  .paywall-cards {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 14px;
+  }
+  /* Free is narrower than Pro on wider screens — Pro is the visual hero. */
+  .paywall-free-card { flex: 0 0 38%; }
+  .paywall-pro-card  { flex: 1 1 auto; }
+}
+
+/* ===== FREE CARD (de-emphasized) ===== */
+.paywall-free-card {
+  position: relative;
+  border: 1px solid rgba(139, 111, 71, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(244, 232, 208, 0.28) 0%, rgba(244, 232, 208, 0.12) 100%);
+  padding: 16px 16px 14px;
+  text-align: left;
+  /* Slight de-saturation to push it visually behind Pro. */
+  opacity: 0.92;
+}
+.pfree-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.pfree-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--brown);
+  background: rgba(139, 111, 71, 0.12);
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+.pfree-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--deep);
+  letter-spacing: -0.005em;
+}
+.pfree-subtitle {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.pfree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pfree-list li {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.pfree-list .bullet {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(139, 111, 71, 0.18);
+  color: var(--brown);
+  font-weight: 700;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.pfree-footer {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(139, 111, 71, 0.22);
+  font-size: 11.5px;
+  color: var(--brown);
+  font-weight: 600;
+  font-style: italic;
+}
+
+/* ===== PRO CARD (visual hero) ===== */
+.paywall-pro-card {
+  position: relative;
+  border: 1px solid rgba(139, 111, 71, 0.32);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(244, 232, 208, 0.4) 100%);
+  padding: 16px 16px 14px;
+  text-align: center;
+  box-shadow: 0 4px 18px rgba(139, 111, 71, 0.1);
+}
+/* The list inside Pro card uses the existing .paywall-list rules (already
+   styled by reconstruction-duplicate blocks earlier in this file). The
+   wrapper change doesn't break those because they target descendants. */
+
+/* Dark mode tinting for both cards. */
+body.theme-dark .paywall-free-card {
+  background: linear-gradient(180deg, rgba(80, 56, 36, 0.42) 0%, rgba(50, 36, 24, 0.28) 100%);
+  border-color: rgba(232, 193, 147, 0.22);
+}
+body.theme-dark .pfree-title { color: #F5E9D7; }
+body.theme-dark .pfree-subtitle { color: #C7B493; }
+body.theme-dark .pfree-list li { color: #E8D2B4; }
+body.theme-dark .pfree-badge {
+  color: #E8C193;
+  background: rgba(232, 193, 147, 0.16);
+}
+body.theme-dark .pfree-list .bullet {
+  background: rgba(232, 193, 147, 0.2);
+  color: #E8C193;
+}
+body.theme-dark .pfree-footer {
+  color: #E8C193;
+  border-color: rgba(232, 193, 147, 0.28);
+}
+body.theme-dark .paywall-pro-card {
+  background: linear-gradient(180deg, rgba(60, 42, 28, 0.85) 0%, rgba(80, 56, 36, 0.65) 100%);
+  border-color: rgba(232, 193, 147, 0.32);
+}
+body.theme-dark #paywallModal .paywall-header h3 { color: #F5E9D7; }
+body.theme-dark #paywallModal .paywall-header .paywall-sub { color: #C7B493; }
+
+/* ============================================================
+   First-redesign tutorial overlay (.frt-*)
+   ============================================================
+   See app.js TUTORIAL_STEPS + startFirstRedesignTutorial(). Spotlight
+   technique: a fixed div with an enormous outset box-shadow casts darkness
+   around a transparent rectangle positioned over the highlighted target.
+   The tip floats below (or above when there's no room) with a step pip,
+   title, body, Skip (delayed 2s on step 0), and Next/Got it.
+   ============================================================ */
+.frt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+.frt-overlay.open {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* The spotlight — punches a hole in the surrounding darkness via huge box-
+   shadow. Smooth transitions so it glides between steps. */
+.frt-spotlight {
+  position: fixed;
+  border-radius: 16px;
+  /* The box-shadow is what darkens everything OUTSIDE the spotlight rect. */
+  box-shadow: 0 0 0 9999px rgba(20, 13, 5, 0.74);
+  pointer-events: none;
+  transition: top 380ms cubic-bezier(0.4, 0, 0.2, 1),
+              left 380ms cubic-bezier(0.4, 0, 0.2, 1),
+              width 380ms cubic-bezier(0.4, 0, 0.2, 1),
+              height 380ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Subtle outline so the highlighted area reads as "framed." */
+  outline: 2px solid rgba(235, 199, 147, 0.55);
+  outline-offset: 2px;
+}
+/* Budget step (emphasized) gets a brighter glow + pulsing halo. */
+.frt-overlay.frt-emphasized .frt-spotlight {
+  outline: 3px solid rgba(235, 199, 147, 0.9);
+  animation: frtSpotPulse 1800ms ease-in-out infinite;
+}
+@keyframes frtSpotPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 9999px rgba(20, 13, 5, 0.74),
+      0 0 0 0 rgba(235, 199, 147, 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 9999px rgba(20, 13, 5, 0.78),
+      0 0 0 12px rgba(235, 199, 147, 0);
+  }
+}
+
+/* The floating tip card with copy + actions. */
+.frt-tip {
+  position: fixed;
+  width: 320px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid rgba(139, 111, 71, 0.18);
+  padding: 16px 16px 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+  pointer-events: auto;
+  animation: frtTipIn 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes frtTipIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.frt-tip-above { /* layout class — bottom-positioned tip */ }
+
+.frt-step-pip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--brown);
+  background: rgba(139, 111, 71, 0.12);
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+.frt-tip-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--deep);
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+.frt-tip-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+/* Emphasized (budget) step gets a brighter title color + bolder body. */
+.frt-overlay.frt-emphasized .frt-tip-title {
+  color: var(--deep);
+  font-size: 17px;
+}
+.frt-overlay.frt-emphasized .frt-tip {
+  border-color: rgba(212, 165, 116, 0.5);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.4),
+    0 0 0 4px rgba(235, 199, 147, 0.16);
+}
+
+.frt-tip-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.frt-skip {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 180ms ease, color 180ms ease;
+}
+.frt-skip:hover { background: rgba(139, 111, 71, 0.08); color: var(--ink); }
+.frt-next {
+  background: var(--brown);
+  color: #FAF3E7;
+  border: 0;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 9px 16px;
+  border-radius: 999px;
+  transition: transform 180ms ease, background 180ms ease;
+  box-shadow: 0 4px 12px rgba(139, 111, 71, 0.32);
+}
+.frt-next:hover { transform: translateY(-1px); background: var(--deep); }
+.frt-next:active { transform: translateY(0); }
+
+/* Emphasized step: brighter primary CTA. */
+.frt-overlay.frt-emphasized .frt-next {
+  background: linear-gradient(135deg, #C49A60, #8B6F47);
+  box-shadow: 0 6px 18px rgba(212, 165, 116, 0.5);
+}
+
+/* Dark mode tinting. */
+body.theme-dark .frt-tip {
+  background: #2A1F12;
+  border-color: rgba(232, 193, 147, 0.22);
+}
+body.theme-dark .frt-tip-title { color: #F5E9D7; }
+body.theme-dark .frt-tip-body  { color: #E8D2B4; }
+body.theme-dark .frt-step-pip {
+  color: #E8C193;
+  background: rgba(232, 193, 147, 0.16);
+}
+body.theme-dark .frt-skip { color: #B89976; }
+body.theme-dark .frt-skip:hover { background: rgba(232, 193, 147, 0.08); color: #F5E9D7; }
+body.theme-dark .frt-next {
+  background: linear-gradient(135deg, #A47C4D, #6B5235);
+  color: #FAF3E7;
+}
+
+/* Reduced-motion: kill the pulse + transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .frt-spotlight { transition: none; animation: none !important; }
+  .frt-tip { animation: none; }
+}
+
+/* Small viewport — narrower tip, tighter padding. */
+@media (max-width: 380px) {
+  .frt-tip {
+    width: calc(100vw - 24px) !important;
+    padding: 14px 14px 12px;
+  }
+  .frt-tip-title { font-size: 15px; }
+  .frt-tip-body  { font-size: 12.5px; }
+}
+
+/* ============================================================
+   Shared image-card component (.imgcard) — single source of truth
+   for inspiration cards. Used by Style Pulse, future galleries.
+   See app.js renderImageCard() + THIS_WEEK_CONFIG.
+
+   Reforge frameworks driving the design:
+   - Engagement Loops: stable container + variable content. The card
+     shape is the container; the image + room label are the variables.
+   - Retention — Habit Moment frequency: every card has the same
+     prominent "Use Template →" CTA so the user doesn't have to learn
+     a new affordance per surface.
+   - User Psychology — pattern recognition: users scan 9 same-shape
+     cards in 2 seconds and learn "this style works for any room I have."
+   ============================================================ */
+.imgcard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(74, 51, 32, 0.06);
+  transition: transform 240ms var(--ease-premium), box-shadow 240ms ease, border-color 240ms ease;
+}
+.imgcard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(139, 111, 71, 0.18);
+  border-color: rgba(212, 165, 116, 0.55);
+}
+
+/* Marquee variant — fixed-width card riding the horizontal scroll strip. */
+.imgcard--marquee {
+  flex: 0 0 200px;
+  width: 200px;
+  margin-right: 12px;
+}
+
+/* Photo area — shared structure for asset and placeholder. */
+.imgcard-photo {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-color: var(--beige);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.imgcard-photo::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.18) 100%);
+  pointer-events: none;
+}
+
+/* Placeholder treatment — branded "more rooms coming" rather than weak/random. */
+.imgcard-photo--placeholder {
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(235, 199, 147, 0.4) 0%, transparent 60%),
+    linear-gradient(135deg, #E8D2B4 0%, #C49A60 60%, #8B6F47 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba(74, 51, 32, 0.78);
+}
+.imgcard-photo--placeholder::after { display: none; }
+.imgcard-placeholder-icon {
+  font-size: 36px;
+  filter: drop-shadow(0 2px 4px rgba(74, 51, 32, 0.18));
+  opacity: 0.85;
+}
+.imgcard-placeholder-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.85);
+  color: #6B5235;
+  padding: 3px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1;
+}
+
+/* Room-type label — top-left chip, semi-transparent dark for readability. */
+.imgcard-roomtype-label {
+  position: absolute;
+  top: 8px; left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #FAF3E7;
+  background: rgba(40, 26, 14, 0.7);
+  padding: 4px 9px;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 2;
+  text-transform: uppercase;
+}
+/* On placeholder cards (lighter bg), invert to dark-on-cream for legibility. */
+.imgcard--placeholder .imgcard-roomtype-label {
+  color: #4A3320;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* NEW badge — top-right. */
+.imgcard-new-badge {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #FAF3E7;
+  background: #6A8F52;
+  padding: 3px 7px;
+  border-radius: 4px;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+/* Body — main label + sublabel. */
+.imgcard-body {
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.imgcard-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--deep);
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+}
+.imgcard-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ===== Use Template CTA — the universal action button =====
+   Full-width, brand brown, brown gradient on hover. Same visual weight
+   as the "Redesign My Room" primary CTA so users register this as a
+   primary action. Lives at the bottom of every inspiration card. ===== */
+.imgcard-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  background: linear-gradient(135deg, #A47C4D 0%, #8B6F47 60%, #6B5235 100%);
+  color: #FAF3E7;
+  border: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition: background 220ms ease, transform 200ms ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.imgcard-cta:hover {
+  background: linear-gradient(135deg, #8B6F47 0%, #6B5235 60%, #4A3320 100%);
+  transform: translateY(-1px);
+}
+.imgcard-cta:active {
+  transform: translateY(0);
+}
+.imgcard-cta-arrow {
+  transition: transform 220ms var(--ease-premium);
+}
+.imgcard-cta:hover .imgcard-cta-arrow {
+  transform: translateX(3px);
+}
+
+/* When the CTA is bolted onto an existing collection-card or template-card
+   (not the new .imgcard wrapper), preserve their layouts but slot the CTA
+   at the very bottom, edge-to-edge. */
+.collection-card.has-imgcard-cta,
+.template-card.has-imgcard-cta {
+  display: flex;
+  flex-direction: column;
+}
+.collection-card.has-imgcard-cta .imgcard-cta,
+.template-card.has-imgcard-cta .imgcard-cta {
+  margin-top: auto;
+  border-radius: 0;
+  /* Slight inset so the CTA visually sits inside the card frame. */
+}
+
+/* The collection cards have a 16/10 photo and rich body — let the CTA sit
+   just below the body without altering the existing typography. */
+.collection-card .imgcard-cta--collection {
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+/* Template cards similarly — match their existing radius. */
+.template-card .imgcard-cta--template {
+  border-radius: 0 0 14px 14px;
+}
+
+/* Locked Pro template — soften the CTA so it reads as gated. */
+.template-card.template-locked .imgcard-cta {
+  background: linear-gradient(135deg, #B8A48A 0%, #8B6F47 100%);
+  opacity: 0.85;
+}
+
+/* Dark-mode variants. */
+body.theme-dark .imgcard {
+  background: rgba(50, 36, 24, 0.6);
+  border-color: rgba(120, 90, 60, 0.55);
+}
+body.theme-dark .imgcard:hover {
+  border-color: rgba(235, 199, 147, 0.55);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+body.theme-dark .imgcard-label { color: #F5E9D7; }
+body.theme-dark .imgcard-sub   { color: #C7B493; }
+body.theme-dark .imgcard-photo--placeholder {
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(235, 199, 147, 0.22) 0%, transparent 60%),
+    linear-gradient(135deg, #6B5235 0%, #4A3320 60%, #2A1F12 100%);
+  color: #F5E9D7;
+}
+body.theme-dark .imgcard-placeholder-tag {
+  background: rgba(40, 26, 14, 0.85);
+  color: #E8C193;
+}
+body.theme-dark .imgcard-roomtype-label {
+  color: #FAF3E7;
+  background: rgba(20, 13, 5, 0.7);
+}
+body.theme-dark .imgcard--placeholder .imgcard-roomtype-label {
+  color: #F5E9D7;
+  background: rgba(40, 26, 14, 0.85);
+}
+body.theme-dark .imgcard-cta {
+  background: linear-gradient(135deg, #6B5235 0%, #4A3320 60%, #2A1F12 100%);
+}
+body.theme-dark .imgcard-cta:hover {
+  background: linear-gradient(135deg, #8B6F47 0%, #6B5235 60%, #4A3320 100%);
+}
+
+/* Reduced motion — no transforms. */
+@media (prefers-reduced-motion: reduce) {
+  .imgcard, .imgcard:hover { transform: none; }
+  .imgcard-cta:hover { transform: none; }
+  .imgcard-cta:hover .imgcard-cta-arrow { transform: none; }
+}
+
+/* Small viewport — slightly tighter card. */
+@media (max-width: 380px) {
+  .imgcard--marquee { flex: 0 0 174px; width: 174px; margin-right: 10px; }
+  .imgcard-cta { padding: 10px 12px; font-size: 12.5px; }
+  .imgcard-photo { aspect-ratio: 5 / 4; }
+}
+
+/* ============================================================
+   Style Pulse strip — 2-column grid override
+   ============================================================
+   Switches the Style Pulse strip from a horizontal-scroll marquee
+   to a 2-column vertical grid so all 9 room cards fit on the home
+   screen without horizontal panning. The cards retain their .imgcard
+   styling but stretch to fill their grid cell.
+
+   We override at the .sp-strip ID-scoped level so the marquee
+   behavior is preserved for OTHER strips (Trending Styles, Seasonal
+   collections) that still benefit from horizontal scroll.
+
+   Reforge Engagement Loops: same content, same component, denser
+   layout. The variable content (9 rooms) is now scannable in a
+   single visual pass instead of requiring scroll discovery.
+   ============================================================ */
+.sp-strip {
+  /* [Featured-Style row restructure] Override the .collections-strip
+     horizontal-scroll properties. The homepage row now contains 3 elements:
+     Bedroom card + Living Room card + narrower Discover More tile. We use
+     a CSS grid with two image-card columns plus a narrower 3rd column for
+     the tile — fits on one row at typical mobile widths. On very narrow
+     viewports we let the tile wrap to its own row so the cards keep their
+     readable aspect ratio. */
+  display: grid;
+  grid-template-columns: 1fr 1fr 0.6fr;
+  gap: 12px;
+  overflow: visible;
+  mask-image: none;
+  -webkit-mask-image: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 6px 0 14px;
+  align-items: stretch;
+}
+/* Cards inside the Style Pulse grid stretch to fill their column. */
+.sp-strip > .imgcard,
+.sp-strip > .imgcard--marquee {
+  flex: none;
+  width: auto;
+  margin-right: 0;
+  min-width: 0;
+}
+
+/* ============================================================
+   Discover More tile — homepage Featured-Style row
+   ============================================================
+   Brand-brown CTA tile that routes to the dedicated /this-week page.
+   Visually distinct from image cards — no photo, vertical arrow,
+   stacked label. Per the canonical-pattern comment block in app.js
+   (above renderStylePulse), tappable via data-go="this-week".
+   ============================================================ */
+.discover-more-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 0;
+  background:
+    radial-gradient(ellipse at top, rgba(255, 248, 232, 0.18) 0%, transparent 65%),
+    linear-gradient(165deg, #A47C4D 0%, #6B5235 55%, #4A3320 100%);
+  color: #FAF3E7;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 6px 18px rgba(74, 51, 32, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 240ms var(--ease-premium), box-shadow 240ms ease;
+}
+.discover-more-tile:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 26px rgba(74, 51, 32, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+.discover-more-tile:active { transform: translateY(0); }
+.dmt-arrow {
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #FAF3E7;
+  transition: transform 280ms var(--ease-premium), background 240ms ease;
+}
+.discover-more-tile:hover .dmt-arrow {
+  transform: translateX(3px);
+  background: rgba(255, 255, 255, 0.26);
+}
+.dmt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dmt-headline {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.005em;
+  color: #FAF3E7;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(74, 51, 32, 0.32);
+}
+.dmt-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(250, 243, 231, 0.78);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+body.theme-dark .discover-more-tile {
+  background:
+    radial-gradient(ellipse at top, rgba(235, 199, 147, 0.22) 0%, transparent 65%),
+    linear-gradient(165deg, #6B5235 0%, #4A3320 55%, #2A1F12 100%);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(235, 199, 147, 0.18);
+}
+
+/* Tighter visual rhythm at very narrow viewports. */
+@media (max-width: 380px) {
+  .sp-strip {
+    /* Drop the 3rd column on tiny screens — Discover More wraps below. */
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 6px 0 12px;
+  }
+  .discover-more-tile {
+    grid-column: span 2;
+    flex-direction: row;
+    gap: 14px;
+    padding: 14px 18px;
+    text-align: left;
+  }
+  .discover-more-tile .dmt-text { align-items: flex-start; }
+}
+
+/* ============================================================
+   /this-week dedicated page — featured style detail
+   ============================================================
+   Reads from THIS_WEEK_CONFIG (single source of truth). Hero band
+   on top + full 9-card grid + bottom "Browse all styles" CTA.
+   Renderer: renderThisWeekPage() in app.js.
+   ============================================================ */
+[data-screen="this-week"] {
+  padding-bottom: 32px;
+}
+.tw-hero {
+  margin: 12px 0 18px;
+  padding: 18px 18px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.16) 0%, rgba(196, 154, 96, 0.08) 100%);
+  border: 1px solid rgba(212, 165, 116, 0.32);
+}
+.tw-hero-eyebrow {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #FAF3E7;
+  background: linear-gradient(135deg, #EBC793 0%, #A47C4D 60%, #5C4128 100%);
+  padding: 3px 9px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 5px rgba(62, 39, 35, 0.2);
+}
+.tw-hero-tagline {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--deep);
+  letter-spacing: -0.005em;
+}
+.tw-hero-meta {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.tw-hero-week-stamp {
+  font-weight: 600;
+  color: var(--brown);
+}
+body.theme-dark .tw-hero {
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.14) 0%, rgba(140, 100, 60, 0.06) 100%);
+  border-color: rgba(232, 193, 147, 0.28);
+}
+body.theme-dark .tw-hero-tagline { color: #F5E9D7; }
+body.theme-dark .tw-hero-week-stamp { color: #E8C193; }
+
+/* Grid for the 9 room cards. 2-col on mobile, 3-col on wider. */
+.tw-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0;
+  margin: 0 0 24px;
+}
+@media (min-width: 600px) {
+  .tw-grid { grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+}
+/* Image cards inside the dedicated-page grid stretch to their cell. */
+.tw-grid > .imgcard,
+.tw-grid > .imgcard--grid,
+.tw-grid > .imgcard--marquee {
+  flex: none;
+  width: auto;
+  margin-right: 0;
+  min-width: 0;
+}
+
+/* Bottom "Browse all styles" CTA. */
+.tw-bottom-cta {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 0;
+}
+.tw-browse-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.tw-browse-all svg {
+  transition: transform 220ms var(--ease-premium);
+}
+.tw-browse-all:hover svg { transform: translateX(3px); }
+
+/* ============================================================
+   Styles Index stub — placeholder until the real page lands.
+   ============================================================ */
+.styles-index-stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 22px 40px;
+  margin: 18px 0 0;
+}
+.styles-index-stub .sis-art {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.20) 0%, rgba(196, 154, 96, 0.10) 100%);
+  border: 1px solid rgba(212, 165, 116, 0.32);
+  color: var(--brown);
+  margin-bottom: 18px;
+}
+.sis-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--deep);
+  letter-spacing: -0.01em;
+}
+.sis-body {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 360px;
+}
+body.theme-dark .styles-index-stub .sis-art {
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.18) 0%, rgba(140, 100, 60, 0.08) 100%);
+  border-color: rgba(232, 193, 147, 0.32);
+  color: #E8C193;
+}
+body.theme-dark .sis-title { color: #F5E9D7; }
+body.theme-dark .sis-body  { color: #C7B493; }
+
+/* ============================================================
+   Retention pass — Engagement Loop surfaces
+   ============================================================
+   Three new home-screen surfaces, each tied to one of the ranked
+   engagement loops in the strategy doc:
+     .price-drop-banner   → Loop 2 (Price-Drop Watch)
+     .home-progress       → Loop 3 (Multi-room journey)
+     [data-visit-band]    → Visit-N differentiation (Engagement Engine signal)
+   See app.js renderPriceDropBanner / renderHomeProgress / runLifecycleScheduler.
+   ============================================================ */
+
+/* Price-Drop Banner — sits at the top of the home hero when there's a real
+   wishlist drop. Pulse + warm green accent so it reads as opportunity, not
+   noise. Per Reforge "Manufactured Change trigger" — the visual itself is
+   the in-app trigger surface, parallel to the would-be push notification. */
+.price-drop-banner {
+  position: relative;
+  margin: 14px 0 0;
+  padding: 14px 14px 14px 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(106, 143, 82, 0.10) 0%, rgba(106, 143, 82, 0.06) 100%);
+  border: 1px solid rgba(106, 143, 82, 0.32);
+  box-shadow: 0 4px 14px rgba(74, 51, 32, 0.06);
+  animation: pdbIn 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes pdbIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pdb-pulse {
+  flex-shrink: 0;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #6A8F52;
+  box-shadow: 0 0 0 0 rgba(106, 143, 82, 0.6);
+  animation: pdbPulse 1800ms ease-out infinite;
+}
+@keyframes pdbPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(106, 143, 82, 0.55); }
+  60%  { box-shadow: 0 0 0 10px rgba(106, 143, 82, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(106, 143, 82, 0); }
+}
+.pdb-body { flex: 1; min-width: 0; }
+.pdb-headline {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--deep);
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.pdb-headline strong { color: #4F6B3D; }
+.pdb-emoji {
+  color: #6A8F52;
+  font-weight: 800;
+  font-size: 14px;
+  margin-right: 2px;
+}
+.pdb-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pdb-sub strong { color: var(--deep); font-weight: 700; }
+.pdb-was { text-decoration: line-through; opacity: 0.7; }
+.pdb-more { color: var(--brown); font-weight: 600; }
+.pdb-cta {
+  flex-shrink: 0;
+  background: #6A8F52;
+  color: #FAF3E7;
+  border: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease;
+  box-shadow: 0 4px 12px rgba(106, 143, 82, 0.3);
+}
+.pdb-cta:hover { transform: translateY(-1px); background: #4F6B3D; }
+.pdb-close {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 180ms ease, color 180ms ease;
+}
+.pdb-close:hover { background: rgba(139, 111, 71, 0.1); color: var(--ink); }
+body.theme-dark .price-drop-banner {
+  background: linear-gradient(135deg, rgba(106, 143, 82, 0.18) 0%, rgba(106, 143, 82, 0.10) 100%);
+  border-color: rgba(106, 143, 82, 0.42);
+}
+body.theme-dark .pdb-headline { color: #F5E9D7; }
+body.theme-dark .pdb-headline strong { color: #B0CC8C; }
+body.theme-dark .pdb-sub { color: #C7B493; }
+body.theme-dark .pdb-sub strong { color: #F5E9D7; }
+body.theme-dark .pdb-emoji { color: #B0CC8C; }
+@media (max-width: 380px) {
+  .price-drop-banner { padding: 12px 12px 12px 14px; gap: 10px; }
+  .pdb-cta { padding: 7px 12px; font-size: 12px; }
+}
+
+/* Home Progress map — 9-cell grid showing designed/undesigned rooms.
+   Designed cells get a warm tan glow + checkmark; the next-recommended
+   undesigned cell gets a subtle pulse to draw the eye. Reforge multi-
+   room engagement loop visualization. */
+.home-progress {
+  margin: 22px 0 6px;
+}
+.hp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.hp-eyebrow {
+  display: inline-block;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.16em;
+  color: #FAF3E7;
+  background: linear-gradient(135deg, #EBC793 0%, #A47C4D 60%, #5C4128 100%);
+  padding: 3px 8px; border-radius: 4px;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 5px rgba(62, 39, 35, 0.2);
+}
+.hp-title { margin: 4px 0 2px; font-size: 17px; }
+.hp-sub { margin: 0; font-size: 12.5px; }
+.hp-progress-bar {
+  flex-shrink: 0;
+  width: 70px; height: 6px;
+  background: rgba(139, 111, 71, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  align-self: center;
+}
+.hp-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C49A60 0%, #8B6F47 100%);
+  border-radius: 999px;
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.hp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.hp-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 6px 10px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+}
+.hp-cell:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 165, 116, 0.55);
+  box-shadow: 0 6px 16px rgba(139, 111, 71, 0.14);
+}
+.hp-icon {
+  font-size: 22px;
+  filter: grayscale(0.4) opacity(0.55);
+  transition: filter 220ms ease;
+}
+.hp-label {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.005em;
+}
+/* Designed cells — warm tan glow, full-color icon, checkmark badge. */
+.hp-cell.hp-done {
+  background: linear-gradient(180deg, rgba(235, 199, 147, 0.20) 0%, rgba(196, 154, 96, 0.12) 100%);
+  border-color: rgba(212, 165, 116, 0.5);
+}
+.hp-cell.hp-done .hp-icon {
+  filter: none;
+}
+.hp-cell.hp-done .hp-label { color: var(--deep); font-weight: 700; }
+.hp-check {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #6A8F52;
+  color: #FAF3E7;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+/* Next-up cell — subtle dashed border + breathing pulse. */
+.hp-cell.hp-next {
+  border-style: dashed;
+  border-color: rgba(139, 111, 71, 0.55);
+  animation: hpNextPulse 2400ms ease-in-out infinite;
+}
+.hp-cell.hp-next .hp-icon { filter: grayscale(0.2) opacity(0.85); }
+@keyframes hpNextPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.3); }
+  50%      { box-shadow: 0 0 0 6px rgba(212, 165, 116, 0); }
+}
+body.theme-dark .hp-cell {
+  background: rgba(50, 36, 24, 0.45);
+  border-color: rgba(120, 90, 60, 0.45);
+}
+body.theme-dark .hp-cell:hover {
+  border-color: rgba(235, 199, 147, 0.55);
+}
+body.theme-dark .hp-cell.hp-done {
+  background: linear-gradient(180deg, rgba(235, 199, 147, 0.18) 0%, rgba(140, 100, 60, 0.10) 100%);
+  border-color: rgba(235, 199, 147, 0.45);
+}
+body.theme-dark .hp-cell.hp-done .hp-label { color: #F5E9D7; }
+body.theme-dark .hp-cell .hp-label { color: #E8D2B4; }
+body.theme-dark .hp-progress-bar { background: rgba(232, 193, 147, 0.12); }
+@media (max-width: 380px) {
+  .hp-grid { gap: 6px; }
+  .hp-cell { padding: 12px 4px 8px; }
+  .hp-icon { font-size: 20px; }
+  .hp-label { font-size: 10.5px; }
+}
+
+/* Visit-N differentiation — body[data-visit-band] varies content density.
+   - first:    activation hero is dominant; loop surfaces hidden
+   - early:    add Home Progress emphasis
+   - active:   show all loop surfaces, denser content
+   - veteran:  hide first-time helper copy, prioritize fresh content
+   Per Reforge Engagement Engine signal-ranking principle. */
+body[data-visit-band="first"] .home-progress { display: none; }
+body[data-visit-band="first"] .price-drop-banner { display: none; }
+body[data-visit-band="early"] .home-progress { animation: hpEarlyEmphasis 600ms ease-out; }
+@keyframes hpEarlyEmphasis {
+  from { transform: scale(0.98); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+/* Veterans don't need the first-aha price-tag tooltip nor the template tip. */
+body[data-visit-band="veteran"] .coach-mark,
+body[data-visit-band="veteran"] .template-tip {
+  display: none !important;
+}
+
+/* ============================================================
+   Premium-quality upsell hint (compute-quality routing migration)
+   ============================================================
+   Surfaces on results screen for Free users at gen #3+, max 1/session,
+   7-day cooldown. Replaces the old .quota-banner. Reads as a friendly
+   spark/hint, not a wall — the Free user already got their generation;
+   this just teases what Pro would deliver next time.
+   ============================================================ */
+.premium-upsell-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  margin: 0 0 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.18) 0%, rgba(212, 165, 116, 0.10) 100%);
+  border: 1px solid rgba(212, 165, 116, 0.42);
+  box-shadow: 0 3px 12px rgba(74, 51, 32, 0.06);
+  animation: puhIn 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes puhIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.puh-spark {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EBC793 0%, #C49A60 100%);
+  color: #FAF3E7;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(139, 111, 71, 0.32);
+}
+.puh-body { flex: 1; min-width: 0; }
+.puh-headline {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.puh-headline strong { color: var(--deep); font-weight: 700; }
+.puh-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.puh-cta {
+  flex-shrink: 0;
+  background: var(--brown);
+  color: #FAF3E7;
+  border: 0;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease;
+  box-shadow: 0 3px 10px rgba(139, 111, 71, 0.28);
+}
+.puh-cta:hover { transform: translateY(-1px); background: var(--deep); }
+.puh-close {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 180ms ease, color 180ms ease;
+}
+.puh-close:hover { background: rgba(139, 111, 71, 0.10); color: var(--ink); }
+body.theme-dark .premium-upsell-hint {
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.20) 0%, rgba(140, 100, 60, 0.12) 100%);
+  border-color: rgba(232, 193, 147, 0.42);
+}
+body.theme-dark .puh-headline strong { color: #F5E9D7; }
+body.theme-dark .puh-headline { color: #E8D2B4; }
+body.theme-dark .puh-sub { color: #C7B493; }
+@media (max-width: 380px) {
+  .premium-upsell-hint { padding: 11px 10px 11px 12px; gap: 10px; }
+  .puh-cta { padding: 6px 11px; font-size: 11.5px; }
+}
+
+/* ============================================================
+   10-Q onboarding — quiz screen variants
+   ============================================================
+   Per ONBOARDING_AUDIT (approved 2026-04-26): each question can render
+   in any of these modes via the option's `image_kind` config:
+     mood / palette / texture / reference_room → photo card (with
+       placeholder fallback when image is null)
+     icon → SVG-driven card (uses window.QUIZ_SVGS)
+     tier_badge → variant of photo card with subtle gradient
+   The placeholder slot is brand-brown so missing images don't break
+   layout — Hassan drops in real images via window.ONBOARDING_QUESTIONS
+   without touching components.
+   ============================================================ */
+
+/* Subhead under the headline — shown for multi-select instructions. */
+.quiz-subhead {
+  margin: 4px 0 12px;
+  text-align: center;
+}
+
+/* Dot-style progress indicator — Reforge User Psychology: dots feel
+   light, percentage feels like work. Sits above the bar. */
+.quiz-progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0 4px;
+}
+.qpd-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(139, 111, 71, 0.18);
+  transition: background 240ms ease, transform 240ms ease;
+}
+.qpd-dot.qpd-done    { background: rgba(139, 111, 71, 0.55); }
+.qpd-dot.qpd-current {
+  background: var(--brown);
+  transform: scale(1.45);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.22);
+}
+body.theme-dark .qpd-dot { background: rgba(232, 193, 147, 0.22); }
+body.theme-dark .qpd-dot.qpd-done { background: rgba(232, 193, 147, 0.6); }
+body.theme-dark .qpd-dot.qpd-current { background: #E8C193; }
+
+/* Image placeholder — used when a question option has image:null. Subtle
+   brand-brown rectangle with a small icon so layout doesn't break. Drop
+   real images via the ONBOARDING_QUESTIONS config when ready. */
+.qoc-photo--placeholder {
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.18) 0%, rgba(196, 154, 96, 0.12) 100%) !important;
+  border: 1px dashed rgba(139, 111, 71, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(139, 111, 71, 0.55);
+}
+.qoc-placeholder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+body.theme-dark .qoc-photo--placeholder {
+  background: linear-gradient(135deg, rgba(235, 199, 147, 0.16) 0%, rgba(140, 100, 60, 0.10) 100%) !important;
+  border-color: rgba(232, 193, 147, 0.32);
+  color: rgba(232, 193, 147, 0.55);
+}
+
+/* Multi-select Continue actions — appears at the bottom of multi-select
+   questions only. Shows the running counter + Continue button. */
+.quiz-multi-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.quiz-multi-counter {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.quiz-multi-actions .btn-primary[disabled] {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Skip-button reveal-after-1.5s. Reforge User Psychology: delaying the
+   skip prevents reflexive skipping before the user reads the question. */
+.quiz-none-btn[data-revealed="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.quiz-none-btn[data-revealed="true"] {
+  opacity: 0.62;
+  pointer-events: auto;
+  transition: opacity 480ms ease;
+}
+.quiz-none-btn[data-revealed="true"]:hover { opacity: 1; }
+
+/* Q10 dealbreaker followup screen */
+.dealbreaker-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+  min-height: 76px;
+  margin-top: 8px;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.dealbreaker-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.22);
+}
+.dealbreaker-meta {
+  text-align: right;
+  margin: 6px 2px 4px;
+}
+body.theme-dark .dealbreaker-input {
+  background: rgba(50, 36, 24, 0.5);
+  border-color: rgba(120, 90, 60, 0.45);
+  color: #F5E9D7;
+}
+body.theme-dark .dealbreaker-input:focus {
+  border-color: #E8C193;
+  box-shadow: 0 0 0 3px rgba(232, 193, 147, 0.22);
+}
+
+/* ============================================================
+   10-Q answers editor — preferences-screen surface
+   ============================================================
+   Collapsible cards rendered by renderAnswersEditor() in app.js.
+   Expanded card shows the same option grid the quiz uses, with the
+   current selection pre-highlighted.
+   ============================================================ */
+.answers-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+.answer-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+.answer-card:has(.answer-card-detail:not([hidden])) {
+  border-color: rgba(212, 165, 116, 0.55);
+  box-shadow: 0 6px 16px rgba(74, 51, 32, 0.08);
+}
+.answer-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+}
+.ac-head { flex: 1; min-width: 0; }
+.ac-headline {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--deep);
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+}
+.ac-current {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ac-chev {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+  transition: transform 220ms ease;
+}
+.answer-card-summary[aria-expanded="true"] .ac-chev {
+  transform: rotate(90deg);
+}
+.answer-card-detail {
+  padding: 4px 16px 16px;
+  border-top: 1px solid rgba(139, 111, 71, 0.12);
+}
+.answer-card-detail .muted.small { margin: 6px 0 10px; }
+
+.answer-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.answer-option {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+  transition: border-color 200ms ease, transform 180ms ease, background 200ms ease;
+}
+.answer-option:hover {
+  border-color: rgba(212, 165, 116, 0.55);
+  transform: translateY(-1px);
+}
+.answer-option.selected {
+  border-color: var(--brown);
+  background: rgba(212, 165, 116, 0.12);
+  box-shadow: 0 0 0 1px rgba(139, 111, 71, 0.4) inset;
+}
+.ao-visual {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  background: rgba(235, 199, 147, 0.16);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brown);
+}
+.ao-visual--photo { color: transparent; }
+.ao-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+  letter-spacing: -0.003em;
+}
+.answer-followup {
+  margin-top: 12px;
+}
+.answer-followup label {
+  display: block;
+  margin-bottom: 6px;
+}
+.answer-multi-meta {
+  margin-top: 10px;
+  text-align: right;
+}
+
+body.theme-dark .answer-card {
+  background: rgba(50, 36, 24, 0.45);
+  border-color: rgba(120, 90, 60, 0.45);
+}
+body.theme-dark .answer-card:has(.answer-card-detail:not([hidden])) {
+  border-color: rgba(232, 193, 147, 0.55);
+}
+body.theme-dark .ac-headline { color: #F5E9D7; }
+body.theme-dark .ac-current  { color: #C7B493; }
+body.theme-dark .answer-card-detail { border-top-color: rgba(232, 193, 147, 0.18); }
+body.theme-dark .answer-option {
+  background: rgba(50, 36, 24, 0.55);
+  border-color: rgba(120, 90, 60, 0.5);
+  color: #E8D2B4;
+}
+body.theme-dark .answer-option.selected {
+  background: rgba(232, 193, 147, 0.16);
+  border-color: #E8C193;
+  box-shadow: 0 0 0 1px rgba(232, 193, 147, 0.55) inset;
+}
+body.theme-dark .ao-visual { background: rgba(232, 193, 147, 0.16); color: #E8C193; }
+body.theme-dark .ao-label { color: #F5E9D7; }
+
+@media (max-width: 380px) {
+  .answer-options { gap: 6px; }
+  .answer-option { padding: 8px 8px 10px; }
+  .ao-label { font-size: 12px; }
+}
+
+/* ============================================================
+   BATCH 1 — Dim 09 voice / Dim 10 trust / Dim 14 edge cases
+   ============================================================ */
+
+/* [IDX-3 — Welcome qualitative trust signals]
+   Replaces the fictitious "12,400+ rooms" anchor with positioning
+   claims. Dot separators between claims; tones match the muted
+   helper-text family. */
+.welcome-proof .wp-claim {
+  font-size: 13px;
+  color: var(--brown-2);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.welcome-proof .wp-dot {
+  margin: 0 6px;
+  color: var(--muted);
+}
+
+/* [IDX-6 + CSS-1 — Affiliate disclosure V2]
+   Trust badge replacing the FTC-min single-line disclosure. Mapped to
+   Furnish design tokens (not the proposed bg-elev/border tokens which
+   don't exist here). Light + dark mode covered. */
+.affiliate-disclosure-v2 {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+.adv2-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+.adv2-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--brown);
+}
+.adv2-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--brown-2);
+  margin: 0;
+}
+.adv2-body strong {
+  color: var(--ink);
+  font-weight: 600;
+  margin-right: 2px;
+}
+.adv2-body a {
+  color: var(--tan);
+  text-decoration: underline;
+  margin-left: 4px;
+  cursor: pointer;
+}
+body.theme-dark .affiliate-disclosure-v2 {
+  background: var(--surface);
+  border-color: rgba(232, 193, 147, 0.24);
+}
+
+/* [IDX-12 + CSS-2 — Photo tip card]
+   Soft inline card on capture screen above .capture-actions. Per
+   Reforge Setup Moment Experience: must-have-input guidance lives
+   at setup, not results. Config-driven — when assets/tip-example.jpg
+   lands, it slots into .photo-tip-example without component changes. */
+.photo-tip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 12px 0 0;
+  background: var(--beige);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  position: relative;
+}
+.photo-tip[hidden] { display: none; }
+.photo-tip-example {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brown);
+  overflow: hidden;
+}
+.photo-tip-example img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-tip-icon { color: var(--brown); }
+.photo-tip-copy {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--brown-2);
+}
+.photo-tip-dismiss {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.photo-tip-dismiss:hover {
+  color: var(--brown-2);
+  background: var(--cream);
+}
+
+/* [IDX-13 — Reveal actions row + Different Style? button]
+   Two-column layout for primary affiliate CTA + secondary style-pivot.
+   The Reforge At-Risk Strategy Two: Use Case Transition fix for the
+   "no items liked" failure mode. */
+.reveal-actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.different-style-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (min-width: 540px) {
+  .reveal-actions-row {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .reveal-actions-row .shop-all-btn { flex: 1 1 auto; }
+  .reveal-actions-row .different-style-btn { flex: 0 0 auto; min-width: 180px; }
+}
+
+/* Different Style modal */
+.different-style-card {
+  max-width: 460px;
+  padding: 24px 20px;
+}
+.different-style-card h3 {
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.different-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+@media (min-width: 480px) {
+  .different-style-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.different-style-chip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+  font-weight: 500;
+  transition: all 120ms ease;
+}
+.different-style-chip:hover {
+  background: var(--beige);
+  border-color: var(--tan);
+}
+.different-style-chip:active { transform: scale(0.97); }
+.dsc-label { display: block; }
+
+/* [IDX-11 + CSS-3 — Paywall roadmap link + modal]
+   Replaces "[coming soon]" bullets per Conflict 3 lock. Roadmap is
+   opt-in disclosure in the footer, not impersonating shipped features. */
+.paywall-footnote .paywall-footnote-sep {
+  margin: 0 6px;
+  color: var(--muted);
+}
+.paywall-roadmap-link {
+  color: var(--brown-2);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+.paywall-roadmap-link:hover { color: var(--ink); }
+.paywall-roadmap-card {
+  max-width: 480px;
+  padding: 24px 20px;
+}
+.paywall-roadmap-card h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.paywall-roadmap-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.paywall-roadmap-list li {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paywall-roadmap-list strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+.paywall-roadmap-list .prl-body {
+  font-size: 13px;
+  color: var(--brown-2);
+  line-height: 1.45;
+}
+
+/* [Dim 14 Section F — insecure-context banner]
+   Dev/test footgun signal when opening via local IP without HTTPS. */
+.insecure-context-banner {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  background: var(--warn);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: center;
+  z-index: 9999;
+  box-shadow: var(--shadow-lg);
+}
+
+/* [Dim 14 Section F — camera fallback hint]
+   Light hook so future styling can highlight the Upload button when
+   camera permission has silently failed. Currently a no-op that
+   reserves the class name for future iteration. */
+.upload-recommended { /* hook for styling — currently inert */ }
+

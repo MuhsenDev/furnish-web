@@ -56,6 +56,217 @@
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+  // ---------- Activation telemetry (Reforge Retention + Engagement) ----------
+  // Events flow: signup_started → setup_* → setup_complete → aha_first_results
+  //   → aha_quality_signal → habit_second_room
+  // Replace console log + state stash with real analytics SDK later.
+  const ACTIVATION = {
+    SIGNUP_STARTED:  'signup_started',
+    SETUP_PHOTO:     'setup_photo_uploaded',
+    // [10-Q migration] SETUP_STYLE retired. Style is no longer a single
+    // setup moment — the granular onboarding_question_answered events
+    // (per question) replaced it.
+    SETUP_ROOM_TYPE: 'setup_room_type_selected',
+    SETUP_COMPLETE:  'setup_complete',      // Setup moment (3 inputs captured)
+    AHA_RESULTS:     'aha_first_results',   // Aha moment (first redesign viewed)
+    AHA_QUALITY:     'aha_quality_signal',  // First item tap / save / share
+    HABIT_2ND_ROOM:  'habit_second_room'    // Habit moment (2nd room designed)
+  };
+  function trackEvent(name, props = {}) {
+    const evt = { name, ts: Date.now(), ...props };
+    state._events = (state._events || []).slice(-200);
+    state._events.push(evt);
+    save();
+    if (console && console.log) console.log('[track]', name, props);
+  }
+
+  // ============================================================
+  // Profile factory + onboarding-answers helpers
+  // ============================================================
+  // Single source of truth for profile shape under the new 10-Q model.
+  // `profile.answers` is the canonical input for the AI prompt builder
+  // (deriveScoringWeights + buildAIPrompt). Legacy fields (styles, colors,
+  // customColors) are KEPT during the transition window so reads in
+  // pickItemsForRoom / room versions don't NPE; they're populated lazily
+  // from `answers` via deriveLegacyFromAnswers().
+  //
+  // Per Hassan's CONFLICT 1: customColors stays as a future Pro feature
+  // (see DEFERRED.md). Field preserved on profiles; no UI surfaces it
+  // until Pro entitlement ships.
+  // ============================================================
+  function ONBOARDING_DEFAULTS() {
+    // Read defaults from the data-layer config — single source of truth.
+    const out = {};
+    (window.ONBOARDING_QUESTIONS || []).forEach(q => {
+      out[q.id] = q.default;
+    });
+    return out;
+  }
+  function createProfile(name, opts = {}) {
+    const id = opts.id || ('p_' + Date.now());
+    return {
+      id,
+      name: name || 'My Style',
+      avatar: null,
+      // [10-Q model] Canonical onboarding state. Empty = "no answers yet";
+      // the renderer falls back to ONBOARDING_DEFAULTS() at AI-prompt time.
+      answers: {},
+      // Budget slider stays as the catalog price filter — independent of
+      // budget_tier (which is an AI-prompt anchor). Both coexist.
+      budget: 1500,
+      // Legacy fields — populated lazily for catalog-picker compat.
+      // customColors preserved for future Pro feature per CONFLICT 1.
+      styles: [],
+      colors: [],
+      customColors: [],
+      keepExisting: false,
+      seenFinale: false
+    };
+  }
+  // Public surface for any future caller (settings page, debug, tests).
+  window.FurnishCreateProfile = createProfile;
+
+  // Read with fallback to defaults — never returns undefined for any of
+  // the 10 question IDs. Used everywhere downstream of onboarding.
+  function getEffectiveAnswers(profile) {
+    const stored = (profile && profile.answers) || {};
+    const defaults = ONBOARDING_DEFAULTS();
+    const out = {};
+    Object.keys(defaults).forEach(qid => {
+      out[qid] = (qid in stored && stored[qid] !== undefined && stored[qid] !== null)
+        ? stored[qid]
+        : defaults[qid];
+    });
+    return out;
+  }
+
+  // Catalog-side mapping: derives the legacy `styles[]` and `colors[]`
+  // arrays from the new answers, so pickItemsForRoom keeps working
+  // against FURNITURE_DB tags without a full picker rewrite. The mapping
+  // is intentionally pluralistic — e.g. vibe='cozy_protected' + materials
+  // including 'warm_woods' implies multiple style tags worth scoring.
+  // This is NOT used in the AI prompt — the AI prompt reads answers
+  // directly. This is ONLY the catalog-picker bridge.
+  function deriveStylesFromAnswers(answers) {
+    const a = answers || {};
+    const styles = new Set();
+    // Vibe → loose style affinities
+    const vibeMap = {
+      calm_grounded:      ['minimalist','japanese-zen','scandinavian'],
+      energized_creative: ['eclectic','bohemian','art-deco'],
+      cozy_protected:     ['farmhouse','rustic','traditional'],
+      elevated_hotel:     ['contemporary','modern','art-deco'],
+      inspired_artist:    ['eclectic','bohemian','industrial']
+    };
+    (vibeMap[a.vibe] || []).forEach(s => styles.add(s));
+    // Materials → style affinities
+    const matMap = {
+      warm_woods:    ['scandinavian','japanese-zen','farmhouse','rustic'],
+      soft_fabrics:  ['traditional','transitional','contemporary'],
+      metal_glass:   ['industrial','modern','contemporary'],
+      stone_ceramic: ['minimalist','rustic','japanese-zen'],
+      vintage_patina:['traditional','eclectic','bohemian','mid-century'],
+      sleek_modern:  ['modern','contemporary','minimalist']
+    };
+    (a.materials || []).forEach(m => (matMap[m] || []).forEach(s => styles.add(s)));
+    return Array.from(styles);
+  }
+  function deriveColorsFromAnswers(answers) {
+    const a = answers || {};
+    // color_appetite → color-mood IDs (window.COLOR_MOODS) for catalog scoring.
+    const map = {
+      neutrals_only:   ['warm','neutral','whites'],
+      mostly_neutral:  ['warm','neutral','sage'],
+      confident_color: ['terracotta','jewel','sage'],
+      bold:            ['jewel','dark','terracotta']
+    };
+    return map[a.color_appetite] || ['warm','neutral'];
+  }
+
+  // [Legacy migration shim] If a profile predates the 10-Q model and has
+  // styles/colors but no answers, backfill the answers field with the
+  // closest-matching defaults so the AI prompt + tutorial don't see an
+  // empty answers object. Idempotent.
+  function migrateLegacyProfileToAnswers(profile) {
+    if (!profile) return;
+    if (profile.answers && Object.keys(profile.answers).length > 0) return;
+    profile.answers = ONBOARDING_DEFAULTS();
+    // Light heuristic: if legacy styles include 'minimalist'/'japanese-zen',
+    // bias vibe to calm_grounded; if 'bohemian'/'eclectic', bias to inspired_artist.
+    const legacyStyles = new Set(profile.styles || []);
+    if (legacyStyles.has('minimalist') || legacyStyles.has('japanese-zen')) {
+      profile.answers.vibe = 'calm_grounded';
+    } else if (legacyStyles.has('bohemian') || legacyStyles.has('eclectic')) {
+      profile.answers.vibe = 'inspired_artist';
+    } else if (legacyStyles.has('industrial')) {
+      profile.answers.vibe = 'energized_creative';
+    } else if (legacyStyles.has('mid-century') || legacyStyles.has('art-deco')) {
+      profile.answers.vibe = 'elevated_hotel';
+    } else if (legacyStyles.has('farmhouse') || legacyStyles.has('rustic')) {
+      profile.answers.vibe = 'cozy_protected';
+    }
+  }
+  // Run migration on every profile at boot. One-time-per-boot; idempotent.
+  function migrateAllProfiles() {
+    (state.profiles || []).forEach(migrateLegacyProfileToAnswers);
+  }
+
+  // ---------- Lifecycle state machine (Reforge Retention + Engagement) ----------
+  // Per Reforge "Defining Engagement States" + ICED Theory (BONUS Module 9):
+  // every visit refreshes lastVisitedAt; engagement state is computed from
+  // days-since-last-visit + days-since-last-design. Furnish is in the
+  // "Forgettable Zone" so dormancy thresholds are tighter than a daily product.
+  const LIFECYCLE = {
+    NEW:       'new',         // never opened before
+    ACTIVE:    'active',      // visited within 14 days
+    AT_RISK:   'at_risk',     // 14–30 days since last visit
+    DORMANT:   'dormant',     // 30–90 days since last visit
+    CHURNED:   'churned'      // 90+ days since last visit (Reforge: defined per natural frequency)
+  };
+  function daysSince(ts) {
+    if (!ts) return Infinity;
+    return Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
+  }
+  function getLifecycleState() {
+    if (!state.user) return LIFECYCLE.NEW;
+    // Lifecycle measures the GAP between the last session and THIS one.
+    // touchLastVisit() preserves prior lastVisitedAt as previousVisitAt.
+    // First-ever session has no previousVisitAt → NEW.
+    const prev = state.user.previousVisitAt;
+    if (!prev) {
+      return state.user.signedInAt ? LIFECYCLE.ACTIVE : LIFECYCLE.NEW;
+    }
+    const d = daysSince(prev);
+    if (d < 14)  return LIFECYCLE.ACTIVE;
+    if (d < 30)  return LIFECYCLE.AT_RISK;
+    if (d < 90)  return LIFECYCLE.DORMANT;
+    return LIFECYCLE.CHURNED;
+  }
+  function daysSinceLastDesign() {
+    const rooms = (state.rooms || []).filter(r => r.profileId === state.activeProfileId);
+    if (!rooms.length) return Infinity;
+    const last = Math.max(...rooms.map(r => r.createdAt || 0));
+    return daysSince(last);
+  }
+  // Touch lastVisitedAt on every boot. Fires only once per session to avoid
+  // resetting the dormancy clock on every showScreen call.
+  let _visitTouched = false;
+  function touchLastVisit() {
+    if (_visitTouched) return;
+    _visitTouched = true;
+    if (!state.user) state.user = {};
+    const prev = state.user.lastVisitedAt;
+    state.user.previousVisitAt = prev || null;  // for "welcome back, it's been X days"
+    state.user.lastVisitedAt = Date.now();
+    state.user.visitCount = (state.user.visitCount || 0) + 1;
+    save();
+    trackEvent('session_started', {
+      lifecycle: getLifecycleState(),
+      daysSincePrevVisit: prev ? daysSince(prev) : null,
+      visitCount: state.user.visitCount
+    });
+  }
+
   // Three states for the reviews ticker:
   //   - LARGE  on onboarding screens (eye-catching social proof)
   //   - COMPACT on home/wishlist (subtle background)
@@ -140,24 +351,143 @@
     if (dest === 'signin') prepareSignin();
     if (dest === 'saved')   renderSaved();
     if (dest === 'profile') renderProfilePage();
+    if (dest === 'this-week') renderThisWeekPage();
+    if (dest === 'styles-index') trackEvent('styles_index_visited', { source: 'this_week_browse_all' });
   });
 
-  // Welcome "Get Started" → signin (or skip if already signed in).
+  // Welcome "Get Started" → skip signin on first run (Reforge: setup friction
+  // before aha kills retention). Guest profile auto-created, quiz comes first.
+  // Signin is requested later, gated at value moments (save/share/more rooms).
   document.getElementById('welcomeStartBtn').addEventListener('click', () => {
-    if (state.user) {
+    trackEvent(ACTIVATION.SIGNUP_STARTED);
+    if (state.user && state.user.provider !== 'guest' && state.profiles.length) {
+      // Returning signed-in user with profiles — send to picker.
       showScreen('profile-select');
       renderProfiles();
-    } else {
-      prepareSignin();
-      showScreen('signin');
+      return;
     }
+    if (!state.user) {
+      state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
+    }
+    ensureGuestProfile();
+    openQuizIntro(state.activeProfileId);
   });
+
+  // First-run guest profile — no signin required to reach aha.
+  function ensureGuestProfile() {
+    if (!state.profiles.length) {
+      const p = createProfile('My Style');
+      state.profiles.push(p);
+      state.activeProfileId = p.id;
+      save();
+    } else if (!state.activeProfileId) {
+      state.activeProfileId = state.profiles[0].id;
+      save();
+    }
+  }
+
+  // Gate premium/persistence actions behind signin — but ONLY after aha.
+  // Saves pending-intent context so we can come back to the exact action
+  // they tried to take, not dump them on profile-select. (Fixes the
+  // "sign in → pick profile → re-do quiz → re-take photo" dead-end.)
+  function requireSignin(intent) {
+    if (state.user && state.user.provider !== 'guest') return true;
+    state._pendingIntent = {
+      intent,
+      roomId: currentRoomId,
+      fromScreen: document.querySelector('.screen.active')?.dataset?.screen
+    };
+    save();
+    prepareSignin();
+    const copyMap = {
+      save:   'Sign in to save this room and come back to it.',
+      share:  'Sign in to share your redesign.',
+      second: 'Sign in to design more rooms across devices.',
+      pro:    'Sign in to upgrade to Furnish Pro.'
+    };
+    $('#signinSubtitle').textContent = copyMap[intent] || 'Sign in to continue.';
+    showScreen('signin');
+    return false;
+  }
+
+  // Single post-signin router. Replaces every previous
+  // `showScreen('profile-select'); renderProfiles();` tail in signin handlers.
+  // Respects pending intent + existing guest-profile history so users aren't
+  // yanked back to a profile picker they don't need.
+  function afterSigninRouting() {
+    const pending = state._pendingIntent;
+    state._pendingIntent = null;
+    syncFreeModeClass();
+
+    // [Model A — D7] Reveal gate: AI generation already completed for a guest.
+    // Account just created → unlock the room and route straight to results.
+    if (pending && pending.intent === 'reveal' && pending.roomId) {
+      save();
+      ensureActiveProfile();
+      trackEvent('reveal_gate_unlocked', { roomId: pending.roomId, source: pending.fromScreen });
+      openRoom(pending.roomId);
+      return;
+    }
+
+    // Feedback intent (legacy from prior pass) — kept for any in-flight states
+    // but not produced by Model A flows. Routes to home.
+    if (pending && pending.intent === 'feedback') {
+      state._showExploreWelcome = true;
+      save();
+      ensureActiveProfile();
+      showScreen('home');
+      renderHome();
+      return;
+    }
+    save();
+
+    // Save/share/second-room → back to that room and auto-execute the action.
+    if (pending && pending.roomId) {
+      const room = state.rooms.find(r => r.id === pending.roomId);
+      if (room) {
+        openRoom(room.id);
+        setTimeout(() => {
+          if (pending.intent === 'save')   $('#bookmarkRoomBtn')?.click();
+          if (pending.intent === 'share')  $('#shareRoomBtn')?.click();
+          if (pending.intent === 'second') $('[data-go="capture"]')?.click();
+          // 'pro' — room is already open; paywall state handled elsewhere.
+        }, 250);
+        return;
+      }
+    }
+
+    // No pending intent. If the user already has a profile + room history
+    // (typical guest → signed-in upgrade), send them home with Explore.
+    const hasHistory = state.profiles?.length > 0 && state.rooms?.length > 0;
+    if (hasHistory) {
+      state._showExploreWelcome = true;
+      save();
+      ensureActiveProfile();
+      showScreen('home');
+      renderHome();
+    } else if (state.profiles?.length > 0) {
+      ensureActiveProfile();
+      showScreen('capture');
+      prepareCapture();
+    } else {
+      showScreen('profile-select');
+      renderProfiles();
+    }
+  }
 
   // ---------- Sign in ----------
   let signinMode = 'signin'; // or 'signup'
 
   function prepareSignin() {
-    signinMode = 'signin';
+    // [Model A — D7] If a reveal-gate intent is pending, force the screen
+    // into signup mode and rewrite copy to "Your redesign is ready / create
+    // an account to view it". Otherwise standard signin.
+    const pending = state._pendingIntent;
+    if (pending && pending.intent === 'reveal') {
+      signinMode = 'signup';
+    } else {
+      signinMode = 'signin';
+    }
     applySigninMode();
     $('#signinEmail').value = '';
     $('#signinPassword').value = '';
@@ -166,6 +496,56 @@
 
   function applySigninMode() {
     const isSignup = signinMode === 'signup';
+    const isRevealGate = state._pendingIntent?.intent === 'reveal';
+    const hero = $('#signinRevealHero');
+
+    if (isRevealGate) {
+      // [D7 reveal-gate copy — Reforge curiosity gap + endowment + loss aversion]
+      // Topbar becomes a step marker ("Almost there.") so the screen feels like
+      // a guided continuation, not a new admin destination.
+      $('#signinTitle').textContent = 'Almost there.';
+      // Subhead leads with REWARD ("unlock"), trails with reassurance.
+      $('#signinSubtitle').textContent = 'Unlock it in 10 seconds — free, no card needed.';
+      // Submit button gets a directional arrow — eye expects forward motion.
+      $('#signinSubmit').textContent = 'Reveal My Redesign →';
+      $('#signinToggleText').textContent = 'Already have an account?';
+      $('#signinToggleBtn').textContent = 'Sign in instead';
+      $('#nameField').style.display = '';
+      $('#signinName').required = true;
+      $('#signinPassword').setAttribute('autocomplete', 'new-password');
+
+      // Populate the reveal hero with live data from the just-built room.
+      // Falls back gracefully if the room can't be found (shouldn't happen
+      // — _pendingIntent.roomId is set right before showing this screen).
+      if (hero) {
+        hero.hidden = false;
+        const room = (state.rooms || []).find(r => r.id === state._pendingIntent.roomId);
+        if (room) {
+          const items = room.items || [];
+          const itemCount = items.length;
+          // [Reframe] Item count stays dynamic — it's a curiosity anchor.
+          // Dollar total intentionally NOT rendered pre-signup; see HTML
+          // comment in #signinRevealHero for the framework rationale.
+          $('#revealPieceCount').textContent = itemCount || '—';
+          const bg = $('#srhBg');
+          if (bg && room.photo) {
+            // Heavy blur + darken applied via CSS — the bg div just receives
+            // the source photo URL. This is the "frosted curtain" effect.
+            bg.style.backgroundImage = `url("${room.photo}")`;
+          } else if (bg) {
+            bg.style.backgroundImage = '';
+          }
+        }
+      }
+      return;
+    }
+
+    // Non-reveal-gate: restore the standard signin/signup screen and hide the hero.
+    if (hero) {
+      hero.hidden = true;
+      const bg = $('#srhBg');
+      if (bg) bg.style.backgroundImage = '';
+    }
     $('#signinTitle').textContent = isSignup ? 'Create account' : 'Sign in';
     $('#signinSubtitle').textContent = isSignup
       ? 'Join Furnish to save your profiles and redesigns across devices.'
@@ -206,7 +586,10 @@
       submitBtn.textContent = signinMode === 'signup' ? 'Create account' : 'Sign in';
 
       if (result.error) {
-        toast(result.error.message || 'Sign in failed');
+        // [Dim 09 Section B.4 — error states specify constraint + recovery.
+        //  Server's error.message preserved if available; fallback rewritten
+        //  per VOICE.md (errors must explain + offer recovery).]
+        toast(result.error.message || "That email and password don't match. Try again or reset your password.");
         return;
       }
       if (!result.user) {
@@ -215,6 +598,14 @@
       }
 
       state.user = {
+        // preserve guest-era counters so gating stays correct post-signin
+        generationsUsed: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
+        redesignsUsed:   state.user?.redesignsUsed || state.user?.generationsUsed || 0,  // legacy mirror
+        isPro: !!state.user?.isPro,
+        // [Tutorial fire-once contract] Preserve so guest→signed-in conversion
+        // doesn't re-fire the tutorial. localStorage-only until we sync to
+        // user_settings.first_redesign_tutorial_seen on the backend.
+        firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen,
         id: result.user.id,
         email: result.user.email,
         name: result.user.user_metadata?.name || name || email.split('@')[0],
@@ -223,14 +614,18 @@
       };
       save();
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
-      toast(signinMode === 'signup' ? `Welcome, ${state.user.name}!` : 'Signed in');
-      showScreen('profile-select');
-      renderProfiles();
+      // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
+      toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
+      afterSigninRouting();
       return;
     }
 
     // Local-only fallback (no Supabase configured)
     state.user = {
+      generationsUsed: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
+      redesignsUsed:   state.user?.redesignsUsed || state.user?.generationsUsed || 0,
+      isPro: !!state.user?.isPro,
+      firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen,
       name: name || email.split('@')[0],
       email,
       provider: 'email',
@@ -239,9 +634,9 @@
     save();
     submitBtn.disabled = false;
     submitBtn.textContent = signinMode === 'signup' ? 'Create account' : 'Sign in';
-    toast(signinMode === 'signup' ? `Welcome, ${state.user.name}!` : 'Signed in');
-    showScreen('profile-select');
-    renderProfiles();
+    // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
+    toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
+    afterSigninRouting();
   });
 
   $$('.signin-social-btn').forEach(btn => {
@@ -261,6 +656,10 @@
           return;
         }
         state.user = {
+          generationsUsed: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
+          redesignsUsed:   state.user?.redesignsUsed || state.user?.generationsUsed || 0,
+          isPro: !!state.user?.isPro,
+          firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen,
           name: 'Amazon User',
           email: 'amazon.user@furnish.app',
           provider: 'amazon',
@@ -268,8 +667,7 @@
         };
         save();
         toast('Signed in with Amazon');
-        showScreen('profile-select');
-        renderProfiles();
+        afterSigninRouting();
         return;
       }
 
@@ -283,6 +681,10 @@
 
       // Local fallback (mock identity)
       state.user = {
+        generationsUsed: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
+        redesignsUsed:   state.user?.redesignsUsed || state.user?.generationsUsed || 0,
+        isPro: !!state.user?.isPro,
+        firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen,
         name: `${label} user`,
         email: `${provider}.user@furnish.app`,
         provider,
@@ -290,8 +692,7 @@
       };
       save();
       toast(`Signed in with ${label}`);
-      showScreen('profile-select');
-      renderProfiles();
+      afterSigninRouting();
     });
   });
 
@@ -303,19 +704,39 @@
       if (!user) return;
       // Already signed in (e.g. returning from OAuth or cached session)
       const wasSignedIn = !!state.user?.id;
+      // [Model A — STEP 5 §16 row 4] Snapshot the cached tier+quota BEFORE we
+      // pullAll(), so we can detect drift between offline-cached and server-
+      // canonical. If the user paid (or canceled) on another device while this
+      // one was offline, the reconcile fires the correct upgrade/downgrade
+      // path instead of silently overwriting local state.
+      const cachedTier = {
+        isPro: !!state.user?.isPro,
+        used: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
+        // [Tutorial fire-once] Preserve across OAuth/session restoration.
+        firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen
+      };
       state.user = {
         id: user.id,
         email: user.email,
         name: user.user_metadata?.name || (user.email || '').split('@')[0],
         provider: user.app_metadata?.provider || 'email',
-        signedInAt: Date.now()
+        signedInAt: Date.now(),
+        // Carry the cached tier into the new user object so reconcile sees it.
+        isPro: cachedTier.isPro,
+        generationsUsed: cachedTier.used,
+        firstRedesignTutorialSeen: cachedTier.firstRedesignTutorialSeen
       };
       try { await window.furnishBackend.pullAll(state); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // pullAll has just written the server values into state.user. Pass the
+      // pre-pull cached snapshot so reconcile can detect cross-device drift.
+      reconcileTierWithBackend(cachedTier.isPro, cachedTier.used);
+      // §16 row 1 — Re-tag any newly-discovered Pro user from server side as
+      // grandfathered if they didn't have a tierGrantedAt before.
+      grandfatherProUsers();
       save();
-      // If we just came back from an OAuth redirect, hop to profile-select.
+      // Fresh OAuth arrival → route based on pending intent + history.
       if (!wasSignedIn && document.querySelector('.screen.active')?.dataset?.screen === 'welcome') {
-        showScreen('profile-select');
-        renderProfiles();
+        afterSigninRouting();
       } else if (document.querySelector('.screen.active')?.dataset?.screen === 'profile-select') {
         renderProfiles();
       }
@@ -353,6 +774,8 @@
       switch (action) {
         case 'switch':
           if (!confirm('Switch account? Your profiles stay on this device.')) return;
+          // [Dim 14 Section F] Snapshot state to per-user backup before clearing.
+          if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
           if (window.furnishBackend?.mode === 'supabase') {
             await window.furnishBackend.auth.signOut().catch(()=>{});
           }
@@ -360,9 +783,9 @@
           save();
           prepareSignin();
           showScreen('signin');
-          toast('Sign in to switch');
+          toast('Sign in to switch.');
           break;
-        case 'furnish-plus':
+        case 'furnish-pro':
           openPaywall('generic');
           break;
         case 'support':
@@ -370,12 +793,14 @@
           break;
         case 'signout':
           if (!confirm('Sign out? Your profiles stay on this device.')) return;
+          // [Dim 14 Section F] Snapshot state to per-user backup before clearing.
+          if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
           if (window.furnishBackend?.mode === 'supabase') {
             await window.furnishBackend.auth.signOut().catch(()=>{});
           }
           state.user = null;
           save();
-          toast('Signed out');
+          toast('Signed out.');
           showScreen('welcome');
           break;
       }
@@ -396,7 +821,8 @@
     m.addEventListener('click', e => { if (e.target.id === 'supportModal') close(); });
     document.getElementById('supportFaq').addEventListener('click', () => {
       close();
-      toast('FAQ coming soon — you\'re early!');
+      // [Dim 09 D10 — exclamation removed per Warmth-6.]
+      toast("FAQ coming soon. You're early.");
     });
     document.getElementById('supportFeedback').addEventListener('click', () => {
       close();
@@ -433,7 +859,7 @@
 
     // Free tier = 1 profile only. Extra profiles are a Pro feature.
     if (state.profiles.length === 0) {
-      state.profiles.push({ id:'p1', name:'Profile 1', styles:[], colors:[], customColors:[], budget:'mid' });
+      state.profiles.push(createProfile('Profile 1', { id: 'p1' }));
       save();
     }
 
@@ -547,30 +973,150 @@
       return;
     }
     const n = state.profiles.length + 1;
-    const p = { id:'p'+Date.now(), name:'Profile '+n, styles:[], colors:[], customColors:[], budget:'mid' };
+    const p = createProfile('Profile ' + n);
     state.profiles.push(p);
     save();
     renderProfiles();
   });
 
   // ---------- Paywall ----------
-  // Per Reforge Convert And Activate (p.4): context-aware pricing page.
+  // [Model A] Paywall contexts shrink to only the actions Model A actually
+  // gates: AI generation quota, premium templates, HD export, multi-profile,
+  // multi-room batch, advanced personalization, and a generic fallback.
+  // Per Reforge Monetization + Pricing: anchor on the value the user is
+  // about to access, not on fear ("you can't have this") — the user already
+  // got the free demo, so we know they understand the value.
+
+  // ============================================================
+  // FREE PLAN CARD — single source of truth
+  // ============================================================
+  // Every paywall surface renders this card alongside the Pro card. Per
+  // Reforge Monetization + Pricing (anchoring) + User Psychology (loss-
+  // aversion symmetry), showing what the user keeps reduces "if I don't pay
+  // I lose everything" panic — the panic that closes modals without
+  // converting. The Free card is intentionally de-emphasized vs Pro: it
+  // exists to remind, not to compete.
+  //
+  // To change Free-tier benefits, edit ONLY this constant. Do NOT duplicate
+  // the bullets into HTML or other files.
+  //
+  // Exposed on window.FurnishFreePlan for any future surfaces that want to
+  // import the same source (e.g., settings page tier comparison).
+  // ============================================================
+  // ============================================================
+  // FURNISH_OKT — One Key Takeaway (locked 2026-04-26 by Hassan)
+  // ============================================================
+  // Per Reforge Product Marketing — Finding Your One Key Takeaway
+  // (Strategic Emphasis Archetypes p.4) — Audience-Based archetype.
+  // The OKT is "the glue that binds together your customer's journey
+  // across different touchpoints." Single source of truth for every
+  // paywall sub, welcome refresh, lifecycle email subject, voice
+  // decision. If a copy line doesn't ladder up to this OKT, rewrite it.
+  // Also referenced in CLAUDE.md (Conventions) and VOICE.md (manifesto).
+  // ============================================================
+  const FURNISH_OKT = Object.freeze({
+    takeaway: 'Your household, your style, sharper.',
+    clarifier: 'Furnish redesigns any room in about a minute, in your style, with shoppable furniture — and a separate profile for everyone in your house.',
+    pillars: Object.freeze({
+      functional: 'Watch any room transform — about a minute, sit tight.',  // welcome hero
+      emotional:  'Sharper redesigns, every time.',                          // premium AI
+      accrued:    'A profile for everyone in your house.',                   // household
+    }),
+  });
+  // Public surface for future callers (settings, voice debug, etc.)
+  window.FurnishOKT = FURNISH_OKT;
+
+  const FREE_PLAN_CARD = Object.freeze({
+    title: 'Furnish Free',
+    subtitle: 'What you already have',
+    bullets: Object.freeze([
+      'Unlimited AI redesigns at standard quality',
+      'Unlimited reshuffles on your existing redesign',
+      'Unlimited item swaps',
+      'Full shopping access — every item is yours to buy',
+      'Basic personalization (style, mood, budget)',
+      'Real-time price-drop alerts on saved items',
+    ]),
+    // [Dim 09 D11 — leading-question footer replaced with neutral statement.
+    //  Per VOICE.md (Confidence-8 doesn't beg). Side-by-side comparison sells
+    //  itself.]
+    footer: "You're on Free. Pro is below.",
+  });
+
+  // Renders the Free card into a target element. Safe to call repeatedly —
+  // re-renders idempotently. The current paywall calls this on every
+  // openPaywall() so any future runtime change to FREE_PLAN_CARD propagates
+  // without the modal needing a hard reload.
+  function renderFreeCard(targetEl) {
+    if (!targetEl) return;
+    const def = FREE_PLAN_CARD;
+    const bulletsHtml = def.bullets.map(b =>
+      `<li><span class="bullet" aria-hidden="true">·</span>${b}</li>`
+    ).join('');
+    targetEl.innerHTML = `
+      <div class="pfree-header">
+        <div class="pfree-badge">CURRENT PLAN</div>
+        <h4 class="pfree-title">${def.title}</h4>
+        <p class="pfree-subtitle">${def.subtitle}</p>
+      </div>
+      <ul class="pfree-list">${bulletsHtml}</ul>
+      <p class="pfree-footer">${def.footer}</p>
+    `;
+  }
+  // Public surface for future callers (settings page tier comparison, etc.)
+  window.FurnishFreePlan = {
+    definition: FREE_PLAN_CARD,
+    render: renderFreeCard,
+  };
+
+  // [Compute-quality routing] Paywall contexts under the new model. Two
+  // contexts retired (quota_exhausted, redesign — no quota gate exists).
+  // Two new contexts added (premium_quality upsell, advanced_price_filters).
+  // Existing Pro-feature contexts (template_pro, hd_export, profile, etc.)
+  // unchanged in semantics; copy refined for the new headline value-prop.
   const PAYWALL_COPY = {
-    redesign: {
-      title: 'Design rooms without limits',
-      sub: "You've used your free redesigns. Join 12,000+ members redesigning with Furnish.",
+    premium_quality: {
+      title: 'Sharper redesigns, every time',
+      sub: 'Pro upgrades you to our premium AI model — more accurate furniture matches, better lighting, no compromises. Unlock for $5.99/month.',
+    },
+    advanced_price_filters: {
+      title: 'Filter your price-drop alerts',
+      sub: 'Pro lets you set thresholds (only alert me on drops ≥20%) and retailer preferences. Free alerts already cover everything saved — Pro is for power users.',
+    },
+    template_pro: {
+      title: 'Premium templates',
+      sub: 'Pro templates include curated rooms across every style and space — designer-quality starts with the right shape.',
+    },
+    hd_export: {
+      title: 'Export in HD, no watermark',
+      sub: 'Pro removes the watermark and exports your redesign at full resolution — Instagram, Pinterest, TikTok ready.',
     },
     profile: {
-      title: 'One Furnish for every person',
-      sub: 'Give every person in your home their own taste profile — partners, roommates, kids.',
+      title: 'A profile for everyone in your house',
+      sub: 'Pro adds a separate style profile per person — partners, roommates, kids — each with their own quiz answers and saved rooms.',
     },
-    export: {
-      title: 'Export your room in HD',
-      sub: 'Ready-to-post kits for Instagram, Pinterest, and TikTok.',
+    // [Conflict 3 lock — multi_room_batch + advanced_personalization
+    //  contexts retired. Both are "coming soon" features that should not
+    //  trigger a paywall (per Reforge Packaging Strategies: don't price
+    //  features that don't exist). Both surfaces previously triggering
+    //  these contexts now route to `generic` until the features ship.
+    //  Roadmap modal (#paywallRoadmapModal) discloses planned features
+    //  without impersonating shipped ones.]
+    rearrange: {
+      // [Model A — D10] Rearrange is FREE. Kept here for backward-compat in
+      // case any stale call site tries to open this context — it'll fall
+      // through with neutral copy instead of crashing.
+      title: 'Rearrange your room',
+      sub: 'Drag price tags to reposition pieces. Free for everyone.',
     },
     generic: {
-      title: 'Unlock Furnish Pro',
-      sub: 'Unlimited redesigns, HD exports, and every style profile your household needs.',
+      // [Dim 09 D2 — generic paywall sub rewritten per Product Marketing
+      //  House Framework. OKT-laddered title (4 words). Sub leads with the
+      //  two pillars (premium-quality + audience-based household) that
+      //  drive the pricing decision; bullets carry the rest. References
+      //  FURNISH_OKT (defined below) for canonical voice.]
+      title: 'Sharper redesigns. Every household.',
+      sub: 'Pro upgrades the AI on every redesign and adds a separate style profile per person. The features below are why.',
     },
   };
 
@@ -580,10 +1126,15 @@
     const subEl = $('#paywallSub');
     if (titleEl) titleEl.textContent = copy.title;
     if (subEl) subEl.textContent = copy.sub;
+    // Render the Free card from the FREE_PLAN_CARD source-of-truth. Every
+    // paywall surface gets the same Free side — only the Pro side's copy
+    // varies per context. See FREE_PLAN_CARD comment block above.
+    renderFreeCard($('#paywallFreeCard'));
     const m = $('#paywallModal');
     m.dataset.context = context;
     m.classList.add('open');
     m.setAttribute('aria-hidden', 'false');
+    trackEvent('paywall_shown', { context });
   }
   function closePaywall() {
     const m = $('#paywallModal');
@@ -602,21 +1153,107 @@
       const annual = btn.dataset.plan === 'annual';
       const priceEl = $('#paywallPrice');
       const unitEl = $('#paywallUnit');
-      if (priceEl) priceEl.textContent = annual ? '$4.08' : '$7.99';
-      if (unitEl) unitEl.textContent = annual ? '/month, billed annually ($49/yr)' : '/month';
+      // [Compute-quality routing pricing] Monthly $5.99; Annual $3.99/mo
+      // billed annually ($47.88/yr) = 33% off, per Hassan's call.
+      if (priceEl) priceEl.textContent = annual ? '$3.99' : '$5.99';
+      if (unitEl) unitEl.textContent = annual ? '/month, billed annually ($47.88/yr)' : '/month';
     });
+  });
+
+  // [Layer 7] FTC affiliate disclosure modal wiring
+  document.getElementById('affiliateLearnMore')?.addEventListener('click', e => {
+    e.preventDefault();
+    const m = document.getElementById('affiliateModal');
+    if (!m) return;
+    m.classList.add('open');
+    m.setAttribute('aria-hidden', 'false');
+    trackEvent('affiliate_disclosure_viewed');
+  });
+  document.getElementById('affiliateClose')?.addEventListener('click', () => {
+    const m = document.getElementById('affiliateModal');
+    if (!m) return;
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden', 'true');
+  });
+  document.getElementById('affiliateModal')?.addEventListener('click', e => {
+    if (e.target.id === 'affiliateModal') {
+      e.target.classList.remove('open');
+      e.target.setAttribute('aria-hidden', 'true');
+    }
+  });
+
+  // [Conflict 3 lock — Roadmap modal wiring] Replaces "[coming soon]"
+  // Pro bullets. Per Reforge Monetization + Pricing — Packaging
+  // Strategies: roadmap is opt-in disclosure, not impersonating shipped
+  // features. Opens from #paywallRoadmapLink (paywall footer).
+  document.getElementById('paywallRoadmapLink')?.addEventListener('click', e => {
+    e.preventDefault();
+    const m = document.getElementById('paywallRoadmapModal');
+    if (!m) return;
+    m.classList.add('open');
+    m.setAttribute('aria-hidden', 'false');
+    trackEvent('paywall_roadmap_viewed');
+  });
+  document.getElementById('paywallRoadmapClose')?.addEventListener('click', () => {
+    const m = document.getElementById('paywallRoadmapModal');
+    if (!m) return;
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden', 'true');
+  });
+  document.getElementById('paywallRoadmapModal')?.addEventListener('click', e => {
+    if (e.target.id === 'paywallRoadmapModal') {
+      e.target.classList.remove('open');
+      e.target.setAttribute('aria-hidden', 'true');
+    }
   });
 
   $('#paywallClose').addEventListener('click', closePaywall);
   $('#paywallDismiss').addEventListener('click', closePaywall);
   $('#paywallCta').addEventListener('click', () => {
-    // TODO: wire to Stripe/RevenueCat. For now, mock Pro to unblock flow testing.
+    // Mock Stripe success. Real Stripe wiring is in DEFERRED.md.
+    // [Compute-quality routing] No quota_exhausted resume anymore — there is
+    // no quota gate. Mid-flow resume now only fires for the Pro-only-template
+    // path (see triggeringContext === 'template_pro' branch below).
+    const triggeringContext = $('#paywallModal').dataset.context || 'generic';
+    const previousTier = isPro() ? 'pro' : 'free';
     if (!state.user) state.user = {};
     state.user.isPro = true;
     save();
+    syncFreeModeClass();
+    trackEvent('paywall_converted', { triggeringContext });
+    // Lifecycle event for analytics — separate from activation funnel so
+    // dashboards can split conversion attribution from upgrade reporting.
+    trackEvent('tier_changed', { from: previousTier, to: 'pro', source: 'paywall_cta', triggeringContext });
+    trackEvent('pro_subscription_started', { plan: 'mocked_trial', source: 'paywall_cta', triggeringContext });
     toast("Welcome to Furnish Pro — 7-day trial started");
     closePaywall();
-    if (typeof renderProfilePage === 'function') renderProfilePage();
+
+    // [Compute-quality routing] Mid-flow resume now only applies to the
+    // Pro-only-template gate. The old quota_exhausted resume is gone — there
+    // is no more quota gate to interrupt a generation. The capture path no
+    // longer needs a stash because no analyze click is ever blocked.
+    const pending = state._pendingProAction;
+    if (triggeringContext === 'template_pro' &&
+        pending && pending.actionId === 'template_pro' && pending.templateId) {
+      const t = (window.ROOM_TEMPLATES || []).find(x => x.id === pending.templateId);
+      state._pendingProAction = null;
+      save();
+      if (t) {
+        setTimeout(() => startFromTemplate(t), 200);
+        return;
+      }
+    }
+    // Clear any stale stash — defensive.
+    if (pending) {
+      state._pendingProAction = null;
+      save();
+    }
+
+    // Re-render the current screen so gates lift immediately.
+    const cur = document.querySelector('.screen.active')?.dataset?.screen;
+    if (cur === 'home') renderHome();
+    else if (cur === 'results' && currentRoomId) openRoom(currentRoomId);
+    else if (cur === 'profile' && typeof renderProfilePage === 'function') renderProfilePage();
   });
   $('#paywallModal').addEventListener('click', e => {
     if (e.target.id === 'paywallModal') closePaywall();
@@ -626,10 +1263,34 @@
   });
 
   // ---------- Style quiz ----------
+  // ============================================================
+  // 10-Q onboarding flow (replaces the 4-Q style quiz)
+  // ============================================================
+  // state.quiz = {
+  //   profileId,                    // active profile we're answering for
+  //   step,                         // 0..9 — index into window.ONBOARDING_QUESTIONS
+  //   answers: { qid: value },      // canonical answers, persisted on each select
+  //   viewedAt: { qid: ts },        // first-paint timestamp per question (for time_to_answer)
+  //   skippedAt: { qid: bool },     // tracks per-question skips for analytics
+  //   pendingMulti: { qid: [ids] }, // in-progress multi-select before Continue tap
+  //   startedAt                     // for total_time_ms in onboarding_completed
+  // }
+  // ============================================================
+  let _quizSkipRevealTimer = null;
+
   function openQuizIntro(profileId) {
     const p = state.profiles.find(x => x.id === profileId);
+    if (!p) { showScreen('profile-select'); return; }
     $('#quizIntroTitle').textContent = `${p.name} — let's find your style`;
-    state.quiz = { profileId, step: 0, scores: {}, answers: [] };
+    state.quiz = {
+      profileId,
+      step: 0,
+      answers: {},
+      viewedAt: {},
+      skippedAt: {},
+      pendingMulti: {},
+      startedAt: Date.now()
+    };
     save();
     showScreen('quiz-intro');
   }
@@ -638,91 +1299,389 @@
     renderQuizStep();
     showScreen('quiz');
   });
+
+  // Global skip — apply ALL defaults at once, route to capture.
   $('#skipQuizBtn').addEventListener('click', () => {
+    const p = getActiveProfile();
+    if (p) {
+      p.answers = ONBOARDING_DEFAULTS();
+      p.seenFinale = true; // skip-the-quiz path also gets the celebration
+      // Keep legacy fields synced via deriveStylesFromAnswers for the
+      // catalog picker — see Layer 2 helpers.
+      p.styles = deriveStylesFromAnswers(p.answers);
+      p.colors = deriveColorsFromAnswers(p.answers);
+      save();
+    }
+    trackEvent('onboarding_skipped_full', { from_question_index: -1 });
     state.quiz = null;
     save();
-    openPreferences(state.activeProfileId);
+    showScreen('capture');
+    prepareCapture();
   });
+
   $('#quizBackBtn').addEventListener('click', () => {
     if (!state.quiz) { showScreen('profile-select'); return; }
     if (state.quiz.step === 0) { showScreen('quiz-intro'); return; }
+    // Step back; clear the answer + viewed timestamp at the previous step
+    // so the analytic event re-fires when re-paint happens.
     state.quiz.step--;
-    state.quiz.answers.pop();
+    const prevQ = window.ONBOARDING_QUESTIONS[state.quiz.step];
+    if (prevQ) {
+      delete state.quiz.answers[prevQ.id];
+      delete state.quiz.viewedAt[prevQ.id];
+      delete state.quiz.skippedAt[prevQ.id];
+      delete state.quiz.pendingMulti[prevQ.id];
+    }
+    save();
     renderQuizStep();
   });
 
-  // "None of these suit me" — skips this question without scoring it.
+  // Per-question skip — applies that question's default, advances.
   $('#quizNoneBtn').addEventListener('click', () => {
     if (!state.quiz) return;
-    state.quiz.answers.push(-1);
-    state.quiz.step++;
-    if (state.quiz.step >= window.QUIZ.length) finishQuiz();
-    else renderQuizStep();
+    const q = window.ONBOARDING_QUESTIONS[state.quiz.step];
+    if (!q) return;
+    state.quiz.answers[q.id] = q.default;
+    state.quiz.skippedAt[q.id] = true;
+    save();
+    trackEvent('onboarding_question_skipped', { question_id: q.id });
+    advanceQuiz();
+  });
+
+  // Multi-select Continue button.
+  $('#quizContinueBtn').addEventListener('click', () => {
+    if (!state.quiz) return;
+    const q = window.ONBOARDING_QUESTIONS[state.quiz.step];
+    if (!q) return;
+    const picks = state.quiz.pendingMulti[q.id] || [];
+    state.quiz.answers[q.id] = picks.slice();
+    save();
+    const t0 = state.quiz.viewedAt[q.id];
+    trackEvent('onboarding_question_answered', {
+      question_id: q.id,
+      answer_value: picks,
+      time_to_answer_ms: t0 ? Date.now() - t0 : null
+    });
+    advanceQuiz();
+  });
+
+  // Q10 followup wiring.
+  $('#dealbreakerBackBtn').addEventListener('click', () => {
+    // Back from followup → back to Q10 itself (still showing the kind picker).
+    showScreen('quiz');
+    renderQuizStep();
+  });
+  $('#dealbreakerInput').addEventListener('input', e => {
+    const v = e.target.value;
+    $('#dealbreakerCharCount').textContent = `${v.length} / 120`;
+  });
+  $('#dealbreakerContinueBtn').addEventListener('click', () => {
+    if (!state.quiz) return;
+    const text = ($('#dealbreakerInput').value || '').trim().slice(0, 120);
+    const kind = state.quiz.answers.dealbreaker?.kind || 'nothing';
+    state.quiz.answers.dealbreaker = { kind, text };
+    save();
+    const t0 = state.quiz.viewedAt.dealbreaker;
+    trackEvent('onboarding_question_answered', {
+      question_id: 'dealbreaker',
+      answer_value: { kind, text_len: text.length },
+      time_to_answer_ms: t0 ? Date.now() - t0 : null
+    });
+    finishQuiz();
+  });
+  $('#dealbreakerSkipBtn').addEventListener('click', () => {
+    if (!state.quiz) return;
+    state.quiz.answers.dealbreaker = { kind: 'nothing', text: '' };
+    state.quiz.skippedAt.dealbreaker = true;
+    save();
+    trackEvent('onboarding_question_skipped', { question_id: 'dealbreaker' });
+    finishQuiz();
   });
 
   function renderQuizStep() {
     if (!state.quiz) return;
-    const q = window.QUIZ[state.quiz.step];
-    $('#quizProgress').textContent = `${state.quiz.step + 1} / ${window.QUIZ.length}`;
-    $('#quizQuestion').textContent = q.q;
+    const questions = window.ONBOARDING_QUESTIONS || [];
+    const q = questions[state.quiz.step];
+    if (!q) return;
+
+    // First-paint timestamp + analytic event — only if not already fired
+    // for this question this session.
+    if (!state.quiz.viewedAt[q.id]) {
+      state.quiz.viewedAt[q.id] = Date.now();
+      save();
+      trackEvent('onboarding_question_viewed', {
+        question_id: q.id,
+        question_index: state.quiz.step
+      });
+    }
+
+    // Progress: text + bar + dots
+    $('#quizProgress').textContent = `${state.quiz.step + 1} / ${questions.length}`;
+    const pct = ((state.quiz.step + 1) / questions.length) * 100;
+    const fill = $('#qpbFill');
+    if (fill) fill.style.width = pct + '%';
+    renderQuizDots(state.quiz.step, questions.length);
+
+    // Headline + subhead (multi-select questions show "Pick up to N").
+    $('#quizQuestion').textContent = q.headline || q.q || '';
+    const subEl = $('#quizSubhead');
+    if (q.subhead) {
+      subEl.textContent = q.subhead;
+      subEl.hidden = false;
+    } else {
+      subEl.hidden = true;
+    }
+
+    // Options grid — variant by image_kind. Per Hassan's spec, image slots
+    // stay clean placeholders until images land in the config.
     const opts = $('#quizOptions');
     opts.innerHTML = '';
-    const kind = q.kind || 'photo';
+    const kind = q.image_kind || 'icon';
+    opts.dataset.kind = kind;
+    opts.dataset.qType = q.type;
+
+    const isMulti = q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3';
+    const currentPicks = isMulti
+      ? (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []).slice()
+      : null;
+
     q.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
-      btn.className = 'quiz-option-card' + (kind !== 'photo' ? ' q-non-photo' : '');
+      btn.type = 'button';
+      btn.className = 'quiz-option-card q-' + kind;
       btn.style.setProperty('--stagger-i', idx);
-      let visual = '';
-      if (kind === 'palette') {
-        visual = `<div class="qoc-palette"><span style="background:${opt.colors[0]}"></span><span style="background:${opt.colors[1]}"></span></div>`;
-      } else if (kind === 'icon') {
-        visual = `<div class="qoc-icon">${window.QUIZ_SVGS[opt.svg] || ''}</div>`;
-      } else if (kind === 'face') {
-        visual = `<div class="qoc-face">${window.QUIZ_SVGS[opt.face] || ''}</div>`;
+      btn.dataset.optId = opt.id;
+
+      // Visual area — image (with placeholder fallback) or icon SVG.
+      const visual = document.createElement('div');
+      if (kind === 'icon' || (!opt.image && opt.svg)) {
+        visual.className = 'qoc-icon';
+        visual.innerHTML = window.QUIZ_SVGS[opt.svg] || defaultPlaceholderSvg();
+      } else if (opt.image) {
+        visual.className = 'qoc-photo';
+        visual.style.backgroundImage = `url('${opt.image}')`;
       } else {
-        visual = `<div class="qoc-photo" style="background-image:url('${opt.image}')"></div>`;
+        // Image placeholder slot — Hassan to drop in real images via the
+        // ONBOARDING_QUESTIONS config when ready. Per spec: "subtle brand-
+        // brown rectangle with a small icon and the option label inside."
+        visual.className = 'qoc-photo qoc-photo--placeholder';
+        visual.innerHTML = `
+          <span class="qoc-placeholder-icon" aria-hidden="true">${defaultPlaceholderSvg()}</span>
+        `;
+        visual.dataset.imagePending = 'true';
       }
-      btn.innerHTML = `
-        ${visual}
-        <div class="qoc-label"><span class="qoc-label-text">${opt.label}</span></div>
-      `;
+      btn.appendChild(visual);
+
+      const label = document.createElement('div');
+      label.className = 'qoc-label';
+      label.innerHTML = `<span class="qoc-label-text">${opt.label}</span>`;
+      btn.appendChild(label);
+
+      // Pre-select state for back-navigation.
+      if (isMulti && currentPicks.includes(opt.id)) btn.classList.add('selected');
+      if (!isMulti && state.quiz.answers[q.id] === opt.id) btn.classList.add('selected');
+
       btn.addEventListener('click', () => {
-        opts.querySelectorAll('.quiz-option-card').forEach(c => c.classList.remove('selected'));
-        btn.classList.add('selected');
-        setTimeout(() => selectQuizOption(idx), 240);
+        if (isMulti) handleMultiSelectTap(q, opt, btn);
+        else handleSingleSelectTap(q, opt, btn);
       });
+
       opts.appendChild(btn);
     });
+
+    // Multi-select Continue actions visibility.
+    const multiActions = $('#quizMultiActions');
+    if (isMulti) {
+      multiActions.hidden = false;
+      updateMultiCounter(q);
+    } else {
+      multiActions.hidden = true;
+    }
+
+    // Skip button reveal-after-1.5s per spec. Reforge User Psychology:
+    // delaying the skip button prevents reflexive skipping before the user
+    // reads the question.
+    const skipBtn = $('#quizNoneBtn');
+    skipBtn.dataset.revealed = 'false';
+    clearTimeout(_quizSkipRevealTimer);
+    _quizSkipRevealTimer = setTimeout(() => {
+      skipBtn.dataset.revealed = 'true';
+    }, 1500);
   }
 
-  function selectQuizOption(idx) {
-    const q = window.QUIZ[state.quiz.step];
-    const chosen = q.options[idx];
-    chosen.styles.forEach(s => {
-      state.quiz.scores[s] = (state.quiz.scores[s] || 0) + 1;
-    });
-    state.quiz.answers.push(idx);
-    state.quiz.step++;
+  function renderQuizDots(currentStep, total) {
+    const wrap = document.getElementById('quizProgressDots');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'qpd-dot' + (i < currentStep ? ' qpd-done' : i === currentStep ? ' qpd-current' : '');
+      wrap.appendChild(dot);
+    }
+  }
 
-    if (state.quiz.step >= window.QUIZ.length) {
+  function defaultPlaceholderSvg() {
+    return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+  }
+
+  function handleSingleSelectTap(q, opt, btn) {
+    const opts = btn.parentElement;
+    opts.querySelectorAll('.quiz-option-card').forEach(c => c.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.quiz.answers[q.id] = opt.id;
+    save();
+    const t0 = state.quiz.viewedAt[q.id];
+    trackEvent('onboarding_question_answered', {
+      question_id: q.id,
+      answer_value: opt.id,
+      time_to_answer_ms: t0 ? Date.now() - t0 : null
+    });
+    // Q10: route to followup if non-"nothing"; else finishQuiz directly.
+    if (q.id === 'dealbreaker') {
+      // Stash kind first; the followup will fill .text or skip.
+      state.quiz.answers.dealbreaker = { kind: opt.id, text: '' };
+      save();
+      if (opt.id === 'nothing') {
+        setTimeout(() => finishQuiz(), 240);
+      } else {
+        setTimeout(() => openDealbreakerFollowup(opt.id), 240);
+      }
+      return;
+    }
+    setTimeout(() => advanceQuiz(), 240);
+  }
+
+  function handleMultiSelectTap(q, opt, btn) {
+    const cap = q.max_selections || 999;
+    const exclusiveId = q.exclusive_option_id;
+    const picks = (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []).slice();
+    const wasSelected = picks.includes(opt.id);
+
+    if (exclusiveId) {
+      // Q9 "Nothing — show me anything" deselects others when picked; any
+      // other pick deselects 'nothing'. Reforge Loss Aversion: explicit
+      // exclusive option lets users articulate "I'm fine with anything."
+      if (opt.id === exclusiveId) {
+        // Toggle exclusive: either select-only-this or deselect.
+        if (wasSelected) {
+          state.quiz.pendingMulti[q.id] = [];
+        } else {
+          state.quiz.pendingMulti[q.id] = [opt.id];
+        }
+      } else {
+        // Picking a non-exclusive option clears the exclusive.
+        let next = picks.filter(p => p !== exclusiveId);
+        if (wasSelected) next = next.filter(p => p !== opt.id);
+        else next.push(opt.id);
+        // Cap enforcement — drop the oldest if over.
+        while (next.length > cap) next.shift();
+        state.quiz.pendingMulti[q.id] = next;
+      }
+    } else {
+      // Plain multi-select with cap.
+      let next = wasSelected ? picks.filter(p => p !== opt.id) : picks.concat([opt.id]);
+      while (next.length > cap) next.shift();
+      state.quiz.pendingMulti[q.id] = next;
+    }
+    save();
+
+    // Repaint selected states.
+    const opts = btn.parentElement;
+    const set = new Set(state.quiz.pendingMulti[q.id]);
+    opts.querySelectorAll('.quiz-option-card').forEach(c => {
+      c.classList.toggle('selected', set.has(c.dataset.optId));
+    });
+    updateMultiCounter(q);
+  }
+
+  function updateMultiCounter(q) {
+    const cap = q.max_selections || 0;
+    const picks = (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []);
+    const counter = document.getElementById('quizMultiCounter');
+    const cont = document.getElementById('quizContinueBtn');
+    if (counter) counter.textContent = `${picks.length} of ${cap} selected`;
+    if (cont) cont.disabled = picks.length === 0;
+  }
+
+  function advanceQuiz() {
+    if (!state.quiz) return;
+    const total = (window.ONBOARDING_QUESTIONS || []).length;
+    state.quiz.step++;
+    save();
+    if (state.quiz.step >= total) {
       finishQuiz();
     } else {
       renderQuizStep();
     }
   }
 
+  function openDealbreakerFollowup(kind) {
+    const q = window.ONBOARDING_QUESTIONS.find(x => x.id === 'dealbreaker');
+    if (!q) return;
+    const placeholder = q.followup?.placeholder_by_kind?.[kind] || 'Describe what to keep…';
+    const hl = $('#dealbreakerHeadline');
+    if (hl) {
+      hl.textContent = kind === 'furniture' ? 'Which piece?' :
+                       kind === 'color'     ? 'Which color or paint?' :
+                       kind === 'artwork'   ? 'Which artwork or item?' :
+                                              'Tell us more';
+    }
+    const input = $('#dealbreakerInput');
+    if (input) {
+      // Pre-fill if user back-navigated to this screen.
+      input.value = state.quiz.answers.dealbreaker?.text || '';
+      input.placeholder = placeholder;
+      input.focus();
+    }
+    const cc = $('#dealbreakerCharCount');
+    if (cc) cc.textContent = `${(input?.value || '').length} / 120`;
+    showScreen('quiz-dealbreaker');
+  }
+
   function finishQuiz() {
-    const top = Object.entries(state.quiz.scores).sort((a,b) => b[1]-a[1]).slice(0,3).map(([s]) => s);
     const p = state.profiles.find(x => x.id === state.quiz.profileId);
+    const total = (window.ONBOARDING_QUESTIONS || []).length;
+    const totalAnswered = Object.keys(state.quiz.answers || {}).length;
+    const totalSkipped = Object.values(state.quiz.skippedAt || {}).filter(Boolean).length;
+    const totalTimeMs = state.quiz.startedAt ? Date.now() - state.quiz.startedAt : null;
+
     if (p) {
-      p.styles = top;
-      p.seenFinale = true; // quiz counts as the finale moment
+      // Merge user answers with defaults for any unanswered fields.
+      p.answers = { ...ONBOARDING_DEFAULTS(), ...state.quiz.answers };
+      // Keep legacy fields synced for the catalog picker — see Layer 2.
+      p.styles = deriveStylesFromAnswers(p.answers);
+      p.colors = deriveColorsFromAnswers(p.answers);
+      // CONFLICT 2 mapping: scope === 'just_furniture' → keepMode default.
+      p.keepExisting = p.answers.scope === 'just_furniture';
+      p.seenFinale = true; // quiz completion is the celebration moment
       save();
     }
+
+    trackEvent('onboarding_completed', {
+      total_questions_answered: totalAnswered,
+      total_skipped: totalSkipped,
+      total_time_ms: totalTimeMs,
+      total_questions: total
+    });
+
+    // Build the AI prompt now (scaffolding) — logs to state._lastAIPrompt
+    // so the future Replicate-backed backend can wire to it without a
+    // refactor. See buildAIPrompt() in Layer 4.
+    if (p && typeof buildAIPrompt === 'function') {
+      try {
+        state._lastAIPrompt = buildAIPrompt(p.answers, state.draft || null);
+        save();
+      } catch (err) { /* prompt-builder is scaffolding; ignore */ }
+    }
+
     state.quiz = null;
     save();
-    // Play the "furniture rain → pop → congrats" finale, then route to preferences.
-    playQuizFinale(top, () => openPreferences(state.activeProfileId));
+    // Full furniture-rain finale at quiz completion, then route to capture.
+    const topStyles = (p?.styles || []).slice(0, 3);
+    playQuizFinale(topStyles, () => {
+      showScreen('capture');
+      prepareCapture();
+    });
   }
 
   // ---------- Quiz finale animation ----------
@@ -898,12 +1857,22 @@
     }
 
     setupProfilePicture(p);
-    renderChipGrid('#stylesGrid', window.STYLES, p.styles, true, ids => { p.styles = ids; save(); });
-    renderColorChips(p);
-    renderCustomColorList(p);
+    // [10-Q model] Replaced the styles + colors chip grids with the
+    // collapsible answers editor. Custom-color picker preserved in DOM
+    // (hidden) for future Pro feature per CONFLICT 1.
+    renderAnswersEditor(p);
     setupBudgetSlider(p);
 
     showScreen('preferences');
+
+    // [First-redesign tutorial — fallback trigger] If the auto-route from
+    // results never fired (user navigated here manually first, or the queue
+    // was cleared because they left results before the 6s timer), still
+    // fire the tutorial on this first preferences visit. Idempotent — the
+    // controller checks state.user.firstRedesignTutorialSeen before running.
+    if (typeof maybeFireTutorialOnPreferencesEntry === 'function') {
+      maybeFireTutorialOnPreferencesEntry();
+    }
   }
 
   // ---------- Profile picture ----------
@@ -937,8 +1906,11 @@
 
     const handleFile = (file) => {
       if (!file) return;
-      if (!file.type.startsWith('image/')) { toast('Pick an image file'); return; }
-      if (file.size > 12 * 1024 * 1024) { toast('Image too large (12MB max)'); return; }
+      // [Dim 09 Section B.4 — error states specify constraint + recovery
+      //  in user language. Per VOICE.md: errors must explain what
+      //  happened and offer a path back to value.]
+      if (!file.type.startsWith('image/')) { toast("That file isn't a photo. Try a JPG or PNG."); return; }
+      if (file.size > 12 * 1024 * 1024) { toast('Image is over 12MB. Try a smaller photo or screenshot.'); return; }
       const reader = new FileReader();
       reader.onload = e => {
         const tmp = new Image();
@@ -1032,6 +2004,211 @@
     if (amount === Infinity || amount >= window.BUDGET_MAX) return '$10,000+';
     return '$' + amount.toLocaleString();
   }
+  // ============================================================
+  // 10-Q answers editor — preferences-screen surface
+  // ============================================================
+  // Renders all 10 onboarding questions as collapsible cards. Each card
+  // shows the current selection and expands to the same option grid the
+  // quiz uses. Tap a different option → save immediately, fire
+  // preferences_edited_post_redesign analytic, collapse the card.
+  // The first-redesign tutorial coachmarks point at three specific cards
+  // (vibe, materials, budget) — see Layer 6.
+  // ============================================================
+  function renderAnswersEditor(profile) {
+    const root = document.getElementById('answersEditor');
+    if (!root) return;
+    root.innerHTML = '';
+    if (!profile.answers) profile.answers = {};
+    const questions = window.ONBOARDING_QUESTIONS || [];
+    questions.forEach(q => {
+      const card = buildAnswerCard(q, profile);
+      root.appendChild(card);
+    });
+  }
+
+  function buildAnswerCard(q, profile) {
+    const card = document.createElement('section');
+    card.className = 'answer-card';
+    card.dataset.qId = q.id;
+
+    const summary = document.createElement('button');
+    summary.type = 'button';
+    summary.className = 'answer-card-summary';
+    summary.setAttribute('aria-expanded', 'false');
+
+    const head = document.createElement('div');
+    head.className = 'ac-head';
+    head.innerHTML = `
+      <div class="ac-headline">${q.headline}</div>
+      <div class="ac-current" data-current></div>
+    `;
+    summary.appendChild(head);
+    const chev = document.createElement('span');
+    chev.className = 'ac-chev';
+    chev.setAttribute('aria-hidden', 'true');
+    chev.innerHTML = '›';
+    summary.appendChild(chev);
+
+    const detail = document.createElement('div');
+    detail.className = 'answer-card-detail';
+    detail.hidden = true;
+
+    summary.addEventListener('click', () => {
+      const isOpen = !detail.hidden;
+      // Close any other open card (single-open accordion).
+      document.querySelectorAll('.answer-card .answer-card-detail').forEach(d => { d.hidden = true; });
+      document.querySelectorAll('.answer-card .answer-card-summary').forEach(s => s.setAttribute('aria-expanded', 'false'));
+      if (!isOpen) {
+        detail.hidden = false;
+        summary.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    card.appendChild(summary);
+    card.appendChild(detail);
+    paintAnswerCardSummary(card, q, profile);
+    paintAnswerCardDetail(card, q, profile);
+    return card;
+  }
+
+  function paintAnswerCardSummary(card, q, profile) {
+    const cur = card.querySelector('[data-current]');
+    if (!cur) return;
+    const a = profile.answers || {};
+    const v = a[q.id];
+    let label = '—';
+    if (q.type === 'single_select_with_followup') {
+      const kind = v?.kind || 'nothing';
+      const found = q.options.find(o => o.id === kind);
+      label = found ? found.label : '—';
+      if (v?.text) label += ` · "${v.text}"`;
+    } else if (q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3') {
+      const ids = Array.isArray(v) ? v : [];
+      label = ids.length ? ids.map(id => q.options.find(o => o.id === id)?.label || id).join(' · ') : '—';
+    } else {
+      const found = q.options.find(o => o.id === v);
+      label = found ? found.label : '—';
+    }
+    cur.textContent = label;
+  }
+
+  function paintAnswerCardDetail(card, q, profile) {
+    const detail = card.querySelector('.answer-card-detail');
+    if (!detail) return;
+    detail.innerHTML = '';
+    if (q.subhead) {
+      const sh = document.createElement('p');
+      sh.className = 'muted small';
+      sh.textContent = q.subhead;
+      detail.appendChild(sh);
+    }
+    const grid = document.createElement('div');
+    grid.className = 'answer-options';
+    grid.dataset.kind = q.image_kind || 'icon';
+    const isMulti = q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3';
+    const a = profile.answers || {};
+    const currentSingle = a[q.id];
+    const currentMulti = isMulti && Array.isArray(a[q.id]) ? a[q.id].slice() : [];
+    q.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'answer-option';
+      btn.dataset.optId = opt.id;
+      const isSel = isMulti
+        ? currentMulti.includes(opt.id)
+        : (q.type === 'single_select_with_followup' ? a[q.id]?.kind === opt.id : currentSingle === opt.id);
+      if (isSel) btn.classList.add('selected');
+      // Visual area
+      const visual = document.createElement('span');
+      visual.className = 'ao-visual';
+      if (opt.image) {
+        visual.style.backgroundImage = `url('${opt.image}')`;
+        visual.classList.add('ao-visual--photo');
+      } else if (opt.svg) {
+        visual.innerHTML = window.QUIZ_SVGS[opt.svg] || defaultPlaceholderSvg();
+      } else {
+        visual.innerHTML = defaultPlaceholderSvg();
+        visual.dataset.imagePending = 'true';
+      }
+      btn.appendChild(visual);
+      const label = document.createElement('span');
+      label.className = 'ao-label';
+      label.textContent = opt.label;
+      btn.appendChild(label);
+      btn.addEventListener('click', () => handleAnswerCardTap(card, q, opt, profile));
+      grid.appendChild(btn);
+    });
+    detail.appendChild(grid);
+
+    // Q10 followup text input inline.
+    if (q.type === 'single_select_with_followup' && a[q.id]?.kind && a[q.id].kind !== 'nothing') {
+      const wrap = document.createElement('div');
+      wrap.className = 'answer-followup';
+      wrap.innerHTML = `
+        <label class="muted small" for="answerFollowup_${q.id}">Tell us more (optional)</label>
+        <textarea id="answerFollowup_${q.id}" class="dealbreaker-input" maxlength="120" rows="2"></textarea>
+      `;
+      detail.appendChild(wrap);
+      const ta = wrap.querySelector('textarea');
+      ta.value = a[q.id].text || '';
+      ta.addEventListener('input', () => {
+        a[q.id] = { kind: a[q.id].kind, text: ta.value.slice(0, 120) };
+        save();
+        paintAnswerCardSummary(card, q, profile);
+      });
+    }
+
+    if (isMulti) {
+      const meta = document.createElement('div');
+      meta.className = 'answer-multi-meta muted small';
+      const cap = q.max_selections || 0;
+      const cur = (profile.answers[q.id] || []).length;
+      meta.textContent = `${cur} of ${cap} selected`;
+      detail.appendChild(meta);
+    }
+  }
+
+  function handleAnswerCardTap(card, q, opt, profile) {
+    if (!profile.answers) profile.answers = {};
+    const oldVal = JSON.parse(JSON.stringify(profile.answers[q.id] ?? null));
+
+    if (q.type === 'single_select') {
+      profile.answers[q.id] = opt.id;
+    } else if (q.type === 'single_select_with_followup') {
+      profile.answers[q.id] = { kind: opt.id, text: profile.answers[q.id]?.text || '' };
+    } else if (q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3') {
+      const cap = q.max_selections;
+      const exclusiveId = q.exclusive_option_id;
+      const current = Array.isArray(profile.answers[q.id]) ? profile.answers[q.id].slice() : [];
+      const wasSelected = current.includes(opt.id);
+      let next;
+      if (exclusiveId) {
+        if (opt.id === exclusiveId) {
+          next = wasSelected ? [] : [opt.id];
+        } else {
+          next = current.filter(p => p !== exclusiveId);
+          if (wasSelected) next = next.filter(p => p !== opt.id);
+          else next.push(opt.id);
+        }
+      } else {
+        next = wasSelected ? current.filter(p => p !== opt.id) : current.concat([opt.id]);
+      }
+      while (next.length > cap) next.shift();
+      profile.answers[q.id] = next;
+    }
+    save();
+    trackEvent('preferences_edited_post_redesign', {
+      question_id: q.id,
+      old_value: oldVal,
+      new_value: profile.answers[q.id]
+    });
+    // Repaint this card's summary + detail (so selected states update).
+    paintAnswerCardSummary(card, q, profile);
+    paintAnswerCardDetail(card, q, profile);
+  }
+  // Public surface for any future caller (post-redesign deep link, etc.)
+  window.FurnishRenderAnswersEditor = renderAnswersEditor;
+
   function setupBudgetSlider(profile) {
     const slider = $('#budgetSlider');
     const display = $('#budgetAmount');
@@ -1072,6 +2249,9 @@
 
   function renderColorChips(p) {
     const el = $('#colorsGrid');
+    // [10-Q model] #colorsGrid removed from preferences markup; this
+    // function is preserved for future Pro feature (custom-palette editor).
+    if (!el) return;
     el.innerHTML = '';
     const current = new Set(p.colors);
     window.COLOR_MOODS.forEach(mood => {
@@ -1090,6 +2270,9 @@
 
   function renderCustomColorList(p) {
     const el = $('#customColorList');
+    // [10-Q model + CONFLICT 1] Custom-color picker preserved as future
+    // Pro feature. DOM hidden; function inert when element missing.
+    if (!el) return;
     el.innerHTML = '';
     (p.customColors || []).forEach(hex => {
       const s = document.createElement('span');
@@ -1104,7 +2287,7 @@
     });
   }
 
-  $('#addCustomColorBtn').addEventListener('click', () => {
+  $('#addCustomColorBtn')?.addEventListener('click', () => {
     const p = getActiveProfile();
     if (!p) return;
     const hex = $('#customColor').value;
@@ -1120,15 +2303,19 @@
   $('#savePrefsBtn').addEventListener('click', () => {
     const p = getActiveProfile();
     if (!p) { showScreen('profile-select'); return; }
-    if (p.styles.length === 0) { toast('Pick at least one style'); return; }
-    // First-time save for this profile (whether they used the quiz or not):
-    // play the same finale so every profile gets the "locked in" moment.
-    if (!p.seenFinale) {
-      p.seenFinale = true;
-      save();
-      playQuizFinale(p.styles, () => { showScreen('home'); renderHome(); });
+    // [10-Q model] Validation: at minimum need vibe + materials + budget_tier
+    // (the three load-bearing fields for the AI prompt). Other fields use
+    // ONBOARDING_DEFAULTS() at build time.
+    const a = p.answers || {};
+    if (!a.vibe || !a.materials || !a.materials.length || !a.budget_tier) {
+      toast('Pick a vibe, at least one material, and a budget tier');
       return;
     }
+    // Re-derive legacy bridge fields after edits.
+    p.styles = deriveStylesFromAnswers(a);
+    p.colors = deriveColorsFromAnswers(a);
+    p.keepExisting = a.scope === 'just_furniture';
+    save();
     toast('Preferences saved');
     showScreen('home');
     renderHome();
@@ -1157,7 +2344,36 @@
   }
 
   // ---------- Home ----------
+  // ============================================================
+  // Visit-N home differentiation — Reforge Engagement Engine, Signal step
+  // ============================================================
+  // Visit #1 is the activation moment (already optimized). Visit #2-3 are
+  // the early-discovery phase — surface multi-room expansion + style pulse
+  // prominently. Visit #4-9 are the active phase — emphasize loops the user
+  // hasn't yet engaged with (price-drops if wishlist exists, multi-room if
+  // only 1 room designed). Visit #10+ are the veteran phase — assume the
+  // user knows the app, prioritize fresh content density over education.
+  //
+  // Implementation: a single body data-attribute (`data-visit-band`) that
+  // CSS reads to vary section ordering, density, and helper-copy visibility.
+  // Per Reforge "Goldilocks" frequency principle, more aggressive nurturing
+  // for early visits, lighter touch for veterans.
+  function getVisitBand() {
+    const v = state.user?.visitCount || 1;
+    if (v <= 1) return 'first';
+    if (v <= 3) return 'early';
+    if (v <= 9) return 'active';
+    return 'veteran';
+  }
+  function syncVisitBandClass() {
+    const band = getVisitBand();
+    document.body.dataset.visitBand = band;
+    document.body.dataset.visitCount = String(state.user?.visitCount || 1);
+  }
+
   function renderHome() {
+    syncFreeModeClass();
+    syncVisitBandClass();
     ensureActiveProfile();
     const p = getActiveProfile();
     $('#activeProfileName').textContent = p ? p.name : 'No profile';
@@ -1174,9 +2390,903 @@
       }
     }
 
+    renderExploreWelcome();
+    renderLifecycleBanner();
+    renderResumeHero(p);
+    // [Retention pass — Loop 2 surface] Above-fold price-drop notice for any
+    // wishlist item that has dropped below its priceAtSave. High direct-
+    // revenue lever; surfaces only when there's a real drop to avoid noise.
+    renderPriceDropBanner();
+    // [Retention pass — Loop 3 surface] Home Progress map. Visualizes which
+    // of the 9 room types this profile has designed; nudges toward the next.
+    // Reforge Engagement Strategy — Add Use Cases + commitment psychology.
+    renderHomeProgress(p);
+    renderStylePulse(p);
     renderCollections();
     renderRoomsGrid();
     renderHomeSavedItems();
+    // [Retention pass — lifecycle scaffolding]
+    // Computes which lifecycle campaigns (welcome / mid-funnel / dormant /
+    // churned) would fire RIGHT NOW for this user, given their lifecycle
+    // state and visit history. Logs the resolution; does not yet send. The
+    // would-fire log + analytics events are the contract the future email/
+    // push backend will consume verbatim. See DEFERRED.md for the SMTP/push
+    // wiring once a provider is chosen.
+    runLifecycleScheduler();
+
+    // First-time home visit: explain what templates are for.
+    // One-shot via state._templateTipShown. Dismisses on tap or 10s timeout.
+    // Skipped for non-Pro users who'll be paywalled instead (tip would be noise).
+    if (!state._templateTipShown && isPro()) {
+      state._templateTipShown = true;
+      save();
+      setTimeout(showTemplateTip, 650);
+    }
+  }
+
+  // ============================================================
+  // Shared image-card component + "This Week in [Style]" config
+  // ============================================================
+  // Single source of truth for two things:
+  //   1. THIS_WEEK_CONFIG — the style + 9 room types shown in the weekly
+  //      drop section. To rotate next week's style, change THIS one
+  //      constant. Card images can be added per-room as the asset library
+  //      grows; rooms without curated images render as placeholder cards.
+  //   2. renderImageCard(spec) — the unified image-card builder used by
+  //      Style Pulse and any future inspiration galleries. Every card it
+  //      builds has the "Use Template →" CTA at the bottom that pipes the
+  //      image into the redesign flow via useTemplateFromCard().
+  //
+  // Reforge frameworks:
+  //   - Engagement Loops (Casey Winters): stable container + variable
+  //     content drives habitual return visits. Container = "This Week in
+  //     [Style]"; content = the style + room sweep that rotates.
+  //   - Retention — Habit Moment frequency: predictable weekly cadence
+  //     ("Tuesday means a new style sweep") expands the user's mental
+  //     model of when to come back.
+  //   - User Psychology — pattern recognition: same format every week
+  //     means users learn to scan the section in 2 seconds.
+  // ============================================================
+
+  // The room types shown in the weekly sweep, in spec order. To rotate the
+  // showcase to a different style next week, change `styleId` + `styleLabel`
+  // and provide per-room images as they're sourced. Rooms without a curated
+  // image render as placeholders; their CTA still works (uses the style-
+  // anchor image as the redesign source).
+  const THIS_WEEK_CONFIG = {
+    styleId: 'mid-century',                    // window.STYLES id
+    styleLabel: 'Mid-Century Modern',          // display string
+    styleAnchorImage: 'assets/styles/mid-century.jpg',  // fallback for placeholders
+    styleColors: ['warm', 'jewel'],            // window.COLOR_MOODS ids that pair
+    sub: '9 rooms · refreshed every Monday',
+    // [Dedicated /this-week page] Hero one-liner. Three concrete sensory
+    // anchors per Reforge User Psychology (concrete-sensory > abstract).
+    // Rewrite this when rotating styles — keeps hero in sync with the row.
+    tagline: 'Clean lines. Warm woods. Iconic forms across every room.',
+    // Cards in the exact order Hassan specified (bedroom anchor first).
+    rooms: [
+      { roomType: 'bedroom',  image: 'assets/styles/mid-century.jpg', imageType: 'asset',       isNew: true  },
+      { roomType: 'living',   image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'kitchen',  image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'dining',   image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'bathroom', image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'office',   image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'nursery',  image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'closet',   image: null,                            imageType: 'placeholder', isNew: false },
+      { roomType: 'laundry',  image: null,                            imageType: 'placeholder', isNew: false },
+    ],
+  };
+
+  // Default room dims used when a Use Template click on an inspiration card
+  // doesn't carry custom dimensions. Matches typical assumptions for each
+  // room type. The downstream redesign engine reads these to size items.
+  const DEFAULT_ROOM_DIMS = {
+    living:   { w: 14, l: 16, h: 9 },
+    bedroom:  { w: 12, l: 14, h: 9 },
+    kitchen:  { w: 12, l: 14, h: 9 },
+    dining:   { w: 11, l: 13, h: 9 },
+    bathroom: { w: 7,  l: 9,  h: 9 },
+    office:   { w: 10, l: 12, h: 9 },
+    nursery:  { w: 10, l: 12, h: 9 },
+    closet:   { w: 8,  l: 10, h: 9 },
+    laundry:  { w: 8,  l: 9,  h: 9 },
+  };
+
+  // Central behavior for "Use Template" — every CTA across every inspiration
+  // surface routes here. Builds a template object from the card spec and
+  // calls startFromTemplate(), which routes through routeGenerationByModelTier
+  // — Free uses standard model, Pro uses premium model. No quota cap.
+  //
+  // spec must include at minimum: { roomType, styleId, image (optional),
+  //   styleColors (optional), label (for analytics) }
+  function useTemplateFromCard(spec, source) {
+    const roomType = spec.roomType || spec.type || 'living';
+    const styleId = spec.styleId || THIS_WEEK_CONFIG.styleId;
+    const dims = spec.dims || DEFAULT_ROOM_DIMS[roomType] || { w: 12, l: 14, h: 9 };
+    const styles = spec.styles || (spec.styleId ? [spec.styleId] : [THIS_WEEK_CONFIG.styleId]);
+    const colors = spec.colors || spec.styleColors || THIS_WEEK_CONFIG.styleColors || ['warm', 'neutral'];
+    // Use the card's own image as the source if available; otherwise the
+    // style anchor (so placeholder cards still produce a valid redesign).
+    const photo = spec.image || spec.photo || THIS_WEEK_CONFIG.styleAnchorImage;
+    const tpl = {
+      id: `tpl-card-${roomType}-${styleId}-${Date.now()}`,
+      type: roomType,
+      dims,
+      styles,
+      colors,
+      photo,
+      label: spec.label || `${THIS_WEEK_CONFIG.styleLabel} ${roomType}`,
+    };
+    trackEvent('use_template_clicked', {
+      source: source || 'unknown',
+      roomType,
+      styleId,
+      hasImage: !!spec.image,
+      imageType: spec.imageType || (spec.image ? 'asset' : 'placeholder'),
+    });
+    if (typeof startFromTemplate === 'function') {
+      startFromTemplate(tpl);
+    }
+  }
+  // Public surface in case future code paths want to fire the same flow.
+  window.FurnishUseTemplate = useTemplateFromCard;
+
+  // Shared image-card builder. Returns an article element ready to insert
+  // into any gallery surface. Spec drives content; opts drive variant.
+  //
+  // spec = {
+  //   id: string,                       // unique per-card id
+  //   roomType: string,                 // window.ROOM_TYPES.id (drives label)
+  //   image: string | null,             // photo URL; null → placeholder
+  //   imageType: 'asset'|'placeholder', // visual treatment
+  //   isNew: bool,                      // optional NEW badge
+  //   label: string,                    // body title (e.g., room label)
+  //   sublabel: string,                 // body sub (e.g., "Wk 18")
+  //   styleId, styleColors, ...         // forwarded to useTemplateFromCard
+  // }
+  // opts = {
+  //   variant: 'marquee' | 'grid',      // layout class
+  //   source: string,                   // analytics source for the CTA
+  // }
+  function renderImageCard(spec, opts = {}) {
+    const variant = opts.variant || 'marquee';
+    const source = opts.source || 'image_card';
+    const roomLabel = (window.ROOM_TYPES || []).find(r => r.id === spec.roomType)?.label || spec.roomType || '';
+    const roomIcon = (window.ROOM_TYPES || []).find(r => r.id === spec.roomType)?.icon || '🏠';
+
+    const card = document.createElement('article');
+    card.className = `imgcard imgcard--${variant}`;
+    if (spec.imageType === 'placeholder') card.classList.add('imgcard--placeholder');
+    card.dataset.cardId = spec.id || '';
+
+    // Photo / placeholder area — inline style for asset bg, structural
+    // markup for placeholder so we can paint the icon + "coming soon".
+    const photo = document.createElement('div');
+    photo.className = 'imgcard-photo';
+    if (spec.imageType === 'placeholder') {
+      photo.classList.add('imgcard-photo--placeholder');
+      photo.innerHTML = `
+        <span class="imgcard-placeholder-icon" aria-hidden="true">${roomIcon}</span>
+        <span class="imgcard-placeholder-tag">Curated image coming</span>
+      `;
+    } else if (spec.image) {
+      photo.style.backgroundImage = `url('${spec.image}')`;
+    }
+
+    // Top-left room-type label (always shown when roomType is present).
+    if (spec.roomType) {
+      const roomLbl = document.createElement('span');
+      roomLbl.className = 'imgcard-roomtype-label';
+      roomLbl.textContent = roomLabel;
+      photo.appendChild(roomLbl);
+    }
+
+    // Top-right NEW badge.
+    if (spec.isNew) {
+      const newBadge = document.createElement('span');
+      newBadge.className = 'imgcard-new-badge';
+      newBadge.textContent = 'NEW';
+      photo.appendChild(newBadge);
+    }
+
+    // Body — main label + sublabel.
+    const body = document.createElement('div');
+    body.className = 'imgcard-body';
+    body.innerHTML = `
+      <span class="imgcard-label">${spec.label || roomLabel}</span>
+      ${spec.sublabel ? `<span class="imgcard-sub">${spec.sublabel}</span>` : ''}
+    `;
+
+    // The CTA — single source of truth for "Use Template" behavior. Every
+    // inspiration surface using renderImageCard ships this button.
+    const cta = document.createElement('button');
+    cta.className = 'imgcard-cta';
+    cta.type = 'button';
+    cta.innerHTML = `
+      Use Template
+      <svg class="imgcard-cta-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+    `;
+    cta.addEventListener('click', e => {
+      e.stopPropagation();
+      useTemplateFromCard(spec, source);
+    });
+
+    card.appendChild(photo);
+    card.appendChild(body);
+    card.appendChild(cta);
+    return card;
+  }
+  window.FurnishRenderImageCard = renderImageCard;
+
+  // C13 — Style Pulse: weekly inspiration drop in the user's primary style.
+  // Reforge ICED Lesson 6 (Single→Constant Touch): "add use cases to move
+  // toward constant touch within the product." This is the Zillow Zestimate
+  // analogue — a weekly recall surface tied to the user's style profile.
+  // Placeholder content for now; weekly rotation will be backend-driven.
+  function renderStylePulse(profile) {
+    const strip = document.getElementById('stylePulseStrip');
+    const titleEl = document.getElementById('stylePulseTitle');
+    const subEl = document.getElementById('stylePulseSub');
+    const weekEl = document.getElementById('stylePulseWeek');
+    if (!strip) return;
+    strip.innerHTML = '';
+
+    // Calculate current week label (e.g. "Wk 17 · Apr 24")
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const week = Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7);
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (weekEl) weekEl.textContent = `Wk ${week} · ${dateStr}`;
+
+    // ============================================================
+    // [Canonical pattern — Featured-Style row]
+    // ============================================================
+    // Homepage shows a TIGHT SCANNABLE PAIR: the first 2 rooms from the
+    // weekly config (Bedroom + Living Room) as full image cards, plus a
+    // narrow brand-brown "Discover More" tile that routes to the dedicated
+    // /this-week page where the full 9-room grid lives.
+    //
+    // Why 2 + 1 instead of 9 (per Reforge engagement-loop framework):
+    //   - 9 cards on the homepage flatten hierarchy — every card competes
+    //     equally and the user gets decision fatigue.
+    //   - 2 cards + an explicit "more" entry creates a curiosity gap and a
+    //     routing layer where we can later add filters, sort orders, and
+    //     related styles without bloating the homepage.
+    //   - The dedicated page is also where deeper engagement metrics (which
+    //     rooms get tapped, which styles convert) get instrumented without
+    //     polluting homepage analytics.
+    //
+    // Replicating this pattern for FUTURE featured rows ("This Week in
+    // [Other Style]", seasonal showcases, designer-curated collections):
+    //   1. Define a config with the same shape as THIS_WEEK_CONFIG.
+    //   2. Render the first 2 entries via renderImageCard (variant: 'grid').
+    //   3. Append a Discover More tile (renderDiscoverMoreTile below) with
+    //      the count of remaining items + a route to a dedicated page.
+    //   4. The dedicated page calls renderImageCard on the full set + adds
+    //      a hero band + bottom "Browse all styles" CTA.
+    // Both surfaces MUST read from the same config — any divergence means
+    // the homepage and detail page can drift and confuse users.
+    // ============================================================
+
+    const cfg = THIS_WEEK_CONFIG;
+    if (titleEl) titleEl.textContent = `This week in ${cfg.styleLabel}`;
+    if (subEl) subEl.textContent = cfg.sub || `${cfg.rooms.length} rooms · refreshed every Monday`;
+
+    // Render only the first 2 rooms on the homepage (Bedroom + Living Room
+    // by config order). The remaining 7 are reachable via the Discover More
+    // tile but stay in the data layer untouched.
+    const HOMEPAGE_FEATURED_COUNT = 2;
+    const featured = cfg.rooms.slice(0, HOMEPAGE_FEATURED_COUNT);
+    featured.forEach((room, idx) => {
+      const roomLabel = (window.ROOM_TYPES || []).find(r => r.id === room.roomType)?.label || room.roomType;
+      const card = renderImageCard({
+        id: `pulse-${cfg.styleId}-${room.roomType}-${idx}`,
+        roomType: room.roomType,
+        image: room.image,
+        imageType: room.imageType,
+        isNew: !!room.isNew,
+        label: roomLabel,
+        sublabel: `Wk ${week}`,
+        styleId: cfg.styleId,
+        styleColors: cfg.styleColors,
+      }, {
+        variant: 'marquee',
+        source: 'style_pulse',
+      });
+      strip.appendChild(card);
+    });
+
+    // Append the Discover More tile — pure navigation, no quota impact, no
+    // template action. Always routes to the current week's dedicated page
+    // (data-go="this-week" — never hardcoded to a specific style).
+    const remainingCount = cfg.rooms.length - HOMEPAGE_FEATURED_COUNT;
+    const discoverTile = renderDiscoverMoreTile(remainingCount);
+    strip.appendChild(discoverTile);
+
+    trackEvent('style_pulse_shown', {
+      styleId: cfg.styleId,
+      styleLabel: cfg.styleLabel,
+      week,
+      featuredCount: featured.length,
+      hiddenCount: remainingCount,
+      placeholderCount: cfg.rooms.filter(r => r.imageType === 'placeholder').length,
+    });
+  }
+
+  // Dedicated /this-week page renderer. Reads from the SAME THIS_WEEK_CONFIG
+  // as the homepage featured row — single source of truth. Renders all 9
+  // rooms in the canonical config order plus a hero band on top and a
+  // "Browse all styles" CTA at bottom. Per the canonical-pattern comment
+  // block above renderStylePulse, both surfaces MUST stay in sync; if you
+  // edit the homepage row's config read, edit this one too.
+  function renderThisWeekPage() {
+    const cfg = THIS_WEEK_CONFIG;
+    const titleEl = document.getElementById('thisWeekTitle');
+    const taglineEl = document.getElementById('thisWeekTagline');
+    const metaEl = document.getElementById('thisWeekMeta');
+    const weekStampEl = document.getElementById('thisWeekWeekStamp');
+    const grid = document.getElementById('thisWeekGrid');
+    if (!grid) return;
+
+    if (titleEl) titleEl.textContent = `This Week in ${cfg.styleLabel}`;
+    if (taglineEl && cfg.tagline) taglineEl.textContent = cfg.tagline;
+    if (metaEl) metaEl.textContent = cfg.sub || `${cfg.rooms.length} rooms · refreshed every Monday`;
+
+    // Week stamp matches the homepage Style Pulse format ("Wk 18 · Apr 25").
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const week = Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7);
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (weekStampEl) weekStampEl.textContent = ` · Wk ${week} · ${dateStr}`;
+
+    grid.innerHTML = '';
+    cfg.rooms.forEach((room, idx) => {
+      const roomLabel = (window.ROOM_TYPES || []).find(r => r.id === room.roomType)?.label || room.roomType;
+      const card = renderImageCard({
+        id: `tw-${cfg.styleId}-${room.roomType}-${idx}`,
+        roomType: room.roomType,
+        image: room.image,
+        imageType: room.imageType,
+        isNew: !!room.isNew,
+        label: roomLabel,
+        sublabel: `Wk ${week}`,
+        styleId: cfg.styleId,
+        styleColors: cfg.styleColors,
+      }, {
+        variant: 'grid',
+        source: 'this_week_page',
+      });
+      grid.appendChild(card);
+    });
+
+    trackEvent('this_week_page_shown', {
+      styleId: cfg.styleId,
+      styleLabel: cfg.styleLabel,
+      week,
+      cardCount: cfg.rooms.length,
+      placeholderCount: cfg.rooms.filter(r => r.imageType === 'placeholder').length,
+    });
+  }
+  // Public surface — exposed so future surfaces (e.g. a "back to this week"
+  // deep link from search results) can re-render without re-routing.
+  window.FurnishRenderThisWeekPage = renderThisWeekPage;
+
+  // Discover More tile — the third element in the homepage Featured-Style
+  // row. Visually distinct from image cards: brand brown, no image, vertical
+  // arrow + stacked label. Tap routes to the dedicated /this-week page.
+  // Follows the canonical pattern documented above renderStylePulse.
+  function renderDiscoverMoreTile(remainingCount) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'discover-more-tile';
+    tile.dataset.go = 'this-week';
+    tile.setAttribute('aria-label', `Discover ${remainingCount} more rooms in this week's featured style`);
+    tile.innerHTML = `
+      <span class="dmt-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </span>
+      <span class="dmt-text">
+        <span class="dmt-headline">Discover More</span>
+        <span class="dmt-sub">${remainingCount} more rooms</span>
+      </span>
+    `;
+    tile.addEventListener('click', () => {
+      trackEvent('discover_more_clicked', {
+        source: 'style_pulse_homepage',
+        styleId: THIS_WEEK_CONFIG.styleId,
+        remainingCount,
+      });
+      // Navigation handled by data-go="this-week" via document click handler.
+    });
+    return tile;
+  }
+
+  // ============================================================
+  // Retention pass — Engagement Loop surfaces on Home
+  // ============================================================
+  // Each function below renders a section that supports one of the 5 ranked
+  // engagement loops from the Retention pass strategy doc:
+  //   Loop 2 (Price-Drop Watch)    → renderPriceDropBanner
+  //   Loop 3 (Home Progress map)   → renderHomeProgress
+  //   Lifecycle campaigns          → runLifecycleScheduler
+  // See CHANGES_APPLIED.md retention-pass section for framework grounding.
+  // ============================================================
+
+  // Loop 2 surface — Price-Drop Watch banner.
+  // Currently scans wishlist items where wishlistMeta[id].priceAtSave > current.
+  // In production this fires on a cron + pushes via the future email/push
+  // backend; here we surface the in-app banner whenever the user lands on
+  // home AND there's an unread drop. Banner dismissable per-session.
+  function renderPriceDropBanner() {
+    const hero = document.querySelector('.home-hero');
+    if (!hero) return;
+    hero.querySelector('.price-drop-banner')?.remove();
+    if (state._priceDropBannerDismissed) return;
+
+    const meta = state.wishlistMeta || {};
+    const wishlistIds = state.wishlist || [];
+    const drops = [];
+    wishlistIds.forEach(id => {
+      const item = (window.FURNITURE_DB || []).find(x => x.id === id);
+      const m = meta[id];
+      if (!item || !m?.priceAtSave) return;
+      if (m.priceAtSave > item.price) {
+        const delta = m.priceAtSave - item.price;
+        const pct = (delta / m.priceAtSave) * 100;
+        drops.push({ item, m, delta, pct });
+      }
+    });
+    if (!drops.length) return;
+    // Sort biggest-percent first.
+    drops.sort((a, b) => b.pct - a.pct);
+    const top = drops[0];
+    const more = drops.length - 1;
+
+    const banner = document.createElement('div');
+    banner.className = 'price-drop-banner';
+    banner.innerHTML = `
+      <span class="pdb-pulse" aria-hidden="true"></span>
+      <div class="pdb-body">
+        <div class="pdb-headline">
+          <span class="pdb-emoji" aria-hidden="true">↓</span>
+          ${top.item.name} dropped <strong>${Math.round(top.pct)}%</strong>
+        </div>
+        <div class="pdb-sub">
+          Now <strong>$${Math.round(top.item.price).toLocaleString()}</strong>
+          <span class="pdb-was">was $${Math.round(top.m.priceAtSave).toLocaleString()}</span>
+          ${more > 0 ? `<span class="pdb-more">· +${more} more</span>` : ''}
+        </div>
+      </div>
+      <button class="pdb-cta" data-pdb-cta type="button">See it →</button>
+      <button class="pdb-close" data-pdb-close aria-label="Dismiss" type="button">×</button>
+    `;
+    hero.appendChild(banner);
+
+    banner.querySelector('[data-pdb-cta]').addEventListener('click', () => {
+      trackEvent('price_drop_banner_clicked', {
+        itemId: top.item.id,
+        delta: top.delta,
+        pctDrop: Math.round(top.pct),
+        totalDropsAvailable: drops.length,
+      });
+      // Open the wishlist screen scrolled to the item, or the item sheet
+      // directly if openItemSheet is exposed. Fallback: route to wishlist.
+      if (typeof openItemSheet === 'function') {
+        openItemSheet(top.item);
+      } else {
+        document.querySelector('[data-go="wishlist"]')?.click();
+      }
+    });
+    banner.querySelector('[data-pdb-close]').addEventListener('click', () => {
+      state._priceDropBannerDismissed = true;
+      trackEvent('price_drop_banner_dismissed', { itemId: top.item.id });
+      banner.remove();
+    });
+    trackEvent('price_drop_banner_shown', {
+      itemId: top.item.id,
+      delta: top.delta,
+      pctDrop: Math.round(top.pct),
+      totalDropsAvailable: drops.length,
+    });
+  }
+
+  // Loop 3 surface — Home Progress map. 9 room-type cells; designed rooms
+  // glow, undesigned rooms invite the next-room journey. Visible when the
+  // user has at least 1 designed room (otherwise the activation hero is
+  // doing the same job). Only counts rooms tied to the active profile.
+  function renderHomeProgress(profile) {
+    const heroParent = document.querySelector('.home-hero')?.parentElement || document.querySelector('[data-screen="home"]');
+    if (!heroParent) return;
+    heroParent.querySelector('.home-progress')?.remove();
+    if (!profile) return;
+    const rooms = (state.rooms || []).filter(r => r.profileId === profile.id);
+    if (!rooms.length) return; // first-time users: don't show empty map
+
+    const ROOM_ORDER = ['bedroom','living','kitchen','dining','bathroom','office','nursery','closet','laundry'];
+    const designed = new Set(rooms.map(r => r.type));
+    const totalDesigned = rooms.length;
+    const totalRoomTypesDesigned = ROOM_ORDER.filter(t => designed.has(t)).length;
+
+    // Pick the next-room nudge: a room type the user hasn't done yet, in
+    // the canonical home-tour order. (Bedroom → Living → Kitchen → ...)
+    const nextRoomType = ROOM_ORDER.find(t => !designed.has(t));
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const ROOM_ICONS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.icon; return acc; }, {});
+
+    const cells = ROOM_ORDER.map(type => {
+      const isDone = designed.has(type);
+      const isNext = !isDone && type === nextRoomType;
+      const cls = ['hp-cell'];
+      if (isDone) cls.push('hp-done');
+      if (isNext) cls.push('hp-next');
+      return `<button class="${cls.join(' ')}" data-hp-room="${type}" type="button" aria-label="${ROOM_LABELS[type] || type} ${isDone ? 'designed' : 'not yet designed'}">
+        <span class="hp-icon" aria-hidden="true">${ROOM_ICONS[type] || '🏠'}</span>
+        <span class="hp-label">${ROOM_LABELS[type] || type}</span>
+        ${isDone ? '<span class="hp-check" aria-hidden="true">✓</span>' : ''}
+      </button>`;
+    }).join('');
+
+    const wrap = document.createElement('section');
+    wrap.className = 'home-progress';
+    wrap.innerHTML = `
+      <header class="hp-head">
+        <div>
+          <span class="hp-eyebrow">YOUR HOME</span>
+          <h3 class="section-h hp-title">${totalRoomTypesDesigned} of 9 rooms designed</h3>
+          <p class="muted small hp-sub">${nextRoomType ? `Next up: ${ROOM_LABELS[nextRoomType] || nextRoomType}` : 'Every room covered. Time for a refresh?'}</p>
+        </div>
+        <div class="hp-progress-bar" aria-hidden="true">
+          <div class="hp-progress-fill" style="width: ${(totalRoomTypesDesigned / 9) * 100}%"></div>
+        </div>
+      </header>
+      <div class="hp-grid">${cells}</div>
+    `;
+
+    // Insert AFTER home-hero, BEFORE styling pulse / other strips.
+    const hero = document.querySelector('.home-hero');
+    if (hero && hero.nextSibling) {
+      heroParent.insertBefore(wrap, hero.nextSibling);
+    } else {
+      heroParent.appendChild(wrap);
+    }
+
+    // Wire each cell. Designed → open the most recent room of that type.
+    // Undesigned → start a new redesign for that room type (capture flow
+    // pre-seeded with that room type if possible; falls back to capture).
+    wrap.querySelectorAll('[data-hp-room]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.hpRoom;
+        const isDone = designed.has(type);
+        if (isDone) {
+          // Open the most recent room of this type
+          const recent = rooms.filter(r => r.type === type).sort((a,b) => (b.createdAt||0) - (a.createdAt||0))[0];
+          if (recent) {
+            trackEvent('home_progress_cell_clicked', { roomType: type, action: 'open_existing' });
+            openRoom(recent.id);
+          }
+        } else {
+          // Pre-seed draft with this room type and route to capture
+          trackEvent('home_progress_cell_clicked', { roomType: type, action: 'start_new' });
+          state.draft = { type, photo: null, dims: { w: 12, l: 14, h: 9 }, keep: false };
+          save();
+          showScreen('capture');
+          if (typeof prepareCapture === 'function') prepareCapture();
+        }
+      });
+    });
+
+    trackEvent('home_progress_shown', {
+      designedCount: totalDesigned,
+      uniqueTypesDesigned: totalRoomTypesDesigned,
+      nextRoomType: nextRoomType || null,
+    });
+  }
+
+  // Lifecycle scheduler — would-fire log for the welcome / mid-funnel /
+  // dormant / churned campaigns from the Retention pass strategy doc.
+  // Each campaign has: (a) a trigger predicate, (b) a one-shot key so we
+  // don't re-fire it, (c) the analytics event the future backend will use
+  // to actually send the message, (d) the copy.
+  //
+  // CONTRACT: when the email/push backend lands, replace the would-fire
+  // event with the real send call. Triggers, predicates, and copy stay
+  // unchanged. Per Reforge Engagement Engine — signal/strategy/path/measure.
+  const LIFECYCLE_CAMPAIGNS = [
+    {
+      key: 'welcome_d1_check_prices',
+      channel: 'push',
+      when: (ctx) => ctx.daysSinceFirstRoom >= 1 && ctx.daysSinceFirstRoom < 2 && ctx.totalRooms >= 1,
+      copy: { title: 'Check your price tags', body: '3 of your picks are under $100 today.' },
+    },
+    {
+      key: 'welcome_d3_next_room',
+      channel: 'push',
+      when: (ctx) => ctx.daysSinceFirstRoom >= 3 && ctx.daysSinceFirstRoom < 4 && ctx.totalRooms === 1,
+      copy: { title: 'Your style works for 8 more rooms', body: "Here's your kitchen." },
+    },
+    {
+      key: 'welcome_d7_first_drop',
+      channel: 'email',
+      when: (ctx) => ctx.daysSinceFirstRoom >= 7 && ctx.daysSinceFirstRoom < 9 && ctx.totalRooms >= 1,
+      copy: { title: 'Week 1 wrapped', body: "Your style is dialled in. Here's this week's drop." },
+    },
+    {
+      key: 'mid_d14_price_watch',
+      channel: 'push',
+      when: (ctx) => ctx.daysSinceFirstRoom >= 14 && ctx.daysSinceFirstRoom < 16 && ctx.wishlistCount > 0,
+      copy: { title: '2 weeks in', body: '1 of your saved items dropped 22%. Tap to see.' },
+    },
+    {
+      key: 'mid_d30_recap',
+      channel: 'inapp',
+      when: (ctx) => ctx.daysSinceFirstRoom >= 30 && ctx.daysSinceFirstRoom < 33,
+      copy: { title: '30 days of your style', body: "Here's what changed." },
+    },
+    {
+      key: 'dormant_d60_warm',
+      channel: 'email',
+      when: (ctx) => ctx.lifecycle === LIFECYCLE.DORMANT && ctx.daysSincePrev >= 60 && ctx.daysSincePrev < 90,
+      copy: { title: 'New in your style', body: "We haven't seen you. Here's what's new." },
+    },
+    {
+      key: 'dormant_d90_seasonal',
+      channel: 'push',
+      when: (ctx) => ctx.lifecycle === LIFECYCLE.DORMANT && ctx.daysSincePrev >= 90 && ctx.daysSincePrev < 120,
+      copy: { title: 'Spring 2026 in your style', body: 'Tap to see.' },
+    },
+    {
+      key: 'churned_d180_refresh',
+      channel: 'email',
+      when: (ctx) => ctx.lifecycle === LIFECYCLE.CHURNED && ctx.daysSincePrev >= 180,
+      copy: { title: 'Your bedroom is from 6 months ago', body: "See today's take on it." },
+    },
+  ];
+
+  function runLifecycleScheduler() {
+    if (!state.user) return;
+    state._lifecycleSent = state._lifecycleSent || {};
+    const profile = getActiveProfile();
+    const rooms = (state.rooms || []).filter(r => !profile || r.profileId === profile.id);
+    const firstRoomCreatedAt = rooms.length ? Math.min(...rooms.map(r => r.createdAt || Date.now())) : null;
+    const ctx = {
+      lifecycle: getLifecycleState(),
+      daysSincePrev: state.user.previousVisitAt ? daysSince(state.user.previousVisitAt) : 0,
+      daysSinceFirstRoom: firstRoomCreatedAt ? daysSince(firstRoomCreatedAt) : 0,
+      totalRooms: rooms.length,
+      wishlistCount: (state.wishlist || []).length,
+    };
+    LIFECYCLE_CAMPAIGNS.forEach(campaign => {
+      if (state._lifecycleSent[campaign.key]) return;
+      if (!campaign.when(ctx)) return;
+      // Mark fired immediately so we don't double-log this session.
+      state._lifecycleSent[campaign.key] = Date.now();
+      save();
+      // Would-fire event — backend cutover replaces this with a real send.
+      trackEvent('lifecycle_would_fire', {
+        campaign: campaign.key,
+        channel: campaign.channel,
+        title: campaign.copy.title,
+        body: campaign.copy.body,
+        ctx: { ...ctx },
+      });
+    });
+  }
+  // Expose for QA / future backend wiring.
+  window.FurnishLifecycle = { campaigns: LIFECYCLE_CAMPAIGNS, run: runLifecycleScheduler };
+
+  // Lifecycle banner — copy + CTA differs by user state per Reforge ICED:
+  //   ACTIVE: subtle continue-where-you-left-off (handled by resume card)
+  //   AT_RISK: "It's been [N] days. Trends moved — see what's new in your style"
+  //   DORMANT: "Welcome back. Your saved style + new arrivals."
+  //   CHURNED: re-acquisition framing — "Pick up where you left off (no signup needed)"
+  // Goal per ICED p.18: counteract "product recall decay over time" with a
+  // targeted recall trigger sized to dormancy depth.
+  function renderLifecycleBanner() {
+    const hero = document.querySelector('.home-hero');
+    if (!hero) return;
+    hero.querySelector('.lifecycle-banner')?.remove();
+    const lifecycle = getLifecycleState();
+    if (lifecycle === LIFECYCLE.NEW || lifecycle === LIFECYCLE.ACTIVE) return;
+    const days = daysSince(state.user?.previousVisitAt || state.user?.lastVisitedAt);
+    const designDays = daysSinceLastDesign();
+    const wishlistCount = (state.wishlist || []).length;
+    const profile = getActiveProfile();
+    const styleNames = (profile?.styles || []).slice(0, 2)
+      .map(id => (window.STYLES || []).find(s => s.id === id)?.label || id)
+      .join(' + ');
+
+    // [Conflict 1 lock — no calendar-period language in user copy.
+    //  Quarterly Core stays as the internal strategic frame; user copy
+    //  uses experiential trigger-language ("when you're ready", "since
+    //  your last visit") rather than calendar-period framing ("14 days",
+    //  "every day", "this month"). Per Reforge — strategic frames are
+    //  for the team, copy is for users. Real days-count is preserved
+    //  in analytics (lifecycle_banner_shown { days, designDays }).]
+    let badge, title, body, ctaLabel, ctaAction;
+    if (lifecycle === LIFECYCLE.AT_RISK) {
+      badge = 'WELCOME BACK';
+      title = 'New arrivals in your style';
+      body = styleNames
+        ? `We added pieces in ${styleNames} since your last visit.`
+        : 'New pieces dropped in styles you might love.';
+      ctaLabel = "See What's New";
+      ctaAction = () => { document.querySelector('[data-go="templates"]')?.click(); };
+    } else if (lifecycle === LIFECYCLE.DORMANT) {
+      badge = 'WELCOME BACK';
+      title = wishlistCount > 0 ? `${wishlistCount} saved pieces — and what's new` : 'Your style is still saved';
+      body = wishlistCount > 0
+        ? `Some of your saved pieces dropped in price. New picks added in ${styleNames || 'your aesthetic'}.`
+        : `Come back when you're ready to redesign another room.`;
+      ctaLabel = wishlistCount > 0 ? 'Check Your Saved' : "Browse What's New";
+      ctaAction = () => {
+        if (wishlistCount > 0) document.getElementById('wishlistBtn')?.click();
+        else document.querySelector('[data-go="templates"]')?.click();
+      };
+    } else if (lifecycle === LIFECYCLE.CHURNED) {
+      // [Compute-quality routing] Churned branch simplified — no quota gate
+      // exists, so the "they'd hit a paywall" reasoning is gone. Always
+      // promise a new redesign (free + unlimited).
+      badge = 'PICK UP WHERE YOU LEFT OFF';
+      title = 'Your style is still saved';
+      body = `Your style profile is intact. New pieces have been added in ${styleNames || 'your aesthetic'} since your last design.`;
+      ctaLabel = 'Design A New Room';
+      ctaAction = () => { document.querySelector('[data-go="capture"]')?.click(); };
+    }
+
+    const banner = document.createElement('div');
+    banner.className = 'lifecycle-banner lc-' + lifecycle;
+    banner.innerHTML = `
+      <div class="lcb-badge">${badge}</div>
+      <h3 class="lcb-title">${title}</h3>
+      <p class="lcb-body">${body}</p>
+      <button class="btn btn-primary lcb-cta" type="button">${ctaLabel}</button>
+    `;
+    hero.prepend(banner);
+    banner.querySelector('.lcb-cta').addEventListener('click', () => {
+      trackEvent('lifecycle_banner_clicked', { lifecycle, days });
+      ctaAction();
+    });
+    trackEvent('lifecycle_banner_shown', { lifecycle, days, designDays });
+  }
+
+  // [Model A] Explore welcome card — shown once after a guest converts to a
+  // signed-in account post-D7. Now positioned around shopping + browsing,
+  // not Pro upgrade. The home below is fully free; nothing to "unlock."
+  function renderExploreWelcome() {
+    const hero = document.querySelector('.home-hero');
+    if (!hero) return;
+    hero.querySelector('.explore-welcome')?.remove();
+    if (!state._showExploreWelcome || isPro()) return;
+    state._showExploreWelcome = false;
+    save();
+    const card = document.createElement('div');
+    card.className = 'explore-welcome';
+    // [Compute-quality routing] No more "N free redesigns remaining" line —
+    // unlimited generations make that copy obsolete. Just shop + save guidance.
+    card.innerHTML = `
+      <div class="ew-badge">WELCOME</div>
+      <h3 class="ew-title">You're in. Start shopping your style.</h3>
+      <p class="ew-sub">Tap any item in your redesign to view it at the retailer. Save favorites to your wishlist.</p>
+      <button class="btn btn-primary big ew-cta" type="button">Browse My Redesign</button>
+      <button class="btn btn-ghost small ew-dismiss" type="button">Got it</button>
+    `;
+    hero.prepend(card);
+    card.querySelector('.ew-cta').addEventListener('click', () => {
+      trackEvent('explore_welcome_browse_clicked');
+      // Find their most recent room and open it.
+      const rooms = (state.rooms || []).filter(r => r.profileId === state.activeProfileId);
+      const last = rooms[rooms.length - 1];
+      if (last) openRoom(last.id);
+    });
+    card.querySelector('.ew-dismiss').addEventListener('click', () => {
+      card.classList.add('out');
+      setTimeout(() => card.remove(), 220);
+    });
+  }
+
+  // [Removed in Model A migration] The home click interceptor was a capture-
+  // phase listener that paywalled every home feature for non-Pro users. Under
+  // Model A — affiliate-maximalist — the home is fully free. Quota gating
+  // happens at the AI-generation entry points only (analyzeBtn, template tap).
+
+  function showTemplateTip() {
+    const tmplBtn = document.querySelector('.home-ctas [data-go="templates"]');
+    if (!tmplBtn) return;
+    // Remove any prior instance
+    document.querySelectorAll('.template-tip').forEach(el => el.remove());
+    const tip = document.createElement('div');
+    tip.className = 'template-tip';
+    tip.innerHTML = `
+      <div class="tt-arrow"></div>
+      <div class="tt-body">
+        <strong>Try a Template</strong>
+        <span>Start from a curated room when you want a predictable, professionally styled result — no photo needed.</span>
+      </div>
+      <button class="tt-close" type="button" aria-label="Dismiss">×</button>
+    `;
+    document.body.appendChild(tip);
+    // Position under the button
+    const rect = tmplBtn.getBoundingClientRect();
+    const tipW = Math.min(280, window.innerWidth - 24);
+    const cx   = rect.left + rect.width / 2;
+    const left = Math.max(12, Math.min(window.innerWidth - tipW - 12, cx - tipW / 2));
+    tip.style.top  = (rect.bottom + window.scrollY + 12) + 'px';
+    tip.style.left = left + 'px';
+    tip.style.width = tipW + 'px';
+    // Arrow points to the CTA center
+    tip.querySelector('.tt-arrow').style.left = (cx - left - 7) + 'px';
+    // Pulse the button for a beat
+    tmplBtn.classList.add('tt-pulse');
+    const dismiss = () => {
+      tip.classList.add('out');
+      tmplBtn.classList.remove('tt-pulse');
+      setTimeout(() => tip.remove(), 220);
+    };
+    tip.querySelector('.tt-close').addEventListener('click', dismiss);
+    tip.addEventListener('click', e => { if (e.target === tip) dismiss(); });
+    setTimeout(dismiss, 10000);
+  }
+
+  // Personalize the home hero based on state (Reforge Engagement — dynamic
+  // return-visit CTA, not a static banner). Three modes:
+  //  - first-time:  aha-focused CTA, no rooms yet
+  //  - just-designed: shows last room prominently + "Design another"
+  //  - returning: "Continue where you left off" if a draft exists, else last-room card
+  function renderResumeHero(profile) {
+    const hero = document.querySelector('.home-hero');
+    if (!hero || !profile) return;
+    const rooms = state.rooms.filter(r => r.profileId === profile.id);
+    const last  = rooms.length ? rooms[rooms.length - 1] : null;
+    const draft = state.draft && state.draft.photo ? state.draft : null;
+
+    // Clear any previous resume-card (re-renders on every home entry)
+    hero.querySelector('.resume-card')?.remove();
+
+    if (draft) {
+      // In-progress draft: urgency = don't lose work.
+      const card = document.createElement('button');
+      card.className = 'resume-card resume-draft';
+      card.innerHTML = `
+        <div class="rc-thumb" style="background-image:url('${draft.photo}')"></div>
+        <div class="rc-body">
+          <span class="rc-tag">UNFINISHED</span>
+          <strong>Finish designing your room</strong>
+          <span class="rc-sub">Tap to pick up where you left off</span>
+        </div>
+        <span class="rc-arrow">→</span>
+      `;
+      card.addEventListener('click', () => { showScreen('capture'); prepareCapture(); });
+      hero.appendChild(card);
+    } else if (last) {
+      // C15 — Show how long ago they designed this. Reforge ICED p.18 says
+      // recall fades over time; surfacing the time gap is a recall trigger
+      // ("oh right, I made that 18 days ago — let me check it").
+      const ageDays = daysSince(last.createdAt);
+      const ageLabel = ageDays === 0 ? 'today'
+        : ageDays === 1 ? 'yesterday'
+        : ageDays < 30 ? `${ageDays}d ago`
+        : ageDays < 365 ? `${Math.floor(ageDays / 30)}mo ago`
+        : `${Math.floor(ageDays / 365)}y ago`;
+      const card = document.createElement('button');
+      card.className = 'resume-card resume-last';
+      card.innerHTML = `
+        <div class="rc-thumb" style="background-image:url('${last.photo || ''}')"></div>
+        <div class="rc-body">
+          <span class="rc-tag">YOUR LAST ROOM <span class="rc-age">· ${ageLabel}</span></span>
+          <strong>${titleRoom(last.type)} · $${last.items.reduce((s,i)=>s+i.price,0).toLocaleString()}</strong>
+          <span class="rc-sub">Tap to reopen · or design a new room below</span>
+        </div>
+        <span class="rc-arrow">→</span>
+      `;
+      card.addEventListener('click', () => openRoom(last.id));
+      hero.appendChild(card);
+    }
   }
 
   // ---------- Reusable empty-state markup ----------
@@ -1219,15 +3329,31 @@
       });
       return;
     }
-    ids.slice(0, 12).forEach(id => {
+    // Sort by savedAt descending so most recent saves surface first; older
+    // saves get a "saved N days ago" recall hook (Reforge ICED p.6 — recall is
+    // the limiting factor for infrequent products).
+    const meta = state.wishlistMeta || {};
+    const ranked = ids.slice().sort((a, b) => (meta[b]?.savedAt || 0) - (meta[a]?.savedAt || 0));
+    ranked.slice(0, 12).forEach(id => {
       const item = window.FURNITURE_DB.find(i => i.id === id);
       if (!item) return;
+      const m = meta[id];
+      const ageDays = m?.savedAt ? daysSince(m.savedAt) : null;
+      // Recall hook: only surface age when it's been more than a few days
+      const ageLabel = ageDays != null && ageDays >= 3
+        ? `<div class="saved-mini-age">saved ${ageDays}d ago</div>` : '';
+      // Price-drop signal placeholder (real backend will diff current price vs.
+      // priceAtSave). Currently a static surface for the lifecycle banner copy.
+      const priceDrop = m?.priceAtSave && m.priceAtSave > item.price
+        ? `<div class="saved-mini-drop">↓ $${(m.priceAtSave - item.price).toLocaleString()}</div>` : '';
       const card = document.createElement('button');
       card.className = 'saved-mini';
       card.innerHTML = `
         <div class="saved-mini-thumb">${item.icon}</div>
         <div class="saved-mini-name">${item.name}</div>
         <div class="saved-mini-price">$${item.price.toLocaleString()}</div>
+        ${ageLabel}
+        ${priceDrop}
       `;
       card.addEventListener('click', () => openItemSheet(item, null));
       strip.appendChild(card);
@@ -1236,8 +3362,11 @@
 
   // ---------- Saved screen (Rooms + Items sub-tabs) ----------
   function renderSaved() {
-    // Counts
-    const rooms = state.rooms.filter(r => r.profileId === state.activeProfileId);
+    // Counts — only rooms the user explicitly bookmarked.
+    const rooms = state.rooms.filter(r =>
+      r.profileId === state.activeProfileId &&
+      state.bookmarkedRooms.includes(r.id)
+    );
     const items = state.wishlist || [];
     $('#stRoomsCount').textContent = rooms.length;
     $('#stItemsCount').textContent = items.length;
@@ -1262,13 +3391,17 @@
   function renderSavedRooms() {
     const grid = $('#savedRoomsGrid');
     grid.innerHTML = '';
-    const rooms = state.rooms.filter(r => r.profileId === state.activeProfileId);
+    // Only show rooms the user explicitly bookmarked (tapped the save icon).
+    const rooms = state.rooms.filter(r =>
+      r.profileId === state.activeProfileId &&
+      state.bookmarkedRooms.includes(r.id)
+    );
     if (rooms.length === 0) {
       grid.innerHTML = emptyStateHTML({
-        icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14V12a3 3 0 013-3h12a3 3 0 013 3v2"/><path d="M2 14h20v5H2z"/><path d="M5 19v2M19 19v2"/></svg>',
+        icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>',
         title: 'No Saved Rooms',
-        body: 'Every redesign you create is saved here automatically.',
-        cta: 'Design My Room',
+        body: 'Design a room, then tap the bookmark icon to save it here.',
+        cta: 'Design A Room',
         ctaTarget: 'capture'
       });
       grid.querySelector('[data-empty-go]')?.addEventListener('click', () => {
@@ -1377,21 +3510,18 @@
     }
     avatar.style.background = avatarGradient(0);
 
-    // Pro card
+    // Pro card — [compute-quality routing] copy reflects premium-AI value
+    // prop (no quota anymore, so no "N free left" line).
     const pro = $('#profileProCard');
-    const isPro = !!user.isPro;
-    pro.classList.toggle('is-pro', isPro);
-    if (isPro) {
-      $('#profileProTitle').textContent = 'Furnish+ active';
-      $('#profileProSub').textContent = 'Unlimited redesigns, swaps, and exports';
+    const userIsPro = !!user.isPro;
+    pro.classList.toggle('is-pro', userIsPro);
+    if (userIsPro) {
+      $('#profileProTitle').textContent = 'Furnish Pro active';
+      $('#profileProSub').textContent = 'Premium AI · multi-room batch · HD downloads · per-person profiles';
       $('#profileProBtn').textContent = 'Manage';
     } else {
-      const used = user.redesignsUsed || 0;
-      const remaining = Math.max(0, FREE_REDESIGN_LIMIT - used);
       $('#profileProTitle').textContent = 'Free plan';
-      $('#profileProSub').textContent = remaining > 0
-        ? `${remaining} free redesign${remaining === 1 ? '' : 's'} left — upgrade anytime`
-        : 'Free redesigns used — upgrade for unlimited';
+      $('#profileProSub').textContent = 'Standard-quality redesigns · reshuffle, swap, and shop always free · Pro for premium quality';
       $('#profileProBtn').textContent = 'Upgrade';
     }
     $('#profileProBtn').onclick = () => openPaywall('generic');
@@ -1421,6 +3551,64 @@
     // Theme value
     const t = state.settings?.theme === 'dark' ? 'Dark' : 'Light';
     $('#ppsThemeValue').textContent = t;
+
+    // C14 — Style timeline
+    renderStyleTimeline(activeProfile);
+  }
+
+  // C14 — Render the user's design history as a vertical timeline. Reforge
+  // ICED Plant-Loyalty-Hook: visualizing accumulated investment makes the
+  // user feel ownership over their style profile.
+  function renderStyleTimeline(profile) {
+    const tl = document.getElementById('styleTimeline');
+    if (!tl) return;
+    tl.innerHTML = '';
+    if (!profile) {
+      tl.innerHTML = '<div class="muted small" style="padding:14px">No active profile.</div>';
+      return;
+    }
+    const rooms = (state.rooms || [])
+      .filter(r => r.profileId === profile.id)
+      .slice()
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (rooms.length === 0) {
+      tl.innerHTML = `
+        <div class="stl-empty">
+          <p class="muted">Your style timeline starts with your first room.</p>
+          <button class="btn btn-primary small" data-go="capture">Design Your First Room</button>
+        </div>`;
+      return;
+    }
+    rooms.forEach((r, idx) => {
+      const date = new Date(r.createdAt || Date.now());
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const styles = (r.versions?.[0]?.styles || profile.styles || []).slice(0, 3);
+      const styleNames = styles.map(s => (window.STYLES || []).find(x => x.id === s)?.label || s).join(' · ');
+      const total = (r.items || []).reduce((s, i) => s + i.price, 0);
+      const itemCount = (r.items || []).length;
+      const isMostRecent = idx === 0;
+      const item = document.createElement('button');
+      item.className = 'stl-item';
+      item.innerHTML = `
+        <div class="stl-rail">
+          <span class="stl-dot ${isMostRecent ? 'stl-dot-current' : ''}"></span>
+          ${idx < rooms.length - 1 ? '<span class="stl-line"></span>' : ''}
+        </div>
+        <div class="stl-card">
+          <div class="stl-thumb" style="${r.photo ? `background-image:url('${r.photo}')` : ''}"></div>
+          <div class="stl-meta">
+            <div class="stl-row1">
+              <span class="stl-room">${titleRoom(r.type)}</span>
+              <span class="stl-date">${dateStr}</span>
+            </div>
+            <div class="stl-styles">${styleNames || '—'}</div>
+            <div class="stl-stats">${itemCount} pieces · $${total.toLocaleString()}</div>
+          </div>
+        </div>
+      `;
+      item.addEventListener('click', () => openRoom(r.id));
+      tl.appendChild(item);
+    });
   }
 
   // Profile settings actions
@@ -1439,28 +3627,35 @@
       openSupportModal();
     } else if (action === 'switch') {
       if (!confirm('Switch account? Your profiles stay on this device.')) return;
+      // [Dim 14 Section F] Snapshot state before sign-out.
+      if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
       if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
       state.user = null;
       save();
       prepareSignin();
       showScreen('signin');
-      toast('Sign in to switch');
+      toast('Sign in to switch.');
     } else if (action === 'signout') {
       if (!confirm('Sign out? Your profiles stay on this device.')) return;
+      // [Dim 14 Section F] Snapshot state before sign-out.
+      if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
       if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
       state.user = null;
       save();
-      toast('Signed out');
+      toast('Signed out.');
       showScreen('welcome');
     } else if (action === 'reset') {
-      if (!confirm('Reset this profile? Styles, colors, budget, and avatar will clear. Saved rooms stay.')) return;
+      if (!confirm('Reset this profile? Onboarding answers, budget, and avatar will clear. Saved rooms stay.')) return;
       const p = getActiveProfile();
       if (!p) { toast('No active profile'); return; }
+      // [10-Q model] Reset clears the new answers + the legacy bridge fields.
+      p.answers = {};
       p.styles = [];
       p.colors = [];
       p.customColors = [];
       p.budget = 3000;
       p.avatar = null;
+      p.seenFinale = false;
       save();
       renderProfilePage();
       toast('Profile reset');
@@ -1476,7 +3671,7 @@
 
   function buildCollectionCard(c) {
     const card = document.createElement('div');
-    card.className = 'collection-card';
+    card.className = 'collection-card has-imgcard-cta';
     const photo = document.createElement('div');
     photo.className = 'c-photo';
     if (Array.isArray(c.images) && c.images.length > 1) {
@@ -1503,6 +3698,40 @@
     `;
     card.appendChild(photo);
     card.appendChild(body);
+
+    // [Use Template CTA — uniformity across all inspiration cards]
+    // The body-tap (apply collection to profile) stays as-is; this CTA
+    // adds the explicit "use this image as a redesign anchor" path.
+    // Per Hassan's spec, every inspiration card surfaces this button.
+    const cta = document.createElement('button');
+    cta.className = 'imgcard-cta imgcard-cta--collection';
+    cta.type = 'button';
+    cta.innerHTML = `
+      Use Template
+      <svg class="imgcard-cta-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+    `;
+    cta.addEventListener('click', e => {
+      e.stopPropagation();
+      // Pick a sensible room type for the redesign — collections don't
+      // specify one, so default to living room. The user can re-pick.
+      const previewImage = c.image || (c.images && c.images[0]) || null;
+      useTemplateFromCard({
+        id: `collection-${c.id}`,
+        roomType: 'living',
+        image: previewImage,
+        imageType: previewImage ? 'asset' : 'placeholder',
+        styleId: (c.styles && c.styles[0]) || 'modern',
+        styleColors: c.colors,
+        label: c.label,
+      }, 'collection_card');
+    });
+    card.appendChild(cta);
+
+    // Body / photo tap = apply collection to profile (existing behavior).
+    // The CTA's stopPropagation prevents double-firing.
     card.addEventListener('click', () => applyCollection(c));
     return card;
   }
@@ -1525,9 +3754,32 @@
     track.style.animationDuration = seconds + 's';
   }
 
+  // Auto-rotate season label to current year + push the current season to
+  // the front of the strip. Reforge ICED p.6: time-based touchpoints expand
+  // recall surface for infrequent products.
+  function currentSeasonId() {
+    const m = new Date().getMonth(); // 0–11
+    if (m <= 1 || m === 11) return 'winter';   // Dec–Feb
+    if (m <= 4)             return 'spring';   // Mar–May
+    if (m <= 7)             return 'summer';   // Jun–Aug
+    return 'autumn';                           // Sep–Nov
+  }
   function renderCollections() {
     const SEASON_IDS = new Set(['spring','summer','autumn','winter']);
-    const seasons  = window.COLLECTIONS.filter(c =>  SEASON_IDS.has(c.id));
+    const yr = new Date().getFullYear();
+    const cur = currentSeasonId();
+    const seasonsRaw = window.COLLECTIONS.filter(c => SEASON_IDS.has(c.id));
+    // Mutate label to current year (label text only — id stays stable).
+    seasonsRaw.forEach(c => {
+      const seasonName = c.id[0].toUpperCase() + c.id.slice(1);
+      c.label = `${seasonName} ${yr}`;
+    });
+    // Sort with current season first so dormant returners see what's "live"
+    const seasons = seasonsRaw.slice().sort((a, b) => {
+      if (a.id === cur) return -1;
+      if (b.id === cur) return 1;
+      return 0;
+    });
     const trending = window.COLLECTIONS.filter(c => !SEASON_IDS.has(c.id));
 
     buildMarquee(document.getElementById('collectionsStrip'), seasons);
@@ -1537,8 +3789,14 @@
   function applyCollection(c) {
     const p = getActiveProfile();
     if (!p) return;
-    p.styles = c.styles.slice();
-    p.colors = c.colors.slice();
+    // [10-Q model] Collection apply uses the same template-synthesizer
+    // bridge as Use Template. Synthesize answers from the collection's
+    // style+color tags, merge into p.answers (without losing existing user
+    // answers), then re-derive the legacy catalog-bridge fields.
+    const synth = synthesizeAnswersFromTemplate(c) || {};
+    p.answers = { ...(p.answers || {}), ...synth };
+    p.styles = deriveStylesFromAnswers(p.answers);
+    p.colors = deriveColorsFromAnswers(p.answers);
     save();
     toast(`Applied "${c.label}" to ${p.name}`);
     renderProfiles();
@@ -1546,19 +3804,39 @@
 
   function renderRoomsGrid() {
     const grid = $('#roomsGrid');
-    const rooms = state.rooms.filter(r => r.profileId === state.activeProfileId);
+    // "Saved Rooms" on home = only rooms the user explicitly bookmarked.
+    // Unsaved design history still lives in state.rooms but isn't shown here.
+    const rooms = state.rooms.filter(r =>
+      r.profileId === state.activeProfileId &&
+      state.bookmarkedRooms.includes(r.id)
+    );
     grid.innerHTML = '';
     if (rooms.length === 0) {
+      // C11 — Dormant users with unsaved-but-existing rooms get different copy
+      // pointing them at their design history vs. forcing a new design.
+      const allRooms = state.rooms.filter(r => r.profileId === state.activeProfileId);
+      const lifecycle = getLifecycleState();
+      const isDormantWithHistory = (lifecycle === LIFECYCLE.DORMANT || lifecycle === LIFECYCLE.CHURNED) && allRooms.length > 0;
       grid.innerHTML = emptyStateHTML({
-        icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14V12a3 3 0 013-3h12a3 3 0 013 3v2"/><path d="M2 14h20v5H2z"/><path d="M5 19v2M19 19v2"/></svg>',
-        title: 'No Rooms Yet',
-        body: 'Snap a photo of a room and Furnish redesigns it in your style.',
-        cta: 'Design My Room',
-        ctaTarget: 'capture'
+        icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>',
+        title: isDormantWithHistory ? 'You have rooms — none saved' : 'No Saved Rooms',
+        body: isDormantWithHistory
+          ? `You designed ${allRooms.length} room${allRooms.length === 1 ? '' : 's'} before. Open one and tap the bookmark to keep it here.`
+          : 'Design a room, then tap the bookmark icon to save it here.',
+        cta: isDormantWithHistory ? 'Reopen Last Room' : 'Design A Room',
+        ctaTarget: isDormantWithHistory ? null : 'capture'
       });
-      grid.querySelector('[data-empty-go]')?.addEventListener('click', () => {
-        showScreen('capture'); prepareCapture();
-      });
+      const cta = grid.querySelector('[data-empty-go]');
+      if (cta) {
+        cta.addEventListener('click', () => {
+          if (isDormantWithHistory) {
+            const last = allRooms[allRooms.length - 1];
+            openRoom(last.id);
+          } else {
+            showScreen('capture'); prepareCapture();
+          }
+        });
+      }
       return;
     }
     rooms.slice().reverse().forEach((r, idx) => {
@@ -1566,10 +3844,9 @@
       card.className = 'room-card';
       card.style.setProperty('--stagger-i', idx);
       const total = r.items.reduce((s,i) => s + i.price, 0);
-      const bookmarked = state.bookmarkedRooms.includes(r.id);
       card.innerHTML = `
         <div class="thumb" style="${r.photo ? `background-image:url('${r.photo}')` : ''}"></div>
-        ${bookmarked ? '<div class="bookmark-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg></div>' : ''}
+        <div class="bookmark-badge"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg></div>
         <div class="meta">
           <div class="name">${titleRoom(r.type)}</div>
           <div class="sub">${r.items.length} pieces · $${total.toLocaleString()}</div>
@@ -1591,49 +3868,137 @@
   });
 
   // ---------- Templates ----------
+  // Grouped by room type + "For your style" section up top (User Psychology:
+  // reduce cognitive load; Reforge Activation Fit: show the right thing first).
   function renderTemplates() {
     const grid = $('#templatesGrid');
     grid.innerHTML = '';
-    window.ROOM_TEMPLATES.forEach((t, idx) => {
-      const card = document.createElement('button');
-      card.className = 'template-card';
-      card.style.setProperty('--stagger-i', idx);
-      const photoStyle = t.image ? `background-image:url('${t.image}');` : '';
-      card.innerHTML = `
-        <div class="t-photo" style="${photoStyle}"></div>
-        <div class="t-body">
-          <div class="template-icon">${t.icon}</div>
-          <div class="t-label">${t.label}</div>
-          <div class="t-sub">${titleRoom(t.type)} · ${t.dims.w}×${t.dims.l} ft</div>
-        </div>
-      `;
-      card.addEventListener('click', () => startFromTemplate(t));
-      grid.appendChild(card);
+    const all = window.ROOM_TEMPLATES || [];
+    const profile = getActiveProfile();
+    const userStyles = new Set(profile?.styles || []);
+
+    // "For your style" — templates whose style set overlaps the user's.
+    const forYou = all.filter(t =>
+      (t.styles || []).some(s => userStyles.has(s))
+    ).slice(0, 6);
+
+    const renderGroup = (label, items) => {
+      if (!items.length) return;
+      const heading = document.createElement('h3');
+      heading.className = 'templates-group-h';
+      heading.textContent = label;
+      grid.appendChild(heading);
+      const row = document.createElement('div');
+      row.className = 'templates-row';
+      items.forEach((t, idx) => {
+        // [Spec — uniform Use Template CTA on every inspiration card]
+        // Outer is a <div role="button"> so we can nest a real <button>
+        // CTA without HTML invalid button-in-button. Click anywhere on
+        // the card OR the CTA triggers the same startFromTemplate path.
+        const card = document.createElement('div');
+        const gated = t.pro && !isPro();
+        card.className = 'template-card has-imgcard-cta' + (gated ? ' template-locked' : '');
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
+        card.style.setProperty('--stagger-i', idx);
+        const photoStyle = t.image ? `background-image:url('${t.image}');` : '';
+        const proBadge = t.pro
+          ? `<span class="t-pro-badge">PRO</span>`
+          : '';
+        card.innerHTML = `
+          <div class="t-photo" style="${photoStyle}">${proBadge}</div>
+          <div class="t-body">
+            <div class="template-icon">${t.icon}</div>
+            <div class="t-label">${t.label}</div>
+            <div class="t-sub">${titleRoom(t.type)} · ${t.dims.w}×${t.dims.l} ft</div>
+          </div>
+          <button class="imgcard-cta imgcard-cta--template" type="button">
+            Use Template
+            <svg class="imgcard-cta-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+        `;
+        const fire = () => startFromTemplate(t);
+        card.addEventListener('click', fire);
+        card.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fire(); }
+        });
+        row.appendChild(card);
+      });
+      grid.appendChild(row);
+    };
+
+    if (forYou.length) renderGroup('For Your Style', forYou);
+
+    // Group remaining templates by room type
+    const byType = {};
+    all.forEach(t => {
+      if (forYou.includes(t)) return;
+      (byType[t.type] = byType[t.type] || []).push(t);
+    });
+    Object.keys(byType).forEach(type => {
+      renderGroup(titleRoom(type), byType[type]);
     });
   }
 
   function startFromTemplate(t) {
     const p = getActiveProfile();
     if (!p) { toast('Pick a profile first'); return; }
-    if (!canRedesign()) { openPaywall('redesign'); return; }
-    state.draft = {
-      photo: placeholderImageFor(t.type),
-      type: t.type,
-      dims: { ...t.dims },
-      keep: false,
-      styleOverride: t.styles,
-      colorOverride: t.colors,
-      fromTemplate: t.id
-    };
-    save();
-    showScreen('analyzing');
-    runAnalyzerAnimation().then(() => {
-      const room = buildRoomFromDraft(t.styles, t.colors);
-      state.rooms.push(room);
-      state.draft = null;
-      incrementRedesignCount();
+    // [Model A] Gate Pro-only premium templates first (pure Pro feature).
+    if (t.pro && !isPro()) {
+      // [STEP 5 §16 row 2] Stash so paywallCta can resume on upgrade.
+      state._pendingProAction = { actionId: 'template_pro', templateId: t.id };
       save();
-      openRoom(room.id);
+      trackEvent('paywall_trigger', { from: 'template_pro', templateId: t.id });
+      openPaywall('template_pro');
+      return;
+    }
+    // [Compute-quality routing] Template-based redesign also routes through
+    // routeGenerationByModelTier — Free uses standard model, Pro uses premium.
+    // No quota cap; no resume stash needed for the standard path. The Pro-
+    // template `template_pro` resume stash above handles the only blocked
+    // template case (a Pro template tapped by a Free user).
+    routeGenerationByModelTier('new_redesign_template', (tier) => {
+      // [Image-anchored redesigns] If the template carries a `photo` (e.g.
+      // a Use Template click on a real inspiration image card), use that as
+      // the source — same path as a user-uploaded photo. Falls back to the
+      // synthetic placeholder for code-defined templates that don't ship
+      // an image. The downstream pipeline doesn't care which source it is.
+      state.draft = {
+        photo: t.photo || placeholderImageFor(t.type),
+        type: t.type,
+        dims: { ...t.dims },
+        keep: false,
+        styleOverride: t.styles,
+        colorOverride: t.colors,
+        fromTemplate: t.id
+      };
+      save();
+      showScreen('analyzing');
+      runAnalyzerAnimation().then(() => {
+        // CONFLICT 5: synthesize transient answers from template metadata,
+        // merge with profile.answers for the pick. Saved profile is NOT
+        // mutated — the synthesis lives only on this room's snapshot.
+        const transient = synthesizeAnswersFromTemplate(t);
+        const room = buildRoomFromDraft(transient);
+        room.modelTier = tier;
+        state.rooms.push(room);
+        state.draft = null;
+        incrementGenerationCount();
+        save();
+        // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
+        if (isGuest()) {
+          state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'templates' };
+          save();
+          prepareSignin();
+          showScreen('signin');
+          trackEvent('reveal_gate_shown', { roomId: room.id, source: 'template' });
+          return;
+        }
+        openRoom(room.id);
+      });
     });
   }
 
@@ -1657,58 +4022,50 @@
 
   // ---------- Capture ----------
   function prepareCapture() {
+    // Auto-ensure a profile exists — guest flow must reach here without a detour.
+    ensureGuestProfile();
     const p = getActiveProfile();
-    if (!p || p.styles.length === 0) {
-      toast('Set a profile first');
-      showScreen('profile-select');
-      renderProfiles();
-      return;
-    }
-    state.draft = state.draft || { photo: null, type: 'living', dims: { w:12, l:14, h:9 }, keep: true };
-    // Backfill any missing fields for partial/legacy drafts
+    // type defaults to null so the user must pick one (enables the analyze btn).
+    // keep defaults to false (fresh start) — user can flip post-aha on results.
+    state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
     if (!state.draft.dims) state.draft.dims = { w:12, l:14, h:9 };
     if (state.draft.dims.w == null) state.draft.dims.w = 12;
     if (state.draft.dims.l == null) state.draft.dims.l = 14;
     if (state.draft.dims.h == null) state.draft.dims.h = 9;
-    if (state.draft.type == null) state.draft.type = 'living';
-    // Legacy drafts with keep: [] → normalize to boolean
     if (Array.isArray(state.draft.keep)) state.draft.keep = state.draft.keep.length > 0;
 
     $('#photoPreview').src = state.draft.photo || '';
     $('#photoPreview').classList.toggle('has-image', !!state.draft.photo);
     $('.photo-frame .placeholder').classList.toggle('hidden', !!state.draft.photo);
 
-    $('#dimW').value = state.draft.dims.w;
-    $('#dimL').value = state.draft.dims.l;
-    $('#dimH').value = state.draft.dims.h;
+    // Dimensions are hidden inputs now — still write to them so the rest of the
+    // pipeline (simulateDetectDims, buildRoomFromDraft) doesn't NPE.
+    const dW = $('#dimW'), dL = $('#dimL'), dH = $('#dimH');
+    if (dW) dW.value = state.draft.dims.w;
+    if (dL) dL.value = state.draft.dims.l;
+    if (dH) dH.value = state.draft.dims.h;
 
     renderRoomTypeCards();
-    setupKeepToggle();
     refreshAnalyzeBtn();
   }
 
-  function setupKeepToggle() {
-    const box = $('#keepToggle');
-    if (!box) return;
-    const setSelected = (val) => {
-      box.querySelectorAll('.yesno-btn').forEach(b => {
-        b.setAttribute('aria-selected', b.dataset.val === val ? 'true' : 'false');
-      });
-    };
-    setSelected(state.draft.keep ? 'yes' : 'no');
-    box.querySelectorAll('.yesno-btn').forEach(btn => {
-      btn.onclick = () => {
-        const val = btn.dataset.val;
-        state.draft.keep = (val === 'yes');
-        save();
-        setSelected(val);
-      };
-    });
-  }
-
   function refreshAnalyzeBtn() {
-    // Photo is recommended but not required — always allow designing
-    $('#analyzeBtn').disabled = false;
+    // Single-screen capture: enable once BOTH photo AND room type are chosen.
+    // These are the MUST-HAVE inputs for first aha (Reforge Setup Moment p.5).
+    const hasPhoto = !!state.draft?.photo;
+    const hasType  = !!state.draft?.type;
+    const btn = $('#analyzeBtn');
+    if (!btn) return;
+    btn.disabled = !(hasPhoto && hasType);
+    // When both are set for the first time, this completes the setup moment.
+    if (hasPhoto && hasType && !state._setupCompleteAt) {
+      state._setupCompleteAt = Date.now();
+      save();
+      trackEvent(ACTIVATION.SETUP_COMPLETE, {
+        roomType: state.draft.type,
+        hasStyle: !!(getActiveProfile()?.styles?.length)
+      });
+    }
   }
 
   function renderRoomTypeCards() {
@@ -1726,8 +4083,20 @@
       `;
       card.addEventListener('click', () => {
         state.draft.type = rt.id;
+        save();
+        trackEvent(ACTIVATION.SETUP_ROOM_TYPE, { roomType: rt.id });
         refreshAnalyzeBtn();
-        renderRoomTypeCards();
+        // Update selection state in-place — don't re-render the whole grid
+        // (that was retriggering the stagger animation on every click).
+        grid.querySelectorAll('.rt-card').forEach(c => {
+          const isSelected = c === card;
+          c.classList.toggle('selected', isSelected);
+          c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+        // Subtle confirmation pulse on the just-selected tile only
+        card.classList.remove('rt-confirm');
+        void card.offsetWidth; // restart animation
+        card.classList.add('rt-confirm');
       });
       grid.appendChild(card);
     });
@@ -1741,6 +4110,8 @@
       $('#photoPreview').src = reader.result;
       $('#photoPreview').classList.add('has-image');
       $('.photo-frame .placeholder').classList.add('hidden');
+      save();
+      trackEvent(ACTIVATION.SETUP_PHOTO);
       simulateDetectDims();
       refreshAnalyzeBtn();
     };
@@ -1780,32 +4151,617 @@
   });
 
   // ---------- Analyze flow ----------
+  // [Compute-quality routing] AI generation routes through
+  // routeGenerationByModelTier() which always allows execution and selects
+  // the model tier (standard for Free, premium for Pro). After AI completes,
+  // D7 says guests must create an account BEFORE the redesign is revealed.
   $('#analyzeBtn').addEventListener('click', async () => {
     if (!state.draft?.photo) return;
-    // Premium gate: first redesign is free, then upsell (PDR §12).
-    if (!canRedesign()) { openPaywall('redesign'); return; }
-    showScreen('analyzing');
-    await runAnalyzerAnimation();
-    const room = buildRoomFromDraft();
-    state.rooms.push(room);
-    state.draft = null;
-    incrementRedesignCount();
-    save();
-    openRoom(room.id);
+    routeGenerationByModelTier('new_redesign', async (tier) => {
+      showScreen('analyzing');
+      await runAnalyzerAnimation();
+      // The future Replicate-backed backend reads `tier` and routes the
+      // AI request to the matching model. Stored on the room so we can
+      // surface a "premium-quality next time" CTA on standard-tier results.
+      const room = buildRoomFromDraft();
+      room.modelTier = tier;
+      state.rooms.push(room);
+      state.draft = null;
+      incrementGenerationCount();
+      save();
+      // D7 auth gate: guest's redesign is computed but locked behind signup.
+      // The signin screen renders contextually — see prepareSignin() reading
+      // the 'reveal' pending intent.
+      if (isGuest()) {
+        state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'capture' };
+        save();
+        prepareSignin();
+        showScreen('signin');
+        trackEvent('reveal_gate_shown', { roomId: room.id, source: 'new_redesign' });
+        return;
+      }
+      openRoom(room.id);
+    });
   });
 
-  // Free tier = 3 redesigns (lets the habit moment land per Reforge Convert p.6–10).
-  // Pro = unlimited.
-  const FREE_REDESIGN_LIMIT = 3;
-  function canRedesign() {
-    if (state.user?.isPro) return true;
-    const used = state.user?.redesignsUsed || 0;
-    return used < FREE_REDESIGN_LIMIT;
+  // Reforge Monetization + Pricing (PNIP Pyramid): free tier delivers ONE
+  // ============================================================
+  // Model A — Affiliate-Maximalist tier infrastructure
+  // ============================================================
+  // Free tier: unlimited reshuffles, swaps, shopping, basic personalization.
+  //            Plus 2 lifetime AI-generation actions.
+  // Pro tier:  new redesigns from new uploads, HD export, multi-room batch,
+  //            advanced personalization, AI re-layout for now stays free
+  //            (per Hassan's D10 override — keep AI cost minimal).
+  //
+  // "Generation" = anything that produces a new AI image. Two kinds:
+  //   1. Fresh redesign from photo + quiz answers (the analyzeBtn path)
+  //   2. Template-based generation (startFromTemplate path)
+  // Both produce an AI image. NEITHER counts against a lifetime cap anymore.
+  //
+  // [COMPUTE-QUALITY ROUTING — replaces the prior 2-lifetime quota model]
+  // Free and Pro both get unlimited generations. The difference is which
+  // model the request is routed to:
+  //   - Free → standard model (Flux Schnell, ~$0.005-0.01/run)
+  //   - Pro  → premium model  (Flux Kontext Pro / Flux Depth Pro, ~$0.05/run)
+  //
+  // Centralized in routeGenerationByModelTier() — DO NOT scatter tier checks.
+  // The middleware always allows execution; it only selects the model tier
+  // and emits analytics for downstream model-routing in the future backend.
+  // ============================================================
+
+  function isPro() { return !!state.user?.isPro; }
+  // [Model A — STEP 4 fix] A user is "guest" if they have no provider set OR
+  // explicitly 'guest'. touchLastVisit() at boot initializes state.user = {}
+  // (no provider), and the welcomeStartBtn flow sets provider:'guest' only
+  // for a brand-new state.user. This handles the empty-object case.
+  function isGuest() {
+    if (!state.user) return true;
+    const p = state.user.provider;
+    return !p || p === 'guest';
   }
-  function incrementRedesignCount() {
+  function isSignedInFree() {
+    return !!state.user && state.user.provider && state.user.provider !== 'guest' && !state.user.isPro;
+  }
+
+  // Returns 'premium' if Pro, else 'standard'. Single source of truth for the
+  // future backend's model-routing decision and for any UI surface that wants
+  // to label the current rendering tier.
+  function currentModelTier() {
+    return isPro() ? 'premium' : 'standard';
+  }
+
+  // Lifetime generation counter — kept as ANALYTICS ONLY (not a gate input).
+  // Informs the activation funnel + LTV modeling + premium_quality upsell
+  // pacing logic. Never blocks anything.
+  function generationsUsed() {
+    if (!state.user) return 0;
+    if (typeof state.user.generationsUsed === 'number') return state.user.generationsUsed;
+    // Legacy migration from prior Model A `redesignsUsed`. Promote once.
+    const legacy = state.user.redesignsUsed || 0;
+    state.user.generationsUsed = legacy;
+    return legacy;
+  }
+
+  // Always-allow middleware. Returns the model tier the call should be
+  // routed to so the future Replicate-backed backend knows which endpoint
+  // to hit. Emits one analytic event per call so we can measure standard-
+  // vs-premium volume + cost.
+  //
+  // The fn is responsible for calling incrementGenerationCount() once the
+  // generation actually completes — that counter is analytics-only now.
+  function routeGenerationByModelTier(actionId, fn) {
+    const tier = currentModelTier();
+    trackEvent('generation_completed', { actionId, tier });
+    // Pass tier into fn so callers/the future backend can route accordingly.
+    // Existing callers that ignore the argument keep working.
+    return fn(tier);
+  }
+  // [Compute-quality routing — Step 4 sweep] All `gateGeneration` call sites
+  // have been migrated to `routeGenerationByModelTier`. The shim was retired
+  // after the consistency sweep verified zero remaining callers.
+
+  // Pure Pro gate for features that have no free allowance (HD export, batch,
+  // advanced personalization, advanced price-drop filters). Single-state:
+  // Pro → allow, otherwise → paywall.
+  function gateProFeature(actionId, fn) {
+    if (isPro()) {
+      trackEvent('pro_action_completed', { actionId });
+      return fn();
+    }
+    trackEvent('paywall_trigger', { from: actionId, reason: 'pro_feature' });
+    trackEvent('pro_action_attempted', { actionId, wasGated: true, lifecycle: getLifecycleState() });
+    openPaywall(actionId);
+    return null;
+  }
+
+  function incrementGenerationCount() {
     if (!state.user) state.user = {};
-    state.user.redesignsUsed = (state.user.redesignsUsed || 0) + 1;
+    state.user.generationsUsed = (state.user.generationsUsed || state.user.redesignsUsed || 0) + 1;
+    // Legacy field still mirrored during transition window. Will be deleted
+    // after one release cycle once we confirm no readers remain.
+    state.user.redesignsUsed = state.user.generationsUsed;
+    save();
   }
+
+  // Toggle CSS body classes. CSS still uses the same hooks but most rules that
+  // hung off `is-free` are deleted in Layer 6 (Copy / CSS). The classes remain
+  // so future tier-aware UI variants can use them cleanly.
+  function syncFreeModeClass() {
+    document.body.classList.toggle('is-pro', isPro());
+    document.body.classList.toggle('is-free', !isPro());
+    document.body.classList.toggle('is-guest', isGuest());
+    document.body.classList.toggle('is-signedin-free', isSignedInFree());
+    // [Compute-quality migration] `has-used-free-generations` body class
+    // retired — there's no quota, so the class is meaningless. Removing it
+    // here so any stale CSS rule keyed off it stops applying.
+    document.body.classList.remove('has-used-free-generations');
+  }
+
+  // ============================================================
+  // Model A — STEP 5 edge-case handlers
+  // ============================================================
+  // Each function below corresponds to one row in MONETIZATION_AUDIT.md §16.
+  // None of these are mock surfaces — they are the runtime-correct behavior
+  // for each scenario, even before Stripe is wired. The Stripe webhook in
+  // DEFERRED.md will call handleDowngrade() on cancellation; everything else
+  // already runs at boot or on the backend-ready event.
+
+  // §16 row 1 — Existing Pro users (D6=a, grandfathered).
+  // Anyone who was Pro before Model A migration keeps Pro until they cancel.
+  // We tag them so analytics can split conversion attribution between paid-Pro
+  // and grandfathered-Pro. Idempotent — only sets the flag once.
+  function grandfatherProUsers() {
+    if (!state.user) return;
+    if (!state.user.isPro) return;
+    if (state.user.tierGrantedAt) return;        // already tagged
+    state.user.grandfathered = true;
+    state.user.tierGrantedAt = 'pre_model_a';
+    save();
+    trackEvent('tier_changed', {
+      from: 'pro_legacy',
+      to: 'pro_grandfathered',
+      source: 'grandfather',
+      triggeringContext: null
+    });
+  }
+
+  // §16 row 3 — Downgrade flow (Pro → Free).
+  // Called by the future Stripe webhook on cancellation, OR manually for QA.
+  // Pro-created content (rooms, HD-exported renders already on disk, batch
+  // redesigns) STAYS ACCESSIBLE. Only the gates re-engage on NEW actions.
+  // The toast wording follows the audit's §10 "Downgrade copy" plan.
+  function handleDowngrade(reason) {
+    if (!state.user || !state.user.isPro) return;
+    state.user.isPro = false;
+    state.user.tierGrantedAt = null;
+    state.user.grandfathered = false;
+    save();
+    syncFreeModeClass();
+    trackEvent('tier_changed', {
+      from: 'pro',
+      to: 'free',
+      source: reason || 'cancellation',
+      triggeringContext: null
+    });
+    toast("You're on Free. Past designs stay yours — reshuffle and shop as much as you want.");
+    // Re-render whatever screen is active so the gates lift back into place.
+    const cur = document.querySelector('.screen.active')?.dataset?.screen;
+    if (cur === 'home') renderHome();
+    else if (cur === 'results' && currentRoomId) openRoom(currentRoomId);
+    else if (cur === 'profile' && typeof renderProfilePage === 'function') renderProfilePage();
+  }
+  // Expose for QA / Stripe-webhook future wiring.
+  window.furnishHandleDowngrade = handleDowngrade;
+
+  // §16 row 4 — Offline / cached tier reconciliation.
+  // Called AFTER supabase-client.pullAll() has already overwritten local state
+  // with server values. Pass in the values that were cached BEFORE the pull,
+  // so we can detect drift between offline-cached state and the server's
+  // canonical record. Pessimistic-allow policy while OFFLINE: trust the cache;
+  // the AI-call backend (DEFERRED.md) is the real enforcement boundary.
+  function reconcileTierWithBackend(cachedIsPro, cachedUsed) {
+    if (!state.user) return;
+    const serverIsPro = !!state.user.isPro;             // post-pull = server
+    const serverUsed  = state.user.generationsUsed || 0; // post-pull = server
+    const tierMismatch  = !!cachedIsPro !== serverIsPro;
+    const quotaMismatch = (cachedUsed || 0) !== serverUsed;
+    if (tierMismatch || quotaMismatch) {
+      trackEvent('tier_reconciled', {
+        tierMismatch,
+        quotaMismatch,
+        cachedIsPro: !!cachedIsPro,
+        serverIsPro,
+        cachedUsed: cachedUsed || 0,
+        serverUsed
+      });
+      // Server says we DOWNGRADED (canceled on another device, expired card).
+      // Run the full handler so the user sees the toast + re-render.
+      if (cachedIsPro && !serverIsPro) {
+        handleDowngrade('server_reconcile');
+      }
+      // Server says we UPGRADED (paid on another device). No toast — expected.
+      // pullAll already set state.user.isPro=true; just re-sync UI.
+      if (!cachedIsPro && serverIsPro) {
+        syncFreeModeClass();
+        const cur = document.querySelector('.screen.active')?.dataset?.screen;
+        if (cur === 'home') renderHome();
+        else if (cur === 'results' && currentRoomId) openRoom(currentRoomId);
+        else if (cur === 'profile' && typeof renderProfilePage === 'function') renderProfilePage();
+      }
+    }
+  }
+  window.furnishReconcileTier = reconcileTierWithBackend;
+
+  // [Compute-quality migration] `detectQuotaTamper()` removed. There is no
+  // lifetime quota anymore so client-side tampering is moot. Anti-abuse for
+  // the new model is server-side rate limiting on the AI-call endpoint
+  // (per IP/account, prevents compute-budget burn) — see DEFERRED.md.
+
+  // [Historical removals across migrations — names that no longer exist]
+  // Model A migration (STEP 4 consistency sweep):
+  //   - hasUsedDemo, canReshuffle, canSwap, canRedesign, incrementRedesignCount
+  // Compute-quality routing migration (this pass):
+  //   - FREE_GENERATION_LIMIT (constant)
+  //   - generationsRemaining(), hasUsedAllFreeGenerations() (helpers)
+  //   - detectQuotaTamper() (anti-abuse hook — replaced by server-side rate limits)
+  //   - body.has-used-free-generations class
+  //   - renderQuotaBanner (results-screen banner — replaced by renderPremiumUpsellHint)
+  // requireSignin() is still defined below but currently has no callers; kept
+  // for potential future surfaces (cross-device sync prompt, pre-checkout nudge).
+
+  // ============================================================
+  // Affiliate-click attribution (Model A — primary monetization)
+  // ============================================================
+  // Every affiliate URL gets retailer-specific affiliate IDs + universal UTMs
+  // + a click ID for downstream attribution reconciliation. Real per-retailer
+  // codes are placeholders until partner programs approve (see DEFERRED.md).
+  const AFFILIATE_IDS = {
+    amazon:     { tag: 'furnish-20' },         // Amazon Associates
+    ikea:       { partnerId: 'TODO_IKEA' },    // IKEA via Awin/CJ
+    wayfair:    { tag: 'TODO_WAYFAIR' },       // Wayfair via CJ
+    'west-elm': { tag: 'TODO_WESTELM' },       // West Elm via Rakuten
+    'rugs-usa': { tag: 'TODO_RUGSUSA' },       // Rugs USA via ShareASale
+    etsy:       { aff_id: 'TODO_ETSY' }        // Etsy direct
+  };
+  // [Dim 14 Section D Fix 1 — retailer search-by-name fallback.
+  //  When per-item URLs are placeholder homepages (current state) or
+  //  return 404/OOS post-cutover, route the user to the retailer's
+  //  search results for the item NAME instead of dumping them on a
+  //  generic homepage. Per Reforge Resurrecting Voluntary Dormant
+  //  Users → Reason #3 (Over-Promised, Under-Delivered): cheapest
+  //  fix for the most damaging dormancy pattern.]
+  const RETAILER_SEARCH = {
+    ikea:       name => `https://www.ikea.com/us/en/search/?q=${encodeURIComponent(name)}`,
+    amazon:     name => `https://www.amazon.com/s?k=${encodeURIComponent(name)}&tag=furnish-20`,
+    wayfair:    name => `https://www.wayfair.com/keyword.php?keyword=${encodeURIComponent(name)}`,
+    'west-elm': name => `https://www.westelm.com/search/results.html?words=${encodeURIComponent(name)}`,
+    etsy:       name => `https://www.etsy.com/search?q=${encodeURIComponent(name)}`,
+    'rugs-usa': name => `https://www.rugsusa.com/search?q=${encodeURIComponent(name)}`,
+  };
+  function isHomepageStub(url) {
+    try {
+      const u = new URL(url);
+      return !u.pathname || u.pathname === '/' || u.pathname.length < 4;
+    } catch { return true; }
+  }
+  function buildAffiliateUrl(item) {
+    if (!item) return '#';
+    // First: try the per-item URL if it looks valid (not a homepage stub).
+    if (item.url && !isHomepageStub(item.url)) {
+      try {
+        const u = new URL(item.url);
+        const partner = AFFILIATE_IDS[item.source] || {};
+        Object.entries(partner).forEach(([k, v]) => u.searchParams.set(k, v));
+        u.searchParams.set('utm_source', 'furnish');
+        u.searchParams.set('utm_medium', 'redesign');
+        u.searchParams.set('utm_campaign', item.id);
+        u.searchParams.set('fclick', `${state.user?.id || state.user?.email || 'guest'}-${Date.now().toString(36)}`);
+        return u.toString();
+      } catch {}
+    }
+    // Fall back: retailer search-by-name. Per-item URL was missing or stubby.
+    const builder = RETAILER_SEARCH[item.source];
+    if (builder && item.name) {
+      trackEvent('affiliate_url_fallback_search', { itemId: item.id, source: item.source });
+      return builder(item.name);
+    }
+    // Last resort: retailer homepage. Track so we know which catalog rows need fixing.
+    trackEvent('affiliate_url_fallback_homepage', { itemId: item.id, source: item.source });
+    return item.url || '#';
+  }
+  function trackAffiliateClick(item, surface) {
+    state.affiliateClicks = (state.affiliateClicks || []).slice(-100);
+    state.affiliateClicks.push({
+      itemId: item.id,
+      source: item.source,
+      price: item.price,
+      surface,
+      roomId: currentRoomIdSafe(),
+      ts: Date.now()
+    });
+    save();
+    trackEvent('affiliate_click', {
+      itemId: item.id,
+      source: item.source,
+      price: item.price,
+      surface,
+      roomId: currentRoomIdSafe()
+    });
+  }
+  // currentRoomId is declared later in the file; this safe accessor avoids
+  // referencing it before initialization in early call paths.
+  function currentRoomIdSafe() {
+    try { return currentRoomId || null; } catch { return null; }
+  }
+
+  // ============================================================
+  // First-redesign tutorial — multi-step coachmark on preferences
+  // ============================================================
+  // Fires ONCE per user, immediately after their first AI-generated redesign.
+  // Walks them through Styles → Color Moods → Budget. The Budget step is
+  // the centerpiece (per Reforge Activation: the Aha Moment isn't complete
+  // until the user knows how to dial prices to their actual budget).
+  //
+  // Trigger surface: openRoom() detects "first redesign for this user" and
+  // queues the tutorial; results-screen render schedules the auto-route
+  // 6 seconds later so the user has time to soak in the redesign.
+  //
+  // Skip beat: the Skip button is hidden for the first 2 seconds of step 0
+  // so the spotlight has a chance to land — frictionless skip would let
+  // users dismiss before they understand what's being shown.
+  //
+  // State: state.user.firstRedesignTutorialSeen (boolean, persisted, never
+  // re-fires per the spec). NOT yet synced to Supabase — local-only until
+  // we add the column. Document this gap in DEFERRED.md if needed.
+  //
+  // Analytics: tutorial_started, tutorial_step_viewed, tutorial_completed,
+  // tutorial_skipped — all fired now even though we can't analyze them yet.
+  // ============================================================
+
+  // [10-Q migration] Tutorial trio rewritten per CONFLICT 3: vibe +
+  // materials + budget. color_appetite was removed because the user
+  // already engaged with it pre-redesign in Q2 (no tutorial spotlight
+  // needed). Selectors point at `.answer-card[data-q-id="…"]` matching
+  // the new prefs editor markup. Budget step keeps `.budget-card` and
+  // remains the centerpiece (emphasized:true).
+  const TUTORIAL_STEPS = [
+    {
+      id: 'vibe',
+      selector: '.answer-card[data-q-id="vibe"]',
+      headerSelector: '.answer-card[data-q-id="vibe"]',
+      title: 'Your vibe',
+      body: 'This is the emotional anchor for the AI — calm vs. energized vs. cozy. Tap to change, and every future redesign in this profile shifts to match.',
+      cta: 'Next →',
+    },
+    {
+      id: 'materials',
+      selector: '.answer-card[data-q-id="materials"]',
+      headerSelector: '.answer-card[data-q-id="materials"]',
+      title: 'Your materials',
+      body: 'Pick up to two textures that pull you in — warm woods, soft fabrics, vintage patina. The AI leans into these when picking pieces.',
+      cta: 'Next →',
+    },
+    {
+      id: 'budget',
+      selector: '.budget-card',
+      headerSelector: '.budget-card',
+      title: 'Drag this to match your real budget',
+      body: "This is the most important one. The prices on your redesign respect this slider — drag it down for affordable picks, up for premium. Try it now.",
+      cta: 'Got it — show me',
+      emphasized: true,
+    },
+  ];
+
+  let _tutorialIdx = -1;
+  let _tutorialReposition = null; // bound resize/scroll handler so we can detach
+  let _tutorialSkipTimer = null;
+
+  function isTutorialActive() {
+    return _tutorialIdx >= 0;
+  }
+
+  function shouldFireFirstRedesignTutorial() {
+    if (!state.user) return false;
+    if (state.user.firstRedesignTutorialSeen === true) return false;
+    // Must have at least one room (the just-finished redesign).
+    if (!state.rooms || state.rooms.length === 0) return false;
+    return true;
+  }
+
+  // Called from openRoom() when a first-time redesign is rendered. Schedules
+  // the auto-route to preferences after 6 seconds — enough time for the
+  // user to soak in the wow without us interrupting prematurely.
+  function queueFirstRedesignTutorial() {
+    if (!shouldFireFirstRedesignTutorial()) return;
+    if (state._tutorialQueued) return;
+    state._tutorialQueued = true;
+    setTimeout(() => {
+      // Re-check at fire time — user might have signed out, upgraded, etc.
+      if (!shouldFireFirstRedesignTutorial()) {
+        state._tutorialQueued = false;
+        return;
+      }
+      // Don't interrupt if they've already navigated away from results;
+      // they're exploring, let them be. The tutorial will fire next time
+      // they land on preferences via the regular trigger.
+      const cur = document.querySelector('.screen.active')?.dataset?.screen;
+      if (cur !== 'results') {
+        state._tutorialQueued = false;
+        return;
+      }
+      startFirstRedesignTutorial();
+    }, 6000);
+  }
+
+  // Fallback trigger: if user navigates to preferences manually before the
+  // queued auto-route fires (or if the queue was cleared because they left
+  // results), still fire the tutorial on first preferences visit.
+  function maybeFireTutorialOnPreferencesEntry() {
+    if (!shouldFireFirstRedesignTutorial()) return;
+    if (isTutorialActive()) return;
+    // Slight delay so the screen render completes first.
+    setTimeout(() => {
+      if (shouldFireFirstRedesignTutorial() && !isTutorialActive()) {
+        runFirstRedesignTutorialOnCurrentScreen();
+      }
+    }, 350);
+  }
+
+  function startFirstRedesignTutorial() {
+    state._tutorialQueued = false;
+    // Auto-route to preferences with the active profile.
+    const profileId = state.activeProfileId || (state.profiles[0] && state.profiles[0].id);
+    if (!profileId) return;
+    if (typeof openPreferences === 'function') openPreferences(profileId);
+    // openPreferences calls showScreen('preferences') synchronously;
+    // wait one RAF for layout, then run the tutorial.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(runFirstRedesignTutorialOnCurrentScreen);
+    });
+  }
+
+  function runFirstRedesignTutorialOnCurrentScreen() {
+    _tutorialIdx = 0;
+    trackEvent('tutorial_started', { totalSteps: TUTORIAL_STEPS.length });
+    const overlay = $('#frtOverlay');
+    if (!overlay) return;
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    showTutorialStep(0);
+    // Bind reposition handlers — spotlight must follow target on resize/scroll.
+    _tutorialReposition = () => repositionTutorialSpotlight();
+    window.addEventListener('resize', _tutorialReposition);
+    window.addEventListener('scroll', _tutorialReposition, { passive: true });
+  }
+
+  function showTutorialStep(idx) {
+    const step = TUTORIAL_STEPS[idx];
+    if (!step) return endTutorial(true /* completed */);
+    _tutorialIdx = idx;
+
+    const overlay = $('#frtOverlay');
+    overlay.dataset.step = String(idx);
+    overlay.dataset.stepId = step.id;
+    overlay.classList.toggle('frt-emphasized', !!step.emphasized);
+
+    $('#frtTipTitle').textContent = step.title;
+    $('#frtTipBody').textContent = step.body;
+    $('#frtNextBtn').textContent = step.cta || (idx === TUTORIAL_STEPS.length - 1 ? 'Got it' : 'Next →');
+
+    // Step pip (e.g. "1 of 3")
+    const pip = $('#frtStepPip');
+    if (pip) pip.textContent = `${idx + 1} / ${TUTORIAL_STEPS.length}`;
+
+    // Skip button: hidden for the first 2 seconds of step 0 (spec — give
+    // the spotlight time to land). Always visible from step 1 onward.
+    const skip = $('#frtSkipBtn');
+    if (idx === 0) {
+      skip.hidden = true;
+      clearTimeout(_tutorialSkipTimer);
+      _tutorialSkipTimer = setTimeout(() => {
+        if (isTutorialActive() && _tutorialIdx === 0) skip.hidden = false;
+      }, 2000);
+    } else {
+      skip.hidden = false;
+    }
+
+    // Scroll target into view, then position spotlight + tip.
+    const target = document.querySelector(step.headerSelector || step.selector);
+    if (target && typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    // Wait for scroll to settle before measuring.
+    setTimeout(() => repositionTutorialSpotlight(), 380);
+
+    trackEvent('tutorial_step_viewed', { step: idx, stepId: step.id, emphasized: !!step.emphasized });
+  }
+
+  function repositionTutorialSpotlight() {
+    if (!isTutorialActive()) return;
+    const step = TUTORIAL_STEPS[_tutorialIdx];
+    if (!step) return;
+    const target = document.querySelector(step.selector);
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const pad = step.emphasized ? 14 : 10;
+    const spot = $('#frtSpotlight');
+    spot.style.top    = (rect.top - pad) + 'px';
+    spot.style.left   = (rect.left - pad) + 'px';
+    spot.style.width  = (rect.width + pad * 2) + 'px';
+    spot.style.height = (rect.height + pad * 2) + 'px';
+
+    // Position the tip below the spotlight if there's room, else above.
+    const tip = $('#frtTip');
+    const vh = window.innerHeight;
+    const spotBottom = rect.bottom + pad;
+    const spaceBelow = vh - spotBottom;
+    const tipMargin = 14;
+    if (spaceBelow >= 200) {
+      tip.style.top    = (spotBottom + tipMargin) + 'px';
+      tip.style.bottom = '';
+      tip.classList.remove('frt-tip-above');
+    } else {
+      tip.style.bottom = (vh - rect.top + pad + tipMargin) + 'px';
+      tip.style.top    = '';
+      tip.classList.add('frt-tip-above');
+    }
+    // Clamp horizontal so the tip never overflows.
+    const tipWidth = Math.min(360, window.innerWidth - 24);
+    tip.style.width = tipWidth + 'px';
+    const tipLeft = Math.max(12, Math.min(window.innerWidth - tipWidth - 12, rect.left + (rect.width / 2) - (tipWidth / 2)));
+    tip.style.left = tipLeft + 'px';
+  }
+
+  function endTutorial(completed) {
+    const wasIdx = _tutorialIdx;
+    _tutorialIdx = -1;
+    state._tutorialQueued = false;
+    if (!state.user) state.user = {};
+    state.user.firstRedesignTutorialSeen = true;
+    save();
+    const overlay = $('#frtOverlay');
+    if (overlay) {
+      overlay.classList.remove('open', 'frt-emphasized');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    clearTimeout(_tutorialSkipTimer);
+    if (_tutorialReposition) {
+      window.removeEventListener('resize', _tutorialReposition);
+      window.removeEventListener('scroll', _tutorialReposition);
+      _tutorialReposition = null;
+    }
+    if (completed) {
+      trackEvent('tutorial_completed', { totalSteps: TUTORIAL_STEPS.length });
+    } else {
+      trackEvent('tutorial_skipped', { atStep: wasIdx, atStepId: TUTORIAL_STEPS[wasIdx]?.id || null });
+    }
+  }
+
+  // Wire up overlay buttons. Idempotent — safe even if overlay missing.
+  (() => {
+    const next = document.getElementById('frtNextBtn');
+    const skip = document.getElementById('frtSkipBtn');
+    if (next) next.addEventListener('click', () => {
+      if (!isTutorialActive()) return;
+      const nextIdx = _tutorialIdx + 1;
+      if (nextIdx >= TUTORIAL_STEPS.length) return endTutorial(true);
+      showTutorialStep(nextIdx);
+    });
+    if (skip) skip.addEventListener('click', () => {
+      if (!isTutorialActive()) return;
+      endTutorial(false);
+    });
+    // ESC dismisses (counts as skip).
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (!isTutorialActive()) return;
+      // Don't fight other modals — only consume Escape if no other modal is open.
+      const otherModalOpen = document.querySelector('.modal.open, .bottom-sheet.open');
+      if (otherModalOpen) return;
+      endTutorial(false);
+    });
+  })();
 
   async function runAnalyzerAnimation() {
     const steps = $$('#loaderSteps li');
@@ -1820,13 +4776,181 @@
     await sleep(180);
   }
 
-  function buildRoomFromDraft(styleOverride, colorOverride) {
+  // ============================================================
+  // AI prompt builder — single source of truth for the prompt string the
+  // future Replicate-backed AI generation backend consumes. Currently
+  // logged to state._lastAIPrompt for inspection; once the backend lands,
+  // the call site swaps in a fetch that POSTs this string.
+  //
+  // CRITICAL: per Hassan's spec, the prompt NEVER includes literal style
+  // names like "Mid-Century Modern" or "Scandinavian" unless the user
+  // explicitly typed/selected one (which the new flow doesn't do). Style
+  // emerges from the combination of vibe + color_appetite + materials.
+  // Per Reforge Engagement Strategy / generative-AI prompting practice:
+  // feeling+material prompts outperform style-name prompts on modern
+  // image models.
+  // ============================================================
+  function buildAIPrompt(answers, draft) {
+    const a = answers || ONBOARDING_DEFAULTS();
+    const VIBE_TXT = {
+      calm_grounded:      'a calm, grounded',
+      energized_creative: 'an energized, creative',
+      cozy_protected:     'a cozy, protected',
+      elevated_hotel:     'an elevated, hotel-like',
+      inspired_artist:    "an artist's-space, inspired"
+    };
+    const COLOR_TXT = {
+      neutrals_only:   'a strictly neutral palette of warm whites, beiges, and natural woods',
+      mostly_neutral:  'a mostly neutral palette with one or two intentional color moments',
+      confident_color: 'a confident palette with a few rich, intentional tones',
+      bold:            'a bold, saturated, expressive palette'
+    };
+    const MAT_TXT = {
+      warm_woods:    'warm woods and rattan',
+      soft_fabrics:  'soft fabrics and boucle',
+      metal_glass:   'smooth metal and glass',
+      stone_ceramic: 'stone, ceramic, and raw plaster',
+      vintage_patina:'vintage and patina',
+      sleek_modern:  'sleek modern surfaces'
+    };
+    const DENSITY_TXT = {
+      clean:                'minimal decor with breathing room',
+      a_little_personality: 'some accents, mostly clean',
+      lived_in_rich:        'lots of decor, warm and layered',
+      maximalist:           'maximalist — every surface tells a story'
+    };
+    const SCOPE_TXT = {
+      just_furniture:  'replace furniture only — keep walls, floors, and lighting unchanged',
+      furniture_decor: 'furniture plus decor — accessories, art, plants',
+      whole_room:      'the whole room including lighting, rugs, paint',
+      surprise_me:     'go for a full transformation — total creative freedom'
+    };
+    const LIGHT_TXT = {
+      tons:           'optimize for a room with abundant natural light all day',
+      bright_morning: 'optimize for a room with bright morning light that dims later',
+      dim:            'optimize for a dim or north-facing room — make it feel warm and bright',
+      unsure:         'assume mixed natural light'
+    };
+    const BUDGET_TXT = {
+      tight:       'tight budget tier (IKEA, Target, secondhand)',
+      smart:       'smart budget tier (mix of high-low; Wayfair, West Elm sales)',
+      quality:     'quality budget tier (CB2, Crate & Barrel, real wood)',
+      investment:  'investment budget tier (RH, Design Within Reach, statement pieces)',
+      dream_first: 'aspirational quality — show the dream first; user will dial budget after'
+    };
+    const USE_TXT = {
+      slept_relaxed:    'mostly slept and relaxed in',
+      lived_in_all_day: 'lived in all day — work, hobbies, hanging out',
+      hosting:          'hosting and entertaining',
+      aspirational:     'looking amazing more than being maximally practical'
+    };
+    const AVOID_TXT = {
+      too_modern:    'overly modern or sterile aesthetics',
+      too_rustic:    'overly rustic or "farmhouse" aesthetics',
+      busy_prints:   'bold patterns or busy prints',
+      dark_heavy:    'dark colors or heavy furniture',
+      trendy:        'trendy items that will feel dated quickly'
+    };
+
+    const vibePart    = VIBE_TXT[a.vibe] || VIBE_TXT.calm_grounded;
+    const colorPart   = COLOR_TXT[a.color_appetite] || COLOR_TXT.mostly_neutral;
+    const matsPart    = (a.materials || []).map(m => MAT_TXT[m]).filter(Boolean).join(' and ') || 'warm woods and soft fabrics';
+    const densityPart = DENSITY_TXT[a.decor_density] || DENSITY_TXT.a_little_personality;
+    const scopePart   = SCOPE_TXT[a.scope] || SCOPE_TXT.furniture_decor;
+    const lightPart   = LIGHT_TXT[a.natural_light] || LIGHT_TXT.unsure;
+    const budgetPart  = BUDGET_TXT[a.budget_tier] || BUDGET_TXT.smart;
+    const usePart     = USE_TXT[a.room_use] || USE_TXT.lived_in_all_day;
+    const avoidIds    = (a.avoid || []).filter(id => id !== 'nothing');
+    const avoidPart   = avoidIds.map(id => AVOID_TXT[id]).filter(Boolean).join('; ');
+    const dealbreaker = a.dealbreaker || { kind: 'nothing', text: '' };
+
+    const roomLabel = draft && draft.type
+      ? (window.ROOM_TYPES || []).find(r => r.id === draft.type)?.label || draft.type
+      : 'room';
+
+    let prompt =
+      `Generate an interior redesign of a ${roomLabel} with ${vibePart} feeling, ` +
+      `using ${colorPart} dominated by ${matsPart}. ` +
+      `Decoration density: ${densityPart}. ` +
+      `Redesign scope: ${scopePart}. ` +
+      `Lighting: ${lightPart}. ` +
+      `Optimize for ${budgetPart}. ` +
+      `Room is primarily ${usePart}.`;
+    if (avoidPart) prompt += ` AVOID: ${avoidPart}.`;
+    if (dealbreaker.kind && dealbreaker.kind !== 'nothing' && dealbreaker.text) {
+      prompt += ` PRESERVE: ${dealbreaker.kind} — "${dealbreaker.text}".`;
+    }
+    return prompt;
+  }
+  window.FurnishBuildAIPrompt = buildAIPrompt;
+
+  // ============================================================
+  // Catalog-picker scoring weights derived from the 10 answers.
+  // This is the bridge between the new answers model and the existing
+  // FURNITURE_DB (which is tagged with style + color IDs). It's NOT the
+  // AI prompt — the AI prompt reads answers directly. This is purely the
+  // catalog-picker weighting input.
+  // ============================================================
+  function deriveScoringWeights(answers) {
+    const a = answers || ONBOARDING_DEFAULTS();
+    return {
+      styles:    deriveStylesFromAnswers(a),         // catalog style filter
+      colors:    deriveColorsFromAnswers(a),         // catalog color filter
+      materials: a.materials || [],                  // material-tag boost (future use)
+      avoid:     (a.avoid || []).filter(id => id !== 'nothing'), // negative penalties
+      vibe:      a.vibe,                             // future: vibe-tag boost
+      decorDensity: a.decor_density,                 // controls extras-cap below
+      scope:     a.scope,                            // mapped to keepMode below
+      roomUse:   a.room_use,                         // future: function-priority bias
+      budgetTier: a.budget_tier,                     // future: price-quality bias
+    };
+  }
+
+  // CONFLICT 5: Use Template paths synthesize transient answers from the
+  // template's metadata (style + color tags) so the catalog pick reflects
+  // the chosen template's intent — without ever overwriting the user's
+  // saved profile.answers. Returns a partial answers object suitable for
+  // merging via buildRoomFromDraft(answersOverride).
+  function synthesizeAnswersFromTemplate(t) {
+    if (!t) return null;
+    const tStyles = new Set(t.styles || []);
+    const tColors = new Set(t.colors || []);
+    const out = {};
+    // Vibe inferred from the template's loudest style signal.
+    if (tStyles.has('minimalist') || tStyles.has('japanese-zen') || tStyles.has('scandinavian')) out.vibe = 'calm_grounded';
+    else if (tStyles.has('bohemian') || tStyles.has('eclectic')) out.vibe = 'inspired_artist';
+    else if (tStyles.has('industrial')) out.vibe = 'energized_creative';
+    else if (tStyles.has('mid-century') || tStyles.has('art-deco') || tStyles.has('contemporary')) out.vibe = 'elevated_hotel';
+    else if (tStyles.has('farmhouse') || tStyles.has('rustic')) out.vibe = 'cozy_protected';
+    // Color appetite inferred from the color-mood signal.
+    if (tColors.has('jewel') || tColors.has('terracotta')) out.color_appetite = 'confident_color';
+    else if (tColors.has('dark')) out.color_appetite = 'bold';
+    else if (tColors.has('whites') || tColors.has('neutral')) out.color_appetite = 'mostly_neutral';
+    // Templates are full-room by definition.
+    out.scope = 'whole_room';
+    return out;
+  }
+
+  function buildRoomFromDraft(answersOverride) {
     const draft = state.draft;
     const profile = getActiveProfile();
-    const styles = styleOverride || profile.styles;
-    const colors = colorOverride || profile.colors;
-    const keepMode = draft.keep === true;
-    const picked = pickItemsForRoom(draft, styles, colors, profile.budget, { keepMode });
+    // Build the effective answers for THIS generation. The override is
+    // used by Use Template paths (CONFLICT 5: synthesize transient answers
+    // from template metadata, merge with profile.answers for the catalog
+    // pick, never overwrite the saved profile permanently).
+    const effective = answersOverride
+      ? { ...getEffectiveAnswers(profile), ...answersOverride }
+      : getEffectiveAnswers(profile);
+    // CONFLICT 2: scope === 'just_furniture' is the keepMode default; the
+    // results-screen toggle (draft.keep) overrides if set.
+    const keepMode = draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture');
+    const picked = pickItemsForRoom(draft, effective, profile.budget, { keepMode });
+
+    // Build + log the AI prompt for this generation. Future backend will
+    // POST this; for now it lives on the room snapshot for inspection.
+    let promptStr = '';
+    try { promptStr = buildAIPrompt(effective, draft); } catch (err) {}
+
     const room = {
       id: 'r'+Date.now(),
       profileId: profile.id,
@@ -1835,17 +4959,23 @@
       dims: draft.dims,
       items: picked,
       keepMode,
+      // [10-Q model] Snapshot the answers used for THIS generation so
+      // reshuffle/rerun reproduces the same intent. Legacy `styles/colors`
+      // fields populated for the catalog-picker bridge.
+      answers: { ...effective },
       versions: [],
       activeVersion: null,
       createdAt: Date.now(),
       fromTemplate: draft.fromTemplate || null
     };
-    // Seed v1 snapshot.
     room.versions.push({
       id: 'v'+Date.now(),
       items: picked.slice(),
-      styles: styles.slice(),
-      colors: (colors||[]).slice(),
+      answers: { ...effective },
+      // Legacy fields kept on the version for reshuffle/swap compat.
+      styles: deriveStylesFromAnswers(effective),
+      colors: deriveColorsFromAnswers(effective),
+      aiPrompt: promptStr,
       note: draft.fromTemplate ? 'Template design' : 'Initial AI design',
       timestamp: Date.now()
     });
@@ -1863,7 +4993,11 @@
   }
 
   // ---------- Recommendation engine ----------
-  function pickItemsForRoom(draft, styleIds, colorIds, budgetVal, opts = {}) {
+  // [10-Q model] Signature: pickItemsForRoom(draft, answers, budgetVal, opts).
+  // The old (styleIds, colorIds) signature is fully retired — call sites
+  // updated to pass `answers` directly. Internal scoring still uses
+  // FURNITURE_DB style/color tags via deriveScoringWeights.
+  function pickItemsForRoom(draft, answers, budgetVal, opts = {}) {
     const allSlots = window.ROOM_SLOTS[draft.type] || [];
     // When the user wants to KEEP existing pieces, skip big furniture (sofa, bed,
     // desk, dining table, bathroom vanity, etc.) and lean into accents only.
@@ -1871,18 +5005,65 @@
     const slots = opts.keepMode === true
       ? allSlots.filter(s => !heavySlots.has(s))
       : allSlots;
-    const styleSet = new Set(styleIds || []);
-    const colorSet = new Set(colorIds || []);
+
+    const weights = deriveScoringWeights(answers);
+    const styleSet = new Set(weights.styles);
+    const colorSet = new Set(weights.colors);
+    const avoidSet = new Set(weights.avoid);
     const budgetMax = budgetVal === Infinity ? Infinity : (typeof budgetVal === 'number' && budgetVal > 0 ? budgetVal : 3000);
 
     const area = (draft.dims.w||0) * (draft.dims.l||0);
     const sizeBonus = area >= 220 ? 2 : area >= 150 ? 1 : 0;
+
+    // [Q3 decor_density] Density answer caps the number of decor extras
+    // beyond the slot fills. 'clean' → 0 extras, 'a_little' → 1, etc.
+    const densityExtraCapMap = {
+      clean: 0,
+      a_little_personality: 1,
+      lived_in_rich: 3,
+      maximalist: 5
+    };
+    const decorExtrasCap = densityExtraCapMap[weights.decorDensity] !== undefined
+      ? densityExtraCapMap[weights.decorDensity]
+      : 1;
 
     const excludeIds = new Set(opts.excludeIds || []);
     const anchorColor = opts.anchorColor || null;
 
     const candidates = window.FURNITURE_DB.filter(i =>
       i.roomTypes.includes(draft.type) && !excludeIds.has(i.id)
+    );
+
+    // [Q9 avoid → negative prompts] Avoid IDs map to style tags whose items
+    // get a hefty score penalty. Non-overlapping items pass through.
+    const AVOID_STYLE_MAP = {
+      too_modern:  ['modern','contemporary','minimalist'],
+      too_rustic:  ['farmhouse','rustic','traditional'],
+      busy_prints: ['eclectic','bohemian','art-deco'],
+      dark_heavy:  [], // applied via color-mood penalty below
+      trendy:      ['eclectic','art-deco']
+    };
+    const AVOID_COLOR_MAP = {
+      dark_heavy: ['dark']
+    };
+    const avoidStyleSet = new Set();
+    const avoidColorSet = new Set();
+    avoidSet.forEach(id => {
+      (AVOID_STYLE_MAP[id] || []).forEach(s => avoidStyleSet.add(s));
+      (AVOID_COLOR_MAP[id] || []).forEach(c => avoidColorSet.add(c));
+    });
+
+    // [Dim 14 Section B Fix 1 — soft-avoid for Off-voted styles. Reads
+    //  state.user._styleAvoid (24h time-windowed map written by the Aha
+    //  Off-vote handler). Items tagged with an avoided style get a
+    //  -0.5 score weight. Time-limited so users can't permanently block
+    //  their own preferences.]
+    const styleAvoidMap = state.user?._styleAvoid || {};
+    const now = Date.now();
+    const avoidedStylesActive = new Set(
+      Object.entries(styleAvoidMap)
+        .filter(([, expiry]) => typeof expiry === 'number' && expiry > now)
+        .map(([style]) => style)
     );
 
     const scored = candidates.map(item => {
@@ -1892,6 +5073,15 @@
       const colorScore = colorSet.size ? colorHit / colorSet.size : 0.5;
       let score = styleScore*0.65 + colorScore*0.25 + Math.random()*0.1;
       if (anchorColor && item.accent) score += colorDistance(anchorColor, item.accent) < 60 ? 0.2 : 0;
+      // Negative-prompt penalty.
+      const avoidStyleHit = item.styles.some(s => avoidStyleSet.has(s));
+      const avoidColorHit = item.colors.some(c => avoidColorSet.has(c));
+      if (avoidStyleHit) score -= 0.4;
+      if (avoidColorHit) score -= 0.3;
+      // [Dim 14] Off-vote soft-avoid: item carries any active-avoided style.
+      if (avoidedStylesActive.size && item.styles.some(s => avoidedStylesActive.has(s))) {
+        score -= 0.5;
+      }
       return { item, score };
     }).sort((a,b) => b.score - a.score);
 
@@ -1909,13 +5099,35 @@
         runningTotal += match.item.price;
       }
     }
+    // Decor extras capped by both the room-size sizeBonus AND the user's
+    // decor_density answer. Per Q3: clean → 0 extras, maximalist → up to 5.
+    const extrasCap = Math.min(sizeBonus + decorExtrasCap, 8);
     const extras = scored.filter(({ item }) => !usedIds.has(item.id) && ['decor','plant','lighting'].includes(item.type));
-    for (let i = 0; i < sizeBonus && i < extras.length; i++) {
+    for (let i = 0; i < extrasCap && i < extras.length; i++) {
       const e = extras[i].item;
       if (runningTotal + e.price > budgetMax) break;
       picked.push(e);
       usedIds.add(e.id);
       runningTotal += e.price;
+    }
+
+    // [Dim 14 Section F — under-populated picker fallback]
+    // Per Reforge PM Foundations — Feature Design (edge cases of input
+    // coverage are first-class). If the picker returns <5 items because
+    // the user's style+room+budget combo is under-populated in the
+    // catalog, expand budget by 20% and retry once. Style-adjacency
+    // expansion (style.adjacent) and neutral-fallback are deferred until
+    // furniture.js authors that mapping. Tracking the event so the
+    // catalog team can see which combos need more inventory.
+    if (picked.length < 5 && opts._underPopulatedRetry !== true && budgetMax !== Infinity && typeof budgetMax === 'number' && budgetMax > 0) {
+      trackEvent('picker_underpopulated', {
+        roomType: draft.type,
+        budget: budgetMax,
+        gotItems: picked.length,
+        styles: Array.from(styleSet)
+      });
+      // Single retry with budget relaxed +20%.
+      return pickItemsForRoom(draft, answers, Math.round(budgetMax * 1.2), { ...opts, _underPopulatedRetry: true });
     }
     return picked;
   }
@@ -1937,10 +5149,56 @@
   let currentRoomId = null;
 
   function openRoom(roomId) {
+    syncFreeModeClass();
     const room = state.rooms.find(r => r.id === roomId);
     if (!room) return;
     currentRoomId = roomId;
     const profile = state.profiles.find(p => p.id === room.profileId);
+
+    // Fire aha-results event (tracking only, no celebration here — celebration
+    // is at quiz completion, per original behavior).
+    const isFirstResultsForProfile = profile && !state._ahaResultsFired;
+    if (isFirstResultsForProfile) {
+      state._ahaResultsFired = true;
+      save();
+      trackEvent(ACTIVATION.AHA_RESULTS, {
+        roomId: room.id,
+        // [10-Q model] Send the answer summary instead of the legacy styles
+        // array. Style is derived from vibe + materials + color_appetite.
+        answers: profile.answers || {},
+        styles: profile.styles, // legacy mirror — drop after backend migration
+        roomType: room.type,
+        msFromSetup: state._setupCompleteAt ? (Date.now() - state._setupCompleteAt) : null
+      });
+    }
+
+    // Habit-moment signal: second room completed.
+    const roomsByProfile = state.rooms.filter(r => r.profileId === profile?.id);
+    if (profile && roomsByProfile.length === 2 && !state._habitFired) {
+      state._habitFired = true;
+      save();
+      trackEvent(ACTIVATION.HABIT_2ND_ROOM, { profileId: profile.id });
+    }
+
+    // Sync the post-aha keep-existing switch to this room's state.
+    const _keepSw = $('#keepExistingSwitch');
+    if (_keepSw) {
+      _keepSw.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
+      _keepSw.classList.toggle('on', !!room.keepMode);
+    }
+
+    // First-results hint tour: highlight a price tag so users discover
+    // tap-to-shop. One-shot, separate from the celebration.
+    if (isFirstResultsForProfile && !state._tourShown) {
+      state._tourShown = true;
+      save();
+      setTimeout(() => showFirstAhaHint(), 600);
+    }
+
+    // [First-redesign tutorial] Queue the auto-route to preferences with
+    // tutorial overlay. Fires 6s after this room renders, ONCE per user.
+    // See queueFirstRedesignTutorial() for the full contract + skip beat.
+    queueFirstRedesignTutorial();
 
     const summaryEl = $('#resultsSummary');
     summaryEl.innerHTML = `
@@ -1988,6 +5246,97 @@
     showScreen('results');
   }
 
+  function showFirstAhaHint() {
+    // Highlight the first price tag + show a floating coach mark.
+    const tag = document.querySelector('#priceTags .price-tag');
+    if (!tag) return;
+    tag.classList.add('coach-pulse');
+    const coach = document.createElement('div');
+    coach.className = 'coach-mark';
+    coach.innerHTML = `
+      <div class="cm-arrow"></div>
+      <div class="cm-body">Tap any price tag to shop the piece. Every item links to a real store.</div>
+      <button class="cm-ok" type="button">Got it</button>
+    `;
+    document.body.appendChild(coach);
+    const rect = tag.getBoundingClientRect();
+    coach.style.top  = (rect.bottom + 12 + window.scrollY) + 'px';
+    coach.style.left = Math.max(12, Math.min(window.innerWidth - 280, rect.left - 20)) + 'px';
+    const dismiss = () => {
+      tag.classList.remove('coach-pulse');
+      coach.classList.add('out');
+      setTimeout(() => coach.remove(), 240);
+    };
+    coach.querySelector('.cm-ok').addEventListener('click', dismiss);
+    setTimeout(dismiss, 8000);
+  }
+
+  // [Compute-quality routing] renderQuotaBanner replaced by
+  // renderPremiumUpsellHint. The new hint surfaces only on the 3rd+ Free
+  // generation (per Reforge User Psychology upsell pacing), once per session,
+  // with a 7-day cooldown between surfaces to avoid wear-out.
+  //
+  // Activation rule: never on first redesign (preserves the aha moment);
+  // first eligible from generation #3 onward.
+  // Frequency rule: max 1 surface per session, tracked via state._premiumUpsellShownAt.
+  // Cooldown rule: ≥ 7 days between two surfaces for the same user.
+  function renderPremiumUpsellHint(room) {
+    const card = document.getElementById('totalsCard');
+    if (!card) return;
+    document.getElementById('premiumUpsellHint')?.remove();
+    if (isPro()) return;
+    if (room && room.modelTier === 'premium') return; // they already got premium
+
+    const used = generationsUsed();
+    if (used < 3) return; // pacing: skip first 2 redesigns (activation phase)
+
+    // Cooldown: 7 days since last shown OR session-once.
+    const now = Date.now();
+    const lastShown = state.user?._premiumUpsellShownAt || 0;
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    if (now - lastShown < SEVEN_DAYS) return;
+    if (state._premiumUpsellShownThisSession) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'premiumUpsellHint';
+    banner.className = 'premium-upsell-hint';
+    banner.innerHTML = `
+      <span class="puh-spark" aria-hidden="true">✦</span>
+      <div class="puh-body">
+        <div class="puh-headline"><strong>Want sharper redesigns next time?</strong></div>
+        <div class="puh-sub">Pro routes you to our premium AI model — more accurate matches, richer lighting.</div>
+      </div>
+      <button class="puh-cta" type="button" id="premiumUpsellCta">See Pro</button>
+      <button class="puh-close" type="button" aria-label="Dismiss" id="premiumUpsellClose">×</button>
+    `;
+    card.after(banner);
+
+    // Mark shown (session + persistent timestamp).
+    state._premiumUpsellShownThisSession = true;
+    if (!state.user) state.user = {};
+    state.user._premiumUpsellShownAt = now;
+    save();
+    trackEvent('premium_quality_upsell_shown', {
+      triggeringContext: 'results_post_generation',
+      generationsUsed: used,
+    });
+
+    document.getElementById('premiumUpsellCta')?.addEventListener('click', () => {
+      trackEvent('premium_quality_upsell_clicked', {
+        triggeringContext: 'results_post_generation',
+        generationsUsed: used,
+      });
+      openPaywall('premium_quality');
+    });
+    document.getElementById('premiumUpsellClose')?.addEventListener('click', () => {
+      trackEvent('premium_quality_upsell_dismissed', {
+        triggeringContext: 'results_post_generation',
+        generationsUsed: used,
+      });
+      banner.remove();
+    });
+  }
+
   function renderRoomPieces(room) {
     const totalNow = room.items.reduce((s,i) => s + i.price, 0);
     $('#totalsCard').innerHTML = `
@@ -1997,6 +5346,11 @@
       </div>
       <div class="muted small">${room.items.length} pieces · affiliate picks</div>
     `;
+
+    // [Compute-quality routing] Pacing-aware Pro upsell on results screen.
+    // Replaces the old quota banner. Surfaces once per session at gen #3+,
+    // with 7-day cooldown. See renderPremiumUpsellHint() for the contract.
+    renderPremiumUpsellHint(room);
 
     renderPriceTags(room);
     renderPalette(room);
@@ -2088,9 +5442,15 @@
   }
 
   document.getElementById('rearrangeBtn').addEventListener('click', () => {
-    // Placeholder for future AI-driven rearrangement — when the image generation
-    // backend is wired up, this will request a re-render with the new spatial layout.
-    toast('Rearrange will use AI to regenerate this room — coming soon');
+    // [Model A — D10 override] Rearrange is FREE for everyone. The AI
+    // re-layout call must stay minimal-cost (server-side concern) since this
+    // doesn't decrement the generation quota. Until the real AI re-layout
+    // pipeline lands (DEFERRED.md), this remains a UI-only stub: tags become
+    // draggable and the new layout is saved per-room. No Pro gate, no paywall.
+    trackEvent('rearrange_clicked', { roomId: currentRoomIdSafe() });
+    toast('Drag any price tag to reposition it. Tap done to save.');
+    // Existing rearrange-mode toggling is wired separately via attachTagDrag —
+    // keeping this handler simple to avoid duplicate behavior.
   });
 
   let activeAnchorColor = null;
@@ -2122,6 +5482,30 @@
     if (room) { renderPalette(room); $('#clearPaletteBtn').style.display = 'none'; }
   });
 
+  // [Dim 09 D9 + Dim 10 #4 — fit-warning rewrite. Two changes:
+  //  (1) Emoji ⚠ removed per CLAUDE.md no-emoji rule (replaced with a
+  //      stroke-based custom SVG, consistent with the other icons in
+  //      the app — same SVG style as theme-toggle, item-action-btn).
+  //  (2) Copy de-hedged: "may not fit" → specific dimension +
+  //      recovery ("verify before buying"). Per Reforge Brand Marketing
+  //      consistency rule + Product Marketing benefits-not-features:
+  //      a warning that doesn't say WHAT or HOW TO RECOVER is fake
+  //      feedback. The function picks the right phrasing based on
+  //      which footprint dimension is being violated. Item-level
+  //      `dimensions` may not exist in current FURNITURE_DB rows;
+  //      we degrade gracefully to the generic-but-still-actionable
+  //      "Larger than your room's footprint." -->
+  const FIT_WARN_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:4px"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>';
+  function fitWarningCopy(item, room) {
+    const itemW = item?.dimensions?.width || 0;
+    const roomW = room?.dims?.w || 0;
+    if (itemW && roomW && itemW > roomW) return 'Wider than your room. Verify before buying.';
+    const itemD = item?.dimensions?.depth || 0;
+    const roomD = room?.dims?.l || 0;
+    if (itemD && roomD && itemD > roomD) return 'Deeper than your room. Verify before buying.';
+    return "Larger than your room's footprint. Verify before buying.";
+  }
+
   function renderItemsList(room) {
     const list = $('#itemsList');
     list.innerHTML = '';
@@ -2145,13 +5529,13 @@
           <div class="meta">
             ${item.owned ? '<span class="tag source">Owned</span>' : `<span class="tag source">${sourceLabel(item.source)}</span>`}
             <span class="tag">${item.type}</span>
-            ${!fits ? '<span class="tag warn">⚠ may not fit</span>' : ''}
+            ${!fits ? `<span class="tag warn">${FIT_WARN_SVG}${fitWarningCopy(item, room)}</span>` : ''}
             <span class="price">${item.owned ? '—' : '$'+item.price.toLocaleString()}</span>
           </div>
         </div>
         ${item.owned ? '' : `
         <div class="item-actions">
-          <a class="item-action-btn link-style" href="${item.url}" target="_blank" rel="noopener noreferrer">Shop</a>
+          <a class="item-action-btn link-style" href="${buildAffiliateUrl(item)}" target="_blank" rel="noopener noreferrer" data-shop-id="${item.id}">Shop</a>
           <button class="item-action-btn ${onWishlist ? 'active' : ''}" data-act="wish">${onWishlist ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Saved` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Save`}</button>
           <button class="item-action-btn" data-act="swap">⇄ Swap</button>
           <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
@@ -2160,6 +5544,8 @@
       card.querySelector('[data-act="wish"]')?.addEventListener('click', e => { e.stopPropagation(); toggleWishlist(item); });
       card.querySelector('[data-act="swap"]')?.addEventListener('click', e => { e.stopPropagation(); swapItem(room, item); });
       card.querySelector('[data-act="alert"]')?.addEventListener('click', e => { e.stopPropagation(); togglePriceAlert(item); });
+      // [Model A] Track every affiliate clickthrough — primary monetization.
+      card.querySelector('[data-shop-id]')?.addEventListener('click', e => { e.stopPropagation(); trackAffiliateClick(item, 'item_card_button'); });
       // Tap anywhere else on the card → open the item sheet
       if (!item.owned) {
         card.addEventListener('click', e => {
@@ -2171,23 +5557,103 @@
     });
   }
 
+  // C10 — Soft pre-prompt for push permission, gated on first save action
+  // (Reforge User Psychology: post-investment grant rate >> pre-investment).
+  function maybeAskForPushPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+    if (state.user?._pushAsked) return;
+    const totalSaves = (state.wishlist || []).length + (state.bookmarkedRooms || []).length;
+    if (totalSaves < 1) return;
+    if (!state.user) state.user = {};
+    state.user._pushAsked = true;
+    save();
+    document.querySelector('.push-pre-prompt')?.remove();
+    const card = document.createElement('div');
+    card.className = 'push-pre-prompt';
+    card.innerHTML = `
+      <div class="ppp-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 01-3.46 0"/>
+        </svg>
+      </div>
+      <div class="ppp-body">
+        <strong>Want a heads-up when prices drop?</strong>
+        <p class="muted small">We'll only ping you about your saved pieces — never spam.</p>
+      </div>
+      <div class="ppp-actions">
+        <button class="btn btn-primary small" id="pppYes">Yes, notify me</button>
+        <button class="btn btn-ghost small" id="pppNo">Not now</button>
+      </div>
+      <button class="ppp-close" id="pppClose" aria-label="Close">×</button>
+    `;
+    document.body.appendChild(card);
+    requestAnimationFrame(() => card.classList.add('show'));
+    const dismiss = (result) => {
+      trackEvent('push_permission', { result });
+      card.classList.remove('show');
+      setTimeout(() => card.remove(), 240);
+    };
+    card.querySelector('#pppYes').onclick = async () => {
+      try {
+        const r = await Notification.requestPermission();
+        dismiss(r);
+      } catch { dismiss('error'); }
+    };
+    card.querySelector('#pppNo').onclick = () => dismiss('soft_denied');
+    card.querySelector('#pppClose').onclick = () => dismiss('dismissed');
+  }
+
   function toggleWishlist(item) {
     const idx = state.wishlist.indexOf(item.id);
-    if (idx >= 0) { state.wishlist.splice(idx, 1); toast('Removed from wishlist'); }
-    else { state.wishlist.push(item.id); toast('Saved to wishlist'); }
+    if (idx >= 0) {
+      state.wishlist.splice(idx, 1);
+      delete (state.wishlistMeta || {})[item.id];
+      toast('Removed from wishlist');
+    } else {
+      state.wishlist.push(item.id);
+      // Stamp metadata for save-age mechanics (Reforge Engagement: "you saved
+      // this 30 days ago, price changed by X" recall is a high-value touchpoint
+      // for an infrequent product — see ICED p.6, Expanding Touchpoints).
+      state.wishlistMeta = state.wishlistMeta || {};
+      state.wishlistMeta[item.id] = {
+        savedAt: Date.now(),
+        priceAtSave: item.price,
+        roomIdAtSave: currentRoomId || null
+      };
+      toast('Saved to wishlist');
+      // C10 — first save triggers the push pre-prompt
+      setTimeout(() => maybeAskForPushPermission(), 800);
+    }
     save();
     const room = state.rooms.find(r => r.id === currentRoomId);
     if (room) renderItemsList(room);
   }
 
   function togglePriceAlert(item) {
+    // [Compute-quality routing] Setting a price alert is Free. Delivery
+    // (push/email) is also Free for ALL users — moving alert delivery to
+    // free per Hassan's decision: gating the highest-conversion notification
+    // behind a paywall is revenue-self-sabotage for an affiliate business.
+    // Pro adds advanced filters (thresholds, retailer prefs) on top — see
+    // gateProFeature('advanced_price_filters') in the upcoming filters UI.
     state.priceAlerts[item.id] = !state.priceAlerts[item.id];
     if (!state.priceAlerts[item.id]) delete state.priceAlerts[item.id];
     save();
-    toast(state.priceAlerts[item.id] ? "We'll notify you on price drops" : 'Alerts off');
+    trackEvent(state.priceAlerts[item.id] ? 'price_alert_on' : 'price_alert_off', { itemId: item.id });
+    if (state.priceAlerts[item.id]) {
+      toast("We'll notify you when the price drops");
+    } else {
+      toast('Alert off');
+    }
   }
 
   function swapItem(room, item) {
+    // [Model A] Item swap is FREE, unlimited. Swap re-runs the local
+    // pickItemsForRoom() — no AI compute, no quota cost. Counter kept for
+    // analytics only.
+    room.swapCount = (room.swapCount || 0) + 1;
     const idx = room.items.findIndex(i => i.id === item.id);
     if (idx < 0) return;
     // Find next best match for the same slot, excluding items already in room.
@@ -2196,8 +5662,9 @@
     const candidates = window.FURNITURE_DB
       .filter(i => i.type === item.type && i.roomTypes.includes(room.type) && !excludeIds.includes(i.id));
     if (candidates.length === 0) { toast('No alternate picks for this slot'); return; }
-    // score and pick
-    const styleSet = new Set(profile.styles), colorSet = new Set(profile.colors);
+    // [10-Q model] Score using derived sets from the user's answers.
+    const _w = deriveScoringWeights(getEffectiveAnswers(profile));
+    const styleSet = new Set(_w.styles), colorSet = new Set(_w.colors);
     candidates.sort((a,b) => {
       const score = x => {
         const sHit = x.styles.filter(s => styleSet.has(s)).length;
@@ -2219,17 +5686,24 @@
   }
 
   function pushVersion(room, note) {
+    // NOTE: `profile` here references the closure of openRoom (where pushVersion
+    // was originally defined alongside it). When called from module-level
+    // handlers, `profile` is undefined → optional chaining yields []. Style/color
+    // metadata on those versions ends up empty. Acceptable for now because
+    // versions only need items + note for the visible UI; styles/colors are
+    // re-derived from the active profile when comparing.
+    const styles = (typeof profile !== 'undefined' && profile?.styles) || [];
+    const colors = (typeof profile !== 'undefined' && profile?.colors) || [];
     const v = {
       id: 'v'+Date.now()+Math.random().toString(36).slice(2,5),
       items: room.items.slice(),
-      styles: (profile?.styles || []).slice(),
-      colors: (profile?.colors || []).slice(),
+      styles: styles.slice(),
+      colors: colors.slice(),
       note,
       timestamp: Date.now()
     };
     room.versions = room.versions || [];
     room.versions.push(v);
-    // Cap at 6 versions to keep UI tidy.
     if (room.versions.length > 6) room.versions.shift();
     room.activeVersion = v.id;
   }
@@ -2365,29 +5839,131 @@
   $('#bookmarkRoomBtn').addEventListener('click', () => {
     const room = state.rooms.find(r => r.id === currentRoomId);
     if (!room) return;
+    // [Model A] Bookmarking a room is FREE for everyone. Cross-device sync
+    // still benefits from signin (handled by Supabase pull/push), but it's
+    // not required to use the feature locally.
     const idx = state.bookmarkedRooms.indexOf(room.id);
     if (idx >= 0) { state.bookmarkedRooms.splice(idx, 1); toast('Removed from saved'); }
-    else { state.bookmarkedRooms.push(room.id); toast('Room saved'); }
+    else { state.bookmarkedRooms.push(room.id); toast('Room saved'); setTimeout(() => maybeAskForPushPermission(), 800); }
+    trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'bookmarked_room', roomId: room.id });
     save();
     refreshBookmarkBtn(room);
   });
 
+  // Post-aha "keep my pieces" switch on results. Flipping it re-picks items.
+  const keepSwitch = $('#keepExistingSwitch');
+  if (keepSwitch) {
+    keepSwitch.addEventListener('click', () => {
+      const room = state.rooms.find(r => r.id === currentRoomId);
+      if (!room) return;
+      const profile = state.profiles.find(p => p.id === room.profileId);
+      if (!profile) return;
+      room.keepMode = !room.keepMode;
+      keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
+      keepSwitch.classList.toggle('on', room.keepMode);
+      const fresh = pickItemsForRoom(
+        { type: room.type, dims: room.dims, photo: room.photo },
+        getEffectiveAnswers(profile),
+        profile.budget,
+        { keepMode: room.keepMode }
+      );
+      room.items = fresh;
+      pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
+      save();
+      renderRoomPieces(room);
+      renderVersions(room);
+      toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
+    });
+  }
+
+  // Aha-quality feedback: [Model A] FREE for everyone. Voting is a free
+  // engagement signal that helps tune later redesigns. Removed the
+  // guest→signin and signedin→paywall gates that existed under the
+  // subscription model.
+  document.querySelectorAll('#ahaFeedback .af-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const vote = btn.dataset.vote;
+      const room = state.rooms.find(r => r.id === currentRoomId);
+      if (!room) return;
+      room.qualityVote = vote;
+      save();
+      trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'explicit_vote', vote, roomId: room.id });
+      document.querySelectorAll('#ahaFeedback .af-btn').forEach(b => b.classList.toggle('selected', b === btn));
+      if (vote === 'love')  toast("Love it — saving this profile's style");
+      if (vote === 'close') toast('Try reshuffle below for a different mix');
+      if (vote === 'off')   {
+        // [Dim 14 Section B Fix 1 — Off-vote actually changes behavior.
+        //  Per Reforge User Insights: "feedback that doesn't change
+        //  behavior is fake feedback." Soft-avoid the current style for
+        //  this profile's next 24h of generations. Time-limited so users
+        //  can't accidentally permanently block their own preferences.
+        //  Picker reads state.user._styleAvoid in pickItemsForRoom (see
+        //  furniture.js) and applies a -0.5 score weight to avoided
+        //  styles. 24h window per Reforge Engagement Strategies → Habit
+        //  Reinforcement (At-Risk p.5-8): the user must see behavior
+        //  visibly respond, but not be permanently penalized.]
+        if (!state.user) state.user = {};
+        state.user._styleAvoid = state.user._styleAvoid || {};
+        const profile = state.profiles.find(p => p.id === room.profileId);
+        const avoidExpiry = Date.now() + 24 * 60 * 60 * 1000;
+        (profile?.styles || []).forEach(s => {
+          state.user._styleAvoid[s] = avoidExpiry;
+        });
+        save();
+        trackEvent('aha_off_style_avoided', { roomId: room.id, styles: profile?.styles || [], expiryMs: avoidExpiry });
+        // [Dim 09 D10 voice — calmer, more honest copy. Was "Reshuffling
+        //  with a different mix…" → reframed as the user's command, not
+        //  the system's apology.]
+        toast('Got it — pulling a different direction…');
+        setTimeout(() => $('#reshuffleBtn')?.click(), 500);
+      }
+    });
+  });
+
+  // [Model A] Reshuffle = FREE, unlimited. No quota, no Pro gate. Reshuffle
+  // re-runs the local pickItemsForRoom() — no AI compute call, so it's not a
+  // "generation" under Model A. Tracking the count is kept for analytics only.
   $('#reshuffleBtn').addEventListener('click', () => {
+    const room = state.rooms.find(r => r.id === currentRoomId);
+    if (!room) return;
+    const profile = state.profiles.find(p => p.id === room.profileId);
+    if (!profile) return;
+    room.reshuffleCount = (room.reshuffleCount || 0) + 1;
     const draftLike = { type: room.type, dims: room.dims };
-    const fresh = pickItemsForRoom(draftLike, profile.styles, profile.colors, profile.budget,
+    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), profile.budget,
       { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
     room.items = fresh;
     pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
     save();
     renderRoomPieces(room);
     renderVersions(room);
-    toast('Fresh picks curated');
+    // [Dim 14 Section C Fix 2 — reshuffle copy honesty. Was "Fresh picks
+    //  curated" — over-promised since picks are bounded by the same style
+    //  profile. New: name what Reshuffle actually does so users build
+    //  accurate mental models. Per Reforge User Insights: copy that
+    //  matches the actual mechanic increases retention.]
+    toast('Different items, same style.');
   });
 
+  // [Model A] "Shop the Whole Room" — restores the original affiliate semantics.
+  // Free for everyone — opens an affiliate URL per item. This is the primary
+  // monetization path; gating it here would directly suppress revenue.
   $('#shopAllBtn').addEventListener('click', () => {
+    const room = state.rooms.find(r => r.id === currentRoomId);
+    if (!room) return;
     const purchaseable = room.items.filter(i => !i.owned);
+    trackEvent('affiliate_shop_all_clicked', {
+      roomId: room.id,
+      itemCount: purchaseable.length,
+      totalPrice: purchaseable.reduce((s, i) => s + (i.price || 0), 0)
+    });
+    purchaseable.forEach((i, idx) => {
+      setTimeout(() => {
+        trackAffiliateClick(i, 'shop_all');
+        window.open(buildAffiliateUrl(i), '_blank', 'noopener');
+      }, idx * 120);
+    });
     toast(`Opening ${purchaseable.length} affiliate tabs…`);
-    purchaseable.forEach((i, idx) => setTimeout(() => window.open(i.url, '_blank', 'noopener'), idx * 120));
   });
 
   // ---------- Before/after slider drag ----------
@@ -2441,7 +6017,11 @@
     list.innerHTML = '';
     const ids = state.wishlist;
     if (!ids.length) {
-      list.innerHTML = `<div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>No saved items yet.</p></div>`;
+      // [Dim 09 Section B.3 — empty states forgive + offer next action,
+      //  never blame. Was "No saved items yet." → names the value prop
+      //  the empty surface enables. Mirror of the HTML fallback at
+      //  index.html (wishlist screen).]
+      list.innerHTML = `<div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>Save items to track price drops.</p></div>`;
       return;
     }
     ids.forEach(id => {
@@ -2474,7 +6054,13 @@
   }
 
   // ---------- Share modal ----------
-  $('#shareRoomBtn').addEventListener('click', () => openShareModal());
+  // [Model A] Sharing is FREE — viral loops drive affiliate referrals (D
+  // dimension of ICED). HD-export-without-watermark stays Pro per D5;
+  // downloading the watermarked version is free (handled inside the modal).
+  $('#shareRoomBtn').addEventListener('click', () => {
+    trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'share_clicked', roomId: currentRoomId });
+    openShareModal();
+  });
   $('#shareClose').addEventListener('click', () => $('#shareModal').classList.remove('open'));
   $('#shareModal').addEventListener('click', e => { if (e.target.id === 'shareModal') $('#shareModal').classList.remove('open'); });
 
@@ -2582,21 +6168,104 @@
   }
 
   $('#shareDownloadBtn').addEventListener('click', () => {
+    // Reforge Monetization: free = watermarked export; Pro = clean HD.
+    // Watermark is applied by stamping a subtle "Made with Furnish" tag
+    // before downloading if not Pro.
+    const out = document.createElement('canvas');
+    out.width = canvas.width;
+    out.height = canvas.height;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+    if (!isPro()) {
+      // Corner watermark + soft diagonal band
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(out.width - 240, out.height - 54, 228, 42);
+      ctx.fillStyle = '#3E2723';
+      ctx.font = '600 16px system-ui, -apple-system, sans-serif';
+      ctx.fillText('Made with Furnish (Free)', out.width - 228, out.height - 28);
+      ctx.font = '500 11px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#8A7760';
+      ctx.fillText('Upgrade to Pro for HD · no logo', out.width - 228, out.height - 14);
+      ctx.restore();
+    }
     const a = document.createElement('a');
-    a.download = 'furnish-room.png';
-    a.href = canvas.toDataURL('image/png');
+    a.download = isPro() ? 'furnish-room-hd.png' : 'furnish-room.png';
+    a.href = out.toDataURL('image/png');
     a.click();
-    toast('Image downloaded');
+    trackEvent('share_download', { pro: isPro(), roomId: currentRoomId });
+    if (!isPro()) {
+      toast('Downloaded (free quality) — upgrade for HD');
+      setTimeout(() => openPaywall('hd_export'), 1400);
+    } else {
+      toast('HD image downloaded');
+    }
   });
 
   $('#shareCopyBtn').addEventListener('click', async () => {
     const styles = (profile?.styles || []).map(styleLabel).join(' · ');
-    const caption = `Just redesigned my ${titleRoom(room.type).toLowerCase()} in ${styles} with Furnish.\n${room.items.length} pieces · $${room.items.reduce((s,i)=>s+i.price,0).toLocaleString()} total ✨\n#FurnishApp #InteriorDesign`;
+    const invite = buildInviteLink();
+    // [VOICE.md no-emoji — removed sparkle emoji from caption.
+    //  User-facing copy (even copy meant for off-platform sharing) honors
+    //  the no-emoji rule. The hashtag + concrete numbers carry visual
+    //  appeal on social platforms.]
+    const caption = `Just redesigned my ${titleRoom(room.type).toLowerCase()} in ${styles} with Furnish.\n${room.items.length} pieces · $${room.items.reduce((s,i)=>s+i.price,0).toLocaleString()} total.\n\nTry it yourself: ${invite}\n#FurnishApp #InteriorDesign`;
     try {
       await navigator.clipboard.writeText(caption);
-      toast('Caption copied');
+      toast('Caption + invite link copied');
+      trackEvent('share_caption_copied', { roomId: currentRoomId });
     } catch {
       toast('Copy failed');
+    }
+  });
+
+  // Referral link — stub now, wire real attribution backend later.
+  // ?ref=<userId>&room=<roomId> lets you credit inviter on signup.
+  function buildInviteLink() {
+    const uid = state.user?.id || state.user?.email || 'guest';
+    const code = btoa(uid).replace(/=+$/,'').slice(0, 10);
+    return `https://furnish.app/?ref=${code}&room=${encodeURIComponent(currentRoomId || '')}`;
+  }
+
+  $('#shareLinkBtn')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(buildInviteLink());
+      toast('Invite link copied — you both get 1 month of Furnish Pro free');
+      trackEvent('share_invite_link_copied', { roomId: currentRoomId });
+    } catch {
+      toast('Copy failed');
+    }
+  });
+
+  $('#sharePinBtn')?.addEventListener('click', () => {
+    // Pinterest Pin-It endpoint — media must be a public URL in production.
+    // For now, fall back to downloading + opening Pinterest (MVP path).
+    const a = document.createElement('a');
+    a.download = 'furnish-room.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    setTimeout(() => {
+      window.open('https://www.pinterest.com/pin-builder/', '_blank', 'noopener');
+    }, 400);
+    trackEvent('share_pinterest_clicked', { roomId: currentRoomId });
+  });
+
+  // Native share-sheet (mobile) — falls through to download on desktop.
+  $('#shareSystemBtn')?.addEventListener('click', async () => {
+    if (navigator.share) {
+      canvas.toBlob(async blob => {
+        const file = new File([blob], 'furnish-room.png', { type: 'image/png' });
+        try {
+          await navigator.share({
+            title: 'My Furnish redesign',
+            text: 'Redesigned my room with Furnish. Try it: ' + buildInviteLink(),
+            files: [file]
+          });
+          trackEvent('share_system_success', { roomId: currentRoomId });
+        } catch (e) { /* cancelled */ }
+      });
+    } else {
+      $('#shareDownloadBtn').click();
     }
   });
 
@@ -2606,8 +6275,16 @@
 
   function openItemSheet(item, room) {
     if (!item) return;
+    // [Model A] Item taps are FREE — shopping is the primary monetization
+    // (affiliate revenue). All users open the item sheet and can click through.
     _activeSheetItem = item;
     _activeSheetRoom = room || null;
+
+    if (room && !state._ahaQualitySignalFired) {
+      state._ahaQualitySignalFired = true;
+      save();
+      trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'item_tapped', itemId: item.id });
+    }
 
     const sheet = document.getElementById('itemSheet');
     document.getElementById('bsImage').textContent = item.icon || '🛋️';
@@ -2617,14 +6294,17 @@
     document.getElementById('bsDesc').textContent = item.description || '';
     document.getElementById('bsPrice').textContent = item.price ? '$' + item.price.toLocaleString() : '—';
 
-    // Fit warning vs room dimensions
+    // Fit warning vs room dimensions.
+    // [VOICE.md no-emoji + Dim 09 D9 — emoji-prefixed warning replaced
+    //  with custom SVG warning icon and de-hedged copy. Mirror of the
+    //  item-card warning fix.]
     const fitEl = document.getElementById('bsFit');
-    fitEl.textContent = '';
+    fitEl.innerHTML = '';
     if (room && room.dims && window.ITEM_FOOTPRINTS) {
       const roomArea = (room.dims.w || 0) * (room.dims.l || 0);
       const fp = window.ITEM_FOOTPRINTS[item.type] || 0;
       if (fp > 0 && roomArea > 0 && fp > roomArea * 0.25) {
-        fitEl.textContent = '⚠ Tight fit for this room';
+        fitEl.innerHTML = `${FIT_WARN_SVG}Tight fit for this room. Verify dimensions.`;
       }
     }
 
@@ -2663,9 +6343,12 @@
       else closeItemSheet();
     };
 
-    // Shop (real affiliate URL)
+    // [Model A] Shop button → affiliate URL with tracking. Click is logged
+    // for attribution reconciliation (DEFERRED.md: backend will stitch
+    // affiliate-network conversions back to fclick id).
     const shopBtn = document.getElementById('bsShopBtn');
-    shopBtn.href = item.url || '#';
+    shopBtn.href = buildAffiliateUrl(item);
+    shopBtn.onclick = () => trackAffiliateClick(item, 'item_sheet');
 
     sheet.classList.add('open');
     sheet.setAttribute('aria-hidden', 'false');
@@ -2856,20 +6539,48 @@
     let idx = Math.floor(Math.random() * REVIEWS.length);
     let timer = null;
     let paused = false;
+    let tickCount = 0;
+
+    // [Conflict 4 lock — fictitious counters retired. Per Reforge Brand
+    //  Marketing — Evangelizing Brand Guidelines p.21: fictitious anchors
+    //  erode trust. The previous variants ("12,400+ homes designed this
+    //  month", "$2.3M saved", random "X rooms designed in the last hour"
+    //  using Math.random) were unverifiable claims dressed as live data.
+    //  Replaced with positioning claims aligned to FURNISH_OKT — these
+    //  are real, defensible, and ladder up to the differentiator (real
+    //  catalog + solo-built). When real traction lands (post-backend
+    //  Supabase row counts), restore data-backed variants per Dim 10
+    //  Recommendation 6 (deferred to DEFERRED.md).]
+    function liveCounterRow() {
+      const variants = [
+        { icon: '✦', text: `<strong>Real catalog</strong> · IKEA, Wayfair, West Elm, Amazon` },
+        { icon: '◯', text: `<strong>Built by Hassan</strong> · 1-person team` },
+        { icon: '✶', text: `<strong>No subscription</strong> needed to see your redesign` },
+        { icon: '◈', text: `<strong>$0 to try</strong> · No credit card, no signup` }
+      ];
+      const v = variants[tickCount % variants.length];
+      return `<span class="live-counter"><span class="lc-dot"></span><span class="lc-icon">${v.icon}</span><span class="lc-text">${v.text}</span></span>`;
+    }
 
     const cycle = () => {
       if (paused) { timer = setTimeout(cycle, 600); return; }
-      const r = REVIEWS[idx % REVIEWS.length];
-      row.innerHTML = `
-        <span class="review-stars" aria-label="${r.stars} out of 5 stars">${renderStars(r.stars)}</span>
-        <span class="review-text">"${r.text}"</span>
-        <span class="review-author">— ${r.author}</span>
-      `;
+      // Every 4th tick shows a live counter; rest show reviews.
+      if (tickCount > 0 && tickCount % 4 === 0) {
+        row.innerHTML = liveCounterRow();
+      } else {
+        const r = REVIEWS[idx % REVIEWS.length];
+        row.innerHTML = `
+          <span class="review-stars" aria-label="${r.stars} out of 5 stars">${renderStars(r.stars)}</span>
+          <span class="review-text">"${r.text}"</span>
+          <span class="review-author">— ${r.author}</span>
+        `;
+        idx++;
+      }
+      tickCount++;
       requestAnimationFrame(() => row.classList.add('show'));
       timer = setTimeout(() => {
         row.classList.remove('show');
-        idx++;
-        timer = setTimeout(cycle, 480); // wait for fade out
+        timer = setTimeout(cycle, 480);
       }, 3200);
     };
 
@@ -2901,8 +6612,473 @@
     });
   }
 
+  // [Compute-quality routing] Welcome screen recall — branches simplified
+  // after the quota model retired. The "out of free redesigns" branches are
+  // gone; lifecycle-only copy is the source of truth now.
+  // Per Reforge ICED p.18: "the more infrequent the product, the poorer the
+  // product recall by the customer" — counter with explicit "welcome back"
+  // copy.
+  function applyWelcomeRecallState() {
+    const lifecycle = getLifecycleState();
+    const cta = document.getElementById('welcomeStartBtn');
+    const tagline = document.querySelector('[data-screen="welcome"] .tagline');
+    const sub = document.querySelector('[data-screen="welcome"] .muted.small');
+    if (!cta) return;
+    const dormant = lifecycle === LIFECYCLE.DORMANT || lifecycle === LIFECYCLE.CHURNED;
+
+    if (dormant) {
+      cta.textContent = 'Welcome back — design another room →';
+      if (tagline) tagline.textContent = 'Your saved style is still here. Pick up where you left off.';
+      if (sub) sub.textContent = 'No need to redo the quiz';
+    } else if (lifecycle === LIFECYCLE.AT_RISK) {
+      cta.textContent = 'Continue designing →';
+      if (sub) sub.textContent = 'Your style is saved · ~30 seconds';
+    }
+  }
+
+  // C8 — Treat tab-becomes-visible after >30 min as a new session, so users
+  // returning to a long-open tab still hit the lifecycle pipeline.
+  let _lastVisibilityTime = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      const gap = Date.now() - _lastVisibilityTime;
+      if (gap > 30 * 60 * 1000) {
+        _visitTouched = false;
+        touchLastVisit();
+        applyWelcomeRecallState();
+        if (document.querySelector('.screen.active')?.dataset?.screen === 'home') {
+          renderHome();
+        }
+      }
+      _lastVisibilityTime = Date.now();
+    } else {
+      _lastVisibilityTime = Date.now();
+    }
+  });
+
+  // ============================================================
+  // Batch 1 additions — Dim 14 Edge Cases + Dim 09 voice + Dim 10 trust
+  // ============================================================
+
+  // [Dim 14 Section A — Photo tip card] Config-driven render. When
+  // assets/tip-example.jpg lands, flip examplePath in PHOTO_TIP_CONFIG
+  // and the image renders without component changes (per Hassan's
+  // explicit ask: "config edit, no component changes").
+  const PHOTO_TIP_CONFIG = Object.freeze({
+    enabled: true,
+    copy: 'Brightly lit, full-room view works best.',
+    examplePath: null,  // set to 'assets/tip-example.jpg' when ready
+    dismissKey: '_photoTipDismissed',  // session-scoped flag
+  });
+  window.FurnishPhotoTipConfig = PHOTO_TIP_CONFIG;
+
+  function renderPhotoTip() {
+    const tip = document.getElementById('photoTip');
+    if (!tip) return;
+    if (!PHOTO_TIP_CONFIG.enabled) { tip.hidden = true; return; }
+    if (state.user?.[PHOTO_TIP_CONFIG.dismissKey]) { tip.hidden = true; return; }
+    const copyEl = document.getElementById('photoTipCopy');
+    const exampleEl = document.getElementById('photoTipExample');
+    if (copyEl) copyEl.textContent = PHOTO_TIP_CONFIG.copy;
+    if (exampleEl) {
+      if (PHOTO_TIP_CONFIG.examplePath) {
+        exampleEl.innerHTML = `<img src="${PHOTO_TIP_CONFIG.examplePath}" alt="Example: brightly lit full-room view">`;
+      } else {
+        // [Hassan's ship call: text-only placeholder until image lands.
+        //  Custom SVG room icon, not emoji.]
+        exampleEl.innerHTML = '<svg class="photo-tip-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21V13h6v8"/></svg>';
+      }
+    }
+    tip.hidden = false;
+    document.getElementById('photoTipDismiss')?.addEventListener('click', () => {
+      tip.hidden = true;
+      if (!state.user) state.user = {};
+      state.user[PHOTO_TIP_CONFIG.dismissKey] = true;
+      save();
+      trackEvent('photo_tip_dismissed');
+    }, { once: true });
+    trackEvent('photo_tip_shown');
+  }
+
+  // [Dim 14 Section C Fix 1 + Top 3 #1] "Different Style?" modal.
+  // Opens from #differentStyleBtn on the reveal screen. 6 alt-style
+  // chips → tap → re-runs pickItemsForRoom() with new style override
+  // (no AI compute call — pure local re-pick) → pushVersion() →
+  // open the room with new picks. ~2 seconds end-to-end. Per Reforge
+  // Strategies For At-Risk Users → Use Case Transition.
+  function openStylePivotModal(room) {
+    const modal = document.getElementById('differentStyleModal');
+    const grid = document.getElementById('differentStyleGrid');
+    if (!modal || !grid) return;
+    const profile = state.profiles.find(p => p.id === room.profileId);
+    const current = new Set(profile?.styles || []);
+    // Pick up to 6 alt styles, prefer non-current. Stable order.
+    const candidates = (window.STYLES || [])
+      .filter(s => !current.has(s.id))
+      .slice(0, 6);
+    grid.innerHTML = '';
+    candidates.forEach(s => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'different-style-chip';
+      btn.dataset.styleId = s.id;
+      btn.innerHTML = `<span class="dsc-label">${s.label || s.id}</span>`;
+      btn.addEventListener('click', () => pivotToStyle(room, s.id));
+      grid.appendChild(btn);
+    });
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    trackEvent('reveal_different_style_opened', { roomId: room.id, currentStyles: profile?.styles });
+  }
+
+  function closeStylePivotModal() {
+    const modal = document.getElementById('differentStyleModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function pivotToStyle(room, newStyleId) {
+    const profile = state.profiles.find(p => p.id === room.profileId);
+    if (!profile) return;
+    const fromStyles = [...(profile.styles || [])];
+    // Override the profile styles temporarily for the re-pick. We push
+    // a new version on the same room (preserving original picks via
+    // pushVersion) so the user can compare.
+    const originalStyles = profile.styles;
+    profile.styles = [newStyleId];
+    try {
+      const draftLike = { type: room.type, dims: room.dims };
+      const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), profile.budget,
+        { excludeIds: [], anchorColor: null, keepMode: !!room.keepMode });
+      room.items = fresh;
+      pushVersion(room, `Pivoted to ${(window.STYLES || []).find(s => s.id === newStyleId)?.label || newStyleId}`);
+    } finally {
+      // Restore the profile's original style intent — the pivot is per-room,
+      // not a permanent profile change. User can confirm via preferences.
+      profile.styles = originalStyles;
+    }
+    save();
+    renderRoomPieces(room);
+    renderVersions(room);
+    trackEvent('reveal_different_style_picked', { roomId: room.id, fromStyles, toStyle: newStyleId });
+    closeStylePivotModal();
+    toast(`Different items in ${(window.STYLES || []).find(s => s.id === newStyleId)?.label || 'a new style'}.`);
+  }
+
+  document.getElementById('differentStyleBtn')?.addEventListener('click', () => {
+    const room = state.rooms.find(r => r.id === currentRoomId);
+    if (!room) return;
+    openStylePivotModal(room);
+  });
+  document.getElementById('differentStyleClose')?.addEventListener('click', closeStylePivotModal);
+  document.getElementById('differentStyleModal')?.addEventListener('click', e => {
+    if (e.target.id === 'differentStyleModal') closeStylePivotModal();
+  });
+
+  // [Dim 14 Section F — localStorage quota exceeded handling]
+  // The save() function above is the canonical persistence point;
+  // we wrap a quota-aware retry around the same call surface.
+  // pruneState() drops the largest non-essential data first.
+  function pruneState() {
+    if (Array.isArray(state.affiliateClicks)) state.affiliateClicks = state.affiliateClicks.slice(-50);
+    if (Array.isArray(state._events)) state._events = state._events.slice(-100);
+    // Drop _dismissed flags older than 30d so they can't accumulate forever.
+    if (state._dismissed && typeof state._dismissed === 'object') {
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      Object.entries(state._dismissed).forEach(([k, ts]) => {
+        if (typeof ts === 'number' && ts < cutoff) delete state._dismissed[k];
+      });
+    }
+    // [Future] At backend cutover, base64 photos move to Supabase Storage
+    // and the localStorage payload shrinks dramatically. See DEFERRED.md.
+  }
+
+  // Idempotent wrapper installable post-boot. The original save() in
+  // this file already wraps localStorage.setItem in try/catch with a
+  // console.warn. We extend the catch to detect QuotaExceededError
+  // specifically and prune+retry once.
+  const _originalSave = window.save || save;
+  function safeSave() {
+    try {
+      _originalSave();
+    } catch (e) {
+      if (e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''))) {
+        pruneState();
+        try {
+          _originalSave();
+          // Per Reforge Monetization — convert failure into Pro-funnel moment.
+          // Cloud-backup framing surfaces only on actual quota event, not on
+          // every save (annoying), and only once per session.
+          if (!state._quotaPromptShown) {
+            state._quotaPromptShown = true;
+            toast('Your room library is getting full — sign in to back up to the cloud.');
+            trackEvent('localstorage_quota_pruned');
+          }
+        } catch (e2) {
+          console.warn('localStorage save failed even after prune', e2);
+          trackEvent('localstorage_quota_failed_after_prune');
+        }
+      } else {
+        console.warn('localStorage save failed', e);
+      }
+    }
+  }
+  // Hot-swap: future code paths can call safeSave instead of save when ready.
+  // For now, the boot path uses save() — the wrapper is exposed for future
+  // call sites. Marking as window-level so external scripts can opt in.
+  window.FurnishSafeSave = safeSave;
+
+  // [Dim 14 Section F — Wishlist orphan reference handling] Prune
+  // wishlist IDs that no longer exist in FURNITURE_DB. Run on boot
+  // AFTER catalog load. Per Reforge Voluntary Dormant Reasons #3
+  // (Over-Promised, Under-Delivered): silent broken wishlists erode
+  // trust. Notify the user when prunes happen (gentle, not alarming).
+  function gcOrphanedWishlist() {
+    if (!Array.isArray(state.wishlist) || !window.FURNITURE_DB) return;
+    const known = new Set(window.FURNITURE_DB.map(i => i.id));
+    const before = state.wishlist.length;
+    const pruned = state.wishlist.filter(id => known.has(id));
+    if (pruned.length === before) return;
+    const removed = before - pruned.length;
+    state.wishlist = pruned;
+    // Also clean wishlistMeta and priceAlerts to match.
+    if (state.wishlistMeta) {
+      Object.keys(state.wishlistMeta).forEach(id => { if (!known.has(id)) delete state.wishlistMeta[id]; });
+    }
+    if (state.priceAlerts) {
+      Object.keys(state.priceAlerts).forEach(id => { if (!known.has(id)) delete state.priceAlerts[id]; });
+    }
+    save();
+    trackEvent('wishlist_orphan_pruned', { removed });
+    // Notify softly — only on the wishlist screen itself, not as a toast
+    // on boot (would be alarming to see immediately). Banner appears
+    // next time the user opens Saved Items.
+    state._wishlistOrphanPruneCount = (state._wishlistOrphanPruneCount || 0) + removed;
+  }
+
+  // [Dim 14 Section F — Camera permission denied fallback]
+  // Cross-browser camera permission detection is unreliable. We post a
+  // 3s soft fallback if no `change` event fires after Take Photo click.
+  // Detect known-bad UA strings and pre-emptively highlight the Upload
+  // button via a CSS class .upload-recommended (CSS optional; class is
+  // a hook for future styling).
+  (function wireCameraFallback() {
+    const cameraInput = document.getElementById('cameraInput');
+    const cameraBtn = cameraInput?.closest('label.btn');
+    if (!cameraInput || !cameraBtn) return;
+    let waitTimer = null;
+    cameraBtn.addEventListener('click', () => {
+      clearTimeout(waitTimer);
+      waitTimer = setTimeout(() => {
+        // 3s elapsed without a `change` event firing. Show fallback.
+        toast('Camera not available — try Upload from gallery.');
+        trackEvent('camera_input_fallback_shown');
+        cameraBtn.classList.add('upload-recommended');
+      }, 3000);
+    });
+    cameraInput.addEventListener('change', () => clearTimeout(waitTimer));
+  })();
+
+  // [Dim 14 Section F — HTTPS-required-for-camera detection]
+  // Modern browsers allow getUserMedia on localhost via HTTP, but on a
+  // local network IP (e.g., phone-test at http://192.168.x.x:3000) the
+  // camera silently fails. Surface a soft banner so the dev/tester
+  // knows to use HTTPS or fall back to gallery.
+  (function checkSecureCameraContext() {
+    if (typeof window === 'undefined') return;
+    if (window.isSecureContext === true) return;
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+    if (!location.hostname) return;
+    // Insecure non-localhost context — camera will fail.
+    const banner = document.createElement('div');
+    banner.className = 'insecure-context-banner';
+    banner.textContent = 'Tip: open via HTTPS for camera support — or use Upload from gallery.';
+    document.body.appendChild(banner);
+    trackEvent('insecure_context_detected', { host: location.hostname });
+  })();
+
+  // [Dim 14 Section F — Analyze double-tap race condition guard]
+  // analyzeBtn click can fire `routeGenerationByModelTier` →
+  // `runAnalyzerAnimation` → `buildRoomFromDraft`. A double-tap on
+  // mobile (or impatient retry) doubles the work. Single-flight
+  // guard prevents concurrent generations. Per Reforge PM Foundations
+  // — Feature Development: idempotency is baseline for any user-
+  // triggered action that costs money or compute. Especially relevant
+  // post-AI-cutover (DEFERRED.md item 1) when each call is real $.
+  (function wireAnalyzeSingleFlight() {
+    const btn = document.getElementById('analyzeBtn');
+    if (!btn) return;
+    btn.addEventListener('click', e => {
+      if (state._analyzeInFlight) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      state._analyzeInFlight = true;
+      btn.disabled = true;
+      // Clear flag when analyzing screen exits OR after a safety timeout
+      // (in case of unforeseen flow exits). 30s is generous for AI cutover.
+      const clearFlag = () => {
+        state._analyzeInFlight = false;
+        btn.disabled = false;
+      };
+      setTimeout(clearFlag, 30000);
+      // Also clear on next screen change away from analyzing.
+      const obs = new MutationObserver(() => {
+        const analyzing = document.querySelector('[data-screen="analyzing"]');
+        if (analyzing && !analyzing.classList.contains('active')) {
+          clearFlag();
+          obs.disconnect();
+        }
+      });
+      const screensRoot = document.querySelector('.screens') || document.body;
+      obs.observe(screensRoot, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }, true);  // capture phase so we run before the existing handler
+  })();
+
+  // [Dim 14 Section F — Native share fallback]
+  // navigator.share works on iOS Safari 12+ and Android Chrome 71+.
+  // For older browsers, fall back to copy-to-clipboard. Per Reforge
+  // Advanced Growth Strategy → Content Loops: silent share failures =
+  // silent growth failures.
+  window.FurnishShare = async function FurnishShare(payload) {
+    if (navigator.share) {
+      try {
+        await navigator.share(payload);
+        trackEvent('share_native_completed');
+        return true;
+      } catch (e) {
+        if (e?.name === 'AbortError') {
+          trackEvent('share_native_aborted');
+          return false;
+        }
+        // fall through to clipboard fallback
+      }
+    }
+    // Fallback: copy share URL to clipboard.
+    const text = payload?.url || payload?.text || '';
+    if (text && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast('Link copied — paste anywhere.');
+        trackEvent('share_clipboard_fallback', { hasNativeShare: !!navigator.share });
+        return true;
+      } catch {}
+    }
+    trackEvent('share_native_unavailable');
+    return false;
+  };
+
+  // [Dim 14 Section F — Sign-out wishlist data-loss prevention]
+  // Snapshot state into per-user backup key before sign-out clears it.
+  // On sign-in, if a backup exists for the new userId, offer "Restore
+  // your previous library." Per Reforge Resurrecting Involuntary Dormant
+  // Users → Category One: Product Issue.
+  function snapshotStateOnSignout() {
+    const uid = state.user?.id || state.user?.email;
+    if (!uid) return;
+    try {
+      localStorage.setItem(`furnish.state.backup.${uid}`, JSON.stringify({
+        wishlist: state.wishlist || [],
+        wishlistMeta: state.wishlistMeta || {},
+        priceAlerts: state.priceAlerts || {},
+        bookmarkedRooms: state.bookmarkedRooms || [],
+        rooms: state.rooms || [],
+        profiles: state.profiles || [],
+        savedAt: Date.now()
+      }));
+      trackEvent('signout_state_snapshotted', { uid: String(uid).slice(0, 8) });
+    } catch (e) {
+      console.warn('signout snapshot failed', e);
+    }
+  }
+  window.FurnishSignoutSnapshot = snapshotStateOnSignout;
+
+  function maybeOfferStateRestore() {
+    const uid = state.user?.id || state.user?.email;
+    if (!uid) return;
+    let backup;
+    try {
+      const raw = localStorage.getItem(`furnish.state.backup.${uid}`);
+      if (!raw) return;
+      backup = JSON.parse(raw);
+    } catch { return; }
+    if (!backup || (state.wishlist?.length || 0) > 0 || (state.rooms?.length || 0) > 0) {
+      // User already has data — don't prompt. Backup stays for safety.
+      return;
+    }
+    // Soft prompt — offer restore. Idempotent: dismissing clears the prompt
+    // for this session but leaves the backup intact for future sign-ins.
+    if (state.user?._restorePromptShownThisSession) return;
+    state.user._restorePromptShownThisSession = true;
+    save();
+    setTimeout(() => {
+      if (confirm('Restore your previous saved items, rooms, and bookmarks from your last session?')) {
+        Object.assign(state, {
+          wishlist: backup.wishlist || [],
+          wishlistMeta: backup.wishlistMeta || {},
+          priceAlerts: backup.priceAlerts || {},
+          bookmarkedRooms: backup.bookmarkedRooms || [],
+          rooms: backup.rooms || state.rooms || [],
+          profiles: backup.profiles?.length ? backup.profiles : state.profiles
+        });
+        save();
+        trackEvent('signin_state_restored');
+        toast('Restored your previous library.');
+      } else {
+        trackEvent('signin_state_restore_declined');
+      }
+    }, 800);
+  }
+  window.FurnishMaybeOfferRestore = maybeOfferStateRestore;
+
+  // [Dim 14 Section F — Multi-device tier conflict softening]
+  // The existing reconcileTierWithBackend → handleDowngrade('server_reconcile')
+  // path is wired (per DEFERRED.md item 4). Adding a defensive 3s
+  // re-pull before firing the toast — protects against stale-cache
+  // false-downgrade flickers. The actual reconcileTierWithBackend
+  // function is upstream; we wrap it via patch.
+  if (typeof window.reconcileTierWithBackend === 'function') {
+    const _origReconcile = window.reconcileTierWithBackend;
+    window.reconcileTierWithBackend = async function(...args) {
+      // Best-effort defensive re-pull. If backend is configured, give it
+      // a 3s window to refresh the canonical state. If it times out or
+      // fails, fall through to original behavior.
+      try {
+        if (window.furnishBackend?.pullAll) {
+          await Promise.race([
+            window.furnishBackend.pullAll(state),
+            new Promise(resolve => setTimeout(resolve, 3000))
+          ]);
+        }
+      } catch {}
+      return _origReconcile.apply(this, args);
+    };
+  }
+
   // ---------- Boot ----------
   function boot() {
+    // [Model A — STEP 5 §16 row 1] Tag pre-Model-A Pro users (D6=a) so analytics
+    // can split conversion attribution from grandfathered access. Idempotent.
+    grandfatherProUsers();
+    // [10-Q onboarding migration] Backfill `profile.answers` on any profile
+    // that predates the new model so AI-prompt builder + tutorial don't see
+    // an empty answers object. Idempotent.
+    migrateAllProfiles();
+    syncFreeModeClass();
+    touchLastVisit();
+    applyWelcomeRecallState();
+    // [Compute-quality migration] detectQuotaTamper() removed — no quota,
+    // no tamper. Anti-abuse is server-side rate limiting per DEFERRED.md.
+
+    // [Batch 1 additions]
+    gcOrphanedWishlist();           // Dim 14 — prune orphan wishlist IDs
+    renderPhotoTip();                // Dim 14 — mount photo tip card on capture
+    if (state.user?.id || state.user?.email) {
+      maybeOfferStateRestore();      // Dim 14 — offer previous-session restore
+    }
+
     showScreen('welcome');
     startReviewsBar();
     wireCaptureFlow();

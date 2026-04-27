@@ -48,14 +48,45 @@
           </span>
           <h1>Furnish</h1>
         </div>
-        <p class="tagline">Your room. Your style. Designed by AI.</p>
-        <div class="hero-art" aria-hidden="true">
-          <div class="chair"></div>
-          <div class="lamp"></div>
-          <div class="rug"></div>
+        <!-- [Conflict 9 lock — Promise-Fit. Real range is 90–180s; "20 seconds"
+             was false except for skip-quiz path. Honest, conversational, sets
+             the right expectation per VOICE.md (concrete + calm). -->
+        <p class="tagline">Watch any room transform — about a minute, sit tight.</p>
+        <div class="hero-demo" aria-hidden="true">
+          <div class="hd-frame">
+            <img class="hd-before" src="assets/quiz/q1/farmhouse-dusk.jpg" alt="" />
+            <div class="hd-after-wrap">
+              <img class="hd-after" src="assets/quiz/q1/airy-loft.jpg" alt="" />
+              <!-- Shoppable price tags: demonstrate affiliate value prop on welcome.
+                   Only render on the 'after' image (revealed by the sweep). -->
+              <span class="hd-price-tag" style="top:32%;left:20%">$899</span>
+              <span class="hd-price-tag" style="top:22%;left:58%">$189</span>
+              <span class="hd-price-tag" style="top:68%;left:40%">$279</span>
+              <span class="hd-price-tag" style="top:48%;left:78%">$129</span>
+            </div>
+            <div class="hd-sweep"></div>
+          </div>
+          <span class="hd-before-label">BEFORE</span>
+          <span class="hd-after-label">AFTER</span>
+          <div class="hd-badge-row">
+            <span class="hd-badge">your room</span>
+            <span class="hd-badge">your style</span>
+            <span class="hd-badge">shoppable</span>
+          </div>
         </div>
-        <button class="btn btn-primary" id="welcomeStartBtn">Get Started</button>
-        <p class="muted small">Takes under a minute</p>
+        <button class="btn btn-primary big" id="welcomeStartBtn">Redesign My Room →</button>
+        <p class="muted small">No signup needed · About a minute — sit tight.</p>
+        <!-- [Conflict 4 lock — qualitative social proof only. The fictitious
+             "12,400+ rooms designed" anchor was a Reforge brand-governance
+             violation (Evangelizing Brand Guidelines p.21). Real or nothing.
+             When real traction lands, swap in honest small numbers. -->
+        <div class="welcome-proof" aria-label="Trust signals">
+          <span class="wp-claim">Real catalog</span>
+          <span class="wp-dot">·</span>
+          <span class="wp-claim">Real prices</span>
+          <span class="wp-dot">·</span>
+          <span class="wp-claim">Built by Hassan</span>
+        </div>
       </div>
     </section>
 
@@ -65,6 +96,52 @@
         <button class="btn-icon" data-go="welcome" aria-label="Back">‹</button>
         <h2 id="signinTitle">Sign In</h2>
       </header>
+      <!--
+        [Model A — D7 reveal-gate hero]
+        Shown only when state._pendingIntent.intent === 'reveal'.
+        Job: reframe the screen from "auth checkout step" to "the curtain
+        before the magic." Per Reforge User Psychology (curiosity gap +
+        endowment effect), the user's brain must register the redesign as
+        already theirs before they click the form. Blurred source photo as
+        backdrop = "your room, behind frosted glass." Live item count + total
+        $ = concrete anticipation anchor. Trust strip near form = social
+        proof close to the conversion moment per Conversion Optimization.
+      -->
+      <div class="signin-reveal-hero" id="signinRevealHero" hidden aria-live="polite">
+        <div class="srh-bg" id="srhBg" aria-hidden="true"></div>
+        <div class="srh-veil" aria-hidden="true"></div>
+        <div class="srh-panel">
+          <!-- [Conflict 4 lock — replaced the fictitious "2,400+ designs
+               unlocked this week" with a real trust-policy claim. The cancel-
+               policy framing is true, defensible, and lands at exactly the
+               anxiety moment per Reforge Pain Point-Based archetype. -->
+          <div class="srh-trust">
+            <span class="srh-trust-text"><strong>Cancel before day 7</strong> · No charge if it's not for you</span>
+          </div>
+          <h1 class="srh-headline">Your room, reimagined.</h1>
+          <!-- [Reframe] Dollar value redacted on the pre-signup reveal because
+               budget hasn't been collected yet at this point in the flow.
+               Showing $X risks reading as sticker shock instead of value
+               endowment. Per Reforge User Psychology (Loewenstein information-
+               gap theory + Fogg B=MAP), the "ready" framing converts a loss-
+               frame into a curiosity-frame. The dollar lands inside the actual
+               results screen where the user has full context to evaluate it. -->
+          <div class="srh-stats">
+            <span class="srh-stat"><span class="srh-num" id="revealPieceCount">—</span> pieces picked</span>
+            <span class="srh-dot" aria-hidden="true">·</span>
+            <span class="srh-stat srh-stat-text">ready in your style</span>
+          </div>
+          <div class="srh-shimmer-card" aria-hidden="true">
+            <span class="srh-lock-row">
+              <svg class="srh-lock" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              ready · locked behind one quick step
+            </span>
+          </div>
+          <div class="srh-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg>
+          </div>
+        </div>
+      </div>
       <div class="signin-card">
         <p class="subtle" id="signinSubtitle">Welcome back. Sign in to sync your profiles and saved rooms.</p>
 
@@ -140,7 +217,7 @@
                 </span>
                 <span class="udi-text">Switch Account</span>
               </button>
-              <button class="user-dropdown-item" data-action="furnish-plus" role="menuitem">
+              <button class="user-dropdown-item" data-action="furnish-pro" role="menuitem">
                 <span class="udi-icon udi-icon--filled" aria-hidden="true">
                   <svg viewBox="0 0 24 24" class="udi-svg udi-svg--gleam">
                     <defs>
@@ -157,8 +234,7 @@
                     <rect x="8" y="11" width="6" height="2.5" rx="0.7" fill="#FAF3E7"/>
                   </svg>
                 </span>
-                <span class="udi-text">Furnish+</span>
-                <span class="udi-badge">PRO</span>
+                <span class="udi-text">Furnish Pro</span>
               </button>
               <button class="user-dropdown-item" data-action="support" role="menuitem">
                 <span class="udi-icon" aria-hidden="true">
@@ -195,34 +271,80 @@
       </button>
     </section>
 
-    <!-- SCREEN: Style quiz gate -->
+    <!-- SCREEN: Onboarding intro (10-Q flow gate) -->
     <section class="screen" data-screen="quiz-intro">
       <header class="topbar">
         <button class="btn-icon" data-go="profile-select" aria-label="Back">‹</button>
         <h2 id="quizIntroTitle">Find Your Style</h2>
       </header>
       <div class="quiz-intro-card">
-        <div class="quiz-badge">5 questions · ~45 seconds</div>
+        <div class="quiz-badge">10 questions · ~90 seconds</div>
         <h3>Let's Match You to a Look</h3>
-        <p class="muted">We'll ask a few quick questions. Your answers pre-fill your preferences — you can tweak them after.</p>
+        <p class="muted">Every answer shapes the redesign. Skip any question and the AI fills in a sensible default — you can edit anything later.</p>
         <div class="quiz-intro-actions">
-          <button class="btn btn-primary" id="startQuizBtn">Take the quiz</button>
-          <button class="btn btn-ghost" id="skipQuizBtn">Skip — I'll pick manually</button>
+          <button class="btn btn-primary" id="startQuizBtn">Start</button>
+          <button class="btn btn-ghost" id="skipQuizBtn">Use defaults — show me a redesign now</button>
         </div>
       </div>
     </section>
 
-    <!-- SCREEN: Style quiz -->
+    <!-- SCREEN: Onboarding question screen (10-Q flow)
+         Markup is question-agnostic; renderQuizStep() in app.js paints the
+         per-question content based on window.ONBOARDING_QUESTIONS metadata. -->
     <section class="screen" data-screen="quiz">
       <header class="topbar">
         <button class="btn-icon" id="quizBackBtn" aria-label="Back">‹</button>
-        <h2>Style Quiz</h2>
-        <div class="quiz-progress" id="quizProgress"></div>
+        <h2>Find Your Style</h2>
+        <div class="quiz-progress" id="quizProgress" aria-live="polite"></div>
       </header>
+      <!-- Dot-style progress indicator. Reforge User Psychology: dots feel
+           light, percentage feels like work. -->
+      <div class="quiz-progress-dots" id="quizProgressDots" aria-hidden="true"></div>
+      <div class="quiz-progress-bar" aria-hidden="true">
+        <div class="qpb-fill" id="qpbFill"></div>
+      </div>
       <div class="quiz-card">
         <h3 id="quizQuestion"></h3>
+        <p class="quiz-subhead muted small" id="quizSubhead" hidden></p>
         <div class="quiz-options" id="quizOptions"></div>
-        <button class="quiz-none-btn" id="quizNoneBtn" type="button">None of these suit me</button>
+        <!-- Continue button only shown for multi-select questions; single-
+             select advances on tap. Hidden by default; renderer reveals it. -->
+        <div class="quiz-multi-actions" id="quizMultiActions" hidden>
+          <span class="quiz-multi-counter" id="quizMultiCounter"></span>
+          <button class="btn btn-primary" id="quizContinueBtn" type="button">Continue</button>
+        </div>
+        <!-- Skip button is hidden for the first 1.5s of each question per
+             spec — prevents reflexive skipping before the user reads it.
+             Renderer toggles `data-revealed`. -->
+        <button class="quiz-none-btn" id="quizNoneBtn" type="button" data-revealed="false">Skip — use default</button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Q10 dealbreaker followup (text-only — spatial-marking deferred
+         per ONBOARDING_AUDIT §J + DEFERRED.md). Only shown when the user picks
+         a non-"nothing" option in Q10. -->
+    <section class="screen" data-screen="quiz-dealbreaker">
+      <header class="topbar">
+        <button class="btn-icon" id="dealbreakerBackBtn" aria-label="Back">‹</button>
+        <h2>Tell us more</h2>
+      </header>
+      <div class="quiz-card">
+        <h3 id="dealbreakerHeadline">What should we keep?</h3>
+        <p class="quiz-subhead muted small" id="dealbreakerSubhead">A short description helps the AI preserve the right thing.</p>
+        <textarea
+          id="dealbreakerInput"
+          class="dealbreaker-input"
+          maxlength="120"
+          rows="3"
+          placeholder=""
+        ></textarea>
+        <div class="dealbreaker-meta muted small">
+          <span id="dealbreakerCharCount">0 / 120</span>
+        </div>
+        <div class="quiz-multi-actions">
+          <button class="btn btn-primary" id="dealbreakerContinueBtn" type="button">Continue</button>
+        </div>
+        <button class="quiz-none-btn" id="dealbreakerSkipBtn" type="button">Skip — full creative freedom</button>
       </div>
     </section>
 
@@ -230,9 +352,9 @@
     <section class="screen" data-screen="preferences">
       <header class="topbar">
         <button class="btn-icon" data-go="profile-select" aria-label="Back">‹</button>
-        <h2 id="prefTitle">Profile Preferences</h2>
+        <h2 id="prefTitle">Refine Your Style</h2>
       </header>
-      <p class="subtle">Pick the styles that feel like home. You can choose more than one.</p>
+      <p class="subtle">These settings shape your redesigns. Tweak anytime.</p>
 
       <section class="pp-card">
         <button class="pp-avatar" id="ppAvatar" type="button" aria-label="Change profile photo">
@@ -269,19 +391,26 @@
         </div>
       </section>
 
-      <h3 class="section-h">Styles</h3>
-      <div class="chip-grid" id="stylesGrid"></div>
+      <!-- [10-Q model] Editable answers — all 10 questions as collapsible
+           cards with current answer pre-selected. Built by renderAnswersEditor()
+           in app.js from window.ONBOARDING_QUESTIONS (single source of truth).
+           Tap any card to expand + edit. Saves on each selection.
+           Custom-color picker preserved in DOM as a future Pro feature
+           per CONFLICT 1 — hidden by default, surfaced when Pro tier ships. -->
+      <h3 class="section-h">Your answers</h3>
+      <div class="answers-editor" id="answersEditor"></div>
 
-      <h3 class="section-h">Color Moods</h3>
-      <div class="chip-grid color-grid" id="colorsGrid"></div>
-      <div class="custom-color">
-        <label>
-          <span>Custom Accent</span>
-          <input type="color" id="customColor" value="#8B6F47" />
-        </label>
-        <button class="btn btn-ghost small" id="addCustomColorBtn">Add to Palette</button>
-        <div class="custom-color-list" id="customColorList"></div>
-      </div>
+      <details class="custom-color-details" hidden>
+        <summary>Add custom colors (optional)</summary>
+        <div class="custom-color">
+          <label>
+            <span>Custom Accent</span>
+            <input type="color" id="customColor" value="#8B6F47" />
+          </label>
+          <button class="btn btn-ghost small" id="addCustomColorBtn">Add to Palette</button>
+          <div class="custom-color-list" id="customColorList"></div>
+        </div>
+      </details>
 
       <h3 class="section-h">Budget per Room</h3>
       <div class="budget-card">
@@ -328,12 +457,28 @@
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
             New from Photo
           </button>
-          <button class="btn btn-ghost" data-go="templates">
-            <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-            Use Template
-          </button>
+          <!-- [Removed] Home-screen "Use Template" CTA — every inspiration
+               card in the Style Pulse + Trending + Seasons strips below now
+               carries its own per-card Use Template button, making this
+               top-level button redundant. The data-go="templates" path is
+               still reachable from any of those per-card CTAs. -->
         </div>
       </div>
+
+      <!-- C13 — Style Pulse: weekly inspiration drop tied to user's style.
+           Reforge ICED p.8 Add-Use-Case strategy. Static placeholder content
+           for now; backend will rotate weekly. -->
+      <section class="style-pulse" id="stylePulse">
+        <header class="sp-head">
+          <div>
+            <span class="sp-eyebrow">STYLE PULSE</span>
+            <h3 class="section-h sp-title" id="stylePulseTitle">This week in your style</h3>
+            <p class="muted small sp-sub" id="stylePulseSub">12 new rooms, refreshed every Monday</p>
+          </div>
+          <span class="sp-week" id="stylePulseWeek"></span>
+        </header>
+        <div class="collections-strip sp-strip" id="stylePulseStrip"></div>
+      </section>
 
       <h3 class="section-h">Trending Styles</h3>
       <div class="collections-strip" id="trendingStrip"></div>
@@ -347,7 +492,7 @@
           <div class="rooms-grid compact" id="roomsGrid">
             <div class="empty-state" id="roomsEmpty">
               <div class="empty-art">◠</div>
-              <p>No rooms yet.</p>
+              <p>Snap a photo to design your first room.</p>
             </div>
           </div>
         </div>
@@ -402,9 +547,9 @@
         <div class="pp-pro-card" id="profileProCard">
           <div class="pp-pro-glow" aria-hidden="true"></div>
           <div class="pp-pro-content">
-            <div class="pp-pro-badge">FURNISH+</div>
+            <div class="pp-pro-badge">Furnish Pro</div>
             <div class="pp-pro-title" id="profileProTitle">Free Plan</div>
-            <div class="pp-pro-sub" id="profileProSub">1 free redesign — upgrade for unlimited</div>
+            <div class="pp-pro-sub" id="profileProSub">Standard quality · upgrade for premium AI</div>
           </div>
           <button class="btn btn-primary small" id="profileProBtn">Upgrade</button>
         </div>
@@ -462,6 +607,12 @@
             <span class="pps-arrow">›</span>
           </button>
         </div>
+
+        <!-- C14 — Style timeline: every room you've designed, ordered by date.
+             Reforge ICED Plant-Loyalty-Hook (p.16): "make it personal by making
+             users invest" — visualizing accumulated investment is the hook. -->
+        <h3 class="section-h">Your Style Timeline</h3>
+        <div class="style-timeline" id="styleTimeline"></div>
       </div>
     </section>
 
@@ -475,8 +626,7 @@
       <div class="templates-grid" id="templatesGrid"></div>
     </section>
 
-    <!-- SCREEN: Capture room -->
-    <!-- SCREEN 1/4: Capture Your Room (photo) -->
+    <!-- SCREEN: Capture (single-screen flow — Reforge Setup Moment: only MUST-HAVE info) -->
     <section class="screen" data-screen="capture" data-flow-prev="home">
       <header class="topbar">
         <div class="topbar-left">
@@ -485,8 +635,7 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
           </button>
         </div>
-        <h2>Capture Your Room</h2>
-        <div class="flow-step muted small">Step 1 of 4</div>
+        <h2>Your Room</h2>
       </header>
 
       <div class="capture-card">
@@ -499,6 +648,23 @@
           </div>
           <img id="photoPreview" alt="" />
         </div>
+
+        <!-- [Dim 14 Section A — Photo tip card] Most-frequent edge case
+             (~5–10% of uploads is a non-room input). Per Reforge Setup
+             Moment Experience p.5, MUST-HAVE input validation is a
+             setup-time concern, not a results-time one. One-line tip,
+             one example. Config-driven: when assets/tip-example.jpg lands,
+             flip examplePath in PHOTO_TIP_CONFIG (app.js) and the image
+             renders without component changes. Dismissible per session. -->
+        <div class="photo-tip" id="photoTip" data-dismissible="true" hidden>
+          <div class="photo-tip-example" id="photoTipExample" aria-hidden="true">
+            <!-- Image renders here when PHOTO_TIP_CONFIG.examplePath is set;
+                 falls back to a quiet text marker until then. -->
+          </div>
+          <p class="photo-tip-copy" id="photoTipCopy">Brightly lit, full-room view works best.</p>
+          <button class="photo-tip-dismiss" id="photoTipDismiss" aria-label="Dismiss tip" type="button">×</button>
+        </div>
+
         <div class="capture-actions">
           <label class="btn btn-primary">
             <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4l1.5 2.5h3a2 2 0 012 2V18a2 2 0 01-2 2H5a2 2 0 01-2-2V8.5a2 2 0 012-2h3L9.5 4z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -511,98 +677,22 @@
             <input type="file" id="uploadInput" accept="image/*" hidden />
           </label>
         </div>
-        <p class="muted small center">We'll measure the space from your photo.</p>
+
+        <!-- Inline room type — was Step 2/4; now inline to collapse setup moment -->
+        <h3 class="section-h compact">What room is this?</h3>
+        <div class="rt-grid rt-grid-compact" id="roomTypeGrid"></div>
+
+        <!-- Hidden dimension inputs kept so existing app.js writes succeed.
+             Dimensions are auto-estimated; user can tweak post-aha on results. -->
+        <input type="hidden" id="dimW" value="12" />
+        <input type="hidden" id="dimL" value="14" />
+        <input type="hidden" id="dimH" value="9" />
+        <span id="dimHint" style="display:none"></span>
+        <button id="rescanBtn" style="display:none"></button>
       </div>
 
       <div class="actions-row">
-        <button class="btn btn-primary" data-flow-next="capture-room-type">Next →</button>
-      </div>
-    </section>
-
-    <!-- SCREEN 2/4: Room Type -->
-    <section class="screen" data-screen="capture-room-type" data-flow-prev="capture">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
-          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
-          </button>
-        </div>
-        <h2>Room Type</h2>
-        <div class="flow-step muted small">Step 2 of 4</div>
-      </header>
-
-      <p class="subtle">Which room are you designing?</p>
-      <div class="rt-grid" id="roomTypeGrid"></div>
-
-      <div class="actions-row">
-        <button class="btn btn-primary" data-flow-next="capture-dimensions">Next →</button>
-      </div>
-    </section>
-
-    <!-- SCREEN 3/4: Dimensions -->
-    <section class="screen" data-screen="capture-dimensions" data-flow-prev="capture-room-type">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
-          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
-          </button>
-        </div>
-        <h2>Dimensions</h2>
-        <div class="flow-step muted small">Step 3 of 4</div>
-      </header>
-
-      <div class="dim-card">
-        <p class="muted small" id="dimHint">Auto-detected from your photo. Adjust if needed.</p>
-        <div class="dim-row">
-          <label>Width <span class="unit">ft</span>
-            <input type="number" id="dimW" min="4" max="60" step="0.5" value="12" />
-          </label>
-          <label>Length <span class="unit">ft</span>
-            <input type="number" id="dimL" min="4" max="60" step="0.5" value="14" />
-          </label>
-          <label>Height <span class="unit">ft</span>
-            <input type="number" id="dimH" min="6" max="20" step="0.5" value="9" />
-          </label>
-        </div>
-        <button class="btn btn-ghost small" id="rescanBtn">Rescan Dimensions</button>
-      </div>
-
-      <div class="actions-row">
-        <button class="btn btn-primary" data-flow-next="capture-keep">Next →</button>
-      </div>
-    </section>
-
-    <!-- SCREEN 4/4: Keep existing items? -->
-    <section class="screen" data-screen="capture-keep" data-flow-prev="capture-dimensions">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
-          <button class="btn-icon" data-go="home" aria-label="Home" title="Home">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
-          </button>
-        </div>
-        <h2>Keep What's Already There?</h2>
-        <div class="flow-step muted small">Step 4 of 4</div>
-      </header>
-
-      <div class="keep-card">
-        <p class="muted small keep-hint">Pick yes to design around your existing pieces. Pick no for a clean slate — we'll propose a full room.</p>
-        <div class="yesno-toggle" id="keepToggle" role="tablist" aria-label="Keep existing items">
-          <button class="yesno-btn" data-val="yes" role="tab" aria-selected="false">
-            <span class="yesno-emoji"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
-            <span class="yesno-text"><strong>Yes</strong><small>Keep everything</small></span>
-          </button>
-          <button class="yesno-btn" data-val="no" role="tab" aria-selected="false">
-            <span class="yesno-emoji"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
-            <span class="yesno-text"><strong>No</strong><small>Fresh start</small></span>
-          </button>
-        </div>
-      </div>
-
-      <div class="actions-row">
-        <button class="btn btn-primary" id="analyzeBtn" disabled>Design My Room →</button>
+        <button class="btn btn-primary big" id="analyzeBtn" disabled>Design My Room →</button>
       </div>
     </section>
 
@@ -624,7 +714,7 @@
     <section class="screen" data-screen="results">
       <header class="topbar">
         <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
-        <h2>Your Furnish plan</h2>
+        <h2>Your Furnish Plan</h2>
         <div class="topbar-right">
           <button class="btn-icon" id="bookmarkRoomBtn" aria-label="Bookmark room" title="Save to rooms"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg></button>
           <button class="btn-icon" id="shareRoomBtn" aria-label="Share" title="Share"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8 11l8-4M8 13l8 4"/></svg></button>
@@ -663,9 +753,73 @@
         <span class="rb-label">Rearrange furniture</span>
       </button>
 
-      <!-- Totals + Shop the whole room -->
+      <!-- Post-aha keep-existing toggle (moved from capture flow) -->
+      <div class="results-keep-row" id="resultsKeepRow">
+        <span class="rkr-label">Design around my current pieces</span>
+        <button class="rkr-switch" id="keepExistingSwitch" role="switch" aria-checked="false" type="button">
+          <span class="rkr-track"><span class="rkr-thumb"></span></span>
+        </button>
+      </div>
+
+      <!-- Aha quality signal: ask one question, capture + use the answer -->
+      <div class="aha-feedback" id="ahaFeedback">
+        <span class="af-q">How does this feel?</span>
+        <div class="af-buttons">
+          <button class="af-btn" data-vote="love" type="button" aria-label="I love it">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            <span>Love it</span>
+          </button>
+          <button class="af-btn" data-vote="close" type="button" aria-label="Close but not quite">
+            <span class="af-emoji">≈</span><span>Close</span>
+          </button>
+          <button class="af-btn" data-vote="off" type="button" aria-label="Off the mark">
+            <span class="af-emoji">×</span><span>Not me</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- [Model A] Primary affiliate CTA — restored to "Shop the Whole Room"
+           semantics. Free for everyone. The Reshuffle button is unhidden below
+           so both actions are accessible.
+           [Dim 14 Top 3 #1] "Different Style?" CTA added beside it as the
+           highest-leverage edge-case fix in Batch 1. Per Reforge Strategies
+           For At-Risk Users — Strategy Two: Use Case Transition. The "no
+           items liked" failure mode produces ~20–30% of redesigns with zero
+           shop clicks; the 1-tap style pivot transforms that from a churn
+           event into a continued session. -->
       <div class="totals-card" id="totalsCard"></div>
-      <button class="btn btn-primary big shop-all-btn" id="shopAllBtn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M3 4h3l2.5 12h11l2-8H7"/><circle cx="10" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>Shop the Whole Room</button>
+      <div class="reveal-actions-row">
+        <button class="btn btn-primary big shop-all-btn" id="shopAllBtn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M3 4h3l2.5 12h11l2-8H7"/><circle cx="10" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>
+          Shop The Whole Room
+        </button>
+        <button class="btn btn-ghost different-style-btn" id="differentStyleBtn" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/><path d="M12 9v6"/></svg>
+          Different Style?
+        </button>
+      </div>
+
+      <!-- [Dim 10 Rec 5 — Affiliate Disclosure V2] Per Hassan's locked
+           Affiliate-Maximalist decision, FTC compliance is the floor; trust
+           badge is the goal. Per Reforge Brand Marketing — Brand Identity
+           Governance, transparency IS the brand. Three sub-claims head off
+           the two #1 distrust patterns in affiliate (kickbacks on pricier
+           items) and the #1 distrust pattern in any AI app (selling photos).
+           Custom SVG lightbulb (no emoji per CLAUDE.md). -->
+      <div class="affiliate-disclosure-v2">
+        <div class="adv2-row">
+          <span class="adv2-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M2 9a8 8 0 1 1 14.4 4.8L15 16H9l-1.4-2.2A8 8 0 0 1 2 9z"/></svg>
+          </span>
+          <strong>How Furnish makes money:</strong>
+        </div>
+        <p class="adv2-body">
+          We earn a commission when you buy items through our redesigns.
+          <strong>We don't get paid more for pricier items.</strong>
+          <strong>We don't sell your photos.</strong>
+          <a id="affiliateLearnMore">Read the full FTC disclosure →</a>
+        </p>
+      </div>
 
       <!-- Color picker from items -->
       <div class="palette-bar" id="paletteBar">
@@ -674,8 +828,13 @@
         <button class="link small" id="clearPaletteBtn" style="display:none">clear</button>
       </div>
 
-      <h3 class="section-h">Recommended pieces</h3>
-      <div class="items-list" id="itemsList"></div>
+      <!-- [Model A] Recommended pieces — fully shoppable for all users. The
+           wrapper is kept as a passive layout container; the PRO padlock badge
+           was removed because items are no longer gated. -->
+      <div class="locked-pieces-wrap">
+        <h3 class="section-h">Recommended Pieces</h3>
+        <div class="items-list" id="itemsList"></div>
+      </div>
 
       <!-- Version comparison -->
       <div class="versions-card" id="versionsCard" style="display:none">
@@ -686,8 +845,42 @@
         <div class="versions-list" id="versionsList"></div>
       </div>
 
+      <!-- Hidden: the prominent button up top now is Reshuffle All Picks.
+           Kept in DOM so existing keyboard handlers keep working. -->
+      <!-- [Model A] Reshuffle is FREE + visible. Sits below versions/items as
+           the secondary action; primary is "Shop The Whole Room" up top. -->
       <div class="actions-row stacked">
-        <button class="btn btn-ghost" id="reshuffleBtn">Reshuffle all picks</button>
+        <button class="btn btn-ghost" id="reshuffleBtn">Reshuffle All Picks</button>
+      </div>
+
+      <!-- [Reforge Retention — Habit Moment frequency / return-loop salience]
+           This is the highest-leverage habit-forming action on the results
+           screen: it loops the user back to the gallery to start the next
+           design. Visually peer-level with "Shop The Whole Room" but using
+           a complementary palette (light gradient vs dark brown) so they
+           don't compete for primary attention. -->
+      <div class="results-explore">
+        <button class="btn-explore-more" data-go="home" type="button">
+          <span class="bem-shine" aria-hidden="true"></span>
+          <span class="bem-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <!-- Compass rose — universal "explore" glyph, on-brand simple. -->
+              <circle cx="16" cy="16" r="12.5"/>
+              <polygon points="16,8 19.5,16 16,24 12.5,16" fill="currentColor" stroke="none" opacity="0.95"/>
+              <circle cx="16" cy="16" r="1.6" fill="#8B6F47" stroke="none"/>
+            </svg>
+          </span>
+          <span class="bem-text">
+            <span class="bem-title">Explore More Designs</span>
+            <span class="bem-sub">Try another room or browse templates</span>
+          </span>
+          <span class="bem-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </span>
+        </button>
       </div>
     </section>
 
@@ -699,7 +892,71 @@
       </header>
       <p class="subtle">Saved items. Toggle price-drop alerts for the ones you're watching.</p>
       <div class="items-list" id="wishlistList">
-        <div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>No saved items yet.</p></div>
+        <div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>Save items to track price drops.</p></div>
+      </div>
+    </section>
+
+    <!-- SCREEN: This Week's Featured Style — dedicated page for the
+         weekly Style Pulse drop. Reads from THIS_WEEK_CONFIG (single source
+         of truth shared with the homepage featured row). Renders all 9
+         room cards in the canonical config order plus a hero band on top
+         and a "Browse all styles" CTA at bottom that routes to the
+         (currently stub) styles-index. See renderThisWeekPage() in app.js
+         and the canonical-pattern comment block above renderStylePulse(). -->
+    <section class="screen" data-screen="this-week">
+      <header class="topbar">
+        <button class="btn-icon" data-go="home" aria-label="Back to home">‹</button>
+        <h2 id="thisWeekTitle">This Week in Mid-Century Modern</h2>
+      </header>
+
+      <!-- Hero band — style-defining one-liner. Per Reforge User Psychology
+           (concrete-sensory specificity), three sensory anchors scan in
+           ~2 seconds. Updated per-style each Monday via the config. -->
+      <div class="tw-hero">
+        <span class="tw-hero-eyebrow" id="thisWeekEyebrow">STYLE PULSE</span>
+        <p class="tw-hero-tagline" id="thisWeekTagline">Clean lines. Warm woods. Iconic forms across every room.</p>
+        <p class="tw-hero-meta muted small">
+          <span id="thisWeekMeta">9 rooms · refreshed every Monday</span>
+          <span class="tw-hero-week-stamp" id="thisWeekWeekStamp"></span>
+        </p>
+      </div>
+
+      <!-- Full grid of all 9 rooms — populated by renderThisWeekPage(). -->
+      <div class="tw-grid" id="thisWeekGrid"></div>
+
+      <!-- Bottom CTA — routes to the stubbed styles-index. -->
+      <div class="tw-bottom-cta">
+        <button class="btn btn-ghost tw-browse-all" type="button" data-go="styles-index">
+          Browse all styles
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Styles Index (stub) — reachable from /this-week's bottom
+         CTA. Currently a "coming soon" placeholder; the immediate next task
+         in CHANGES_APPLIED.md flags it for build-out (filterable index of
+         every style with current week/season annotations). -->
+    <section class="screen" data-screen="styles-index">
+      <header class="topbar">
+        <button class="btn-icon" data-go="this-week" aria-label="Back">‹</button>
+        <h2>All Styles</h2>
+      </header>
+      <div class="styles-index-stub">
+        <div class="sis-art" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6"  y="6"  width="22" height="22" rx="3"/>
+            <rect x="36" y="6"  width="22" height="22" rx="3"/>
+            <rect x="6"  y="36" width="22" height="22" rx="3"/>
+            <rect x="36" y="36" width="22" height="22" rx="3"/>
+          </svg>
+        </div>
+        <h3 class="sis-title">Every style, browsable</h3>
+        <p class="sis-body">A filterable index of every style in Furnish — with seasonal annotations, "this week" callouts, and side-by-side comparisons — is on its way.</p>
+        <button class="btn btn-primary" type="button" data-go="this-week">Back to this week</button>
       </div>
     </section>
 
@@ -713,58 +970,123 @@
       <canvas id="shareCanvas" width="720" height="900"></canvas>
       <div class="share-actions">
         <button class="btn btn-primary" id="shareDownloadBtn">Download image</button>
-        <button class="btn btn-ghost" id="shareCopyBtn">Copy caption</button>
+        <button class="btn btn-ghost" id="shareSystemBtn">Share via…</button>
       </div>
       <div class="share-targets">
-        <span class="muted small">Ready for:</span>
-        <span class="tag">Instagram 4:5</span>
-        <span class="tag">Pinterest</span>
-        <span class="tag">TikTok still</span>
+        <button class="share-net" id="sharePinBtn" aria-label="Pin to Pinterest" title="Pin to Pinterest">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 00-3.6 19.3c-.1-.8-.2-2.1 0-3 .2-.8 1.3-5.2 1.3-5.2s-.3-.7-.3-1.6c0-1.5.9-2.7 2-2.7.9 0 1.4.7 1.4 1.5 0 .9-.6 2.3-.9 3.5-.3 1 .5 1.9 1.5 1.9 1.8 0 3.2-1.9 3.2-4.7 0-2.4-1.8-4.2-4.3-4.2-3 0-4.7 2.2-4.7 4.5 0 .9.3 1.8.8 2.4.1.1.1.2 0 .3-.1.4-.3 1-.3 1.2 0 .2-.1.3-.3.2-1.2-.6-2-2.3-2-3.8 0-3 2.2-5.9 6.4-5.9 3.4 0 6 2.4 6 5.5 0 3.4-2.1 6-5 6-1 0-1.9-.5-2.3-1.1 0 0-.5 1.8-.6 2.3-.2.9-.8 1.9-1.2 2.6A10 10 0 1012 2z"/></svg>
+          <span>Pin it</span>
+        </button>
+        <button class="share-net" id="shareCopyBtn" aria-label="Copy caption">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>
+          <span>Copy caption</span>
+        </button>
+        <button class="share-net" id="shareLinkBtn" aria-label="Copy invite link">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007 0l4-4a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-4 4a5 5 0 007 7l1-1"/></svg>
+          <span>Invite link</span>
+        </button>
       </div>
+      <!-- [Conflict 2 lock — currency switched from "1 month Pro free" to
+           credit-pack aligned with Furnish's natural-frequency window.
+           Per Reforge Advanced Growth Strategy — Financial Viral Loops
+           Lesson 3 (currency-alignment), incentives must match the natural
+           use cadence (~2x/year). Backend redemption ledger spec'd in
+           DEFERRED.md. -->
+      <p class="share-referral-note muted small">Invite link unlocks 5 Pro-quality redesigns + 2 style packs for both of you. 90 days to use them.</p>
     </div>
   </div>
 
-  <!-- Paywall modal (Furnish Pro) -->
+  <!-- Paywall modal (Furnish Pro)
+       [Reforge Monetization + Pricing — anchoring + loss-aversion symmetry]
+       The modal renders TWO cards: Free (what you keep) + Pro (what you'd add).
+       Free card is the single-source-of-truth from FREE_PLAN_CARD in app.js,
+       rendered by renderFreeCard(). Every paywall context surfaces both cards;
+       the Pro card's title/sub copy varies per context, the Free card's content
+       is identical everywhere by design. -->
   <div class="modal" id="paywallModal" aria-hidden="true">
     <div class="modal-card paywall-card">
       <button class="modal-close" id="paywallClose" aria-label="Close">×</button>
       <div class="paywall-glow" aria-hidden="true"></div>
-      <div class="paywall-badge">FURNISH PRO</div>
-      <h3 id="paywallTitle">Design rooms without limits</h3>
-      <p class="subtle paywall-sub" id="paywallSub">You've used your free redesigns. Join 12,000+ members redesigning their homes with Furnish.</p>
 
-      <div class="paywall-social">
-        <span class="paywall-stars">★★★★★</span>
-        <span class="paywall-social-text">4.8 · 2,400+ reviews</span>
+      <!-- Shared header — context-specific copy lives here, above both cards. -->
+      <div class="paywall-header">
+        <h3 id="paywallTitle">Sharper redesigns, every time</h3>
+        <!-- [Conflict 4 lock — fictitious "4-7 rooms" claim removed.
+             Restates premium-quality pillar (consistency with PAYWALL_COPY
+             premium_quality context). Per Reforge Product Marketing —
+             Building Proof Point Pillars: sub restates OKT, not feature
+             list. -->
+        <p class="subtle paywall-sub" id="paywallSub">Pro upgrades the AI on every redesign — sharper matches, better lighting, no compromises. $5.99/month, founding-member rate.</p>
       </div>
 
-      <div class="paywall-toggle" role="tablist" aria-label="Billing period">
-        <button class="pw-toggle-btn" data-plan="monthly" role="tab" aria-selected="false">Monthly</button>
-        <button class="pw-toggle-btn active" data-plan="annual" role="tab" aria-selected="true">
-          Annual <span class="pw-save">Save 49%</span>
-        </button>
+      <!-- Side-by-side comparison cards. Mobile stacks Free → Pro; ≥600px wide
+           lays them out as two columns. -->
+      <div class="paywall-cards">
+        <!-- FREE CARD — rendered by renderFreeCard() in app.js from the
+             FREE_PLAN_CARD source-of-truth constant. DO NOT hardcode bullets
+             here — the single source lives in JS so we change it in one
+             place. The empty container persists; JS fills it on every open. -->
+        <aside class="paywall-free-card" id="paywallFreeCard" aria-label="Furnish Free plan">
+          <!-- populated by renderFreeCard() -->
+        </aside>
+
+        <!-- PRO CARD — varies copy per context, structure stays. -->
+        <article class="paywall-pro-card">
+          <div class="paywall-badge">Furnish Pro</div>
+          <!-- [Conflict 4 lock — fictitious "2,400+ reviews" claim removed.
+               Replaced with cancel-policy trust at the moment of payment per
+               Reforge Strategic Emphasis Pain Point-Based archetype: at the
+               paywall, the relevant pain is "will this charge me when I
+               forget?" Real trust > fake reviews. -->
+          <div class="paywall-social">
+            <span class="paywall-social-text"><strong>Cancel before day 7</strong> · No charge. We don't auto-bill surprise.</span>
+          </div>
+
+          <div class="paywall-toggle" role="tablist" aria-label="Billing period">
+            <button class="pw-toggle-btn" data-plan="monthly" role="tab" aria-selected="false">Monthly</button>
+            <button class="pw-toggle-btn active" data-plan="annual" role="tab" aria-selected="true">
+              Annual <span class="pw-save">Save 33%</span>
+            </button>
+          </div>
+
+          <div class="paywall-price">
+            <span class="paywall-price-amount" id="paywallPrice">$3.99</span>
+            <span class="paywall-price-unit" id="paywallUnit">/month, billed annually ($47.88/yr)</span>
+          </div>
+
+          <!-- [Compute-quality routing] Pro feature list — anchored on what
+               Pro actually delivers under the new model: premium AI quality,
+               depth features (HD, batch, advanced personalization), and
+               power-user controls (advanced price filters, multi-profile,
+               premium templates). Unlimited generations are FREE now — see
+               the Free card to the left/above. -->
+          <!-- [Conflict 3 lock — "coming soon" bullets stripped.
+               Per Reforge Monetization + Pricing — Packaging Strategies:
+               don't price features that don't exist. Multi-room batch and
+               Style learns over time moved to the Roadmap link in the
+               footer (opens #paywallRoadmapModal). Restore as bullets when
+               shipped + email all current Pro subscribers. -->
+          <ul class="paywall-list">
+            <li><span class="bullet">✓</span> <strong>Premium AI quality</strong> — sharper, more accurate redesigns</li>
+            <li><span class="bullet">✓</span> HD downloads — no watermark, social-ready</li>
+            <li><span class="bullet">✓</span> Advanced price-drop filters — set thresholds + retailer prefs</li>
+            <li><span class="bullet">✓</span> A separate style profile for every person in your home</li>
+            <li><span class="bullet">✓</span> Premium template library</li>
+          </ul>
+
+          <div class="paywall-urgency">Founding-member pricing — locks in for life if you join this month.</div>
+
+          <div class="paywall-actions">
+            <button class="btn btn-primary big" id="paywallCta">Start 7-day free trial</button>
+            <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
+          </div>
+          <p class="muted small center paywall-footnote">
+            Cancel anytime before day 7 — no charge.
+            <span class="paywall-footnote-sep">·</span>
+            <a class="paywall-roadmap-link" id="paywallRoadmapLink">What's on the roadmap →</a>
+          </p>
+        </article>
       </div>
-
-      <div class="paywall-price">
-        <span class="paywall-price-amount" id="paywallPrice">$4.08</span>
-        <span class="paywall-price-unit" id="paywallUnit">/month, billed annually ($49/yr)</span>
-      </div>
-
-      <ul class="paywall-list">
-        <li><span class="bullet">✓</span> Unlimited redesigns &amp; reshuffles</li>
-        <li><span class="bullet">✓</span> HD room exports + social kit (IG, Pinterest, TikTok)</li>
-        <li><span class="bullet">✓</span> Unlimited style profiles for your household</li>
-        <li><span class="bullet">✓</span> Early access to seasonal collections</li>
-        <li><span class="bullet">✓</span> Priority support &amp; price-drop alerts</li>
-      </ul>
-
-      <div class="paywall-urgency">Founding-member pricing — locks in for life if you join this month.</div>
-
-      <div class="paywall-actions">
-        <button class="btn btn-primary big" id="paywallCta">Start 7-day free trial</button>
-        <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
-      </div>
-      <p class="muted small center paywall-footnote">Cancel anytime before day 7 — no charge.</p>
     </div>
   </div>
 
@@ -814,6 +1136,28 @@
             <polyline points="7 7 17 7 17 17"/>
           </svg>
         </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- [Layer 7] Affiliate disclosure modal (FTC 16 CFR Part 255 compliance) -->
+  <div class="modal" id="affiliateModal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" id="affiliateClose" aria-label="Close">×</button>
+      <h3>How Furnish Makes Money</h3>
+      <p class="subtle">Plain-English version, then the legal version.</p>
+      <div class="affiliate-content">
+        <h4>The short version</h4>
+        <p>When you click on a piece of furniture in your redesign and buy it from the retailer (IKEA, Wayfair, Amazon, etc.), Furnish earns a commission. The price you pay is exactly the same as if you went to the retailer directly.</p>
+        <p>That commission is how we keep the AI redesigns and the app free. We don't charge you to view, reshuffle, swap, or shop. Furnish Pro (our paid plan, $5.99/month) upgrades you to a sharper AI model and adds power-user features — but unlimited redesigns and the full catalog are free for everyone.</p>
+        <h4>What we don't do</h4>
+        <ul>
+          <li>We don't mark up prices.</li>
+          <li>We don't share your purchase data with the retailer beyond a click identifier.</li>
+          <li>We don't recommend an item just because it pays more — recommendations come from your style profile.</li>
+        </ul>
+        <h4>The legal bit</h4>
+        <p class="muted small">Furnish has affiliate / referral relationships with retailers including IKEA, Amazon, Wayfair, West Elm, Etsy, and Rugs USA. When you click a link from Furnish to one of these retailers and complete a purchase, Furnish may receive a commission. This material connection is disclosed in compliance with the U.S. Federal Trade Commission's 16 CFR Part 255 ("Endorsement Guides"). Per FTC guidance, these connections are disclosed because they may affect the weight or credibility of our recommendations.</p>
       </div>
     </div>
   </div>
@@ -899,6 +1243,32 @@
   <!-- Toast -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <!--
+    [First-redesign tutorial overlay]
+    Fires ONCE per user, immediately after their first AI-generated redesign,
+    auto-routing them to the preferences screen so they discover the budget
+    slider before sticker shock kicks in. See app.js:
+      - state.user.firstRedesignTutorialSeen (flag, never re-fires)
+      - TUTORIAL_STEPS (steps in order, BUDGET is the centerpiece)
+      - startFirstRedesignTutorial() (entry point)
+      - tutorial_started/_step_viewed/_completed/_skipped events
+    Spotlight technique: a fixed div with massive outset box-shadow casts
+    darkness around a transparent rectangle positioned over the target.
+    See styles.css "First-redesign tutorial" section.
+  -->
+  <div class="frt-overlay" id="frtOverlay" aria-hidden="true" role="dialog" aria-label="Quick tour of your preferences">
+    <div class="frt-spotlight" id="frtSpotlight" aria-hidden="true"></div>
+    <div class="frt-tip" id="frtTip" role="document">
+      <div class="frt-step-pip" id="frtStepPip" aria-hidden="true"></div>
+      <h4 class="frt-tip-title" id="frtTipTitle">—</h4>
+      <p class="frt-tip-body" id="frtTipBody">—</p>
+      <div class="frt-tip-actions">
+        <button class="frt-skip" id="frtSkipBtn" type="button" hidden>Skip tour</button>
+        <button class="frt-next" id="frtNextBtn" type="button">Next →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Quiz finale: furniture rain → pop → congrats card -->
   <div class="quiz-finale" id="quizFinale" aria-hidden="true">
     <div class="qf-rain" id="qfRain"></div>
@@ -920,6 +1290,45 @@
       <h3>Your style is locked in</h3>
       <p class="qf-sub" id="qfSub">We mixed your answers into a personal palette.</p>
       <button class="btn btn-primary" id="qfContinue">Continue</button>
+    </div>
+  </div>
+
+  <!-- [Conflict 3 lock — Roadmap modal] Replaces "[coming soon]" bullets in
+       the Pro card. Per Reforge Monetization + Pricing — Packaging Strategies:
+       roadmap belongs in opt-in disclosure, not impersonating shipped
+       features. Opens from #paywallRoadmapLink in the paywall footer. -->
+  <div class="modal" id="paywallRoadmapModal" aria-hidden="true">
+    <div class="modal-card paywall-roadmap-card">
+      <button class="modal-close" id="paywallRoadmapClose" aria-label="Close">×</button>
+      <h3>What's on the roadmap</h3>
+      <p class="muted small">Features we're building next. Founding-member pricing locks in your access — no extra charge when these ship.</p>
+      <ul class="paywall-roadmap-list">
+        <li>
+          <strong>Multi-room batch design</strong>
+          <span class="prl-body">Design every room in one pass. We're nailing the per-room cost model first.</span>
+        </li>
+        <li>
+          <strong>Style that learns over time</strong>
+          <span class="prl-body">Saves, swaps, and price-drop alerts feed your style profile. Better picks every redesign.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- [Dim 14 Top 3 #1 — Different Style modal] Opens from #differentStyleBtn
+       on the reveal screen. 6 alternative style chips, ordered by adjacency
+       to the user's current style. Tapping a chip re-runs pickItemsForRoom()
+       with the new style override (no AI compute call — pure local re-pick)
+       and pushes a new version on the same room. ~2 seconds total. Per
+       Reforge Strategies For At-Risk Users → Use Case Transition. -->
+  <div class="modal" id="differentStyleModal" aria-hidden="true">
+    <div class="modal-card different-style-card">
+      <button class="modal-close" id="differentStyleClose" aria-label="Close">×</button>
+      <h3>Try a different style?</h3>
+      <p class="muted small">Same room, same items pool — different aesthetic. Your original is saved.</p>
+      <div class="different-style-grid" id="differentStyleGrid">
+        <!-- 6 chip buttons rendered by openStylePivotModal() in app.js -->
+      </div>
     </div>
   </div>
 

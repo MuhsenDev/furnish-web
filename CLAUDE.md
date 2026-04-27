@@ -62,7 +62,7 @@ A mobile-first, single-page AI interior design app. Brown/beige theme. No build 
 
 ## What's NOT done yet (the 7 backend items)
 In priority order, flagged whether they cost money:
-1. **Real AI redesign** — Flux Kontext Pro + Flux Depth Pro on Replicate. 💰 ~$0.05/run + server to hold keys.
+1. **Real AI redesign** — Flux Schnell (Free tier, ~$0.005-0.01/run) + Flux Kontext Pro / Flux Depth Pro (Pro tier, ~$0.05/run) on Replicate. Server routes by `user_settings.is_pro` per the compute-quality model. 💰 server to hold keys.
 2. **Real affiliate catalog** — replace mocked `FURNITURE_DB`. Sign up for IKEA / Amazon / Wayfair affiliate programs (free, 1–7 day approval).
 3. **Photo storage at scale** — move base64 room photos to Supabase Storage. 💰 $0.021/GB/month above 1GB.
 4. **Mobile wrapper** (Capacitor) — 💰 $99/yr Apple dev, $25 one-time Google Play.
@@ -73,9 +73,20 @@ In priority order, flagged whether they cost money:
 ## Conventions
 - **Title Case** on buttons, section headers, screen titles; **sentence case** on body copy, helper text, toasts.
 - **Custom SVG icons** everywhere — no emoji in user-facing UI. If you find one, replace it.
+- **Voice rubric** — Concrete, Confident, Warm, Calm. Full guidelines in `VOICE.md`.
+- **OKT (One Key Takeaway)** — *"Your household, your style, sharper."* Every paywall sub, every welcome refresh, every email subject ladders up to this. Locked 2026-04-26 (`window.FurnishOKT` in `app.js`).
+- **No fake numbers, ever.** Qualitative claims only until real traction numbers exist. (Locked permanent rule per CONFLICTS_RESOLVED.md Conflict 4.)
+- **No calendar-period language in user copy.** Quarterly/weekly/monthly are internal strategic frames. User copy uses experiential trigger-language ("when you're ready"). (Locked per CONFLICTS_RESOLVED.md Conflict 1.)
 - Always commit at the end of a coherent change batch with a descriptive multi-line message. Conventional-style prefixes are NOT required but clarity is.
 - When adding CSS, scan for an existing rule with the same selector **before** writing a new one — reconstruction artifacts mean duplicates are frequent.
 - Heavy imports (images, base64, etc.) should go through the existing `FileReader → dataURL → state.draft.photo` pipeline.
+
+## Strategic decision documents
+- `OPTIMIZATION_PLAN.md` — Reforge-grounded 14-dimension optimization plan (8,465 lines, 140+ recommendations).
+- `CONFLICTS_RESOLVED.md` — canonical resolution of contradictions between locked decisions and the optimization plan. Reference before any change in a conflict zone.
+- `VOICE.md` — brand voice rubric + per-surface copy patterns + lifecycle copy templates.
+- `DEFERRED.md` — backend-phase items.
+- `IMPLEMENTATION_PROGRESS.md` — batch-by-batch migration log.
 
 ## Quick orientation
 ```bash
