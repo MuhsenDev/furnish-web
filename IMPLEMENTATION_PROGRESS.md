@@ -1152,4 +1152,114 @@ The optimization rollout is complete. Furnish is now grounded in:
 
 See `OPTIMIZATION_ROLLOUT_SUMMARY.md` for the full cross-batch summary.
 
+---
+
+# Save Home — 3-tier room artifact model + 5 coordinated UI surfaces — COMPLETE
+
+**Date:** 2026-04-27
+**Source audit:** `SAVE_HOME_AUDIT.md` (NEW, 174 lines — 3-tier model + migration plan + 6 UI surfaces table + conflicts + 10 edge cases + voice/copy specs + Reforge framework citations)
+**Ships as:** commit `2face5a` (5 files / 1446 insertions / 51 deletions). Migration-log entry appended in a single-file follow-up commit (this entry — no amend per Git Safety Protocol).
+**Scope:** Single coordinated feature, 8 implementation-order steps, 5 UI surfaces, 1 idempotent migration. Treated as one feature per Hassan's explicit ship rule ("do not ship partial").
+
+## Objective
+
+Promote a user's "in-progress home" from a flat designedRooms array (the prior `cabd9df` Your Home addendum) into a first-class **3-tier artifact model** so users can: (1) build a home over multiple sessions, (2) save the completed home as an archive, (3) generate room redesigns outside any home context (Saved Rooms), and (4) overwrite a Your Home slot without ever destroying the previous design.
+
+Per Reforge **Engagement Loops — Multi-Room Completion**, "Save Home" is the loop's invest+reward closure — the moment that turns a completion grid into a tangible artifact. Per **Activation — Setup Moment Experience**, the saved home becomes a recallable artifact that drives return engagement (the ICED Plant-Loyalty Hook). Per **User Psychology — Overwrite Protection** and **Dialog-as-productive-friction**, save flows never destroy prior work and incomplete states surface next-step actions instead of dead ends.
+
+## Decisions auto-resolved (no user input requested — per locked "approve all changes" policy)
+
+1. **Conflict with `cabd9df` "Your Home" prior addendum.** That earlier change added `state.user.homeProgress.designedRooms[]` as a flat array. The 3-tier model needed an object map keyed by room type with full metadata. **Resolution: dual-write.** Legacy array stays in sync (backward-compat for any not-yet-migrated readers), `activeHome.designedRooms{}` becomes the new source of truth. `migrateHomeProgressToActiveHome()` runs at boot — idempotent, backfills metadata from `state.rooms` lookup, no-op on subsequent boots.
+2. **Conflict with Reset feature (commit `be64b19`).** The allow-list pattern `RESET_PRESERVED_USER_FIELDS` controls what survives a profile reset. **Resolution: omission.** `activeHome`, `savedHomes`, `savedRooms` are NOT added to the allow-list, so they auto-wipe per spec edge case #6. Verified live.
+3. **Conflict with Use Template flow.** Use Template is one of two generation paths (the other being own-photo). **Resolution: single chokepoint.** Both paths route through `recordHomeProgressRoom`, which now dual-writes legacy array + `activeHome` object. No path-specific branching.
+4. **Saved Rooms count source.** Legacy `bookmarkedRooms` array vs new `state.user.savedRooms[]`. **Resolution: UNION** in the Saved tab's Rooms count + render. Avoids data loss for users with pre-existing bookmarks.
+5. **Incomplete-state Save Home dialog — generic toast vs custom dialog.** **Resolution: dialog with tappable next-step rows** routing through the existing `hp-flyout` pattern. Productive friction per Reforge User Psychology — turns "you can't save" into a list of actions, reusing established UX.
+6. **Bottom-nav badge state shape.** Could have stored `state.user.savedTabBadgeVisible` or derived. **Resolution: derived selector** (`hasSavedItems = savedHomes.length > 0 || savedRooms.length > 0`) per spec architecture requirement. No separate stored state, no sync risk.
+7. **Saved tab two-section spec vs three-tab existing reality — APPROVED ADDITIVE DEVIATION.** The original spec called for "two sections" (Saved Homes + Saved Rooms). The Saved tab already had a third pane — **Saved Items** — that predates this spec and serves the wishlist surface. Removing Items would have been a regression (orphaning wishlist UX). **Resolution: ship three tabs (Homes / Rooms / Items)**, with the new Homes tab placed first per spec ordering. Documented and approved by Hassan post-ship as additive (not subtractive). Items pane behavior is unchanged.
+
+## Files changed
+
+| File | Lines changed | Summary |
+|------|---------------|---------|
+| `app.js` | ~909 lines added/changed | Schema + 9 helpers exposed on `window.FurnishActiveHome.*` (`uuid`, `getActiveHome`, `getSavedHomes`, `getSavedRoomsList`, `homeRequiredCount`, `homeDesignedCount`, `homeIsComplete`, `nextHomeRoomSuggestionV2`, `setActiveHomeRoom`, `moveActiveHomeRoomToSaved`, `isRoomClaimed`); `migrateHomeProgressToActiveHome` (line 1586, idempotent at boot); `renderSaveHomeButton` (4229) with complete + incomplete visual states; `openSaveHomeConfirmDialog` (4331) + `openSaveHomeIncompleteDialog` (helper) + `closeSaveHomeDialog` (helper); `commitSaveHome` (4371, snapshot → reset → route); `renderRoomExclusionsList` (4421) + `toggleRoomExclusion` + `openExcludeDesignedRoomDialog`; `openPostGenerationSaveSurface` (4539) + `closePostGenerationSaveSurface`; `renderSavedHomes` (4632) + `openSavedHomeDetail` + `renderSavedHomeDetail` + `onReopenSavedHome` + `onDeleteSavedHome`; `updateSavedTabBadge` (4767, derived selector); refactored `renderHomeProgress` to read `activeHome`, hide excluded rooms, count over `9 - excluded`; refactored `renderSaved` and `showSavedPane` for 3-tab Homes/Rooms/Items; hooked `recordHomeProgressRoom` to dual-write legacy array + `activeHome` via `setActiveHomeRoom` (with overwrite-protection moving previous slot to `savedRooms` with `reason='overwrite'`); hooked `openRoom` to fire post-generation save surface when `state._justGeneratedRoomId === roomId` and not already claimed; hooked `renderProfilePage` to call `renderRoomExclusionsList`; FRT overlay backdrop click → `endTutorial(false)` (back-button-blocked-by-overlay fix carried in this commit); 11 new analytics events + 1 migration event (`save_home_migration_completed`) |
+| `index.html` | ~46 lines added/changed | `stHomesCount` tab + `savedHomesPane` + `savedHomesList` to Saved screen; `data-screen="saved-home-detail"` with topbar + re-open button + delete icon + detail grid; "Rooms in your home" section in profile screen (above existing Settings) with `roomExclusionsList` + `roomExclusionsCounter`; `.bn-tab-badge` span inside the Saved tab nav button |
+| `styles.css` | ~310 new lines | `.hp-save-row`, `.hp-save-home-btn--complete/--incomplete`, `.hp-save-home-helper`; `.save-home-dialog` family (cards, missing-list, missing-row, actions); `.save-surface-modal` family (card, body, note, actions, cta-label, cta-sub); `.saved-homes-list`, `.saved-home-card` family (`.shc-hero`, `.shc-hero-thumb`, `.shc-body`, `.shc-title`, `.shc-meta`), celebrate keyframe; `.saved-home-detail-grid`, `.saved-home-detail-card`, `.shdc-photo`, `.shdc-body`; `.bn-tab-badge` dot styling; `.room-exclusions-list .room-exclusion-row`; dark-mode coverage on all new components; `prefers-reduced-motion` fallback for celebrate pulse |
+| `SAVE_HOME_AUDIT.md` | NEW (174 lines) | 3-tier model documentation; migration plan (idempotent); 6 UI surfaces table (existing/refactor/new); conflicts with prior addendum (`cabd9df`), Reset feature, Use Template flow; component reuse-vs-new decisions; 10 edge cases handled per spec; voice/copy specs; Reforge framework citations |
+| `DEFERRED.md` | +61 lines | 4 new deferred items: real persistence of `savedHomes` (right now in localStorage), cross-device sync of `activeHome`/`savedHomes`, sharing a saved home (shareable link / social media format — flagged as future Social-dim loop), cross-tab synchronization (last-write-wins acceptable for now per spec edge case #10), data export including `savedHomes` payload; all 13 new analytics events listed (shipping client-side, awaiting PostHog cutover) |
+
+## Verification log (paths exercised live before commit)
+
+- **`renderHomeProgress` with 7 rooms excluded** → grid shows only 2 visible cells, counter "2 of 2 rooms designed", complete state triggers correctly. ✅
+- **Save Home flow (complete state)** → tap → confirm dialog → confirm → `savedHomes` length increments + `activeHome` resets (new `id`, `designedRooms` all null, `excludedRooms` empty) + route to Saved tab + new card appears with celebration animation + nav badge shows. ✅
+- **Save Home flow (incomplete state)** → tap → incomplete dialog opens with missing rooms as tappable rows; each row routes through `hp-flyout`. ✅
+- **Exclusions UI** → toggle off undesigned room → instant exclude + counter updates live. ✅
+- **Exclusions UI — 2-room minimum** → attempt 8th exclusion (only Bedroom + Living Room remaining) → blocked with toast "You need at least 2 rooms to build a home." ✅
+- **Exclusions UI — designed-room confirm dialog** → toggle off designed room → confirm dialog fires → "Exclude and move to Saved" → room moves to `savedRooms` with `reason='exclude'`, slot becomes null. ✅
+- **Post-generation save surface for excluded room** → only "Save to Saved Rooms" CTA shown + explanatory microcopy pointing to Settings. ✅
+- **Post-generation save surface — overwrite protection** → tap "Save to Home" on a slot already filled → previous design relocates to `savedRooms` with `reason='overwrite'`, toast confirms "[Room Type] updated. Previous design saved to your Saved Rooms." ✅
+- **Reset feature compatibility** → reset profile → all three tiers (`activeHome`, `savedHomes`, `savedRooms`) wipe per allow-list omission. ✅
+- **Migration idempotency** → boot with legacy `homeProgress.designedRooms[]` → migrates to `activeHome.designedRooms{}` once; second boot is no-op. ✅
+- **Saved-home detail view** → tap card → detail screen with re-open + delete; re-open with active progress fires confirm dialog. ✅
+
+## What did NOT ship (deferred to backend phase)
+
+- **Real persistence of `savedHomes`** — currently localStorage only. Cloud sync deferred per `DEFERRED.md`.
+- **Cross-device sync of `activeHome` / `savedHomes`** — backend phase.
+- **Sharing a saved home** (shareable link / social media format) — flagged as future Social-dimension loop.
+- **Cross-tab synchronization** — last-write-wins acceptable per spec edge case #10. Real cross-tab sync deferred.
+- **Data export including saved homes** — defer to data-export feature when it ships.
+- **PostHog wiring** for the 13 new analytics events — events fire client-side via `trackEvent`; awaits Hassan's PostHog project key paste (Batch 6 cutover task).
+
+## Compatibility / migration notes
+
+- **`migrateHomeProgressToActiveHome()` is idempotent.** Runs at every boot. First boot backfills `activeHome.designedRooms{}` from legacy `homeProgress.designedRooms[]` array using `state.rooms` lookup for metadata. Subsequent boots see `activeHome.designedRooms` already populated and no-op. Safe to remove the legacy array after a 30-day dual-write window (deferred — not removing now).
+- **`recordHomeProgressRoom()` signature unchanged.** Now dual-writes both surfaces. Existing callers (own-photo + Use Template) continue to work — no path-specific changes.
+- **Reset feature compatibility via allow-list omission.** `RESET_PRESERVED_USER_FIELDS` does NOT contain `activeHome` / `savedHomes` / `savedRooms`. New tiers auto-wipe on reset per spec. **Future state additions follow the same pattern** — by default, new fields are wiped on reset; opt-in to preservation by adding to the allow-list explicitly.
+- **Saved Rooms count = UNION of `bookmarkedRooms` + `state.user.savedRooms[]`.** Existing readers of `bookmarkedRooms` continue to work; new readers should call `getSavedRoomsList()` for the UNION.
+- **Bottom-nav badge is a derived selector.** No stored state. Recomputes via `updateSavedTabBadge()` on boot + after every mutation that touches `savedHomes` or `savedRooms`.
+- **`window.FurnishActiveHome.*` namespace** is the public surface for any future feature reading active-home state. Do not reach into `state.user.activeHome` directly from new code.
+
+## Reforge framework citations (touched in Save Home)
+
+- *User Psychology — Overwrite Protection (undo-by-default)* — Save to Home never destroys; previous slot relocates to Saved Rooms with `reason='overwrite'`.
+- *User Psychology — Dialog as Productive Friction* — incomplete-state Save Home dialog turns "you can't save" into a list of next-step actions (each row routes through the existing `hp-flyout`).
+- *User Psychology — Endowment + Commitment* — saved home is a tangible artifact the user owns; reset confirms they understand it wipes.
+- *Engagement Loops — Multi-Room Completion* — Save Home is the loop's invest+reward closure. Saved Home is the recall trigger that drives return engagement.
+- *Trust & Credibility — Identity Governance* — explicit "Save as your Bedroom in Your Home" tells the user the slot. 3-tier model is transparent in copy.
+- *Activation — Setup Moment Experience (ICED Plant-Loyalty Hook)* — saved home is a concrete artifact for repeat engagement; the act of saving plants loyalty.
+- *PM Foundations — Idempotency Baseline* — `migrateHomeProgressToActiveHome` runs at every boot without corrupting state.
+- *PM Foundations — Edge Cases First-Class* — all 10 edge cases from spec handled in code, not as defensive afterthoughts.
+
+## Time spent
+
+- Audit (`SAVE_HOME_AUDIT.md` write): ~30 min
+- State schema + helpers + migration (Step 1–2): ~25 min
+- Generation hooks + dual-write (Step 3): ~10 min
+- `renderHomeProgress` refactor (Step 4): ~15 min
+- Profile settings exclusions UI (Step 5): ~30 min
+- Post-generation save surface (Step 6): ~25 min
+- Save Home button + 3 dialogs + `commitSaveHome` (Step 7): ~35 min
+- Saved tab three-pane refactor + saved-home detail view (Step 8): ~40 min
+- Bottom-nav badge wiring (Step 9): ~10 min
+- CSS (Step 10): ~30 min
+- Verify all flows in preview (Step 11): ~25 min
+- DEFERRED.md additions + commit `2face5a` (Step 12 partial): ~15 min
+- Migration-log section (this entry) + follow-up commit (Step 12 completion): ~25 min
+- **Total: ~5h 15min execution.**
+
+## Status: ✅ COMPLETE
+
+Save Home shipped as a single coordinated feature across state, UI, navigation, and generation flow. All 8 implementation-order steps coded, wired, verified live, and documented. All 6 auto-resolved decisions logged. The three-tab Saved layout deviation is approved as additive (Items pane preserved). The feature is now grounded in:
+
+- A 3-tier room artifact model (`activeHome` / `savedHomes` / `savedRooms`)
+- An idempotent migration from the prior `homeProgress.designedRooms[]` array
+- 5 coordinated UI surfaces (exclusions UI, post-gen save surface, Save Home button, Saved tab three-pane, nav badge)
+- 13 analytics events ready for PostHog cutover
+- 4 backend-phase items in `DEFERRED.md`
+- Full compatibility with the Reset feature via allow-list omission
+- Reforge frameworks across User Psychology, Engagement Loops, Trust & Credibility, Activation, and PM Foundations
+
+See `SAVE_HOME_AUDIT.md` for the pre-implementation audit doc and commit `2face5a` for the full code change footprint.
+
+
 **Next action (Hassan's call):** Sign up posthog.com, paste the project key into `index.html` head as `<script>window.POSTHOG_PROJECT_KEY = '...';</script>`, then load the PostHog SDK. The dual-write becomes live without further code changes.
