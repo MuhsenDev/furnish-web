@@ -14,10 +14,44 @@
   --warn: #C8833A;
   --ok: #6A8F52;
   --surface: #FFFFFF;
-  --shadow: 0 6px 24px rgba(62, 39, 35, 0.08);
-  --shadow-lg: 0 14px 40px rgba(62, 39, 35, 0.14);
+
+  /* [Batch 2 / Dim 01 Rec 05] Multi-layer tinted shadows.
+     Per Reforge Brand Marketing — Brand Identity And Governance Lesson 3
+     ("form and shape" as brand asset). Warm-tinted (rgba 62,39,35) not
+     pure black — matches the brown/cream palette. Three tiers:
+       --shadow-1 = static cards (subtle)
+       --shadow-2 = hover state (notable)
+       --shadow-3 = floating modals/sheets (prominent)
+     Legacy --shadow / --shadow-lg aliased to --shadow-2 / --shadow-3
+     so existing call sites lift automatically. */
+  --shadow-1: 0 1px 2px rgba(62, 39, 35, 0.06), 0 1px 1px rgba(62, 39, 35, 0.04);
+  --shadow-2: 0 4px 12px rgba(62, 39, 35, 0.08), 0 2px 4px rgba(62, 39, 35, 0.05);
+  --shadow-3: 0 14px 40px rgba(62, 39, 35, 0.14), 0 4px 12px rgba(62, 39, 35, 0.08), 0 1px 2px rgba(62, 39, 35, 0.05);
+  --shadow: var(--shadow-2);          /* legacy alias */
+  --shadow-lg: var(--shadow-3);       /* legacy alias */
+
   --radius: 16px;
   --radius-sm: 10px;
+
+  /* [Batch 2 / Dim 01 Rec 04] Premium easing curve.
+     [Original — Reforge doesn't specify motion timing; informed by
+     Apple HIG, Material Motion, Stripe.] cubic-bezier(0.22, 1, 0.36, 1)
+     is the "ease-out-quart" curve — slow-in, fast-finish. Used for
+     hover-in (220-280ms) and slide-in animations. Active-snap stays
+     fast (80ms ease) so tactile press feedback is crisp. */
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* [Batch 2 / Dim 01 Rec 01] Typography stack.
+     Per Reforge Brand Marketing Lesson 1 (Building Blocks Of Brand
+     Identity), font choice is a brand-personality decision. Furnish
+     sells curation (AI as designer); the typography must signal
+     editorial/curated, not tool/utility. Display serif (Fraunces)
+     for hero headlines, prices, and totals — body sans (Inter) for
+     buttons, body, chips, forms. Fraunces is variable-weight,
+     open-source via Google Fonts; falls back to Cormorant Garamond /
+     Georgia if the font fails to load. */
+  --font-display: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Dark mode — deep espresso backdrop, warm tan accents */
@@ -36,8 +70,13 @@ html[data-theme="dark"] {
   --warn: #E0A15E;
   --ok: #8FB176;
   --surface: #241A14;
-  --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.55);
+  /* Dark-mode shadow re-tuning to match the espresso backdrop.
+     Same tier semantics as light: --shadow-1 ambient, -2 hover, -3 prominent. */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.20);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.42), 0 2px 6px rgba(0, 0, 0, 0.28);
+  --shadow-3: 0 14px 40px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.36), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow: var(--shadow-2);
+  --shadow-lg: var(--shadow-3);
 }
 html[data-theme="dark"] body { background: var(--cream); color: var(--ink); }
 html[data-theme="dark"] #app { background: var(--cream); }
@@ -87,7 +126,7 @@ html[data-theme="dark"] .toast { background: var(--beige-2); color: var(--ink); 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--cream);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
@@ -116,7 +155,17 @@ html[data-reviews="hidden"]  #app { padding-bottom: 24px; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-h1, h2, h3 { color: var(--deep); font-weight: 700; letter-spacing: -0.01em; }
+/* [Batch 2 / Dim 01 Rec 01] Display serif for headings.
+   Per Reforge Brand Marketing Lesson 1: typography is a brand-personality
+   asset. Furnish sells curation — typography must signal editorial.
+   Negative letter-spacing tightens the serif at large sizes. */
+h1, h2, h3 {
+  color: var(--deep);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
 h1 { font-size: 44px; margin: 8px 0; }
 h2 { font-size: 22px; margin: 4px 0 8px; }
 h3.section-h { font-size: 13px; font-weight: 600; margin: 22px 0 10px; color: var(--brown-2); letter-spacing: 0.04em; text-transform: uppercase; }
@@ -7356,4 +7405,412 @@ body.theme-dark .affiliate-disclosure-v2 {
    camera permission has silently failed. Currently a no-op that
    reserves the class name for future iteration. */
 .upload-recommended { /* hook for styling — currently inert */ }
+
+
+/* ============================================================
+   BATCH 2 — Dim 01 Visual Design + Dim 11 Performance & Feel
+   ============================================================
+   Strategy: this is an OVERRIDE BLOCK at the bottom of the file.
+   Reconstruction artifacts mean many components have 3-5 duplicate
+   definitions earlier (.item-card 5x, .price-tag 4x, .paywall-card 2x,
+   .hero .brand 3x). Rather than rewriting each duplicate (L-effort
+   audit, risk of regression), Batch 2 lands its visual changes here —
+   the cascade gives last-rule precedence, so these overrides win.
+   Full de-dup audit is queued for a future cleanup batch.
+   ============================================================ */
+
+/* [B2-04 / Dim 01 Rec 04] Button micro-interactions — premium easing.
+   [Original — Reforge doesn't specify motion timing.] 220ms hover-in,
+   80ms active-snap. Hover lifts the button 1px and deepens the shadow.
+   Active stays fast/crisp so press feedback is tactile. */
+.btn {
+  transition:
+    transform 220ms var(--ease-premium),
+    box-shadow 280ms var(--ease-premium),
+    background 240ms ease,
+    color 200ms ease,
+    border-color 200ms ease;
+}
+.btn-primary { box-shadow: var(--shadow-1); }
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
+}
+.btn:active {
+  transform: scale(0.985);
+  transition-duration: 80ms;
+}
+
+/* [B2-05 / Dim 01 Rec 05] Multi-layer shadows on key card surfaces.
+   Per Reforge Brand Marketing Lesson 3 (form & shape as brand asset).
+   Cards lift on hover via shadow tier escalation (1 → 2). */
+.item-card,
+.profile-card,
+.template-card,
+.room-card,
+.capture-card,
+.totals-card,
+.lifecycle-banner {
+  box-shadow: var(--shadow-1);
+  transition: box-shadow 280ms var(--ease-premium), transform 220ms var(--ease-premium);
+}
+.item-card:hover,
+.profile-card:hover,
+.template-card:hover,
+.room-card:hover {
+  box-shadow: var(--shadow-2);
+}
+
+/* [B2-06 / Dim 01 Rec 06] Frosted-glass on price tags (over the AI image).
+   Per Reforge Brand Marketing Lesson 1 — brand-asset consistency.
+   Price tags read as "magazine markers" not "discount stickers." Drops
+   the ::after triangle pointer (modern price tags are pure pills). */
+.price-tag {
+  background: rgba(250, 243, 231, 0.78);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(139, 111, 71, 0.4);
+  box-shadow:
+    0 4px 14px rgba(62, 39, 35, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  /* Editorial price treatment per Rec 07 */
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--deep);
+}
+.price-tag::after { display: none; }
+html[data-theme="dark"] .price-tag {
+  background: rgba(36, 26, 20, 0.78);
+  border-color: rgba(212, 165, 116, 0.4);
+  color: var(--ink);
+}
+
+/* [B2-07 / Dim 01 Rec 07] Editorial price treatment — not bold, not red.
+   Per Reforge Brand Marketing Lesson 1: distinguish from competitors.
+   RH/AllModern/Magnolia treat prices as editorial; Wayfair/Overstock
+   shout. Furnish claims the editorial category. */
+.price,
+.totals-card .total-value,
+.budget-amount {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--deep);
+}
+.price { font-size: 16px; }
+.totals-card .total-value { font-size: 24px; font-weight: 500; }
+.budget-amount { font-weight: 500; }
+
+/* [B2-03 / Dim 01 Rec 03] Welcome whitespace breath.
+   Per Reforge Mastering Product Management — Decision Architecture
+   (Decision Budget). One decision per surface. Hero owns the fold;
+   proof line spaces below. */
+.screen[data-screen="welcome"] .hero { padding: 64px 4px 24px; }
+.screen[data-screen="welcome"] .hero-demo { margin: 28px auto 40px; }
+.screen[data-screen="welcome"] .welcome-proof { margin-top: 28px; }
+
+/* [B2-10 / Dim 01 Rec 10 Option A] Logo wordmark in display serif.
+   Per Reforge Brand Marketing Lesson 1: a logo deserves a real lockup.
+   Tile = symbol; wordmark = editorial type. -0.03em letter-spacing
+   tightens the serif at hero size. */
+.brand h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  font-size: 44px;
+}
+
+/* [B2-08 / Dim 01 Rec 08] Paywall noise reduction: 6 accents → 2.
+   Per Reforge Product Marketing — One Key Takeaway: every surface must
+   distill to one primary takeaway. Keep CTA + price as the only two
+   eye-catchers. Demote: glow pulse off, badge to plain text, frosted-
+   glass bullets, single muted urgency line.
+   The 2-card layout (Free | Pro) and bullet content are locked elsewhere
+   (Conflict 3 = 5 bullets + roadmap link in footer). This block only
+   tunes the visual chrome. */
+.paywall-glow {
+  /* Pulsing radial glow → kill animation, keep static subtle wash */
+  animation: none !important;
+  opacity: 0.35 !important;
+}
+.paywall-badge {
+  background: transparent !important;
+  color: var(--brown-2) !important;
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 11px;
+  box-shadow: none !important;
+  padding: 0;
+}
+.paywall-list li {
+  background: linear-gradient(135deg, rgba(240, 226, 204, 0.7), rgba(229, 212, 184, 0.55));
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(212, 165, 116, 0.18);
+}
+.paywall-pro-card {
+  transition: box-shadow 360ms var(--ease-premium), border-color 360ms var(--ease-premium);
+}
+.paywall-pro-card:hover {
+  border-color: var(--tan);
+  box-shadow: var(--shadow-3), 0 0 0 1px rgba(212, 165, 116, 0.3) inset;
+}
+.paywall-urgency {
+  font-style: italic;
+  color: var(--brown-2);
+  font-weight: 400;
+}
+html[data-theme="dark"] .paywall-list li {
+  background: linear-gradient(135deg, rgba(58, 43, 33, 0.7), rgba(42, 31, 24, 0.55));
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .paywall-badge { color: var(--brown-2) !important; }
+
+/* [B2-13 / Dim 01 Rec 13] Modal-card surface + tint glow.
+   [Original — surface treatment is craft.] White-to-cream gradient adds
+   editorial light; warm-tan inset glow signals "premium surface." */
+.modal-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, var(--cream) 100%);
+  border: 1px solid rgba(212, 165, 116, 0.18);
+  box-shadow: var(--shadow-3), 0 0 80px rgba(212, 165, 116, 0.08) inset;
+  border-radius: 20px;
+}
+html[data-theme="dark"] .modal-card {
+  background: linear-gradient(180deg, rgba(36, 26, 20, 0.96) 0%, var(--cream) 100%);
+  border-color: rgba(216, 176, 126, 0.22);
+  box-shadow: var(--shadow-3), 0 0 80px rgba(216, 176, 126, 0.06) inset;
+}
+
+/* [B2-02 / Dim 01 Rec 02] Welcome demo placeholder slot.
+   Photo assets aren't ready (deferred). When they land, swap the
+   stylized illustrations at index.html:54,56 for the photographic pair
+   — no other change needed. The CSS just bumps radius + adds a subtle
+   inset border so the slot reads as "intentional frame" not "asset
+   missing." */
+.hero-demo .hd-frame {
+  border-radius: 18px;
+  box-shadow: var(--shadow-2), 0 0 0 1px rgba(212, 165, 116, 0.12) inset;
+  overflow: hidden;
+}
+
+/* [B2-09 / Dim 01 Rec 09] Empty-state placeholder slot.
+   Custom SVG illustrations are deferred (designer asset). For now the
+   `.empty-art` slot accepts any SVG; copy is forward-leaning per
+   VOICE.md (B.3). When real illustrations land, swap inline SVG at the
+   call sites — no class changes needed. */
+.empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--brown-2);
+}
+.empty-state .empty-art {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  opacity: 0.55;
+  color: var(--brown);
+}
+.empty-state p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* [B2-16 / Dim 11 D.3] Skeleton screens — shimmer placeholder.
+   Per Reforge Constrained Divergence: solving the same wait problem in
+   a more pleasant way. Most competing AI room apps ship raw spinners. */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(224, 207, 179, 0.5) 0%,
+    rgba(245, 233, 213, 0.7) 50%,
+    rgba(224, 207, 179, 0.5) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 12px;
+  pointer-events: none;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+html[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg,
+    rgba(58, 43, 33, 0.5) 0%,
+    rgba(74, 56, 42, 0.7) 50%,
+    rgba(58, 43, 33, 0.5) 100%);
+  background-size: 200% 100%;
+}
+/* Card-shaped skeleton for items list */
+.item-card.skeleton { height: 88px; box-shadow: none; }
+/* Price-tag-shaped skeleton dots */
+.price-tag.skeleton {
+  width: 56px;
+  height: 24px;
+  background-image: linear-gradient(90deg,
+    rgba(224, 207, 179, 0.6),
+    rgba(245, 233, 213, 0.85),
+    rgba(224, 207, 179, 0.6));
+  border: none;
+  backdrop-filter: none;
+}
+
+/* [B2-21 / Dim 11 D.8] "Designed with Furnish" timed flash overlay.
+   Per Reforge Aha Moment qualitative test: the reveal must feel like
+   a special ability. A flashed brand moment co-occurs with the peak;
+   a static label dilutes it. Total lifecycle: invisible → fade-in
+   (180ms) → hold 800ms → fade-out (700ms). Triggered by JS adding
+   .flashing class at choreography Frame 4 (T=1400ms). */
+.room-overlay {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.room-overlay.flashing {
+  animation: overlayFlash 1700ms ease-out forwards;
+}
+@keyframes overlayFlash {
+  0%   { opacity: 0; transform: translateY(8px); }
+  10%  { opacity: 1; transform: translateY(0); }
+  60%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+
+/* [B2-15 / Dim 11 D.2] Reveal choreography — frames 0-7.
+   Per Reforge Aha Moment p.5-7: enforce the qualitative description
+   ("special ability"). Frames sequenced via JS adding/removing classes;
+   timing values match the audit spec (T=200ms image fade, T=600ms
+   scale-pop, T=800ms frosted layer fades, T=1400ms overlay flash,
+   T=2000ms tags ripple, T=2700ms totals slide, T=3300ms items list).
+
+   Note: image fade/scale + frosted layer are kept light here so they
+   don't fight any future image-rendering animation when real AI ships. */
+/* The "after" image is #baAfterImg (the AI-redesigned layer in the
+   before/after slider). On reveal entry, fade-in + scale-pop. */
+#baAfterImg {
+  transition: opacity 400ms var(--ease-premium), transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#baAfterImg.entering {
+  animation: revealImageEnter 600ms var(--ease-premium) forwards;
+}
+@keyframes revealImageEnter {
+  0%   { opacity: 0; transform: scale(1.02); }
+  60%  { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* Price tag ripple-in (overrides any earlier .price-tag animation). */
+.price-tag.entering {
+  animation: priceTagRippleIn 200ms var(--ease-premium) both;
+}
+@keyframes priceTagRippleIn {
+  0%   { opacity: 0; transform: scale(0.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
+/* Totals card slides up at Frame 6. */
+.totals-card.entering {
+  animation: totalsSlideUp 400ms var(--ease-premium) both;
+}
+@keyframes totalsSlideUp {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* [B2-14 / Dim 11 D.1] Story-driven analyzing screen step states.
+   Per Reforge Aha Moment p.14: time-bound metrics. Storytelling motion
+   defers the perception that "nothing is happening." Each <li> dims at
+   rest, brightens when active, gets a check-mark when done. */
+.loader-steps li {
+  opacity: 0.4;
+  transition: opacity 320ms var(--ease-premium), transform 320ms var(--ease-premium), color 220ms ease;
+  position: relative;
+  padding-left: 24px;
+}
+.loader-steps li.active {
+  opacity: 1;
+  transform: translateX(2px);
+  color: var(--deep);
+}
+.loader-steps li.done::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%) scale(0);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ok);
+  background-image:
+    linear-gradient(135deg, transparent 35%, rgba(255,255,255,0.6) 45%, transparent 60%);
+  animation: stepCheckPop 240ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.loader-steps li.done::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 4px;
+  height: 7px;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(-65%) rotate(45deg) scale(0);
+  animation: stepCheckPop 240ms 80ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes stepCheckPop {
+  0%   { transform: translateY(-50%) scale(0); opacity: 0; }
+  100% { transform: translateY(-50%) scale(1); opacity: 1; }
+}
+/* The check-mark stem animation reuses the same keyframe but its base
+   transform is rotate(45deg) — the keyframe end overrides scale only. */
+.loader-steps li.done::after { animation-name: stepCheckStemPop; }
+@keyframes stepCheckStemPop {
+  0%   { transform: translateY(-65%) rotate(45deg) scale(0); }
+  100% { transform: translateY(-65%) rotate(45deg) scale(1); }
+}
+
+/* [B2-18 / Dim 11 D.5] Sound-effects Settings toggle.
+   Off-by-default UI rails. Audio assets are a separate batch; this just
+   ships the toggle so future SFX can gate behind state.settings.soundEnabled. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.settings-row:last-of-type { border-bottom: none; }
+.settings-label { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.settings-label > span:first-child { color: var(--ink); font-weight: 500; }
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--line);
+  border: none;
+  cursor: pointer;
+  transition: background 220ms var(--ease-premium);
+  padding: 0;
+  flex: 0 0 auto;
+}
+.toggle-switch[aria-checked="true"] { background: var(--brown); }
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 220ms var(--ease-premium);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+.toggle-switch[aria-checked="true"] .toggle-thumb { left: 21px; }
+
 

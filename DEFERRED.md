@@ -334,7 +334,66 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 
 ---
 
+---
+
+## Haptic feedback table (ship day-1 with Capacitor wrap)
+
+**Source:** Optimization Plan Dim 11 Section B + Recommendation D.7. Locked Batch 2 2026-04-26.
+
+**Why deferred:** Web `navigator.vibrate()` is silently ignored on iOS Safari; cross-platform haptics require the Capacitor wrap (item 4 above). Until then, all haptic moments below are "designed but not shipped."
+
+**Cross-platform consistency rule:** ship the native haptic via Capacitor or do not ship it at all. Do NOT ship a half-broken Android-only `navigator.vibrate()` implementation that creates unequal experiences across iOS and Android. Per Reforge Decision Architecture p.20: high-impact, irreversible UX-consistency decision — wait for Capacitor and ship the whole table at once.
+
+**Required at Capacitor cutover (item 4):**
+
+| Moment | Native haptic | Notes |
+|---|---|---|
+| Quiz answer tap | light tap (10ms) | Per-step confirmation |
+| Quiz step transition | none | Visual only |
+| Quiz finale: rain peak (~2.8s in) | medium impact | Co-occurs with peak frame |
+| Quiz finale: theme flicker | tiny ticks per flicker (3x) | Layered with sparkle audio if enabled |
+| Quiz finale: congrats reveal | success (notification.success) | End beat |
+| Photo capture | light tap on shutter | Camera UI hint |
+| Photo upload complete | light tap | Confirms receipt |
+| Analyzing → step transition | tiny tick on each step complete | Reinforces story-driven progress (D.1) |
+| **Reveal screen open** | success haptic | THE peak moment |
+| Reveal: price tags ripple-in | none | Would fight the staggered visual cadence |
+| Slider drag | none | Continuous = no haptic |
+| Slider snap to 0/50/100 | tiny tick at the snap | Confirms snap |
+| Lighting chip switch | light tap | Confirms state change |
+| Wishlist save (heart fill) | light tap | Optional ding audio if enabled |
+| Bookmark room | light tap | Confirms save |
+| Affiliate shop tap | light tap | Confirms intent before OS handoff |
+| Affiliate URL opens (new tab) | none | OS handles |
+| Paywall open | none | Don't pre-bias the decision |
+| Paywall conversion success | success haptic | Revenue moment — let the user feel it |
+| Paywall dismiss | none | |
+| Push pre-prompt slide-in | none | |
+| Push pre-prompt accept | success haptic | |
+| Push pre-prompt dismiss | none | |
+| Toast (success) | light tap | |
+| Toast (error) | light error haptic | |
+| Modal open (item sheet, etc.) | none | |
+| Modal close | none | |
+| Pull-to-refresh trigger | medium impact at trigger threshold | |
+| Reach Pro page | none | |
+| First-aha coachmark appears | light tap | Per D.6, lands at 3500ms post-reveal |
+| Different Style? pivot complete | light tap | Confirms re-pick (Batch 1 IDX-13) |
+
+**Design principle (Reforge-grounded):** Per *Constrained Divergence* p.13, only invest in delight when it materially differentiates. Every haptic above earns its place by either (a) confirming a state change the user can't easily see (slider snap, paywall conversion), or (b) marking a peak moment (reveal, finale, conversion success). Random taps on every interaction = annoyance, not delight.
+
+**Implementation approach when item 4 lands:**
+1. Wrap Capacitor's `Haptics` plugin in a `FurnishHaptics` adapter so call sites are platform-agnostic.
+2. Gate all haptic calls behind a Settings toggle `state.settings.hapticsEnabled` (default `true` on capable devices, `false` on web).
+3. Test on iOS + Android side-by-side at Capacitor wrap time — feel must match.
+4. Add analytics: `haptic_fired { moment, intensity }` so post-launch we can see which moments correlate with retention.
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during Batch 2 implementation (Dim 01 Visual Design + Dim 11 Performance & Feel).
+- Added: Haptic feedback table for day-1 Capacitor cutover (D.7).
 
 Updated: 2026-04-26 during Batch 1 implementation (Dim 09 + Dim 10 + Dim 14).
 - Added: Live room counter (Dim 10 #6 deferred per NC-4)

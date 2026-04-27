@@ -4763,18 +4763,61 @@
     });
   })();
 
-  async function runAnalyzerAnimation() {
+  // [B2-14 / Dim 11 D.1] Story-driven analyzing screen.
+  // Per Reforge Aha Moment p.14: time-bound metrics; the user is
+  // budgeting attention against latency. Storytelling motion buys
+  // perceived budget against the real budget that's about to land
+  // when AI cutover happens.
+  //
+  // Parameterized by total duration:
+  //   - Mock today: ~3.4s sum (Schnell-equivalent rehearsal)
+  //   - Schnell at cutover: ~10s
+  //   - Kontext Pro at cutover: ~30s
+  //
+  // Beat percentages match the spec in optimization/11_performance_feel.md
+  // Section A.4 — early steps activate quickly, later steps hold longer
+  // so the final beat lands as the API returns. Never finish all 4 steps
+  // before the API actually returns: empty success states feel broken.
+  // The completion uses CSS .done check-mark animation from styles.css.
+  async function runAnalyzerAnimation(totalDurationMs) {
     const steps = $$('#loaderSteps li');
-    steps.forEach(s => s.classList.remove('active','done'));
-    const durations = [700, 900, 1000, 800];
-    for (let i = 0; i < steps.length; i++) {
-      steps[i].classList.add('active');
-      await sleep(durations[i] || 700);
-      steps[i].classList.remove('active');
-      steps[i].classList.add('done');
-    }
-    await sleep(180);
+    steps.forEach(s => s.classList.remove('active', 'done'));
+    if (!steps.length) return;
+    const total = (typeof totalDurationMs === 'number' && totalDurationMs > 0)
+      ? totalDurationMs
+      : 3400;  // mock default ~3.4s
+    // Activation beats (% of total) and completion beats per step.
+    const beatsActivate = [0.05, 0.30, 0.55, 0.82];
+    const beatsDone     = [0.28, 0.53, 0.80, 0.97];
+    const startedAt = Date.now();
+    return new Promise(resolve => {
+      const cancelled = { value: false };
+      // If user navigates off the analyzing screen, stop firing transitions.
+      const obs = new MutationObserver(() => {
+        const cur = document.querySelector('.screen.active')?.dataset?.screen;
+        if (cur !== 'analyzing') { cancelled.value = true; obs.disconnect(); resolve(); }
+      });
+      const screensRoot = document.querySelector('.screens') || document.body;
+      obs.observe(screensRoot, { attributes: true, subtree: true, attributeFilter: ['class'] });
+
+      steps.forEach((step, i) => {
+        setTimeout(() => {
+          if (cancelled.value) return;
+          step.classList.add('active');
+        }, beatsActivate[i] * total);
+        setTimeout(() => {
+          if (cancelled.value) return;
+          step.classList.remove('active');
+          step.classList.add('done');
+        }, beatsDone[i] * total);
+      });
+      setTimeout(() => {
+        obs.disconnect();
+        resolve();
+      }, total + 60);
+    });
   }
+  window.FurnishAnalyzerAnimation = runAnalyzerAnimation;
 
   // ============================================================
   // AI prompt builder — single source of truth for the prompt string the
@@ -5189,10 +5232,16 @@
 
     // First-results hint tour: highlight a price tag so users discover
     // tap-to-shop. One-shot, separate from the celebration.
+    // [B2-19 / Dim 11 D.6] Coachmark timing 600ms → 3500ms. Per Reforge
+    // Aha Moment p.14: distributing competing CTAs across the user's
+    // attention budget = low conversion on each. Sequencing them lets
+    // the coachmark land AFTER the reveal choreography settles (Frame 7
+    // ends at 3300ms in the Section C spec). Pulse-against-settled-user
+    // converts higher than pulse-against-loading-user.
     if (isFirstResultsForProfile && !state._tourShown) {
       state._tourShown = true;
       save();
-      setTimeout(() => showFirstAhaHint(), 600);
+      setTimeout(() => showFirstAhaHint(), 3500);
     }
 
     // [First-redesign tutorial] Queue the auto-route to preferences with
@@ -5244,6 +5293,58 @@
       rb?.querySelector('.rb-label') && (rb.querySelector('.rb-label').textContent = 'Rearrange Furniture');
     }
     showScreen('results');
+
+    // [B2-15 / Dim 11 D.2] Reveal choreography orchestrator.
+    // [B2-21 / Dim 11 D.8] Overlay timed flash co-occurs with Frame 4.
+    // Per Reforge Aha Moment p.5-7: enforce the qualitative description
+    // ("feels like you've gained a special ability"). Frame timings
+    // match Section C spec. CSS keyframes do the actual motion; this
+    // function only adds/removes class flags at the right moments.
+    runRevealChoreography();
+  }
+
+  // [B2-15 / Dim 11 D.2 + B2-21 / Dim 11 D.8]
+  // Reveal choreography orchestrator. Keeps the timing in one place;
+  // bails out cleanly if the user navigates away mid-sequence.
+  function runRevealChoreography() {
+    const overlay = document.getElementById('roomOverlay');
+    const afterImg = document.getElementById('baAfterImg');
+    const totalsCard = document.getElementById('totalsCard');
+    const priceTagsContainer = document.getElementById('priceTags');
+    if (overlay) overlay.classList.remove('flashing');
+    if (afterImg) afterImg.classList.remove('entering');
+    if (totalsCard) totalsCard.classList.remove('entering');
+
+    // Frame 1 — image fade-in / scale-pop on the after-image only.
+    if (afterImg) {
+      requestAnimationFrame(() => afterImg.classList.add('entering'));
+      // Clear the class once the animation completes (~600ms), so future
+      // re-renders aren't sticky.
+      setTimeout(() => afterImg.classList.remove('entering'), 700);
+    }
+    // Frame 4 — overlay flash at 1400ms
+    setTimeout(() => {
+      if (document.querySelector('.screen.active')?.dataset.screen !== 'results') return;
+      overlay?.classList.add('flashing');
+    }, 1400);
+    // Frame 5 — price tags ripple-in at 2000ms (80ms stagger).
+    // The tags are rendered by renderPriceTags and may not exist yet
+    // for very fast paths; we re-query at firing time.
+    setTimeout(() => {
+      if (document.querySelector('.screen.active')?.dataset.screen !== 'results') return;
+      const tags = priceTagsContainer?.querySelectorAll('.price-tag') || [];
+      tags.forEach((tag, idx) => {
+        tag.style.animationDelay = `${idx * 80}ms`;
+        tag.classList.add('entering');
+        setTimeout(() => tag.classList.remove('entering'), 200 + idx * 80 + 50);
+      });
+    }, 2000);
+    // Frame 6 — totals card slide-up at 2700ms
+    setTimeout(() => {
+      if (document.querySelector('.screen.active')?.dataset.screen !== 'results') return;
+      totalsCard?.classList.add('entering');
+      setTimeout(() => totalsCard?.classList.remove('entering'), 460);
+    }, 2700);
   }
 
   function showFirstAhaHint() {
@@ -7057,6 +7158,86 @@
     };
   }
 
+  // ============================================================
+  // Batch 2 additions — Dim 01 Visual + Dim 11 Performance & Feel
+  // ============================================================
+
+  // [B2-17 / Dim 11 D.4] Last-rendered redesign image cache.
+  // [Original — Reforge doesn't specify caching strategy; engineering
+  // rationale.] Avoids re-parsing base64 photos on home → room
+  // transitions. localStorage parse of a 12MB base64 photo is a
+  // noticeable hit on slower phones. The cache holds a decoded
+  // HTMLImageElement keyed by roomId. Invalidated on any room save.
+  let _lastRoomImageCache = null;  // { roomId, img }
+
+  function getRoomImage(room) {
+    if (!room?.photo) return Promise.resolve(null);
+    if (_lastRoomImageCache && _lastRoomImageCache.roomId === room.id) {
+      return Promise.resolve(_lastRoomImageCache.img);
+    }
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        _lastRoomImageCache = { roomId: room.id, img };
+        resolve(img);
+      };
+      img.onerror = () => resolve(null);
+      img.src = room.photo;
+    });
+  }
+
+  function invalidateRoomImageCache(roomId) {
+    if (!_lastRoomImageCache) return;
+    if (!roomId || _lastRoomImageCache.roomId === roomId) {
+      _lastRoomImageCache = null;
+    }
+  }
+  window.FurnishGetRoomImage = getRoomImage;
+  window.FurnishInvalidateRoomImage = invalidateRoomImageCache;
+
+  // [B2-18 / Dim 11 D.5] Sound-effects toggle (off by default).
+  // Per Reforge Constrained Divergence: delight differentiation pursued
+  // ONLY when materially differentiating. Audio bombing without consent
+  // is intrusion. Ship the rails — actual SFX assets are a future batch.
+  function playSfx(name) {
+    if (!state.settings?.soundEnabled) return;
+    // Future: load + play actual SFX. Stub for v1.
+    // Asset budget per spec: 4 SFX max — whoosh, sparkle, chime, ding.
+  }
+  window.FurnishPlaySfx = playSfx;
+
+  // Wire the Settings toggle if it exists in the DOM. Idempotent.
+  function wireSoundToggle() {
+    const btn = document.getElementById('soundToggle');
+    if (!btn) return;
+    const checked = !!state.settings?.soundEnabled;
+    btn.setAttribute('aria-checked', checked ? 'true' : 'false');
+    btn.addEventListener('click', () => {
+      state.settings = state.settings || {};
+      state.settings.soundEnabled = !state.settings.soundEnabled;
+      save();
+      btn.setAttribute('aria-checked', state.settings.soundEnabled ? 'true' : 'false');
+      trackEvent('sound_toggle_changed', { enabled: !!state.settings.soundEnabled });
+    });
+  }
+
+  // [B2-16 / Dim 11 D.3] Skeleton render helper.
+  // Per Reforge Constrained Divergence p.6: same wait, more pleasant.
+  // Returns a promise that resolves on next animation frame so callers
+  // can chain real-render after the skeleton paints.
+  function showSkeletons(targetEl, count, opts = {}) {
+    if (!targetEl) return Promise.resolve();
+    const tag = opts.tag || 'div';
+    const cls = opts.cls || 'item-card skeleton';
+    const height = opts.height || 88;
+    const html = Array.from({ length: count }, () =>
+      `<${tag} class="${cls}" style="height:${height}px"></${tag}>`
+    ).join('');
+    targetEl.innerHTML = html;
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+  window.FurnishShowSkeletons = showSkeletons;
+
   // ---------- Boot ----------
   function boot() {
     // [Model A — STEP 5 §16 row 1] Tag pre-Model-A Pro users (D6=a) so analytics
@@ -7078,6 +7259,9 @@
     if (state.user?.id || state.user?.email) {
       maybeOfferStateRestore();      // Dim 14 — offer previous-session restore
     }
+
+    // [Batch 2 additions]
+    wireSoundToggle();              // Dim 11 D.5 — sound-effects toggle
 
     showScreen('welcome');
     startReviewsBar();

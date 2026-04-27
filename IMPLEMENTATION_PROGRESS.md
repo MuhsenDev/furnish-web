@@ -314,3 +314,87 @@ Pick from Master Priority Stack tier B/C and the remaining 4 PENDING conflicts (
 - **Onboarding-architecture batch:** covers Conflict 7 (tutorial deferral to session 2) + Conflict 8 (Q3 material → room type swap) + APP-14 LIFECYCLE_CAMPAIGNS tokenization. Higher structural impact but more code-touch.
 
 Both are clear shipping paths. Hassan's call.
+
+---
+---
+
+# Batch 2 — Dim 01 Visual Design + Dim 11 Performance & Feel — COMPLETE
+
+**Date:** 2026-04-26
+**Source audit:** `BATCH_2_AUDIT.md` (streamlined-gate pass — 0 conflicts, 0 NCs, 0 ambiguities, proceeded immediately to implementation)
+**Conflicts touched:** none new. Conflict 3 already resolved in Batch 1; Rec 08 (paywall noise reduction) ships against the resolved 5-bullet layout.
+**Items shipped:** 20 of 21 (Rec 12 Brex Word Game already done in Batch 1 as VOICE.md).
+
+## Decisions made (auto-resolve / auto-defer rules applied)
+
+- **Rec 02 photographic welcome demo:** photo assets deferred (Hassan supplies). Shipped a config-driven slot — when photos land, swap `assets/quiz/q1/*.jpg` references in `index.html:54,56` and the slot renders them with the new `--shadow-2` + inset border treatment.
+- **Rec 09 empty-state SVG illustrations:** designer asset deferred. Shipped placeholder slot with `.empty-art` class + forward-leaning copy already in place from Batch 1 (VOICE.md B.3 patterns).
+- **Rec 10 logo lockup:** Option A shipped (wordmark in `--font-display` at hero scale). Option B (custom wordmark SVG) deferred — needs designer.
+- **Rec 11 styles.css de-dup:** full audit deferred (L effort). Shipped **targeted approach** — Batch 2 visual changes added as an OVERRIDE BLOCK at the bottom of styles.css (cascade gives it last-rule priority, overrides all earlier duplicate definitions). Full de-dup audit queued for a future cleanup batch.
+- **D.1 story-driven analyzing screen:** within budget, shipped.
+- **D.5 sound-effects:** toggle UI shipped (off by default), `playSfx` is a stub. Audio assets are a separate decision.
+- **D.7 haptic table:** shipped as DEFERRED.md addendum to item 4 (Capacitor wrap). Day-1 native shipping spec is now canonical.
+
+## Files changed
+
+| File | Lines changed | Summary |
+|------|---------------|---------|
+| `styles.css` | +50 (top tokens) + ~410 (Batch 2 override block at bottom) | Top: `--font-display`, `--font-body`, multi-layer shadows (`--shadow-1/2/3` with legacy aliases), `--ease-premium`, dark-mode shadow re-tuning. Bottom: full Batch 2 override block — button micro-interactions, multi-layer shadows on cards, frosted-glass price tags, editorial price treatment, welcome whitespace, logo wordmark in display serif, paywall noise reduction (glow off, badge plain, frosted bullets), modal-card surface+glow, hero-demo placeholder treatment, empty-state placeholder slot, skeleton + shimmer keyframe, overlay timed flash, reveal choreography keyframes (image fade-pop, price-tag ripple, totals slide), analyzing-step active/done states with check-mark pop animation, sound-toggle UI styles. Dark-mode coverage on every new component. |
+| `index.html` | +9 / ~3 changed | Google Fonts `<link>` for Fraunces + Inter (preconnect-warmed); sound-effects toggle in profile-page settings list. |
+| `app.js` | ~150 lines | `runAnalyzerAnimation` rewritten to take `totalDurationMs` arg with story-driven beat percentages (parameterized for mock / Schnell / Kontext Pro durations); `runRevealChoreography()` orchestrator at end of `openRoom`; coachmark `setTimeout` 600ms → 3500ms; new helpers `getRoomImage` / `invalidateRoomImageCache` (last-redesign image cache), `playSfx` stub, `wireSoundToggle`, `showSkeletons` helper. All exposed on `window.Furnish*` for future call sites. |
+| `DEFERRED.md` | +60 | Haptic feedback table appended as addendum to item 4 (Capacitor wrap). |
+
+## Reforge framework citations (touched in Batch 2)
+
+- *Brand Marketing — Building Blocks of Brand Identity* (Lesson 1) — typography, color, form/shape as brand assets
+- *Brand Marketing — Defining Your Brand Personality* (Lesson 2) — voice/personality (was Batch 1)
+- *Brand Marketing — Creating Brand Assets, Part I* (Lesson 3) — Design Sprint, asset development
+- *Mastering Product Management — Decision Architecture* (Decision Budget & Circles) — welcome whitespace argument
+- *Product Marketing — Finding Your One Key Takeaway* — paywall noise reduction (one primary takeaway per surface)
+- *Retention + Engagement — Defining Your Aha Moment* (p.5-7, p.14) — reveal choreography qualitative test ("special ability") + time-budget curve
+- *Product Management Foundations — Constrained Divergence* (p.6, p.13) — skeleton screens + audio-as-delight justification
+- *Apple HIG / Material Motion / Stripe* — [Original] for motion timing (220ms hover-in, 80ms active-snap)
+
+## Verification plan
+
+- **Build sanity:** open the app, confirm no console errors. Fraunces font should load (h1 should be serif, not Inter).
+- **Light mode:** welcome should breathe more (64px hero padding); h1 + price values render in serif; price tags read as frosted pills (no triangle pointer); item cards have layered shadow that lifts on hover; paywall glow doesn't pulse anymore.
+- **Dark mode:** every component above renders correctly with dark-mode shadow + frosted-glass tones.
+- **Mobile narrow viewport (320px):** welcome whitespace doesn't overflow; reveal-actions-row stacks (already from Batch 1).
+- **Reveal choreography:** finish a redesign — image fades in with scale-pop; "Designed with Furnish" overlay flashes at ~1.4s; price tags ripple in at ~2s with 80ms stagger; totals card slides up at ~2.7s; first-aha coachmark fires at ~3.5s (was 0.6s).
+- **Analyzing storyline:** `runAnalyzerAnimation()` defaults to ~3.4s mock duration; check that all 4 steps activate sequentially with check-mark pop; window.FurnishAnalyzerAnimation accepts a custom duration.
+- **Sound toggle:** open Profile screen → see "Sound Effects" row → toggle switches state but plays no audio (stub by design).
+- **Empty states:** wishlist empty + rooms empty render with new `.empty-state` styling (centered, muted color, larger padding).
+- **Edge cases:** off-vote → reshuffle still uses Batch 1 soft-avoid + new "Different items, same style" copy.
+
+## Compatibility / migration notes
+
+- **`--shadow` and `--shadow-lg` are now aliases** to `--shadow-2` and `--shadow-3`. Existing call sites continue to work; new code should reference the tier explicitly (`var(--shadow-1)` etc).
+- **Override-block strategy:** any future visual change to a Batch 2-affected selector should also live in the override block (or replace it directly). The override block is clearly marked at the top of its section with `BATCH 2 — Dim 01 + Dim 11`.
+- **`runAnalyzerAnimation` signature change:** now takes optional `totalDurationMs` parameter. Existing callers (`app.js:3980`, `app.js:4162`) pass nothing → fall back to ~3.4s mock default. When real AI ships, callers wrap as `runAnalyzerAnimation(estimatedDurationMs)` — typically the model's median latency from analytics.
+- **Coachmark timing 600 → 3500ms:** documented in `app.js` comment at the call site. If reveal choreography is later disabled, coachmark timing should drop back to 600ms for consistency.
+- **`#baAfterImg.entering` class:** added by `runRevealChoreography` and removed after 700ms. Does not persist across re-renders.
+
+## What did NOT ship in Batch 2
+
+- **Rec 02 photographic welcome demo assets** — Hassan's task. Slot is config-ready.
+- **Rec 09 empty-state SVG illustrations** — designer task. Slot is config-ready.
+- **Rec 10 Option B custom wordmark logo** — designer task.
+- **Rec 11 full styles.css de-dup audit** — L effort, future cleanup batch. Targeted overrides via cascade ship in this batch.
+- **D.5 audio assets** — separate decision.
+- **D.7 native haptic implementation** — Capacitor cutover (DEFERRED.md item 4).
+
+## Time spent
+
+- Audit + streamlined-gate: ~10 min
+- Phase A design tokens + font loading: ~10 min
+- Phase B+D component override block: ~25 min
+- Phase C JS (runAnalyzerAnimation + runRevealChoreography + cache + sound toggle + skeleton helpers): ~30 min
+- Phase E haptic table → DEFERRED.md: ~10 min
+- Phase F sweep + class-mismatch fix: ~5 min
+- Phase G this log + commit: ~10 min
+- **Total: ~1h 40min execution.**
+
+## Status: ✅ COMPLETE
+
+Next batch — same recommendations as Batch 1's "next batch" note: D7-reveal-gate batch (Conflict 5) or Onboarding-architecture batch (Conflicts 7 + 8). Both cleanly defined.
