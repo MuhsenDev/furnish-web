@@ -4439,6 +4439,15 @@ html[data-theme="dark"] .qf-heart-glow {
   padding: 4px 9px; border-radius: 999px;
   backdrop-filter: blur(4px);
 }
+/* [DM-FIX] .hd-badge bg is a hardcoded light cream that doesn't invert.
+   In dark, color: var(--ink) flips to bright cream — cream-on-cream
+   reads as invisible. Use a dark-tinted bg + bright text + subtle
+   border for crisp legibility on any photo backdrop. */
+html[data-theme="dark"] .hero-demo .hd-badge {
+  color: var(--ink);
+  background: rgba(28, 20, 16, 0.72);
+  border: 1px solid rgba(216, 176, 126, 0.32);
+}
 .hero-demo .hd-before-label,
 .hero-demo .hd-after-label {
   position: absolute; top: 10px;
