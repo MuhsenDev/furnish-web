@@ -7866,50 +7866,51 @@ html[data-theme="dark"] .skeleton {
    The .hd-sweep div animates its width from 0 → 100% during the sweep
    phase, revealing the .hd-after-wrap underneath. Reduced-motion
    fallback: simple cross-fade. */
-@keyframes hdSweepLoop {
-  0%, 15%   { width: 0%; opacity: 1; }       /* BEFORE hold */
-  50%       { width: 100%; opacity: 1; }     /* sweep complete */
-  85%       { width: 100%; opacity: 1; }     /* AFTER hold */
-  86%       { width: 100%; opacity: 0; }     /* fade out */
-  100%      { width: 0%; opacity: 0; }       /* reset */
+/* [Polish — match the real before/after slider behavior]
+   The earlier "curtain" approach (animating .hd-sweep width 0%→100% with
+   a cream/white background gradient) read as a tinted wash across the
+   image — visually heavy and off-brand for the welcome page. The actual
+   results-screen slider (#baSlider) uses a thin vertical handle line +
+   clip-path on the AFTER layer that gets revealed as the line moves.
+   Mirror that: the AFTER image's clip-path animates from inset(0 100%)
+   → inset(0 0%) (revealing left to right), and a 2px translucent-white
+   handle line moves at the clip edge. Zero tinted overlay across the
+   image. */
+@keyframes hdAfterClipReveal {
+  0%, 15%   { clip-path: inset(0 100% 0 0); -webkit-clip-path: inset(0 100% 0 0); }   /* BEFORE hold */
+  50%, 85%  { clip-path: inset(0 0%   0 0); -webkit-clip-path: inset(0 0%   0 0); }   /* AFTER fully revealed */
+  92%, 100% { clip-path: inset(0 100% 0 0); -webkit-clip-path: inset(0 100% 0 0); }   /* reset */
 }
-@keyframes hdAfterReveal {
-  0%, 15%   { opacity: 0; }
-  50%, 85%  { opacity: 1; }
-  86%, 100% { opacity: 0; }
+@keyframes hdSweepLineMove {
+  0%, 15%   { left: 0%;                      opacity: 0; }
+  20%       {                                opacity: 1; }
+  50%, 85%  { left: calc(100% - 2px);        opacity: 1; }
+  90%       {                                opacity: 0; }
+  100%      { left: 0%;                      opacity: 0; }
 }
 @keyframes hdPriceTagFadeIn {
-  0%, 50%  { opacity: 0; transform: scale(0.85); }
-  60%      { opacity: 1; transform: scale(1); }
-  85%      { opacity: 1; transform: scale(1); }
-  86%, 100% { opacity: 0; transform: scale(1); }
+  0%, 50%   { opacity: 0; transform: scale(0.85); }
+  60%       { opacity: 1; transform: scale(1); }
+  85%       { opacity: 1; transform: scale(1); }
+  90%, 100% { opacity: 0; transform: scale(1); }
 }
-/* [Polish — fix "slides into a white blob" bug]
-   The base `.hero-demo .hd-after-wrap` rule sets `clip-path: inset(0 100%
-   0 0)` (clipped to nothing) + an old `hdSweep` clip-based animation, so
-   without an explicit override the AFTER image stays clipped to 0% even
-   when its opacity reaches 1 — never reveals the bedroom. Reset clip-path
-   to none under .auto-play so the new opacity-based hdAfterReveal animation
-   actually shows the AFTER image. The base `.hero-demo .hd-sweep` is also
-   styled as a 3px white-gradient sweeping line; under .auto-play the new
-   hdSweepLoop animates its width 0% → 100%, combined with the white-
-   gradient background that produces a giant white curtain across the
-   frame ("the white blob"). Override the sweep's background to a soft
-   semi-translucent cream wash so the sweep reads as a tasteful reveal,
-   not a white wipe. */
 .hd-frame.auto-play .hd-sweep {
-  animation: hdSweepLoop 4s ease-in-out infinite;
-  background: linear-gradient(90deg, rgba(250,243,231,0) 0%, rgba(250,243,231,0.55) 60%, rgba(250,243,231,0.85) 100%);
-  box-shadow: none;
-  /* Cap left so the curtain expands rightward from the left edge */
-  left: 0;
+  animation: hdSweepLineMove 4s ease-in-out infinite;
+  /* Thin vertical handle line — same look as the real .ba-handle-line
+     on the results-screen slider. Translucent-white + soft glow, NOT a
+     cream wash across the image. */
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.92) 20%, rgba(255,255,255,0.92) 80%, transparent);
+  box-shadow: 0 0 8px rgba(255,255,255,0.55);
 }
 .hd-frame.auto-play .hd-after-wrap {
-  animation: hdAfterReveal 4s ease-in-out infinite;
-  /* Override the base clip-path (inset(0 100% 0 0)) so the AFTER image
-     can actually become visible when opacity > 0. */
-  clip-path: none;
-  -webkit-clip-path: none;
+  animation: hdAfterClipReveal 4s ease-in-out infinite;
+  /* clip-path drives the reveal under .auto-play; keep opacity at 1.
+     Initial state matches the 0% keyframe so there's no flicker before
+     the first tick. */
+  opacity: 1;
+  clip-path: inset(0 100% 0 0);
+  -webkit-clip-path: inset(0 100% 0 0);
 }
 .hd-frame.auto-play .hd-price-tag {
   animation: hdPriceTagFadeIn 4s ease-in-out infinite;
@@ -7918,6 +7919,7 @@ html[data-theme="dark"] .skeleton {
 .hd-frame.auto-play .hd-price-tag:nth-child(3) { animation-delay: 0.2s; }
 .hd-frame.auto-play .hd-price-tag:nth-child(4) { animation-delay: 0.3s; }
 .hd-frame.auto-play .hd-price-tag:nth-child(5) { animation-delay: 0.4s; }
+.hd-frame.auto-play .hd-price-tag:nth-child(6) { animation-delay: 0.5s; }
 @media (prefers-reduced-motion: reduce) {
   .hd-frame.auto-play .hd-sweep,
   .hd-frame.auto-play .hd-after-wrap,
