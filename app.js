@@ -2740,7 +2740,13 @@
   }
 
   function defaultPlaceholderSvg() {
-    return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+    // Question-mark fallback. Mirrors the scope-surprise icon shape used
+    // on Q4 ("Surprise me") so every undefined-SVG / undefined-image
+    // quiz option reads as "we'll use a default" rather than "broken
+    // image." Per Hassan's call to make all placeholder cards match the
+    // Q4 question mark. Reforge Visual Design (Dim 01): consistent
+    // visual signal for "default / I don't know / let the AI decide."
+    return `<svg viewBox="0 0 100 100" width="22" height="22" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M32 36 Q32 14 50 14 Q68 14 68 32 Q68 44 52 50 Q50 52 50 62"/><circle cx="50" cy="80" r="4" fill="currentColor"/></svg>`;
   }
 
   function handleSingleSelectTap(q, opt, btn) {
