@@ -496,3 +496,89 @@ Three batches down, three to go. Remaining major dimensions:
 - **Dim 07 Personalization** + **Dim 08 Social** + **Dim 13 Instrumentation** — could group together as a "data + commerce backbone" batch
 
 Pick when ready.
+
+---
+---
+
+# Batch 4 — Dim 05 Retention + Dim 07 Personalization + Dim 08 Social — COMPLETE
+
+**Date:** 2026-04-26
+**Source audit:** `BATCH_4_AUDIT.md` — streamlined-gate cleared per "approve all changes" policy. Customer Retention Canvas captured as a standalone artifact in §A of the audit.
+**Conflicts touched:** 1 (Quarterly Core — honored Batch-1 lock, internal frame only) and 2 (referral currency — fixed leftover at `app.js:6425`). No conflicts opened or pending.
+
+## Architecture: data model first
+
+Per Hassan's batch-4 spec, this batch lays the data-model + trigger infrastructure that Dim 05 retention loops, Dim 07 personalization mechanics, and Dim 08 social viral loops all consume.
+
+**New profile-level fields:**
+- `profile.styleScores{}` — normalized style-affinity vector derived from `profile.answers` (10-Q model) + saves + Aha verdicts. Per-style weight in [0..1].
+- `profile.styleConfidence` — `'high' | 'medium' | 'low' | 'unknown'` from answer completion rate.
+- `profile.ahaHistory[]` — last 30 verdicts {verdict, styles, colors, ts, roomId} with 60-day half-life decay.
+
+**New user-level fields:**
+- `state.user._sessionsByHour[24]` + `_sessionsByDow[7]` — push-timing aggregates.
+- `state.user._followingUserIds[]` — social graph stub.
+- `state.user._lastShareFunnelStep` — K-factor instrumentation.
+
+**New helpers exposed on `window.Furnish*`:** `RecomputeStyleScores`, `RecordAhaVerdict`, `PersonalizationState`, `ComputePeakRoom`, `OldestWishlistAge`, `LifecycleStyleCopy`, `TrackShareFunnel`, `FollowUser`, `PushDeliveryTier`, `PriceFitWeight`, `ProfileSophistication`, `ShareFormats`, `DefaultShareFormat`, `ShareCaption`, `BestPushHour`.
+
+## What landed in the picker (Dim 07 D1 + D3 + D4 + D6)
+
+`pickItemsForRoom` rewrite:
+- **Weighted style score** (D1): `profile.styleScores` vector replaces binary hit-rate (fallback preserved).
+- **Soft budget weighting** (D3): `priceFitWeight()` 1.0 / 0.7 / 0.3 / 0.05 across price/budget tiers.
+- **Sophistication factor** (D4): novice gets +0.05 on safer styles; high-fluency gets +0.05 on riskier styles.
+- **Casual-state recovery** (D6): when `personalizationEngagementState === 'casual'`, avoid penalties multiply by 0.5.
+
+## Lifecycle work (Dim 05)
+
+- **Loop 4 — `wishlist_age_d90_recall`** new entry in `LIFECYCLE_CAMPAIGNS`. Predicate: `oldestWishlistAgeDays >= 90 && wishlistCount > 0 && daysSincePrev < 60`. Email channel; backend send defers.
+- **Resurrection peak-moment surface** (Rec 7): `renderLifecycleBanner` CHURNED branch surfaces user's most-engaged room by name (computed via save events + bookmarks + reshuffle count + Love verdicts).
+- **Variant lifecycle banner copy by saved style** (Dim 07 D5): `LIFECYCLE_STYLE_COPY[stateKey][topStyle]` lookup.
+- **Free-user push thin-cadence** (Rec 2 Option B): `pushTier: 'free_thin' | 'pro_full'` flag in lifecycle scheduler ctx; backend filters at send time.
+
+## Social/share work (Dim 08)
+
+- **Reveal-moment Share CTA** (Top 3 #1): `#revealShareBtn` between Shop and Different Style.
+- **Lifecycle-aware default format**: NEW=square, ACTIVE=pin, Pro 5+=feed.
+- **Share format chips**: 5 chips (Pinterest / IG Story / IG Feed / Group chat / Reddit) above the canvas with `share_funnel_format_selected` event.
+- **K-factor instrumentation**: client-side `share_funnel_*` events (modal_opened, format_selected, format_chips_shown).
+- **Lifecycle-aware caption**: NEW state → "What do you think?" pull-WOM framing.
+- **Personal-viral follow scaffold**: `state.user._followingUserIds[]` records intent; backend defers.
+
+## Conflict 2 propagation fix
+
+Found leftover at `app.js:6425` — share invite-link toast still said "1 month of Furnish Pro free." Fixed to "5 HD redesigns + 2 style packs (90 days)." Grep sweep confirms no other in-code leftovers.
+
+## Files changed
+
+| File | Lines | Summary |
+|------|-------|---------|
+| `app.js` | +320 (Batch 4 block) + ~70 surgical | All new helpers; wired into Aha feedback, pickItemsForRoom, renderLifecycleBanner, runLifecycleScheduler, share modal, boot. LIFECYCLE_CAMPAIGNS 9th entry. revealShareBtn handler. Conflict 2 toast fix. |
+| `index.html` | +12 | Reveal-moment "Share This Room" button. |
+| `styles.css` | +75 | `.reveal-share-btn`, `.share-format-chips`, `.share-format-chip` family. |
+| `DEFERRED.md` | +9 | Public room pages, embed widget, social graph backend, push thin-cadence, wishlist-age email, cross-device sync, K-factor server attribution. |
+| `BATCH_4_AUDIT.md` | NEW | Customer Retention Canvas as standalone strategic artifact. |
+
+## Reforge citations (Batch 4)
+
+- *R+E Customer Canvas* — strategic foundation
+- *R+E 02 Natural Behavior Use Cases* — Use Case Frequency Spectrum, layered use cases
+- *R+E 06 Engagement Strategies / Frequency Strategy* — loop archetypes
+- *R+E 09 BONUS ICED Theory* — Expanding Touchpoints, Plant Loyalty Hook
+- *R+E 04 Defining Engagement States* — Casual/Core/Power process
+- *R+E 06 Engagement Engine* — Signal/Strategy/Path
+- *AGS 02.04 Viral Loops* — K-factor decomposition, currency-alignment
+- *AGS 02.05 Content + UGC Loops* — branching factor × influence-per-exposure
+- *DPM 03 Instrumentation* — Event Dictionary, Action/Contextual/Backstory
+- *UI4PD 05 Synthesis* — visible vs invisible personalization
+
+## Status: ✅ COMPLETE
+
+Four batches down. Conflict 6 (gen-50 power-user signal) remains the only pending conflict — that's monetization-batch territory.
+
+Remaining major dimensions:
+- **Dim 06 Monetization** — Conflict 6 territory; pricing psych; Pro entitlement bundling; upsell pacing
+- **Dim 13 Instrumentation** — north-star measurement; cohort definitions; PostHog-or-equivalent decision
+
+These are the natural Batch 5 + 6 candidates. Hassan's call.

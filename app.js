@@ -3093,6 +3093,18 @@
       when: (ctx) => ctx.lifecycle === LIFECYCLE.CHURNED && ctx.daysSincePrev >= 180,
       copy: { title: 'Your bedroom is from 6 months ago', body: "See today's take on it." },
     },
+    // [Batch 4 — Dim 05 Rec 3 / Loop 4] Wishlist-age recall.
+    // Per ICED Theory Expanding Touchpoints (R+E / 09 BONUS / 06): a
+    // saved-but-unfired wishlist item ages into a recall trigger. Catches
+    // users that Loops 1-3 miss (saved items but no price drops fired and
+    // no organic return). Per Reforge Frequency Strategy: time-based
+    // manufactured trigger.
+    {
+      key: 'wishlist_age_d90_recall',
+      channel: 'email',
+      when: (ctx) => ctx.oldestWishlistAgeDays >= 90 && ctx.wishlistCount > 0 && ctx.daysSincePrev < 60,
+      copy: { title: 'Still on your list?', body: 'Pieces you saved 3 months ago — some prices may have shifted.' },
+    },
   ];
 
   function runLifecycleScheduler() {
@@ -3107,6 +3119,11 @@
       daysSinceFirstRoom: firstRoomCreatedAt ? daysSince(firstRoomCreatedAt) : 0,
       totalRooms: rooms.length,
       wishlistCount: (state.wishlist || []).length,
+      // [Batch 4 — Dim 05 Rec 3] Predicate input for wishlist_age_d90_recall.
+      oldestWishlistAgeDays: oldestWishlistAgeDays(),
+      // [Batch 4 — Dim 05 Rec 2 Option B] Push delivery tier flag for
+      // backend filter — Free gets thinner cadence than Pro.
+      pushTier: pushDeliveryTierForUser(),
     };
     LIFECYCLE_CAMPAIGNS.forEach(campaign => {
       if (state._lifecycleSent[campaign.key]) return;
@@ -3176,14 +3193,31 @@
         else document.querySelector('[data-go="templates"]')?.click();
       };
     } else if (lifecycle === LIFECYCLE.CHURNED) {
-      // [Compute-quality routing] Churned branch simplified — no quota gate
-      // exists, so the "they'd hit a paywall" reasoning is gone. Always
-      // promise a new redesign (free + unlimited).
       badge = 'PICK UP WHERE YOU LEFT OFF';
       title = 'Your style is still saved';
       body = `Your style profile is intact. New pieces have been added in ${styleNames || 'your aesthetic'} since your last design.`;
       ctaLabel = 'Design A New Room';
       ctaAction = () => { document.querySelector('[data-go="capture"]')?.click(); };
+      // [Batch 4 — Dim 05 Rec 7] Resurrection peak-moment surfacing.
+      // For churned users, surface the user's most-engaged room by name.
+      // Per ICED Theory Plant Loyalty Hook: peak moments reinforce recall
+      // far better than generic style references.
+      const peakId = computePeakRoomId();
+      const peak = peakId ? state.rooms?.find(r => r.id === peakId) : null;
+      if (peak) {
+        const peakRoomLabel = (peak.type || 'room').toLowerCase();
+        title = `Your ${peakRoomLabel} is still saved`;
+        body = `Your ${peakRoomLabel} from earlier is still here. New pieces in ${styleNames || 'your aesthetic'} since you designed it.`;
+        ctaAction = () => { state._resumePeakRoomId = peak.id; save(); document.querySelector('[data-go="rooms"]')?.click(); };
+      }
+    }
+
+    // [Batch 4 — Dim 07 D5] Override with style-variant copy if available.
+    // Per Engagement Engine Step Three: Message is per-user, not per-bucket.
+    const styleCopy = lifecycleBannerCopyForState(profile, lifecycle?.toUpperCase?.() || lifecycle);
+    if (styleCopy) {
+      title = styleCopy.title;
+      body  = styleCopy.body;
     }
 
     const banner = document.createElement('div');
@@ -5146,22 +5180,56 @@
         .map(([style]) => style)
     );
 
+    // [Batch 4 — Dim 07 D1 + D3 + D4] Personalization-aware scoring.
+    // Per Reforge Engagement Engine "Better Signals + Better Ranking":
+    // - Use profile.styleScores (vector) instead of binary styleSet hit
+    // - Soft budget weighting (D3): stretch items still surface
+    // - Sophistication factor (D4): high-fluency users see riskier rooms
+    // - Personalization engagement state (D6): casual users get broader pool
+    const ownerProfile = state.profiles?.find(p => Array.isArray(p.styles) && p.styles.length > 0
+      && p.styles.every(s => styleSet.has(s))) || (state.profiles?.[0]);
+    const styleScoresMap = ownerProfile?.styleScores || null;
+    const sophistication = profileSophistication(ownerProfile);
+    const persState = personalizationEngagementState(ownerProfile);
+    const stretchTolerance = sophistication === 'high' ? 1.0 : sophistication === 'medium' ? 0.85 : 0.7;
+    // Casual state: broaden — discount avoid penalties (recommender failing
+    // this user, so don't double-down on its current weights).
+    const avoidPenaltyMul = persState === 'casual' ? 0.5 : 1.0;
+
     const scored = candidates.map(item => {
       const styleHit = item.styles.filter(s => styleSet.has(s)).length;
       const colorHit = item.colors.filter(c => colorSet.has(c)).length;
-      const styleScore = styleSet.size ? styleHit / styleSet.size : 0.5;
+      // Weighted style score — uses styleScores vector if present, falls
+      // back to old binary hit-rate. Both bounded [0,1].
+      let styleScore;
+      if (styleScoresMap && Object.keys(styleScoresMap).length) {
+        styleScore = item.styles.reduce((acc, s) => acc + (styleScoresMap[s] || 0), 0);
+        styleScore = Math.min(1, styleScore);  // cap at 1
+      } else {
+        styleScore = styleSet.size ? styleHit / styleSet.size : 0.5;
+      }
       const colorScore = colorSet.size ? colorHit / colorSet.size : 0.5;
-      let score = styleScore*0.65 + colorScore*0.25 + Math.random()*0.1;
+      // Soft budget weighting per Reforge Engagement Engine "Better Ranking":
+      // engine ranks, doesn't filter. Hard cap is applied later at packing.
+      const priceFit = priceFitWeight(item.price, budgetMax);
+      let score = styleScore*0.55 + colorScore*0.25 + priceFit*0.15 + Math.random()*0.05;
       if (anchorColor && item.accent) score += colorDistance(anchorColor, item.accent) < 60 ? 0.2 : 0;
-      // Negative-prompt penalty.
+      // Negative-prompt penalty (multiplied by Casual avoid-discount).
       const avoidStyleHit = item.styles.some(s => avoidStyleSet.has(s));
       const avoidColorHit = item.colors.some(c => avoidColorSet.has(c));
-      if (avoidStyleHit) score -= 0.4;
-      if (avoidColorHit) score -= 0.3;
-      // [Dim 14] Off-vote soft-avoid: item carries any active-avoided style.
+      if (avoidStyleHit) score -= 0.4 * avoidPenaltyMul;
+      if (avoidColorHit) score -= 0.3 * avoidPenaltyMul;
+      // [Dim 14] Off-vote soft-avoid (also multiplied by avoidPenaltyMul).
       if (avoidedStylesActive.size && item.styles.some(s => avoidedStylesActive.has(s))) {
-        score -= 0.5;
+        score -= 0.5 * avoidPenaltyMul;
       }
+      // Sophistication factor: novice users get small bonus on safer styles
+      // (modern/scandinavian/minimalist); experts get small bonus on
+      // riskier styles (eclectic/bohemian/art-deco).
+      const safer = ['modern', 'scandinavian', 'minimalist', 'contemporary'];
+      const riskier = ['eclectic', 'bohemian', 'art-deco', 'maximalist'];
+      if (sophistication === 'novice' && item.styles.some(s => safer.includes(s))) score += 0.05;
+      if (sophistication === 'high' && item.styles.some(s => riskier.includes(s))) score += 0.05;
       return { item, score };
     }).sort((a,b) => b.score - a.score);
 
@@ -6074,12 +6142,16 @@
         // [Batch 3 — Dim 04 R8] Promise-Fit micro-survey only on Love
         // (gating preserves the high-intent path). Fires once per user.
         setTimeout(() => showPromiseFitMicrosurvey(room.id), 600);
+        // [Batch 4 — Dim 07] Record Love verdict; recomputes styleScores.
+        recordAhaVerdict(room.id, 'love');
       }
       if (vote === 'close') {
         toast('Try reshuffle below for a different mix');
         // [Batch 3 — A7] Close also implies the user EXPERIENCED the reveal —
         // not a thumbs-up but engagement-not-bounce. Counts as Aha.
         fireAhaMomentIfFresh(room, 'close');
+        // [Batch 4 — Dim 07] Record Close verdict.
+        recordAhaVerdict(room.id, 'close');
       }
       if (vote === 'off')   {
         // [Dim 14 Section B Fix 1 — Off-vote actually changes behavior.
@@ -6101,9 +6173,9 @@
         });
         save();
         trackEvent('aha_off_style_avoided', { roomId: room.id, styles: profile?.styles || [], expiryMs: avoidExpiry });
-        // [Dim 09 D10 voice — calmer, more honest copy. Was "Reshuffling
-        //  with a different mix…" → reframed as the user's command, not
-        //  the system's apology.]
+        // [Batch 4 — Dim 07] Record Off verdict — feeds styleScores recompute.
+        recordAhaVerdict(room.id, 'off');
+        // [Dim 09 D10 voice — calmer, more honest copy.]
         toast('Got it — pulling a different direction…');
         setTimeout(() => $('#reshuffleBtn')?.click(), 500);
       }
@@ -6251,6 +6323,22 @@
   // downloading the watermarked version is free (handled inside the modal).
   $('#shareRoomBtn').addEventListener('click', () => {
     trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'share_clicked', roomId: currentRoomId });
+    trackShareFunnel('modal_opened', { source: 'header_icon' });
+    openShareModal();
+  });
+  // [Batch 4 — Dim 08 Top 3 #1] Reveal-moment share trigger.
+  // Per Reforge Social Viral Loops Lesson 4: share at peak emotion. Click
+  // routes through the same openShareModal but logs a distinct funnel
+  // source so we can compare reveal-moment vs header-icon share rates.
+  document.getElementById('revealShareBtn')?.addEventListener('click', () => {
+    trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'share_clicked', roomId: currentRoomId });
+    trackShareFunnel('modal_opened', { source: 'reveal_cta' });
+    // Lifecycle-aware default format + pre-filled caption
+    const room = state.rooms.find(r => r.id === currentRoomId);
+    if (room) {
+      state._shareDefaultFormat = defaultShareFormatForLifecycle();
+      state._sharePrefilledCaption = shareCaptionForLifecycle(room);
+    }
     openShareModal();
   });
   $('#shareClose').addEventListener('click', () => $('#shareModal').classList.remove('open'));
@@ -6262,6 +6350,47 @@
     drawShareCard(room);
     $('#shareModal').classList.add('open');
     $('#shareModal').setAttribute('aria-hidden', 'false');
+    // [Batch 4 — Dim 08] Mount lifecycle-aware format chips + caption.
+    mountShareFormatChips(room);
+  }
+
+  // [Batch 4 — Dim 08] Format chip dispatcher.
+  // Per Reforge UGC Loop Variations Lesson 5: branching factor × influence
+  // per exposure varies by format. Pin = high branching + cumulative;
+  // group-chat = high influence × low branching. Match format to lifecycle
+  // state. Real per-format canvas re-rendering defers (~M effort to do
+  // properly with all aspect ratios); v1 ships the chip selector + format
+  // metadata so the user makes a per-channel-aware choice and the funnel
+  // event fires with the chosen format.
+  function mountShareFormatChips(room) {
+    const card = document.querySelector('#shareModal .modal-card');
+    if (!card) return;
+    let chipsRow = document.getElementById('shareFormatChips');
+    if (!chipsRow) {
+      chipsRow = document.createElement('div');
+      chipsRow.id = 'shareFormatChips';
+      chipsRow.className = 'share-format-chips';
+      const insertAfter = card.querySelector('h3');
+      (insertAfter || card.firstChild).after(chipsRow);
+    }
+    const formats = window.FurnishShareFormats || {};
+    const defaultKey = state._shareDefaultFormat || 'square';
+    chipsRow.innerHTML = Object.entries(formats).map(([k, f]) =>
+      `<button type="button" class="share-format-chip${k === defaultKey ? ' active' : ''}" data-fmt="${k}">
+         <span class="sfc-label">${f.label}</span>
+         <span class="sfc-desc muted small">${f.desc}</span>
+       </button>`
+    ).join('');
+    chipsRow.querySelectorAll('.share-format-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chipsRow.querySelectorAll('.share-format-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state._shareDefaultFormat = chip.dataset.fmt;
+        save();
+        trackShareFunnel('format_selected', { format: chip.dataset.fmt, roomId: room.id });
+      });
+    });
+    trackShareFunnel('format_chips_shown', { default: defaultKey, roomId: room.id });
   }
 
   function drawShareCard(room) {
@@ -6422,7 +6551,12 @@
   $('#shareLinkBtn')?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(buildInviteLink());
-      toast('Invite link copied — you both get 1 month of Furnish Pro free');
+      // [Batch 4 — Conflict 2 propagation fix] Was "1 month of Furnish Pro
+      //  free" — Batch 1 locked the currency to "5 HD redesigns + 2 style
+      //  packs over 90 days" but this toast was missed. Per Reforge
+      //  Financial Viral Loops Lesson 3: currency-alignment + 90-day window
+      //  matches Furnish's natural-frequency window.
+      toast('Invite link copied — you both unlock 5 HD redesigns + 2 style packs (90 days).');
       trackEvent('share_invite_link_copied', { roomId: currentRoomId });
     } catch {
       toast('Copy failed');
@@ -7636,6 +7770,376 @@
     document.addEventListener('scroll', updateSticky, { passive: true, capture: true });
   }
 
+  // ============================================================
+  // Batch 4 additions — Dim 05 Retention + Dim 07 Personalization + Dim 08 Social
+  // ============================================================
+  // Strategic foundation: Customer Retention Canvas (BATCH_4_AUDIT.md §A).
+  // Three use cases (A: Single-Room Refresh, B: Whole-Home Tour, C: Browse-Shop)
+  // with per-UC Setup/Aha/Habit moments and natural-frequency-aligned metrics.
+  // Conflict 1 honored: internal frequency framework, no calendar-period in
+  // user copy. Conflict 2 honored: referral currency = "5 HD redesigns + 2
+  // style packs over 90 days" (verifying propagation in Phase F).
+  // ============================================================
+
+  // [Batch 4 — Dim 07 D1] profile.styleScores derivation.
+  // Per Reforge Engagement Engine (R+E / 06 / Step One: Signal): better signal
+  // granularity → better matching. The 10-Q onboarding stores profile.answers
+  // (vibe / color_appetite / decor_density / etc). styleScores derives a
+  // normalized weight map across canonical styles by interpreting these
+  // answers + folding in saves + Aha verdicts over time.
+  //
+  // Canonical styles match window.STYLES; each answer-option maps to
+  // contributing styles via lookup. We compute on demand, cache on profile.
+  const ANSWER_TO_STYLES = Object.freeze({
+    // vibe → emotional anchor → style affinity
+    'calm_grounded':      ['scandinavian', 'minimalist', 'japandi'],
+    'energized_creative': ['eclectic', 'art-deco', 'bohemian'],
+    'cozy_protected':     ['bohemian', 'rustic', 'farmhouse', 'traditional'],
+    'elevated_hotel':     ['contemporary', 'modern', 'art-deco'],
+    'inspired_artist':    ['eclectic', 'bohemian', 'mid-century'],
+    // color_appetite → palette intensity
+    'neutrals_only':      ['scandinavian', 'minimalist'],
+    'mostly_neutral':     ['contemporary', 'modern', 'japandi'],
+    'confident_color':    ['mid-century', 'traditional'],
+    'bold':               ['eclectic', 'bohemian', 'art-deco'],
+    // decor_density
+    'clean':              ['minimalist', 'japandi', 'scandinavian'],
+    'a_little_personality': ['contemporary', 'modern'],
+    'lived_in_rich':      ['traditional', 'bohemian'],
+    'maximalist':         ['eclectic', 'art-deco', 'bohemian'],
+    // materials
+    'warm_woods':         ['scandinavian', 'mid-century', 'farmhouse'],
+    'soft_fabrics':       ['bohemian', 'traditional'],
+    'metal_glass':        ['modern', 'contemporary', 'art-deco'],
+    'stone_ceramic':      ['japandi', 'minimalist', 'rustic'],
+    'vintage_patina':     ['mid-century', 'art-deco', 'traditional'],
+    'sleek_modern':       ['modern', 'contemporary', 'minimalist'],
+  });
+
+  function deriveStyleScoresFromAnswers(answers) {
+    if (!answers) return {};
+    const scores = {};
+    const bump = (style, w = 1) => { scores[style] = (scores[style] || 0) + w; };
+    // Each single-select counts 1.0; multi-selects share weight across picks.
+    Object.entries(answers).forEach(([qid, val]) => {
+      if (val == null) return;
+      if (Array.isArray(val)) {
+        const each = 1 / Math.max(1, val.length);
+        val.forEach(v => (ANSWER_TO_STYLES[v] || []).forEach(s => bump(s, each)));
+      } else if (typeof val === 'string') {
+        (ANSWER_TO_STYLES[val] || []).forEach(s => bump(s, 1));
+      }
+    });
+    // Normalize to sum=1 so it's a probability-like vector.
+    const total = Object.values(scores).reduce((a, b) => a + b, 0) || 1;
+    Object.keys(scores).forEach(k => { scores[k] = scores[k] / total; });
+    return scores;
+  }
+
+  function deriveStyleConfidence(profile) {
+    if (!profile?.answers) return 'unknown';
+    const answered = Object.values(profile.answers).filter(v => v != null && v !== -1).length;
+    const total = (window.ONBOARDING_QUESTIONS || []).length || 10;
+    if (answered >= total * 0.9) return 'high';
+    if (answered >= total * 0.5) return 'medium';
+    if (answered >= 1) return 'low';
+    return 'unknown';
+  }
+
+  // Recompute and cache on profile. Called after onboarding completion + after
+  // significant signal events (Aha verdict, save, swap). Idempotent.
+  function recomputeProfileStyleScores(profileId) {
+    const p = state.profiles?.find(x => x.id === profileId);
+    if (!p) return;
+    const baseline = deriveStyleScoresFromAnswers(p.answers);
+    // Fold in saves: each saved item bumps its primary style at 0.4 weight,
+    // decayed by save age (60-day half-life per Dim 07 D8).
+    const wishlistMeta = state.wishlistMeta || {};
+    Object.entries(wishlistMeta).forEach(([itemId, meta]) => {
+      if (meta?.roomIdAtSave && state.rooms) {
+        const room = state.rooms.find(r => r.id === meta.roomIdAtSave);
+        if (room?.profileId === profileId && Array.isArray(room.styles)) {
+          const ageDays = (Date.now() - (meta.savedAt || Date.now())) / (1000 * 60 * 60 * 24);
+          const decay = Math.pow(0.5, ageDays / 60);
+          const w = 0.4 * decay / Math.max(1, room.styles.length);
+          room.styles.forEach(s => { baseline[s] = (baseline[s] || 0) + w; });
+        }
+      }
+    });
+    // Fold in Aha verdicts: Love +0.7 weight, Close +0.2, Off -0.5; decayed.
+    const ahaHistory = p.ahaHistory || [];
+    ahaHistory.forEach(({ verdict, styles, ts }) => {
+      const ageDays = (Date.now() - (ts || Date.now())) / (1000 * 60 * 60 * 24);
+      const decay = Math.pow(0.5, ageDays / 60);
+      const sign = verdict === 'love' ? 0.7 : verdict === 'close' ? 0.2 : verdict === 'off' ? -0.5 : 0;
+      const w = sign * decay;
+      (styles || []).forEach(s => { baseline[s] = (baseline[s] || 0) + w / Math.max(1, styles.length); });
+    });
+    // Re-normalize positive entries; floor negatives at 0 (a -0.5 shouldn't
+    // persist forever, just suppress in current render).
+    const total = Object.values(baseline).filter(v => v > 0).reduce((a, b) => a + b, 0) || 1;
+    const normed = {};
+    Object.entries(baseline).forEach(([k, v]) => { normed[k] = Math.max(0, v) / total; });
+    p.styleScores = normed;
+    p.styleConfidence = deriveStyleConfidence(p);
+    save();
+  }
+  window.FurnishRecomputeStyleScores = recomputeProfileStyleScores;
+
+  // [Batch 4 — Dim 07 A.1 row 6 + D6] Aha verdict history with decay.
+  function recordAhaVerdict(roomId, verdict) {
+    const room = state.rooms?.find(r => r.id === roomId);
+    if (!room) return;
+    const profile = state.profiles?.find(p => p.id === room.profileId);
+    if (!profile) return;
+    profile.ahaHistory = profile.ahaHistory || [];
+    profile.ahaHistory.push({
+      verdict,
+      styles: room.styles || [],
+      colors: room.colors || [],
+      ts: Date.now(),
+      roomId
+    });
+    // Keep last 30 verdicts only — bounded localStorage.
+    if (profile.ahaHistory.length > 30) profile.ahaHistory = profile.ahaHistory.slice(-30);
+    save();
+    recomputeProfileStyleScores(profile.id);
+  }
+  window.FurnishRecordAhaVerdict = recordAhaVerdict;
+
+  // [Batch 4 — Dim 07 D6] Personalization-quality engagement state.
+  // Per Reforge R+E / 04 (Defining Engagement States) — 3-step process:
+  // (1) Define core qualitatively, (2) Power/Casual segments, (3) Validate
+  // against retention. We compute Casual/Core/Power on rolling Love-rate.
+  function personalizationEngagementState(profile) {
+    if (!profile) return 'unknown';
+    const recent = (profile.ahaHistory || []).slice(-10);
+    if (recent.length < 3) return 'unknown';  // not enough signal
+    const loveCt = recent.filter(v => v.verdict === 'love').length;
+    const offCt  = recent.filter(v => v.verdict === 'off').length;
+    const loveRate = loveCt / recent.length;
+    if (loveRate >= 0.7) return 'power';
+    if (loveRate >= 0.3 || (offCt / recent.length) < 0.4) return 'core';
+    return 'casual';  // recommender failing this user — broaden picks
+  }
+  window.FurnishPersonalizationState = personalizationEngagementState;
+
+  // [Batch 4 — Dim 07 D5] Session-time aggregates for push-timing personalization.
+  // Per Engagement Engine Step Three: Path/Real-Estate. We accumulate
+  // sessions-by-hour and sessions-by-day-of-week so the (deferred) push
+  // sender knows when to fire. Push delivery itself defers per DEFERRED.md
+  // item 7; the aggregate ships now and is consumed at backend cutover.
+  function logSessionTimeAggregate() {
+    if (!state.user) state.user = {};
+    state.user._sessionsByHour = state.user._sessionsByHour || new Array(24).fill(0);
+    state.user._sessionsByDow  = state.user._sessionsByDow  || new Array(7).fill(0);
+    const now = new Date();
+    state.user._sessionsByHour[now.getHours()]++;
+    state.user._sessionsByDow[now.getDay()]++;
+    save();
+  }
+
+  function bestPushHour(profile) {
+    const hours = state.user?._sessionsByHour;
+    if (!hours || !hours.some(h => h > 0)) return 19;  // default 7pm
+    return hours.indexOf(Math.max(...hours));
+  }
+  window.FurnishBestPushHour = bestPushHour;
+
+  // [Batch 4 — Dim 05 Rec 7] Resurrection peak-moment surfacing.
+  // Computes the user's most-engaged room (by save-events touching its items
+  // + bookmark + reshuffle count). Resurrection campaigns surface this room
+  // by name instead of generic style references. Per ICED Theory — Plant
+  // Loyalty Hook (R+E / 09 BONUS): peak moments reinforce brand recall.
+  function computePeakRoomId() {
+    if (!Array.isArray(state.rooms) || !state.rooms.length) return null;
+    const scoreByRoom = {};
+    state.rooms.forEach(r => {
+      let score = 0;
+      // Reshuffles signal engagement (even negative — they lingered).
+      score += Math.min(5, r.reshuffleCount || 0) * 1;
+      // Bookmark signals positive intent.
+      if ((state.bookmarkedRooms || []).includes(r.id)) score += 4;
+      // Items from this room saved to wishlist.
+      const wishMeta = state.wishlistMeta || {};
+      Object.values(wishMeta).forEach(m => { if (m?.roomIdAtSave === r.id) score += 1; });
+      // Aha verdict on this room.
+      const profile = state.profiles?.find(p => p.id === r.profileId);
+      const verdict = (profile?.ahaHistory || []).find(h => h.roomId === r.id);
+      if (verdict?.verdict === 'love')  score += 5;
+      if (verdict?.verdict === 'close') score += 2;
+      scoreByRoom[r.id] = score;
+    });
+    const ranked = Object.entries(scoreByRoom).sort((a, b) => b[1] - a[1]);
+    return ranked[0]?.[0] || state.rooms[state.rooms.length - 1].id;
+  }
+  window.FurnishComputePeakRoom = computePeakRoomId;
+
+  // [Batch 4 — Dim 05 Rec 3] Wishlist-age recall (Loop 4) campaign predicate.
+  // Compute the oldest wishlist item's age (days). Used by the new
+  // wishlist_age_d90_recall LIFECYCLE_CAMPAIGNS entry. Real send defers
+  // to backend (DEFERRED.md item 6); predicate ships now so backend can
+  // drain it at cutover.
+  function oldestWishlistAgeDays() {
+    const meta = state.wishlistMeta || {};
+    const wlIds = state.wishlist || [];
+    if (!wlIds.length) return 0;
+    const ages = wlIds.map(id => {
+      const m = meta[id];
+      if (!m?.savedAt) return 0;
+      return (Date.now() - m.savedAt) / (1000 * 60 * 60 * 24);
+    });
+    return Math.max(...ages, 0);
+  }
+  window.FurnishOldestWishlistAge = oldestWishlistAgeDays;
+
+  // [Batch 4 — Dim 07 D5] Variant lifecycle banner copy by saved styles.
+  // Per Engagement Engine Step Three: Message is per-user, not per-bucket.
+  // The banner is the most-impressed personalization surface in the app;
+  // generic copy here is uncaptured value. We pick the user's top style
+  // from styleScores + the lifecycle bucket.
+  const LIFECYCLE_STYLE_COPY = Object.freeze({
+    AT_RISK: {
+      'modern':       { title: 'New modern arrivals in your style', body: 'Sharper modern pieces dropped since your last visit.' },
+      'scandinavian': { title: 'Fresh scandinavian rooms',          body: 'Light woods, calm palettes — new picks since you were here.' },
+      'bohemian':     { title: 'Layered bohemian rooms',            body: 'New textured, lived-in pieces in your style.' },
+      'minimalist':   { title: 'Quiet minimalist drops',            body: 'Clean lines, restraint, room to breathe — fresh picks.' },
+      'mid-century':  { title: 'New mid-century arrivals',          body: 'Walnut, brass, taper legs — pieces in your style.' },
+      'industrial':   { title: 'Steel + leather drops',             body: 'Raw, deliberate pieces in your style.' },
+      'farmhouse':    { title: 'Farmhouse warmth',                  body: 'New cozy farmhouse pieces in your style.' },
+      'art-deco':     { title: 'Polished art-deco picks',           body: 'Bold geometry + brass — in your style.' },
+      _default:       { title: 'New arrivals in your style',        body: 'Fresh pieces dropped since your last visit.' }
+    },
+    DORMANT: {
+      'modern':       { title: 'Your modern style is still saved',   body: 'Some saved pieces dropped in price. New picks added.' },
+      'scandinavian': { title: 'Your scandinavian palette is intact', body: 'New light-wood pieces + price drops on saves.' },
+      'bohemian':     { title: 'Your bohemian style is here',         body: 'New textured pieces + price drops on saves.' },
+      'minimalist':   { title: 'Your minimalist style is intact',     body: 'New clean-line pieces + price drops on saves.' },
+      _default:       { title: 'Your style is still saved',           body: "Come back when you're ready to redesign another room." }
+    },
+    CHURNED: {
+      _default: { title: 'Your style is still saved', body: 'Your profile is intact. New pieces added since your last design.' }
+    }
+  });
+
+  function lifecycleBannerCopyForState(profile, stateKey) {
+    const ss = profile?.styleScores || {};
+    const top = Object.entries(ss).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const bucket = LIFECYCLE_STYLE_COPY[stateKey] || {};
+    return bucket[top] || bucket._default || null;
+  }
+  window.FurnishLifecycleStyleCopy = lifecycleBannerCopyForState;
+
+  // [Batch 4 — Dim 08] K-factor share funnel events.
+  // Per Reforge Personal Viral Loops Lesson 2 — K-factor decomposition:
+  // each step in the loop is a leak. Without per-step events, no
+  // elasticity testing is possible. These are client-side; server-side
+  // referral_signup_completed / referral_paid_conversion defer to backend.
+  function trackShareFunnel(step, props = {}) {
+    if (!state.user) state.user = {};
+    state.user._lastShareFunnelStep = step;
+    save();
+    trackEvent(`share_funnel_${step}`, props);
+  }
+  window.FurnishTrackShareFunnel = trackShareFunnel;
+
+  // [Batch 4 — Dim 08 / Personal Viral Loop scaffold] Follow stub.
+  // UI scaffold only — real social graph defers to backend (new DEFERRED.md
+  // item: social-graph + public profile pages). Saves intent so backend can
+  // sync later, and surfaces a "you'd be following Hassan" placeholder.
+  function followUserStub(userId) {
+    if (!userId) return false;
+    if (!state.user) state.user = {};
+    state.user._followingUserIds = state.user._followingUserIds || [];
+    if (state.user._followingUserIds.includes(userId)) return false;
+    state.user._followingUserIds.push(userId);
+    save();
+    trackEvent('follow_intent_recorded', { targetUserId: userId });
+    return true;
+  }
+  window.FurnishFollowUser = followUserStub;
+
+  // [Batch 4 — Dim 05 Rec 2 Option B] Free-user push thin-cadence rule.
+  // Free users get permission ask (already-shipped pre-prompt) AND
+  // delivery — but limited to top 1-2 highest-impact drops per month.
+  // Pro gets full real-time. The rule lives client-side as a flag on
+  // the campaign; backend filters at send time per the flag.
+  function pushDeliveryTierForUser() {
+    if (!state.user) return 'free_thin';
+    return state.user.isPro ? 'pro_full' : 'free_thin';
+  }
+  window.FurnishPushDeliveryTier = pushDeliveryTierForUser;
+
+  // [Batch 4 — Dim 07 D3] Soft budget weighting in pickItemsForRoom.
+  // The current picker has a HARD `runningTotal + item.price <= budgetMax`
+  // exclusion that filters items outright. Soft weighting lets stretch
+  // items still surface (high-commission affiliates) when style + color
+  // match strongly. Wired by extending the existing scorer at call time
+  // rather than modifying pickItemsForRoom itself (avoids cascade risk).
+  function priceFitWeight(itemPrice, budgetMax) {
+    if (!itemPrice || !budgetMax || budgetMax === Infinity) return 1.0;
+    if (itemPrice <= budgetMax) return 1.0;
+    if (itemPrice <= budgetMax * 1.3) return 0.7;
+    if (itemPrice <= budgetMax * 1.7) return 0.3;
+    return 0.05;
+  }
+  window.FurnishPriceFitWeight = priceFitWeight;
+
+  // [Batch 4 — Dim 07 D4] customColors sophistication signal.
+  // High-fluency users (3+ custom hex) see eclectic / risky rooms first;
+  // novice users see safer rooms. Per Reforge UI4PD: segment on domain
+  // fluency, not just preference.
+  function profileSophistication(profile) {
+    const c = (profile?.customColors || []).length;
+    if (c >= 3) return 'high';
+    if (c >= 1 || profile?.styleConfidence === 'high') return 'medium';
+    return 'novice';
+  }
+  window.FurnishProfileSophistication = profileSophistication;
+
+  // [Batch 4 — Dim 08] Format-specific share canvas dispatcher.
+  // The existing drawShareCard renders a single 720x900. Dispatcher adds
+  // pin/story/feed/square/reddit variants, each with its own dimensions
+  // and watermark behavior. Old drawShareCard remains for backward-compat;
+  // new format-aware function lives alongside.
+  const SHARE_FORMATS = Object.freeze({
+    pin:    { w: 1000, h: 1500, label: 'Pinterest', desc: '2:3 vertical', watermark: 'wordmark' },
+    story:  { w: 1080, h: 1920, label: 'IG Story',  desc: '9:16 vertical', watermark: 'wordmark' },
+    feed:   { w: 1080, h: 1350, label: 'IG Feed',   desc: '4:5 vertical', watermark: 'wordmark' },
+    square: { w: 1024, h: 1024, label: 'Group chat', desc: '1:1 square',  watermark: 'wordmark' },
+    reddit: { w: 1600, h: 1200, label: 'Reddit',     desc: '4:3 / no watermark', watermark: 'none' },
+  });
+  window.FurnishShareFormats = SHARE_FORMATS;
+
+  // [Batch 4 — Dim 08] Lifecycle-aware default share format.
+  function defaultShareFormatForLifecycle() {
+    const lc = (typeof getLifecycleState === 'function') ? getLifecycleState() : null;
+    if (state.user?.isPro && (state.rooms?.length || 0) >= 5) return 'feed';
+    if (lc === 'NEW' || (state.rooms?.length || 0) <= 1) return 'square';   // group-chat default
+    if ((state.rooms?.length || 0) >= 2) return 'pin';
+    return 'square';
+  }
+  window.FurnishDefaultShareFormat = defaultShareFormatForLifecycle;
+
+  // [Batch 4 — Dim 08 + Dim 05 Rec 7] Pre-filled lifecycle-aware share caption.
+  function shareCaptionForLifecycle(room) {
+    const profile = state.profiles?.find(p => p.id === room?.profileId);
+    const styleNames = (profile?.styles || []).slice(0, 1)
+      .map(id => (window.STYLES || []).find(s => s.id === id)?.label || id)
+      .join('') || 'your style';
+    const roomLabel = (room?.type || 'room').toLowerCase();
+    const lc = (typeof getLifecycleState === 'function') ? getLifecycleState() : null;
+    if (lc === 'NEW' || (state.rooms?.length || 0) <= 1) {
+      // Pull-WOM framing — Reforge Social Viral Loops Lesson 4
+      return `Found these for the ${roomLabel}. What do you think?`;
+    }
+    if (state.user?.isPro && (state.rooms?.length || 0) >= 5) {
+      return `${styleNames} ${roomLabel} — designed with Furnish.`;
+    }
+    return `Just designed my ${roomLabel} in ${styleNames}.`;
+  }
+  window.FurnishShareCaption = shareCaptionForLifecycle;
+
   // ---------- Boot ----------
   function boot() {
     // [Model A — STEP 5 §16 row 1] Tag pre-Model-A Pro users (D6=a) so analytics
@@ -7666,6 +8170,12 @@
     wireStickyShopAllCTA();         // Dim 03 R-Bottom2 — sticky shop-all
     maybeFireSessionTwoTutorial();  // Dim 04 R5 / Conflict 7 — defer tutorial
     wireSoftEmailCaptureForm();     // Dim 03 R-Account2 / Conflict 5 — soft email lane
+
+    // [Batch 4 additions]
+    logSessionTimeAggregate();      // Dim 07 D5 — push-timing aggregates
+    // Recompute styleScores for each profile on boot — keeps the vector
+    // fresh based on saves/verdicts since last open. Idempotent.
+    (state.profiles || []).forEach(p => recomputeProfileStyleScores(p.id));
 
     showScreen('welcome');
     startReviewsBar();

@@ -8225,4 +8225,76 @@ html[data-theme="dark"] .promise-fit-survey .pfs-btn { background: var(--beige);
 }
 
 
+/* ============================================================
+   BATCH 4 — Dim 05 Retention + Dim 07 Personalization + Dim 08 Social
+   ============================================================ */
+
+/* [B4 / Dim 08 Top 3 #1] Reveal-moment Share CTA — sits beside the
+   primary "Shop The Whole Room" + the secondary "Different Style?"
+   button. Per Reforge Social Viral Loops Lesson 4: share at peak emotion. */
+.reveal-share-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (min-width: 540px) {
+  .reveal-share-btn { flex: 0 0 auto; min-width: 160px; }
+}
+
+/* [B4 / Dim 08] Share modal format-chip selector.
+   Per Reforge UGC Loop Variations Lesson 5: branching factor × influence
+   per exposure varies by format. The chip selector lets the user pick
+   the right format BEFORE they share — Pinterest's 2:3 vs IG Story 9:16
+   vs group-chat 1:1. The selected chip is the format the canvas would
+   re-render to (full per-format canvas pipeline defers to a later batch). */
+.share-format-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  padding: 0;
+}
+.share-format-chip {
+  flex: 1 1 calc(33.33% - 8px);
+  min-width: 90px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background 200ms var(--ease-premium), border-color 200ms var(--ease-premium);
+}
+.share-format-chip:hover {
+  background: var(--beige);
+  border-color: var(--tan);
+}
+.share-format-chip.active {
+  background: var(--beige);
+  border-color: var(--brown);
+  box-shadow: 0 0 0 1px var(--brown) inset;
+}
+.share-format-chip .sfc-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+.share-format-chip .sfc-desc {
+  font-size: 11px;
+  color: var(--brown-2);
+}
+html[data-theme="dark"] .share-format-chip {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .share-format-chip.active {
+  background: var(--beige);
+}
+
+
+
 
