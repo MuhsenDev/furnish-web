@@ -9170,3 +9170,92 @@ html[data-theme="dark"] .reset-dialog-confirm-fill {
   background: rgba(255, 130, 110, 0.20);
 }
 
+/* ============================================================
+   Pro Card pricing-tier spacing & badge sizing polish
+   See PRO_CARD_SPACING_AUDIT.md.
+   - Vertical breathing room between the comparison line and the
+     tier toggle (pricing pages read as "premium" through rhythm,
+     not through compression — Reforge Visual Design)
+   - Tier pills get more vertical padding so labels sit centered
+     with comfortable air above + below
+   - "Save $24/yr" + "Pay once" badges resized to first-scan
+     prominence (Reforge Monetization — Save badge = anchoring,
+     Pay once = mental-model clarification for the decoy tier);
+     repositioned as sticker-on-pill above the tier label
+   - MOST POPULAR ribbon pushed up to make room for Save below
+   - All badges get pointer-events:none so taps pass through to
+     the underlying tier pill (badges are labels, not buttons)
+   ============================================================ */
+
+/* 1. Breathing room between comparison line and toggle.
+   Use ONLY anchor's margin-bottom (no toggle margin-top) — adjacent
+   vertical margins collapse to the larger value, so the cleanest way
+   to own the gap budget is one rule. The gap budget covers both
+   visible breathing room (24-32px desktop / 20-24px mobile per spec)
+   AND the floating space needed for the absolute MOST POPULAR ribbon
+   that sits ~41px above the Annual pill on desktop. */
+.paywall-card .paywall-anchor {
+  margin: 6px 0 58px;
+}
+
+/* 2. Tier pill padding — more vertical air above + below the label */
+.paywall-card .pw-toggle-btn {
+  padding: 13px 14px;
+}
+
+/* 3. Save $24/yr + Pay once badges resized + repositioned as sticker.
+   Math (desktop, line-height-aware): rendered badge ≈ 22px tall
+   (font 12 with default line-height + padding 4×2). For ~5px overlap
+   of pill top edge: top = -(22 - 5) = -17px. */
+.paywall-card .pw-save {
+  position: absolute;
+  top: -17px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none; /* taps pass through to the tier pill */
+  z-index: 2;
+  /* background gradient + white color inherited from base .pw-save rule */
+}
+
+/* 4. MOST POPULAR ribbon — sits ABOVE Save on Annual with ~7px
+   breathing room between them.
+   Math (desktop): MOST POPULAR rendered ≈ 17px tall. Save top = -17.
+   MOST POPULAR bottom should sit at -17 - 7 = -24 → top = -24 - 17 = -41px. */
+.paywall-card .pw-most-popular {
+  top: -41px;
+  pointer-events: none; /* match badge behavior — pass clicks through */
+  z-index: 2;
+}
+
+/* 5. Mobile (<640px) — proportionally smaller padding + font sizes.
+   Math (line-height-aware): badge ≈ 20px tall. For ~5px overlap:
+   top = -(20 - 5) = -15px. MOST POPULAR ≈ 16px tall. For 7px
+   breathing room: bottom at -15-7 = -22 → top = -22-16 = -38px.
+   Anchor margin-bottom: 16px visible gap + 38px ribbon offset = 54px. */
+@media (max-width: 640px) {
+  .paywall-card .paywall-anchor {
+    margin: 6px 0 54px;
+  }
+  .paywall-card .pw-toggle-btn {
+    padding: 11px 12px;
+  }
+  .paywall-card .pw-save {
+    font-size: 11px;
+    padding: 3px 9px;
+    top: -15px;
+  }
+  .paywall-card .pw-most-popular {
+    top: -38px;
+  }
+}
+
+/* 6. 320px viewport safety — existing flex-wrap (line 8396) lets the
+   third pill drop to its own row if the row can't fit. Already in
+   place; no change needed. */
+
