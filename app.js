@@ -2834,11 +2834,11 @@
   }
 
   function updateMultiCounter(q) {
-    const cap = q.max_selections || 0;
+    // Counter element ("X of N selected") was removed per Hassan's call —
+    // function name kept since it's called from multiple sites and still
+    // gates the Continue button's enabled state.
     const picks = (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []);
-    const counter = document.getElementById('quizMultiCounter');
     const cont = document.getElementById('quizContinueBtn');
-    if (counter) counter.textContent = `${picks.length} of ${cap} selected`;
     if (cont) cont.disabled = picks.length === 0;
   }
 
