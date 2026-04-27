@@ -450,7 +450,131 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 
 ---
 
+## Quantitative price-drop loss banner on wishlist (Batch 5 Part 2 — backend phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 D02-1. Modified per Conflict 4 lock.
+
+**Why deferred:** Original Reforge proposal copy used fake numbers ("Pro members got 3 price-drop pings on your saved items in the last 30 days. You missed them. Walnut bookshelf dropped 22% on Apr 8 — saved by 142 Pro users that day"). VIOLATES the Conflict 4 permanent rule (no fake numbers, ever).
+
+**What ships in Batch 5 Part 2:** nothing on wishlist for this entry. Today's wishlist UI keeps its current copy. Pre-launch we cannot honestly cite price-drop history.
+
+**Required at backend phase:**
+1. Real price-history data on top 50–100 catalog items (aggregate from retailer affiliate APIs).
+2. Per-user "missed pings" counter — count of price drops on that user's saved items while they were dormant or on Free tier.
+3. Sticky banner above wishlist when `state.user._missedPings >= 3` AND `daysSinceFirstSave >= 7`.
+4. Copy template: "You've saved {N} pieces. Pro alerts pushed {M} drops on your saved items in the last 30 days." All numbers MUST be real or this defers further.
+
+**Cutover work when this lands:**
+- Wire `renderWishlistMissedPingsBanner()` into the wishlist render flow.
+- New analytics: `wishlist_missed_pings_shown { N, M, daysSinceFirstSave }`, `_clicked`, `_dismissed`.
+
+---
+
+## Style-profile DNA SVG fingerprint generator (Batch 5 Part 2 — polish phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 D02-5. Modified per L-effort + conservative-bias.
+
+**Why deferred:** Original proposal called for a deterministic generative SVG fingerprint that visually represents the user's style profile (style hash → unique pattern). L-effort animation + UI polish; the % gauge alone delivers the bulk of the endowment psychology lift.
+
+**What ships in Batch 5 Part 2:** the % gauge + identity summary text. The deterministic SVG fingerprint is deferred.
+
+**Required when this lands:**
+1. Deterministic SVG generator: takes `profile.answers` as input (or a hash thereof), outputs a unique SVG visual asset (e.g., circular pattern of color blobs + line accents tied to vibe + materials).
+2. Animation: smooth transition when the user updates a preference and the SVG re-generates.
+3. Sharing: enable "share my style fingerprint" alongside redesigns (UGC content-loop angle).
+
+---
+
+## Weekly template release cadence + drop badge (Batch 5 Part 2 — content-ops decision)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 D02-9. Conservative-bias call.
+
+**Why deferred:** "12 new templates this week. The Modern Coastal pack drops Friday at 9am ET" requires Hassan to actually publish weekly templates. Without real cadence, the badge becomes a credibility leak the first time a user notices the same templates two Fridays in a row. This is an operational decision, not a code decision.
+
+**Required when this lands:**
+1. Hassan's commit to a weekly template release cadence (or biweekly / monthly — whatever is sustainable).
+2. Editorial pipeline for new template authoring + promotion.
+3. Push pre-prompt copy variant for "🔔 Notify me when {NextDropName} drops Friday."
+4. Real `templates_release_calendar` config (manifest of upcoming drops).
+
+**Cutover work when this lands:**
+- Render scarcity badge at top of Templates browse with real next-drop date.
+- Wire the push pre-prompt to the calendar.
+- New analytics: `template_drop_notify_subscribed`, `template_drop_pushed`, `template_drop_clicked`.
+
+---
+
+## Style-twin matching (Batch 5 Part 2 — backend + content phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 D02-B1 (bonus entry). Conservative-bias call.
+
+**Why deferred:** Requires Supabase aggregation (cohort clustering on real user style scores) AND content curation (curated wishlist preview per cohort). Hardcoding 4-6 archetypal cohorts works as a placeholder but the curation effort is non-trivial.
+
+**Required when this lands:**
+1. Backend cohort assignment based on `profile.styleScores` (Batch 4 data structure).
+2. Per-cohort curated wishlist preview content (hand-curated, ~10–15 items per cohort × 4–6 cohorts).
+3. UI: "Your style twins also saved →" strip on wishlist + reveal screen.
+4. Cohort-size analytics aggregated server-side (real numbers only — no fake counts per Conflict 4).
+
+---
+
+## "Premium-quality redesigns persist after downgrade" promise (Batch 5 Part 2 — server contract)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 D02-3. Modified per conservative-bias.
+
+**Why deferred:** Original proposal promised "every redesign you generated as Pro (locked at premium quality), your full wishlist, all price-drop alerts you've already received" persist after downgrade. The wishlist + saved rooms claim is currently true (localStorage). The premium-quality-render persistence is a future server contract — not shippable today.
+
+**What ships in Batch 5 Part 2:** the truthful subset only — "If you ever cancel Pro, your saved rooms and wishlist stay yours." Located on the Free card via `FREE_PLAN_CARD.cancelSafety`.
+
+**Required when this lands:**
+1. Server contract: when a user downgrades from Pro → Free, all rooms generated under Pro tier remain accessible via their stored URL (don't delete the asset).
+2. Storage cost: keep premium-tier renders forever (small cost, large psychological return).
+3. Update `FREE_PLAN_CARD.cancelSafety` to the full version: "If you ever cancel Pro, you keep: every saved room, every redesign you generated as Pro (locked at premium quality), your full wishlist, all price-drop alerts you've already received."
+
+---
+
+## Full 4S copy audit (~30 edits) (Batch 5 Part 2 — copy-pass batch)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 cross-cutting Section B. Partial ship in Batch 5 Part 2.
+
+**Why deferred:** The Reforge 4S audit (Selfish / Sensory / Specific / Simple) flagged ~30 specific copy edits across the app. Highest-impact 3 shipped in Batch 5 Part 2 (welcome hero possessive; paywall premium_quality 4/4 rewrite; items section "Your Picks"). Remaining ~27 deferred to a copy-pass batch to avoid scope creep + ensure coherent voice review.
+
+**Required when this lands:**
+1. Pass through every user-facing string in `index.html`, `app.js` template literals, and toast messages.
+2. Score each against the 4S rubric.
+3. Edit any string scoring ≤2/4 to 4/4.
+4. Run a VOICE.md compliance check post-edit.
+5. Estimated combined impact: +3-7% across the funnel (additive across surfaces).
+
+---
+
+## Quantitative social-proof at decision moments (Batch 5 Part 2 — backend phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 02 D02-6 + D02-7. Modified per Conflict 4 lock.
+
+**Why deferred:** Reforge proposed quantitative social proof at reveal moment, items list cards, wishlist, and paywall ("1,847 people designed a Modern bedroom this week", "Saved by 142", "Sarah K canceled Modsy"). All require real numbers OR real testimonials. VIOLATES Conflict 4 (no fake numbers).
+
+**What ships in Batch 5 Part 2:** the qualitative cohort line on the lifecycle banner ("Fellow {styleNames} fans are designing too.") — no numbers.
+
+**Required when this lands:**
+1. Backend save-counts per item via Supabase aggregation.
+2. Real cohort sizing (members in each style cluster).
+3. Real beta-user testimonials with verifiable identity (with permission to publish).
+4. Per-surface insertion logic with the qualifier "minimum N=10 for the count to display" (avoids ridiculous numbers like "1 person designed this room this week").
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during Batch 5 Part 2 implementation (Dim 02 User Psychology).
+- Added: Quantitative price-drop loss banner (D02-1, fake-numbers blocker).
+- Added: Style-DNA SVG fingerprint generator (D02-5, L-effort polish).
+- Added: Weekly template release cadence + drop badge (D02-9, ops decision).
+- Added: Style-twin matching (D02-B1, backend + content).
+- Added: "Premium-quality renders persist after downgrade" server contract (D02-3, conservative-bias deferral of part of the promise).
+- Added: Full 4S copy audit (~27 remaining edits, copy-pass batch).
+- Added: Quantitative social-proof at decision moments (D02-6/-7, fake-numbers blocker until backend supplies real counts).
+- All decisions in this Part 2 honor Conflict 4 (no fake numbers, ever).
 
 Updated: 2026-04-26 during Batch 5 implementation (Dim 06 Monetization).
 - Added: Stripe Lifetime price-ID + activation (Section B.2 / E.5).

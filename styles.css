@@ -8355,6 +8355,318 @@ html[data-theme="dark"] .paywall-anchor strong {
   font-variant-numeric: tabular-nums;
 }
 
+/* Dim 02 D02-8 — Selective scarcity per paywall context.
+   Painkiller contexts (premium_quality, rearrange) hide the founding-
+   member urgency line; vitamin/abstract-upsell contexts show it. Driven
+   by `data-scarcity` attribute set in openPaywall(). */
+#paywallModal[data-scarcity="off"] .paywall-urgency {
+  display: none;
+}
+
+/* ==============================================================
+   BATCH 5 PART 2 — Dim 02 User Psychology
+   Welcome-back commitment card, style-DNA gauge, reveal-expiry
+   pill, Free-card cancellation safety, style-evolution card,
+   Tonight's recap overlay, lifecycle cohort line.
+   ============================================================== */
+
+/* D02-11 — Welcome-back commitment card */
+.welcome-back-commit {
+  margin: 12px 16px 8px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--cream, #f7eedd) 0%, var(--bg, #faf3e6) 100%);
+  border: 1px solid rgba(89, 65, 41, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(58, 38, 18, 0.08);
+}
+.welcome-back-commit .wbc-headline { font-size: 1rem; margin-bottom: 4px; }
+.welcome-back-commit .wbc-body {
+  font-size: 0.9rem;
+  color: var(--muted, #6e5d48);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+.welcome-back-commit .wbc-body em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink, #2b2218);
+}
+.welcome-back-commit .wbc-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.welcome-back-commit .wbc-yes { flex: 1 1 auto; min-width: 160px; }
+.welcome-back-commit .wbc-update { flex: 0 0 auto; }
+html[data-theme="dark"] .welcome-back-commit {
+  background: linear-gradient(180deg, #2b1f12 0%, #20170c 100%);
+  border-color: rgba(216, 176, 126, 0.22);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .welcome-back-commit .wbc-body { color: rgba(216, 176, 126, 0.78); }
+html[data-theme="dark"] .welcome-back-commit .wbc-body em { color: var(--cream, #f0e3d1); }
+
+/* D02-5 — Style profile DNA gauge (% complete + identity summary) */
+.style-dna-card {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--cream, #f7eedd) 0%, var(--bg, #faf3e6) 100%);
+  border: 1px solid rgba(89, 65, 41, 0.18);
+  border-radius: 14px;
+}
+.style-dna-card .sdc-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.style-dna-card .sdc-label {
+  font-size: 0.95rem;
+  color: var(--ink, #2b2218);
+}
+.style-dna-card .sdc-bar {
+  height: 6px;
+  background: rgba(89, 65, 41, 0.10);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.style-dna-card .sdc-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7a5a3a, #d4a877);
+  transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.style-dna-card .sdc-summary {
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted, #6e5d48);
+  line-height: 1.45;
+}
+.style-dna-card .sdc-hint { margin-top: 6px; }
+html[data-theme="dark"] .style-dna-card {
+  background: linear-gradient(180deg, #2b1f12 0%, #20170c 100%);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .style-dna-card .sdc-label { color: var(--cream, #f0e3d1); }
+html[data-theme="dark"] .style-dna-card .sdc-bar { background: rgba(216, 176, 126, 0.15); }
+html[data-theme="dark"] .style-dna-card .sdc-summary { color: rgba(216, 176, 126, 0.78); }
+
+/* D02-2 — Guest reveal-expiry pill (24h soft countdown) */
+.reveal-expiry-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  background: rgba(89, 65, 41, 0.14);
+  border: 1px solid rgba(89, 65, 41, 0.22);
+  border-radius: 999px;
+  color: var(--ink, #2b2218);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.reveal-expiry-pill[hidden] { display: none; }
+.reveal-expiry-pill svg { opacity: 0.78; }
+.reveal-expiry-pill.expired {
+  background: rgba(160, 82, 45, 0.18);
+  border-color: rgba(160, 82, 45, 0.30);
+}
+html[data-theme="dark"] .reveal-expiry-pill {
+  background: rgba(216, 176, 126, 0.14);
+  border-color: rgba(216, 176, 126, 0.26);
+  color: var(--cream, #f0e3d1);
+}
+
+/* D02-3 — Free-card cancellation-safety line */
+.pfree-cancel-safety {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  background: rgba(89, 65, 41, 0.08);
+  border-radius: 8px;
+  text-align: center;
+  line-height: 1.4;
+}
+html[data-theme="dark"] .pfree-cancel-safety {
+  background: rgba(216, 176, 126, 0.12);
+  color: rgba(216, 176, 126, 0.85);
+}
+
+/* D02-B2 — Style evolution card */
+.style-evolution-card {
+  position: relative;
+  margin: 14px 0 12px;
+  padding: 14px 38px 14px 16px;
+  background: linear-gradient(180deg, var(--cream, #f7eedd) 0%, var(--bg, #faf3e6) 100%);
+  border: 1px solid rgba(89, 65, 41, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(58, 38, 18, 0.07);
+}
+.style-evolution-card .sec-headline {
+  font-size: 0.92rem;
+  color: var(--ink, #2b2218);
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+.style-evolution-card .sec-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.style-evolution-card .sec-col { flex: 1 1 auto; min-width: 130px; }
+.style-evolution-card .sec-col-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #8a7a66);
+  margin-bottom: 2px;
+}
+.style-evolution-card .sec-col-stats {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink, #2b2218);
+}
+.style-evolution-card .sec-arrow {
+  font-size: 1.2rem;
+  color: var(--muted, #8a7a66);
+  flex: 0 0 auto;
+}
+.style-evolution-card .sec-diff {
+  font-weight: 500;
+  font-size: 0.84rem;
+  color: var(--muted, #8a7a66);
+  font-variant-numeric: tabular-nums;
+}
+.style-evolution-card .sec-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted, #8a7a66);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.style-evolution-card .sec-dismiss:hover { background: rgba(89, 65, 41, 0.08); }
+html[data-theme="dark"] .style-evolution-card {
+  background: linear-gradient(180deg, #2b1f12 0%, #20170c 100%);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .style-evolution-card .sec-headline,
+html[data-theme="dark"] .style-evolution-card .sec-col-stats {
+  color: var(--cream, #f0e3d1);
+}
+html[data-theme="dark"] .style-evolution-card .sec-col-label,
+html[data-theme="dark"] .style-evolution-card .sec-arrow,
+html[data-theme="dark"] .style-evolution-card .sec-diff {
+  color: rgba(216, 176, 126, 0.65);
+}
+
+/* D02-12 — Tonight's recap session-end overlay */
+.tonights-recap-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+  pointer-events: none;
+}
+.tonights-recap-overlay.show { opacity: 1; pointer-events: auto; }
+.tonights-recap-overlay .tro-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 12, 4, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.tonights-recap-overlay .tro-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  width: calc(100% - 32px);
+  max-width: 420px;
+  padding: 22px 22px 18px;
+  background: linear-gradient(180deg, var(--cream, #f7eedd) 0%, var(--bg, #faf3e6) 100%);
+  border: 1px solid rgba(89, 65, 41, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.40);
+}
+.tonights-recap-overlay.show .tro-card { transform: translate(-50%, -50%) scale(1); }
+.tonights-recap-overlay .tro-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--muted, #8a7a66);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.tonights-recap-overlay .tro-close:hover { background: rgba(89, 65, 41, 0.08); }
+.tonights-recap-overlay .tro-eyebrow {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--muted, #8a7a66);
+  margin-bottom: 6px;
+}
+.tonights-recap-overlay .tro-title {
+  font-size: 1.4rem;
+  margin: 0 0 10px;
+  line-height: 1.25;
+}
+.tonights-recap-overlay .tro-stat {
+  font-size: 0.95rem;
+  color: var(--ink, #2b2218);
+  margin: 0 0 10px;
+}
+.tonights-recap-overlay .tro-stat strong {
+  font-variant-numeric: tabular-nums;
+}
+.tonights-recap-overlay .tro-hook {
+  font-size: 0.88rem;
+  color: var(--muted, #6e5d48);
+  margin: 0 0 18px;
+  line-height: 1.45;
+}
+.tonights-recap-overlay .tro-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tonights-recap-overlay .tro-cta { flex: 1 1 auto; min-width: 180px; }
+.tonights-recap-overlay .tro-later { flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) {
+  .tonights-recap-overlay { transition: opacity 180ms ease-out; }
+  .tonights-recap-overlay .tro-card,
+  .tonights-recap-overlay.show .tro-card { transform: translate(-50%, -50%); transition: none; }
+}
+html[data-theme="dark"] .tonights-recap-overlay .tro-card {
+  background: linear-gradient(180deg, #2b1f12 0%, #20170c 100%);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .tonights-recap-overlay .tro-title { color: var(--cream, #f0e3d1); }
+html[data-theme="dark"] .tonights-recap-overlay .tro-hook { color: rgba(216, 176, 126, 0.78); }
+html[data-theme="dark"] .tonights-recap-overlay .tro-stat { color: var(--cream, #f0e3d1); }
+
+/* D02-7 modified — Lifecycle cohort line (qualitative) */
+.lifecycle-banner .lcb-cohort {
+  margin: 4px 0 10px;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
 /* Conflict 6 — Power-Free slide-in micro-card.
    Bottom-anchored on mobile, bottom-right on desktop. Slides up + fades
    in. Auto-dismisses after 12s. Visually distinct from the paywall

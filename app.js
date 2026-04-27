@@ -549,6 +549,11 @@
           } else if (bg) {
             bg.style.backgroundImage = '';
           }
+          // [Batch 5 Part 2 — Dim 02 D02-2] Guest 24h soft countdown.
+          // Real friction: regenerating costs compute and the result
+          // differs slightly. Ethics-clean — signed-in users never see
+          // this; their redesigns persist forever.
+          startGuestRevealCountdown(room);
         }
       }
       return;
@@ -560,6 +565,9 @@
       const bg = $('#srhBg');
       if (bg) bg.style.backgroundImage = '';
     }
+    // [Batch 5 Part 2 — Dim 02 D02-2] Stop the countdown when not on
+    // reveal-gate. The interval is restarted on next reveal-gate entry.
+    stopGuestRevealCountdown();
     $('#signinTitle').textContent = isSignup ? 'Create account' : 'Sign in';
     $('#signinSubtitle').textContent = isSignup
       ? 'Join Furnish to save your profiles and redesigns across devices.'
@@ -576,6 +584,48 @@
     signinMode = signinMode === 'signin' ? 'signup' : 'signin';
     applySigninMode();
   });
+
+  // [Batch 5 Part 2 — Dim 02 D02-2] Guest 24h reveal-expiry countdown.
+  // Computes from `room.timestamp + 24h`. Updates every minute. Hides the
+  // pill once expired (the existing reveal CTA already drives signup; no
+  // need for a separate "Reanalyze" CTA — keeps surface area small).
+  // Ethics-clean per Reforge "What we did NOT recommend": signed-in users
+  // never see the pill (only fires inside the reveal-gate branch which is
+  // by definition guest-only).
+  let _guestCountdownTimer = null;
+  function startGuestRevealCountdown(room) {
+    stopGuestRevealCountdown();
+    const pill = document.getElementById('revealExpiryPill');
+    const text = document.getElementById('revealExpiryText');
+    if (!pill || !text || !room) return;
+    const start = (typeof room.timestamp === 'number') ? room.timestamp : Date.now();
+    const expiresAt = start + 24 * 60 * 60 * 1000;
+    const tick = () => {
+      const msLeft = expiresAt - Date.now();
+      if (msLeft <= 0) {
+        text.textContent = 'Sign in now to save this redesign';
+        pill.classList.add('expired');
+        return;
+      }
+      const hours = Math.floor(msLeft / (60 * 60 * 1000));
+      const minutes = Math.floor((msLeft % (60 * 60 * 1000)) / (60 * 1000));
+      text.textContent = hours >= 1
+        ? `${hours}h ${minutes}m to save this forever`
+        : `${minutes}m to save this forever`;
+    };
+    pill.hidden = false;
+    pill.classList.remove('expired');
+    tick();
+    _guestCountdownTimer = setInterval(tick, 60 * 1000);
+  }
+  function stopGuestRevealCountdown() {
+    if (_guestCountdownTimer) {
+      clearInterval(_guestCountdownTimer);
+      _guestCountdownTimer = null;
+    }
+    const pill = document.getElementById('revealExpiryPill');
+    if (pill) { pill.hidden = true; pill.classList.remove('expired'); }
+  }
 
   $('#signinForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -1051,6 +1101,15 @@
       'Basic personalization (style, mood, budget)',
       'Real-time price-drop alerts on saved items',
     ]),
+    // [Batch 5 Part 2 — Dim 02 D02-3 modified] Cancellation-safety line.
+    // Per Reforge User Psychology Psych Framework (Darius Contractor): the
+    // second-order panic at the conversion moment is "what if I subscribe
+    // and then need to cancel?" Naming the cancellation-safe state defuses
+    // it. Conservative-bias call: only ship currently-true claims (saved
+    // rooms + wishlist persist in localStorage today). The "Pro renders
+    // locked at premium quality after downgrade" promise from the original
+    // Reforge proposal is a future server contract — DEFERRED.
+    cancelSafety: 'If you ever cancel Pro, your saved rooms and wishlist stay yours.',
     // [Dim 09 D11 — leading-question footer replaced with neutral statement.
     //  Per VOICE.md (Confidence-8 doesn't beg). Side-by-side comparison sells
     //  itself.]
@@ -1067,6 +1126,7 @@
     const bulletsHtml = def.bullets.map(b =>
       `<li><span class="bullet" aria-hidden="true">·</span>${b}</li>`
     ).join('');
+    const safetyHtml = def.cancelSafety ? `<p class="pfree-cancel-safety muted small">${def.cancelSafety}</p>` : '';
     targetEl.innerHTML = `
       <div class="pfree-header">
         <div class="pfree-badge">CURRENT PLAN</div>
@@ -1074,6 +1134,7 @@
         <p class="pfree-subtitle">${def.subtitle}</p>
       </div>
       <ul class="pfree-list">${bulletsHtml}</ul>
+      ${safetyHtml}
       <p class="pfree-footer">${def.footer}</p>
     `;
   }
@@ -1112,8 +1173,14 @@
 
   const PAYWALL_COPY = {
     premium_quality: {
-      title: 'Sharper redesigns, every time',
-      sub: 'Pro upgrades you to our premium AI model — more accurate furniture matches, better lighting, no compromises. Unlock for $5.99/month.',
+      // [Batch 5 Part 2 — Dim 02 4S audit fix] Was 1/4 on the 4S rubric:
+      // Simple ✓ but Selfish ✗ Specific ✗ Sensory ✗. Rewrite to 4/4 per
+      // Reforge Apply User Psych "How To Tap Into Emotion": Selfish
+      // ("Your redesigns"); Sensory ("photo-real", "sharper light",
+      // "fabrics", "blocky textures"); Specific (concrete features named);
+      // Simple (each sentence short).
+      title: 'Your redesigns, photo-real.',
+      sub: 'Same room, sharper light, accurate fabrics — no more blocky textures or fake reflections. Pro routes you to the premium AI model.',
     },
     advanced_price_filters: {
       title: 'Filter your price-drop alerts',
@@ -1182,6 +1249,16 @@
     // rejected, >15s=considered-and-rejected). Stored on the modal element
     // so concurrent contexts don't trample each other.
     m.dataset.shownAt = String(Date.now());
+    // [Batch 5 Part 2 — Dim 02 D02-8] Selective scarcity per context.
+    // Per Reforge Apply User Psych Painkiller-vs-Vitamin distinction:
+    // premium_quality is closer to painkiller (user just felt standard-
+    // quality limits) — adding scarcity reads as overselling. Abstract
+    // upsells (HD export, multi-profile, price filters, generic) are
+    // pure vitamin → need motivational boosts (urgency / scarcity) to
+    // clear the decision hill. `data-scarcity` toggles the visibility
+    // of `.paywall-urgency` (founding-member 1,000-spot copy).
+    const scarcityOnContexts = ['hd_export','profile','advanced_price_filters','template_pro','generic'];
+    m.dataset.scarcity = scarcityOnContexts.includes(context) ? 'on' : 'off';
     trackEvent('paywall_shown', { context, layout: layoutKey });
   }
   // [Batch 5 — Dim 06 Section D + E.8] Differentiated dismiss paths.
@@ -1959,6 +2036,13 @@
     // collapsible answers editor. Custom-color picker preserved in DOM
     // (hidden) for future Pro feature per CONFLICT 1.
     renderAnswersEditor(p);
+    // [Batch 5 Part 2 — Dim 02 D02-5 modified] Style-profile completeness
+    // gauge mounted at the top of the answers editor parent. Renders the
+    // % bar + identity summary; SVG fingerprint deferred.
+    const answersEditorEl = document.getElementById('answersEditor');
+    if (answersEditorEl?.parentElement) {
+      renderStyleProfileGauge(p, answersEditorEl.parentElement);
+    }
     setupBudgetSlider(p);
 
     showScreen('preferences');
@@ -2489,6 +2573,10 @@
     }
 
     renderExploreWelcome();
+    // [Batch 5 Part 2 — Dim 02 D02-11] Welcome-back commitment card fires
+    // BEFORE the lifecycle banner so the user's own past quiz answers are
+    // the first thing they re-encounter on return. Once-per-day gate.
+    renderWelcomeBackCommitmentCard();
     renderLifecycleBanner();
     renderResumeHero(p);
     // [Retention pass — Loop 2 surface] Above-fold price-drop notice for any
@@ -3207,6 +3295,169 @@
   //   AT_RISK: "It's been [N] days. Trends moved — see what's new in your style"
   //   DORMANT: "Welcome back. Your saved style + new arrivals."
   //   CHURNED: re-acquisition framing — "Pick up where you left off (no signup needed)"
+  // ============================================================
+  // [Batch 5 Part 2 — Dim 02 D02-11] Welcome-back commitment card.
+  // Quotes the user's own past quiz answers as commitment evidence.
+  // Per Reforge ELMR Motivation — Consistency motivational boost: ask
+  // user to reaffirm a stated position, then follow with the ask. Per
+  // 4S Selfish: using the user's own words is the highest form of
+  // selfish copy. Fires once per day (per-user) when lifecycle != NEW
+  // and profile has ≥3 core answers populated.
+  // ============================================================
+
+  function welcomeBackShouldShow(profile) {
+    if (!profile) return false;
+    const lifecycle = getLifecycleState();
+    if (lifecycle === LIFECYCLE.NEW || lifecycle === LIFECYCLE.ACTIVE) return false;
+    const answers = (profile && profile.answers) || {};
+    const populatedCount = ['vibe','materials','color_appetite','budget_tier','room_use','scope','avoid','dealbreaker','light','decor_density']
+      .filter(k => {
+        const v = answers[k];
+        if (v === undefined || v === null) return false;
+        if (Array.isArray(v)) return v.length > 0;
+        return true;
+      }).length;
+    if (populatedCount < 3) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    if (state.user?._welcomeBackLastShown === today) return false;
+    return true;
+  }
+
+  function formatPastQuizSummary(profile) {
+    const answers = (profile && profile.answers) || {};
+    const parts = [];
+    const vibeLabels = {
+      calm_grounded: 'calm + grounded', energized_creative: 'energized + creative',
+      cozy_protected: 'cozy + protected', elevated_hotel: 'elevated + hotel-like',
+      inspired_artist: 'inspired + artist'
+    };
+    if (answers.vibe && vibeLabels[answers.vibe]) parts.push(vibeLabels[answers.vibe]);
+    const colorLabels = {
+      warm: 'warm tones', cool: 'cool tones', neutral: 'a neutral palette',
+      saturated: 'bold color', monochromatic: 'a monochromatic palette'
+    };
+    if (answers.color_appetite && colorLabels[answers.color_appetite]) {
+      parts.push(colorLabels[answers.color_appetite]);
+    }
+    const budgetLabels = {
+      tight: 'a tight budget', value: 'a value-conscious budget',
+      mid: 'a mid-range budget', dream_first: 'a dream-first budget'
+    };
+    if (answers.budget_tier && budgetLabels[answers.budget_tier]) {
+      parts.push(budgetLabels[answers.budget_tier]);
+    }
+    const avoid = Array.isArray(answers.avoid) ? answers.avoid : [];
+    const realAvoids = avoid.filter(x => x !== 'nothing');
+    if (realAvoids.length) {
+      parts.push(`skipping ${realAvoids.slice(0, 2).join(' + ')}`);
+    }
+    return parts.join(', ');
+  }
+
+  function renderWelcomeBackCommitmentCard() {
+    const hero = document.querySelector('.home-hero');
+    if (!hero) return;
+    hero.querySelector('.welcome-back-commit')?.remove();
+    const profile = getActiveProfile();
+    if (!welcomeBackShouldShow(profile)) return;
+    const summary = formatPastQuizSummary(profile);
+    if (!summary) return;
+    const lastSeenDays = daysSince(state.user?.previousVisitAt || state.user?.lastVisitedAt);
+    let prefix = 'Last time';
+    if (lastSeenDays && lastSeenDays >= 1) {
+      prefix = `${lastSeenDays} day${lastSeenDays === 1 ? '' : 's'} ago`;
+      prefix = prefix[0].toUpperCase() + prefix.slice(1);
+    }
+    const greetName = profile?.name && profile.name !== 'You' ? `, ${profile.name}` : '';
+    const card = document.createElement('div');
+    card.className = 'welcome-back-commit';
+    card.innerHTML = `
+      <div class="wbc-headline"><strong>Welcome back${greetName}.</strong></div>
+      <div class="wbc-body">${prefix} you told us: <em>${summary}</em>. Still true?</div>
+      <div class="wbc-actions">
+        <button class="btn btn-primary wbc-yes" type="button">Yes — design more</button>
+        <button class="btn btn-ghost wbc-update" type="button">Update my style</button>
+      </div>
+    `;
+    hero.insertBefore(card, hero.firstChild);
+    if (!state.user) state.user = {};
+    state.user._welcomeBackLastShown = new Date().toISOString().slice(0, 10);
+    save();
+    trackEvent('welcome_back_commitment_shown', { lifecycleState: getLifecycleState(), populatedAxes: summary.split(', ').length });
+    card.querySelector('.wbc-yes')?.addEventListener('click', () => {
+      trackEvent('welcome_back_commitment_yes', { lifecycleState: getLifecycleState() });
+      card.remove();
+      const lc = getLifecycleState();
+      if (lc === LIFECYCLE.DORMANT && (state.wishlist || []).length) {
+        document.getElementById('wishlistBtn')?.click();
+      } else {
+        document.querySelector('[data-go="capture"]')?.click();
+      }
+    });
+    card.querySelector('.wbc-update')?.addEventListener('click', () => {
+      trackEvent('welcome_back_commitment_update', { lifecycleState: getLifecycleState() });
+      card.remove();
+      if (profile?.id && typeof openPreferences === 'function') openPreferences(profile.id);
+    });
+  }
+  window.FurnishRenderWelcomeBack = renderWelcomeBackCommitmentCard;
+
+  // [Batch 5 Part 2 — Dim 02 D02-5 modified] Style-profile completeness
+  // gauge. Counts 8 axes (6 onboarding answers + ≥3 saves + ≥1 redesign).
+  // Monotonic — never decreases (per Reforge endowment: once endowed,
+  // ownership feeling never reduces). The deterministic SVG fingerprint
+  // generator originally proposed is L-effort and deferred to a future
+  // polish batch; this ships the % gauge + identity summary only.
+  function computeStyleProfileCompleteness(profile) {
+    const answers = (profile && profile.answers) || {};
+    const axes = [
+      answers.vibe,
+      Array.isArray(answers.materials) && answers.materials.length > 0,
+      answers.color_appetite,
+      answers.budget_tier,
+      answers.scope,
+      answers.room_use,
+      (state.wishlist || []).length >= 3,
+      (state.rooms || []).length >= 1
+    ];
+    const populated = axes.filter(Boolean).length;
+    const pctNow = Math.round((populated / axes.length) * 100);
+    if (!profile) return pctNow;
+    const stored = profile._maxCompleteness || 0;
+    if (pctNow > stored) {
+      profile._maxCompleteness = pctNow;
+      save();
+      return pctNow;
+    }
+    return Math.max(pctNow, stored);
+  }
+  window.FurnishStyleCompleteness = computeStyleProfileCompleteness;
+
+  function renderStyleProfileGauge(profile, host) {
+    if (!host) return;
+    host.querySelector('.style-dna-card')?.remove();
+    if (!profile) return;
+    const pct = computeStyleProfileCompleteness(profile);
+    const summary = formatPastQuizSummary(profile);
+    const card = document.createElement('div');
+    card.className = 'style-dna-card';
+    const hint = pct < 100
+      ? ((state.wishlist || []).length < 3
+          ? 'Save a few more pieces and your AI gets sharper.'
+          : 'Design another room and your style sharpens.')
+      : '';
+    card.innerHTML = `
+      <div class="sdc-row">
+        <div class="sdc-label"><strong>Your style profile</strong> — ${pct}% complete</div>
+        <div class="sdc-bar"><span class="sdc-bar-fill" style="width:${pct}%"></span></div>
+      </div>
+      ${summary ? `<div class="sdc-summary">${summary}.</div>` : ''}
+      ${hint ? `<div class="sdc-hint muted small">${hint}</div>` : ''}
+    `;
+    host.prepend(card);
+  }
+  window.FurnishRenderStyleGauge = renderStyleProfileGauge;
+
   // Goal per ICED p.18: counteract "product recall decay over time" with a
   // targeted recall trigger sized to dormancy depth.
   function renderLifecycleBanner() {
@@ -3278,12 +3529,26 @@
       body  = styleCopy.body;
     }
 
+    // [Batch 5 Part 2 — Dim 02 D02-7 modified] Qualitative cohort framing.
+    // Original Reforge proposal used fake numbers ("142 other Modern + Scandi
+    // fans designed new rooms this week") which violates Conflict 4 (no fake
+    // numbers, ever). Modified to a qualitative cohort-belonging signal that
+    // only fires when real styleNames are set. Per Reforge Resurrection
+    // Strategies: Belonging is the highest-conversion lever for dormant
+    // users; per ELMR Motivation: Belonging boost outperforms Bargain at
+    // resurrection. No counts shipped pre-launch.
+    let cohortLine = '';
+    if (styleNames) {
+      cohortLine = `<p class="lcb-cohort muted small">Fellow ${styleNames} fans are designing too.</p>`;
+    }
+
     const banner = document.createElement('div');
     banner.className = 'lifecycle-banner lc-' + lifecycle;
     banner.innerHTML = `
       <div class="lcb-badge">${badge}</div>
       <h3 class="lcb-title">${title}</h3>
       <p class="lcb-body">${body}</p>
+      ${cohortLine}
       <button class="btn btn-primary lcb-cta" type="button">${ctaLabel}</button>
     `;
     hero.prepend(banner);
@@ -5654,11 +5919,158 @@
     // Replaces the old quota banner. Surfaces once per session at gen #3+,
     // with 7-day cooldown. See renderPremiumUpsellHint() for the contract.
     renderPremiumUpsellHint(room);
+    // [Batch 5 Part 2 — Dim 02 D02-B2] Style evolution card on 2nd+ version.
+    // Per Reforge ELMR Reward (Mastery — "reaching a new level"): showing
+    // version-over-version progression creates evidence the AI improves
+    // for them. Combined with peak-end framing — the *end* of a session
+    // that includes "look how far you've come" is dramatically more
+    // memorable than one with no inter-session callback.
+    renderStyleEvolutionCard(room);
 
     renderPriceTags(room);
     renderPalette(room);
     renderItemsList(room);
   }
+
+  // [Batch 5 Part 2 — Dim 02 D02-B2] Renders evolution card when room has
+  // ≥2 versions AND the card hasn't been dismissed/seen this session for
+  // this room. Compares first version vs current. No fake content; pulls
+  // real prices + item counts + version timestamps from `room.versions`.
+  function renderStyleEvolutionCard(room) {
+    const card = document.getElementById('totalsCard');
+    if (!card) return;
+    document.getElementById('styleEvolutionCard')?.remove();
+    if (!room || !Array.isArray(room.versions) || room.versions.length < 2) return;
+    if (state._evolutionDismissedRooms?.[room.id]) return;
+    const v1 = room.versions[0];
+    const vLatest = room.versions[room.versions.length - 1];
+    if (!v1 || !vLatest || v1.id === vLatest.id) return;
+    const total1 = (v1.items || []).reduce((s,i) => s + (i.price || 0), 0);
+    const totalNow = (vLatest.items || []).reduce((s,i) => s + (i.price || 0), 0);
+    const diff = totalNow - total1;
+    const dirArrow = diff === 0 ? '·' : (diff > 0 ? '↑' : '↓');
+    const dirLabel = diff === 0 ? 'same total' : (diff > 0 ? `+$${Math.abs(diff).toLocaleString()}` : `−$${Math.abs(diff).toLocaleString()}`);
+    const dayDiff = Math.max(1, Math.round((vLatest.timestamp - v1.timestamp) / (24 * 60 * 60 * 1000)));
+    const banner = document.createElement('div');
+    banner.id = 'styleEvolutionCard';
+    banner.className = 'style-evolution-card';
+    banner.innerHTML = `
+      <div class="sec-headline"><strong>Your style evolution</strong> — same room, sharpened by what you've taught us.</div>
+      <div class="sec-row">
+        <div class="sec-col">
+          <div class="sec-col-label">v1 · ${dayDiff} day${dayDiff === 1 ? '' : 's'} ago</div>
+          <div class="sec-col-stats">$${total1.toLocaleString()} · ${(v1.items || []).length} pieces</div>
+        </div>
+        <div class="sec-arrow" aria-hidden="true">→</div>
+        <div class="sec-col sec-col-current">
+          <div class="sec-col-label">Now</div>
+          <div class="sec-col-stats">$${totalNow.toLocaleString()} · ${(vLatest.items || []).length} pieces &nbsp;<span class="sec-diff">${dirArrow} ${dirLabel}</span></div>
+        </div>
+      </div>
+      <button class="sec-dismiss" type="button" aria-label="Dismiss" id="styleEvolutionDismiss">×</button>
+    `;
+    card.after(banner);
+    trackEvent('style_evolution_card_shown', { roomId: room.id, versionCount: room.versions.length, total1, totalNow });
+    document.getElementById('styleEvolutionDismiss')?.addEventListener('click', () => {
+      banner.remove();
+      state._evolutionDismissedRooms = state._evolutionDismissedRooms || {};
+      state._evolutionDismissedRooms[room.id] = Date.now();
+      save();
+      trackEvent('style_evolution_card_dismissed', { roomId: room.id });
+    });
+  }
+  window.FurnishRenderStyleEvolution = renderStyleEvolutionCard;
+
+  // ============================================================
+  // [Batch 5 Part 2 — Dim 02 D02-12 modified] Tonight's recap session-end
+  // overlay. Per Reforge ELMR Reward + Peak-End Rule: the *end* of a
+  // session is what gets retroactively averaged into the user's memory
+  // of the whole experience. Engineering the end with a summary +
+  // forward hook converts a flat exit into a memorable peak. Conservative-
+  // bias: original spec teased a "Friday template drop" — deferred until
+  // real weekly template cadence exists. Today's hook leans on the
+  // already-real wishlist + price-watch loop.
+  // ============================================================
+  // Trigger pattern: on visibilitychange → visible, if user was away ≥30s
+  // AND has at least one rendered room AND we haven't shown today, render
+  // the overlay. Fires once per day per user.
+  function recordSessionLeft() {
+    if (document.visibilityState !== 'hidden') return;
+    if (!state.user) state.user = {};
+    state.user._lastSessionLeftAt = Date.now();
+    save();
+  }
+  function maybeFireTonightsRecap() {
+    if (document.visibilityState !== 'visible') return;
+    if (!state.user) return;
+    const leftAt = state.user._lastSessionLeftAt || 0;
+    if (!leftAt) return;
+    if (Date.now() - leftAt < 30 * 1000) return; // need ≥30s away
+    const today = new Date().toISOString().slice(0, 10);
+    if (state.user._tonightsRecapLastShown === today) return;
+    if (!Array.isArray(state.rooms) || state.rooms.length === 0) return;
+    // Pick the most recently-active room (currentRoomId if set, else most recent)
+    let room = currentRoomId ? state.rooms.find(r => r.id === currentRoomId) : null;
+    if (!room) room = state.rooms[state.rooms.length - 1];
+    if (!room) return;
+    renderTonightsRecapOverlay(room);
+  }
+  function renderTonightsRecapOverlay(room) {
+    document.getElementById('tonightsRecapOverlay')?.remove();
+    const totalNow = (room.items || []).reduce((s,i) => s + (i.price || 0), 0);
+    const savedCount = (state.wishlist || []).length;
+    const roomLabel = (room.type || 'room').toLowerCase();
+    const wishlistHook = savedCount > 0
+      ? `We'll keep watching prices on your <strong>${savedCount}</strong> saved piece${savedCount === 1 ? '' : 's'}.`
+      : `Save a few pieces and we'll watch their prices for you.`;
+    const overlay = document.createElement('div');
+    overlay.id = 'tonightsRecapOverlay';
+    overlay.className = 'tonights-recap-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.innerHTML = `
+      <div class="tro-backdrop" id="tonightsRecapBackdrop"></div>
+      <div class="tro-card">
+        <button class="tro-close" type="button" id="tonightsRecapClose" aria-label="Dismiss">×</button>
+        <div class="tro-eyebrow">Tonight's recap</div>
+        <h3 class="tro-title">You designed your ${roomLabel}.</h3>
+        <p class="tro-stat">${(room.items || []).length} pieces · <strong>$${totalNow.toLocaleString()}</strong> total</p>
+        <p class="tro-hook">${wishlistHook}</p>
+        <div class="tro-actions">
+          <button class="btn btn-primary tro-cta" type="button" id="tonightsRecapCta">${savedCount > 0 ? 'See my saved pieces' : 'Try a different room'}</button>
+          <button class="btn btn-ghost tro-later" type="button" id="tonightsRecapLater">Maybe later</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    void overlay.offsetHeight;
+    overlay.classList.add('show');
+    state.user._tonightsRecapLastShown = new Date().toISOString().slice(0, 10);
+    save();
+    trackEvent('tonights_recap_shown', { roomId: room.id, savedCount, totalNow });
+    const dismiss = (reason) => {
+      overlay.classList.remove('show');
+      setTimeout(() => overlay.remove(), 240);
+      trackEvent('tonights_recap_dismissed', { reason });
+    };
+    document.getElementById('tonightsRecapCta').addEventListener('click', () => {
+      trackEvent('tonights_recap_clicked', { hasWishlist: savedCount > 0, roomId: room.id });
+      dismiss('clicked');
+      if (savedCount > 0) {
+        document.getElementById('wishlistBtn')?.click();
+      } else {
+        document.querySelector('[data-go="capture"]')?.click();
+      }
+    });
+    document.getElementById('tonightsRecapLater').addEventListener('click', () => dismiss('later'));
+    document.getElementById('tonightsRecapClose').addEventListener('click', () => dismiss('close'));
+    document.getElementById('tonightsRecapBackdrop').addEventListener('click', () => dismiss('backdrop'));
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') recordSessionLeft();
+    else if (document.visibilityState === 'visible') maybeFireTonightsRecap();
+  });
+  window.FurnishMaybeFireTonightsRecap = maybeFireTonightsRecap;
 
   function renderPriceTags(room) {
     const el = $('#priceTags');

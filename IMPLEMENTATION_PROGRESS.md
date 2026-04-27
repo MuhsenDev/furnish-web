@@ -841,4 +841,143 @@ All 9 conflicts in `CONFLICTS_RESOLVED.md` are now LOCKED. Master priority stack
 
 Five batches down. Conflict ledger empty. Master priority stack 1 + 2 + 3 + 4 + 5 all shipped or deferred-with-spec. Onto instrumentation.
 
-Resume note appended to `IMPLEMENTATION_PROGRESS.md`. **Not committing this resume-note edit** — leaving `IMPLEMENTATION_PROGRESS.md` as the only modified file in `git status`, so the next session sees the resume note inline AND has the option to either commit it standalone or fold it into Batch 5's commit. **Stopping now per Hassan's directive. No new step started.**
+---
+---
+
+# Batch 5 Part 2 — Dim 02 User Psychology — COMPLETE
+
+**Date:** 2026-04-26
+**Source:** `OPTIMIZATION_PLAN.md` Dim 02 (12 entries + 2 bonus + 4 cross-cutting, 100% Reforge) + `BATCH_5_AUDIT.md` (single audit doc covering both Dim 06 retrospective and Dim 02 forward plan).
+**Conflicts touched:** Conflict 4 honored throughout (no fake numbers, ever) — applied 3 times to modify Reforge proposals into qualitative-only variants.
+**Conservative-bias note (Hassan):** "When in doubt between a bold change and a conservative one, pick conservative and flag the bold version as a post-launch experiment in DEFERRED.md." Applied 6 times across the audit.
+
+## Decisions auto-resolved per "approve all changes" + Conflict 4 + conservative-bias
+
+| Entry | Reforge principle | Status | Reason |
+|-------|-------------------|--------|--------|
+| D02-1 | Loss aversion (wishlist) | **DEFER** | Quantitative copy ("Pro members got 3 price-drop pings") VIOLATES Conflict 4. Today's wishlist UI keeps current copy. Defer until real price-history data exists. |
+| D02-2 | Loss aversion (guest expiry) | **SHIP** | Real friction (regenerating costs compute). Ethics-clean per Reforge "What we did NOT recommend" guard. |
+| D02-3 | Loss aversion (Free-card cancellation safety) | **MODIFY** | Original promised "premium-quality renders persist after downgrade" — future server contract, deferred. Ship the truthful subset: "saved rooms + wishlist stay yours." |
+| D02-4 | Endowment (possessive language) | **PARTIAL SHIP** | 3 of ~30 4S edits ship now (welcome hero, items section heading, paywall premium_quality copy). Full audit defers to a copy-pass batch. |
+| D02-5 | Endowment (style-DNA gauge) | **MODIFY** | L-effort SVG fingerprint generator → defer. Ship the basic % gauge + identity summary. |
+| D02-6 | Social proof multiplied | **DEFER** | All proposed copy uses fake numbers/testimonials. VIOLATES Conflict 4. Defer until backend supplies real counts. |
+| D02-7 | Social proof (lifecycle cohort sizes) | **MODIFY** | Original "142 other Modern + Scandi fans" violates Conflict 4. Ship qualitative cohort line ("Fellow {styleNames} fans are designing too"). |
+| D02-8 | Scarcity (selective per paywall context) | **SHIP** | Premium_quality OFF, abstract upsells ON. Per Reforge Apply User Psych Painkiller-vs-Vitamin distinction. |
+| D02-9 | Scarcity (weekly template drops) | **DEFER** | Requires real weekly template release cadence (Hassan's operational decision). |
+| D02-10 | Anchoring (external retail anchor) | **MODIFY** | Already 80% shipped in Batch 5 Part 1 (renovation anchor + Houzz/Designer footer). Additive: append Modsy + Havenly to existing reference footer. |
+| D02-11 | Commitment / consistency (welcome-back card) | **SHIP** | Quotes user's past quiz answers — real-data only. Once-per-day gate. |
+| D02-12 | Peak-end (Tonight's recap overlay) | **MODIFY** | Drop the "Friday template drop" tease (depends on D02-9). Ship summary + price-watch hook (already real). |
+| D02-B1 | Endowment + commitment (style-twin matching) | **DEFER** | Backend cohort data + content curation. |
+| D02-B2 | Peak-end + loss aversion (style evolution comparison) | **SHIP** | Data already in `state.rooms[].versions`. M-effort, high leverage. |
+| 4S audit | Cross-cutting (~30 edits) | **PARTIAL SHIP** | 3 highest-impact ship; remaining ~27 to copy-pass batch. |
+
+## Architecture
+
+This is the **psychology pass** of Batch 5. Part 1 (Dim 06 Monetization, commit `45dd109`) shipped pricing infrastructure; Part 2 (this section) layers Reforge psychology principles on top — endowment, loss aversion, scarcity, anchoring, commitment, peak-end — across welcome screen, paywall, reveal-gate, home, items list, preferences, and lifecycle banners.
+
+**Conflict 4 governance:** Three Reforge entries originally proposed fake-number copy. All three modified to qualitative variants that pass the "real or nothing" rule. The pattern is durable: any future psychology proposal that uses numbers must filter through Conflict 4 first.
+
+## What landed (per phase)
+
+### Phase A — Paywall psychology refinements
+- **Modsy + Havenly added to competitive reference footer** (`index.html` `.paywall-references`): "Modsy (RIP) $159/room · Havenly $79–$499/room · Houzz Pro $50/mo · Designer $200+/hr · Furnish Pro $4/mo." Reforge Use Case Model + Reference Price.
+- **Selective scarcity per paywall context** (`app.js` `openPaywall` + `styles.css`): `data-scarcity="off"` for `premium_quality` (painkiller — adding scarcity reads as overselling) and `rearrange`; `on` for `hd_export`, `profile`, `advanced_price_filters`, `template_pro`, `generic` (vitamin upsells — need motivational boost). CSS rule `#paywallModal[data-scarcity="off"] .paywall-urgency { display: none; }`.
+
+### Phase B — 4S + possessive top fixes
+- **Welcome tagline** (`index.html:61`): "Watch any room transform" → "Watch your room transform" (pre-endowment via imagined ownership; Selfish-S boost).
+- **Items section heading** (`index.html:926`): "Recommended Pieces" → "Your Picks" (Selfish-S; ownership framing).
+- **Paywall `premium_quality` copy** (`PAYWALL_COPY.premium_quality`): 1/4 → 4/4 on the 4S rubric.
+  - Title was: "Sharper redesigns, every time" → now: "Your redesigns, photo-real."
+  - Sub was: "Pro upgrades you to our premium AI model — more accurate furniture matches, better lighting, no compromises. Unlock for $5.99/month." → now: "Same room, sharper light, accurate fabrics — no more blocky textures or fake reflections. Pro routes you to the premium AI model."
+
+### Phase C — Welcome-back commitment + style-DNA gauge
+- **Welcome-back commitment card** (`renderWelcomeBackCommitmentCard`): renders into `.home-hero` BEFORE the lifecycle banner when `lifecycle ∈ {AT_RISK, DORMANT, CHURNED}` AND profile has ≥3 populated answers AND once-per-day gate fresh. Quotes the user's own past quiz answers as commitment evidence per Reforge Consistency boost. CTAs: "Yes — design more" / "Update my style". Analytics: `welcome_back_commitment_shown / yes / update`.
+- **`formatPastQuizSummary(profile)`**: maps `profile.answers` (vibe + color_appetite + budget_tier + avoid) to a human-readable identity sentence. Honors locked Conflict 4 (no fake fillers; only real answers shown).
+- **Style profile DNA gauge** (`renderStyleProfileGauge`): 8-axis completeness % with monotonic memory (`profile._maxCompleteness` never decreases — endowment-aligned). Bar + summary + hint. Mounted at top of preferences answers editor parent.
+
+### Phase D — Guest reveal-expiry + Free-card cancellation safety
+- **Guest reveal-expiry pill** (`#revealExpiryPill` + `startGuestRevealCountdown / stopGuestRevealCountdown`): 24h soft countdown computed from `room.timestamp + 24h`. Updates every 60s. Hides the pill when not in reveal-gate flow. After expiry, copy flips to "Sign in now to save this redesign." Reforge ELMR Urgency boost; ethics-clean (signed-in users never see this).
+- **Free-card cancellation-safety line** (`FREE_PLAN_CARD.cancelSafety`): "If you ever cancel Pro, your saved rooms and wishlist stay yours." Defuses the second-order panic ("what if I subscribe and need to cancel?") per Reforge Psych Framework. Conservative subset of the original Reforge proposal — see DEFERRED.md for the full server-contract version.
+
+### Phase E — Style evolution + Tonight's recap overlay
+- **Style evolution card** (`renderStyleEvolutionCard`): when `room.versions.length >= 2`, renders a compact comparison card after `#totalsCard` showing v1 vs latest (price + item count + delta + days elapsed). Per-room dismissible (`state._evolutionDismissedRooms[roomId]`). Reforge ELMR Reward (Mastery: "reaching a new level") + peak-end framing.
+- **Tonight's recap session-end overlay** (`maybeFireTonightsRecap` via `visibilitychange` listener): on tab return after ≥30s away AND ≥1 designed room AND once-per-day fresh, full-screen overlay: room type + items count + total $ + price-watch hook ("We'll keep watching prices on your N saved pieces"). Conservative-bias: dropped the "Friday template drop" tease (D02-9 deferred). 4 dismiss paths (CTA, "Maybe later", X, backdrop). Analytics: `tonights_recap_shown / clicked / dismissed`.
+
+### Phase F — Qualitative cohort framing
+- **Lifecycle banner cohort line**: when `styleNames` is set (real data), append `<p class="lcb-cohort">Fellow {styleNames} fans are designing too.</p>` after the body, before the CTA. Qualitative belonging signal — no fake numbers. Modified from Reforge D02-7 spec to honor Conflict 4.
+
+## Files changed in Batch 5 Part 2
+
+| File | Lines | Summary |
+|------|-------|---------|
+| `app.js` | +330 / ~25 surgical | Welcome-back commitment card (`welcomeBackShouldShow` + `formatPastQuizSummary` + `renderWelcomeBackCommitmentCard`); style-DNA gauge (`computeStyleProfileCompleteness` + `renderStyleProfileGauge`); guest reveal-expiry countdown (`startGuestRevealCountdown` + `stopGuestRevealCountdown`); style evolution card (`renderStyleEvolutionCard`); Tonight's recap overlay (`recordSessionLeft` + `maybeFireTonightsRecap` + `renderTonightsRecapOverlay` + `visibilitychange` listener); selective scarcity (data-scarcity attribute in `openPaywall`); FREE_PLAN_CARD.cancelSafety + render; PAYWALL_COPY.premium_quality 4S rewrite; lifecycle banner cohort line append. |
+| `index.html` | +14 / ~4 changed | Welcome tagline possessive; items section heading "Your Picks"; reveal-expiry pill DOM; competitive reference footer expanded with Modsy + Havenly. |
+| `styles.css` | +220 | Batch 5 Part 2 block: `.welcome-back-commit` family, `.style-dna-card` family, `.reveal-expiry-pill`, `.pfree-cancel-safety`, `.style-evolution-card` family, `.tonights-recap-overlay` family, `.lifecycle-banner .lcb-cohort`, `#paywallModal[data-scarcity="off"]` rule. Dark-mode coverage on every new component. `prefers-reduced-motion` fallback for the recap overlay. |
+| `BATCH_5_AUDIT.md` | NEW | Audit doc covering Dim 06 retrospective + Dim 02 forward plan + 15-row decisions table. |
+| `DEFERRED.md` | +110 | 7 new deferred items (price-drop loss banner, SVG fingerprint, weekly template cadence, style-twin matching, premium-render persistence promise, full 4S audit, quantitative social-proof). |
+| `IMPLEMENTATION_PROGRESS.md` | this section | Batch 5 Part 2 migration log. |
+
+## Reforge framework citations (Batch 5 Part 2)
+
+- *Growth Series — User Psychology — ELMR* (Decision Hill, Emotion / Logic / Motivation / Reward) — touched in 8 entries
+- *Growth Series — User Psychology — Apply User Psych — How To Tap Into Emotion* (4S of Tapping into Emotion: Selfish / Sensory / Specific / Simple) — Phase B 4S audit
+- *Growth Series — User Psychology — Apply User Psych — Painkiller / Vitamin / Candy spectrum* — Phase A selective scarcity
+- *Growth Series — User Psychology — Psych! Framework* (Darius Contractor positive vs negative psych) — Free-card cancellation safety + Conflict 4 governance
+- *Retention + Engagement — Resurrection Defining, Measuring, And Analyzing* (Belonging is the highest-conversion lever for dormant users) — Phase F qualitative cohort line
+- *Retention + Engagement — BONUS Managing Infrequent Products + ICED Theory* (peak-moment session-memory) — Phase E Tonight's recap overlay
+- *Monetization + Pricing — Optimization Strategies* (anchoring, reference price, decoy, scarcity) — Phase A Modsy/Havenly anchor expansion
+- *Brand Marketing — Identity Governance* (Conflict 4 lock honored throughout)
+
+## Verification (preview-tested)
+
+- **Welcome tagline:** "Watch your room transform — about a minute, sit tight." ✓
+- **Items section heading:** "Your Picks" ✓
+- **Paywall `premium_quality` 4/4:** title "Your redesigns, photo-real." + sub "Same room, sharper light, accurate fabrics — no more blocky textures or fake reflections. Pro routes you to the premium AI model." ✓
+- **Selective scarcity:** `premium_quality` → `data-scarcity="off"` + `.paywall-urgency` computed `display: none` ✓; `profile` → `data-scarcity="on"` + computed `display: block` ✓
+- **Free-card cancellation safety:** "If you ever cancel Pro, your saved rooms and wishlist stay yours." ✓
+- **Competitive reference footer:** "Modsy (RIP) $159/room · Havenly $79–$499/room · Houzz Pro $50/mo · Designer $200+/hr · Furnish Pro $4/mo" ✓
+- **Welcome-back commitment card** (with simulated 14-day-prior visit + populated answers): "Welcome back, My Style." headline + "14 days ago you told us: cozy + protected, warm tones, a mid-range budget, skipping industrial. Still true?" body + "Yes / Update" buttons ✓
+- **Lifecycle banner cohort line:** "Fellow Farmhouse + Rustic fans are designing too." ✓ (qualitative, no fake numbers)
+- **Style-profile DNA gauge:** "Your style profile — 88% complete" + summary + hint, bar fill at 88% ✓
+- **All `Furnish*` window helpers exposed:** FurnishRenderWelcomeBack, FurnishStyleCompleteness, FurnishRenderStyleEvolution, FurnishMaybeFireTonightsRecap, FurnishRenderStyleGauge ✓
+- **No console errors at boot.** ✓
+
+## What did NOT ship (deferred — see DEFERRED.md)
+
+- **Quantitative wishlist price-drop loss banner** (D02-1) — fake-numbers blocker per Conflict 4.
+- **Style-DNA SVG fingerprint generator** (D02-5 enhancement) — L-effort polish, defer.
+- **Weekly template drop badge** (D02-9) — needs real content cadence decision.
+- **Style-twin cohort matching** (D02-B1) — backend + content curation.
+- **"Premium-render persistence after downgrade" promise** (D02-3 enhancement) — server contract.
+- **Full 4S copy audit** (~27 remaining edits) — defer to a copy-pass batch.
+- **Quantitative social-proof at decision moments** (D02-6 + D02-7 quantitative variants) — fake-numbers blocker.
+
+## Compatibility / migration notes
+
+- **`profile._maxCompleteness`** is a new field; initialized lazily on first `computeStyleProfileCompleteness(profile)` call. Existing profiles get a fresh max on first read. Monotonic — never decreases.
+- **`state._evolutionDismissedRooms`** is a new field (per-room dismiss memory for style evolution card). Lazy-initialized.
+- **`state.user._welcomeBackLastShown`** + **`state.user._lastSessionLeftAt`** + **`state.user._tonightsRecapLastShown`** are new fields. Each lazy-initialized; no migration step.
+- **`#paywallModal[data-scarcity]`** attribute is new. Existing CSS rules unaffected; only the new selector hides `.paywall-urgency` when `off`.
+- **`FREE_PLAN_CARD.cancelSafety`** is a new field. `renderFreeCard()` checks for it gracefully (no breakage if removed).
+- **`visibilitychange` listener** is global. Both branches (hidden / visible) are idempotent — multiple subscribers wouldn't break the contract.
+- **Welcome-back commitment card** mounts as `firstChild` of `.home-hero`. The lifecycle banner mounts via `prepend` after, so the welcome-back card visually leads. If rendering order changes in the future, both should remain in the home-hero container.
+
+## Time spent
+
+- Recon (Dim 02 read + audit decisions): ~25 min
+- BATCH_5_AUDIT.md write: ~15 min
+- Phase A (paywall refinements): ~15 min
+- Phase B (4S + possessive copy): ~10 min
+- Phase C (welcome-back + DNA gauge): ~30 min
+- Phase D (reveal expiry + Free-card safety): ~20 min
+- Phase E (evolution card + Tonight's recap overlay): ~35 min
+- Phase F (cohort qualitative line): ~5 min
+- CSS Batch 5 Part 2 block: ~25 min
+- Phase G (DEFERRED.md + this log + commit + verify): ~25 min
+- **Total: ~3h 25min execution.**
+
+## Status: ✅ COMPLETE
+
+Five batches and one Part-2 down. All 14 dimensions touched (Dim 02, 03, 04, 05, 07, 08, 09, 10, 11, 12, 14 shipped; Dim 01 + 06 shipped in their respective batches; Dim 13 Instrumentation is the lone remaining dimension). All 9 conflicts LOCKED. Master priority stack 1–5 shipped or spec-deferred. Conflict 4 governance held throughout.
+
+**Next batch — recommended:** **Batch 6 — Dim 13 Instrumentation.** The accumulated event dictionary across Batches 1–5 is now substantial (~40 distinct events). Batch 6's job is to organize them into Reforge's Action / Contextual / Backstory taxonomy, define cohort definitions (Email-only, Power-Free, Habit-formed, Returned-for-session-2, Style-twin, Welcome-back-yes, Tonight's-recap-clicked), and spec the dashboard contract — closing the DEFERRED.md item "Paywall analytics dashboard" and unblocking post-launch optimization.
