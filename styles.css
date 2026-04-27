@@ -705,8 +705,25 @@ html[data-theme="dark"] .user-pill {
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 700;
   box-shadow: var(--shadow-lg); cursor: grab; pointer-events: auto;
+  /* [FOUR_FIX_PASS — Fix 1] Hit-target expansion. Visual stays 34×34;
+     ::before adds an invisible 44×44 (mobile a11y minimum) hit area
+     centered on the knob so finger-taps never miss. The pseudo
+     inherits pointer-events: auto from the knob. */
+  outline: none;
+}
+.ba-handle-knob::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  /* Invisible hit-target buffer (44×44 total when the knob is 34px). */
 }
 .ba-handle-knob:active { cursor: grabbing; }
+.ba-handle-knob:focus-visible {
+  outline: 3px solid var(--brown);
+  outline-offset: 3px;
+  box-shadow: var(--shadow-lg), 0 0 0 6px rgba(139, 111, 71, 0.18);
+}
 
 /* Lighting filters applied to the "after" layer */
 .ba-after.light-morning img   { filter: brightness(1.08) saturate(1.05) contrast(1.02); }
@@ -1419,7 +1436,36 @@ html[data-theme="dark"] .bs-actions { background: var(--surface); border-top-col
 .item-card {
   display: flex; gap: 12px; padding: 12px; background: white;
   border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
-  transition: border-color 120ms ease;
+  transition: border-color 120ms ease, box-shadow 220ms ease, background 220ms ease;
+  /* [FOUR_FIX_PASS — Fix 2] Sticky-header headroom for price-tag → card
+     scrollIntoView. block:'start' lands the card top at the viewport top;
+     scroll-margin-top reserves visual headroom so the user sees what's
+     above the matched card too. */
+  scroll-margin-top: 96px;
+}
+/* [FOUR_FIX_PASS — Fix 2] 1-second highlight pulse when scrolled to via
+   price-tag tap. Soft brand-brown glow + tinted background fade — clear
+   "you landed here" signal without flashing or jarring motion.
+   Reforge Conversion Optimization: friction removal between intent
+   ("I want this") and action (the Shop button on the matched card). */
+.item-card.is-highlighted {
+  animation: itemCardHighlight 1100ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes itemCardHighlight {
+  0%   { box-shadow: 0 0 0 0 rgba(139, 111, 71, 0.45), var(--shadow); background: rgba(212, 165, 116, 0.18); }
+  50%  { box-shadow: 0 0 0 8px rgba(139, 111, 71, 0.06), var(--shadow); background: rgba(212, 165, 116, 0.10); }
+  100% { box-shadow: var(--shadow); background: white; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .item-card.is-highlighted { animation: none; background: rgba(212, 165, 116, 0.20); }
+}
+html[data-theme="dark"] .item-card.is-highlighted {
+  animation: itemCardHighlightDark 1100ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes itemCardHighlightDark {
+  0%   { box-shadow: 0 0 0 0 rgba(216, 176, 126, 0.55), var(--shadow); background: rgba(216, 176, 126, 0.22); }
+  50%  { box-shadow: 0 0 0 8px rgba(216, 176, 126, 0.08), var(--shadow); background: rgba(216, 176, 126, 0.12); }
+  100% { box-shadow: var(--shadow); background: var(--surface); }
 }
 .item-card.owned { background: var(--beige); border-color: var(--tan); }
 .item-card.owned .item-thumb::after {
@@ -7364,13 +7410,24 @@ body.theme-dark .affiliate-disclosure-v2 {
   align-items: center;
   justify-content: center;
 }
+/* [FOUR_FIX_PASS — Fix 3] Footer button row: equal-width grid at ≥540px.
+   Previous flex layout gave .shop-all-btn (flex:1 1 auto) shrink priority,
+   compressing it below content width and wrapping "Shop / The Whole / Room"
+   into 3 cramped lines. Grid 1fr columns + nowrap text guarantees
+   proportional equal columns that grow rather than shrink-wrap.
+   Reforge Visual Design + Conversion Optimization: visual weight aligned
+   with revenue impact — primary CTA gets equal-or-greater treatment as
+   secondaries, never less. Mobile (<540px) keeps stacked column with
+   shop-all first per spec ordering. */
 @media (min-width: 540px) {
   .reveal-actions-row {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     align-items: stretch;
   }
-  .reveal-actions-row .shop-all-btn { flex: 1 1 auto; }
-  .reveal-actions-row .different-style-btn { flex: 0 0 auto; min-width: 180px; }
+  .reveal-actions-row > .btn { white-space: nowrap; min-width: 0; }
+  .reveal-actions-row .different-style-btn { width: auto; min-width: 0; }
 }
 
 /* Different Style modal */

@@ -2459,20 +2459,43 @@
     prepareCapture();
   });
 
+  // [FOUR_FIX_PASS — Fix 4] Esc keyboard handler triggers quiz back, same
+  // as the back button. Spec: "Esc key triggers Back, same as the button."
+  // Active only when the quiz screen is visible AND not on Q1 AND not
+  // generating (analyzing screen blocks back per spec).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const active = document.querySelector('.screen.active')?.dataset.screen;
+    if (active !== 'quiz') return;
+    if (!state.quiz || state.quiz.step === 0) return;
+    // Don't fight other modals — only consume Escape if no other modal is open.
+    const otherModalOpen = document.querySelector('.modal.open, .bottom-sheet.open');
+    if (otherModalOpen) return;
+    e.preventDefault();
+    $('#quizBackBtn').click();
+  });
+
+  // [FOUR_FIX_PASS — Fix 4] Quiz back-navigation preserves prior answers
+  // so users can see + change them. Reforge User Psychology: undo-by-default
+  // + agency over commitment. Reforge Activation: reduces pre-completion
+  // abandonment when a user realizes mid-quiz they answered something wrong.
+  // Q1 hides the back button per spec (no previous question to go to).
+  // The pre-select wiring at renderQuizStep:2620-2622 already handles
+  // showing the user's prior answer when they re-enter a question.
   $('#quizBackBtn').addEventListener('click', () => {
     if (!state.quiz) { showScreen('profile-select'); return; }
     if (state.quiz.step === 0) { showScreen('quiz-intro'); return; }
-    // Step back; clear the answer + viewed timestamp at the previous step
-    // so the analytic event re-fires when re-paint happens.
+    const fromIdx = state.quiz.step;
     state.quiz.step--;
-    const prevQ = window.ONBOARDING_QUESTIONS[state.quiz.step];
-    if (prevQ) {
-      delete state.quiz.answers[prevQ.id];
-      delete state.quiz.viewedAt[prevQ.id];
-      delete state.quiz.skippedAt[prevQ.id];
-      delete state.quiz.pendingMulti[prevQ.id];
-    }
+    const toIdx = state.quiz.step;
+    // [Fix 4] Mark the next answer-set as via-back-nav so we can attribute
+    // any change event to the back-navigation flow.
+    state.quiz.lastBackNav = true;
     save();
+    trackEvent('onboarding_question_back_tapped', {
+      from_question_index: fromIdx,
+      to_question_index: toIdx
+    });
     renderQuizStep();
   });
 
@@ -2494,8 +2517,28 @@
     const q = window.ONBOARDING_QUESTIONS[state.quiz.step];
     if (!q) return;
     const picks = state.quiz.pendingMulti[q.id] || [];
+    // [FOUR_FIX_PASS — Fix 4] Detect change vs prior answer for analytics.
+    const prevValue = state.quiz.answers[q.id];
+    const wasViaBackNav = state.quiz.lastBackNav === true;
+    state.quiz.lastBackNav = false;
     state.quiz.answers[q.id] = picks.slice();
     save();
+    const arrEq = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
+    if (prevValue !== undefined && !arrEq(prevValue, picks)) {
+      trackEvent('onboarding_question_changed', {
+        question_id: q.id,
+        old_value: prevValue,
+        new_value: picks,
+        was_via_back_navigation: wasViaBackNav
+      });
+      if (state.user && state.user.quizFirstCompletedAt) {
+        trackEvent('onboarding_question_changed_post_first_completion', {
+          question_id: q.id,
+          old_value: prevValue,
+          new_value: picks
+        });
+      }
+    }
     const t0 = state.quiz.viewedAt[q.id];
     trackEvent('onboarding_question_answered', {
       question_id: q.id,
@@ -2554,6 +2597,11 @@
         question_index: state.quiz.step
       });
     }
+
+    // [FOUR_FIX_PASS — Fix 4] Hide back button on Q1 (no previous question).
+    // visibility:hidden keeps the layout slot so the topbar doesn't jitter.
+    const backBtn = $('#quizBackBtn');
+    if (backBtn) backBtn.style.visibility = state.quiz.step === 0 ? 'hidden' : 'visible';
 
     // Progress: text + bar + dots
     $('#quizProgress').textContent = `${state.quiz.step + 1} / ${questions.length}`;
@@ -2668,8 +2716,28 @@
     const opts = btn.parentElement;
     opts.querySelectorAll('.quiz-option-card').forEach(c => c.classList.remove('selected'));
     btn.classList.add('selected');
+    // [FOUR_FIX_PASS — Fix 4] Detect change vs prior answer for analytics.
+    const prevValue = state.quiz.answers[q.id];
+    const wasViaBackNav = state.quiz.lastBackNav === true;
+    state.quiz.lastBackNav = false; // consume the flag once
     state.quiz.answers[q.id] = opt.id;
     save();
+    if (prevValue !== undefined && prevValue !== opt.id) {
+      trackEvent('onboarding_question_changed', {
+        question_id: q.id,
+        old_value: prevValue,
+        new_value: opt.id,
+        was_via_back_navigation: wasViaBackNav
+      });
+      // [Fix 4] Self-correction tracking — fires only after first completion.
+      if (state.user && state.user.quizFirstCompletedAt) {
+        trackEvent('onboarding_question_changed_post_first_completion', {
+          question_id: q.id,
+          old_value: prevValue,
+          new_value: opt.id
+        });
+      }
+    }
     const t0 = state.quiz.viewedAt[q.id];
     trackEvent('onboarding_question_answered', {
       question_id: q.id,
@@ -2794,6 +2862,14 @@
       // CONFLICT 2 mapping: scope === 'just_furniture' → keepMode default.
       p.keepExisting = p.answers.scope === 'just_furniture';
       p.seenFinale = true; // quiz completion is the celebration moment
+      save();
+    }
+
+    // [FOUR_FIX_PASS — Fix 4] Mark first-completion timestamp once. Used to
+    // gate the `onboarding_question_changed_post_first_completion` event so
+    // we measure self-correction (Reforge User Psychology — undo/agency).
+    if (state.user && !state.user.quizFirstCompletedAt) {
+      state.user.quizFirstCompletedAt = Date.now();
       save();
     }
 
@@ -7940,6 +8016,58 @@
   });
   window.FurnishMaybeFireTonightsRecap = maybeFireTonightsRecap;
 
+  // [FOUR_FIX_PASS — Fix 2] Price-tag → item-card scroll-and-highlight.
+  // Per Reforge Conversion Optimization (friction removal). The card
+  // already carries id="item-${item.id}" from renderItemsList; this just
+  // finds it, expands the list if it's hidden in condensed mode, scrolls
+  // it into view smoothly, and pulses a 1s highlight class so the user
+  // immediately knows where they landed.
+  let _scrollHighlightTimer = null;
+  function scrollToItemCard(item, room) {
+    const itemPosition = room && room.items ? room.items.findIndex(i => i.id === item.id) : -1;
+    trackEvent('price_tag_tapped', {
+      item_id: item.id,
+      item_position_in_list: itemPosition,
+      source_screen: 'reveal'
+    });
+    let card = document.getElementById('item-' + item.id);
+    // If the items list is condensed (top-3) and this item is in the rest,
+    // expand the list first so the card exists in DOM. Per spec edge case
+    // "make sure scroll calculation accounts for sticky/fixed elements".
+    if (!card && room && room._itemsExpanded === false) {
+      room._itemsExpanded = true;
+      save();
+      trackEvent('items_list_expanded', { roomId: room.id, totalItems: room.items.length, source: 'price_tag_route' });
+      renderItemsList(room);
+      card = document.getElementById('item-' + item.id);
+    }
+    if (!card) {
+      // Item card isn't in DOM — out-of-stock / broken affiliate. Per spec:
+      // "do not silently fail." Toast graceful fallback. Full placeholder-
+      // card pattern deferred (DEFERRED.md backend-phase).
+      toast(`${item.name} is no longer available.`);
+      return;
+    }
+    // Scroll. block:'start' lands near the top with sufficient headroom
+    // via scroll-margin-top (set in CSS).
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Cancel any pending highlight reset from an earlier rapid tap; reset
+    // the highlight on every card before applying to this one.
+    if (_scrollHighlightTimer) {
+      clearTimeout(_scrollHighlightTimer);
+      document.querySelectorAll('.item-card.is-highlighted').forEach(c => c.classList.remove('is-highlighted'));
+    }
+    // Re-trigger the animation: remove + reflow + add (same canonical
+    // pattern used elsewhere in the app for animation restart).
+    card.classList.remove('is-highlighted');
+    void card.offsetHeight;
+    card.classList.add('is-highlighted');
+    _scrollHighlightTimer = setTimeout(() => {
+      card.classList.remove('is-highlighted');
+      _scrollHighlightTimer = null;
+    }, 1100);
+  }
+
   function renderPriceTags(room) {
     const el = $('#priceTags');
     el.innerHTML = '';
@@ -7966,7 +8094,13 @@
 
       tag.addEventListener('click', e => {
         if (rearrangeMode) { e.preventDefault(); return; }
-        openItemSheet(item, room);
+        // [FOUR_FIX_PASS — Fix 2] Tag taps now scroll to the item's card in
+        // the "Shop The Whole Room" list with a brief highlight pulse,
+        // instead of opening the bottom sheet. Reforge Conversion
+        // Optimization: removes friction between intent ("I want this
+        // thing in the photo") and action (the affiliate Shop button on
+        // the matched card).
+        scrollToItemCard(item, room);
       });
       attachTagDrag(tag, room);
 
@@ -8610,14 +8744,40 @@
   });
 
   // ---------- Before/after slider drag ----------
+  // [FOUR_FIX_PASS — Fix 1] Slider responds to drag on the HANDLE only.
+  // Previously the entire .ba-slider container intercepted taps, which
+  // hijacked clicks on price tags layered above. Reforge User Psychology:
+  // gesture clarity — single-purpose interaction surfaces. The slider is a
+  // slider; the photo + price tags are their own surfaces.
+  let _sliderPctState = 50;
   function setSliderPct(pct) {
     pct = Math.max(0, Math.min(100, pct));
+    _sliderPctState = pct;
     $('#baAfterLayer').style.clipPath = `inset(0 0 0 ${pct}%)`;
-    $('#baHandle').style.left = pct + '%';
+    const handle = $('#baHandle');
+    handle.style.left = pct + '%';
+    // Keep aria-valuenow synced on the focusable knob for screen readers.
+    const knob = handle.querySelector('.ba-handle-knob');
+    if (knob) knob.setAttribute('aria-valuenow', String(Math.round(pct)));
   }
 
   (() => {
     const slider = $('#baSlider');
+    const handle = $('#baHandle');
+    const knob = handle && handle.querySelector('.ba-handle-knob');
+    if (!slider || !handle || !knob) return;
+
+    // [FOUR_FIX_PASS — Fix 1] ARIA + keyboard a11y on the knob (the visible,
+    // pointer-events:auto element). The .ba-handle spine has pointer-events:
+    // none; events on the knob bubble up to .ba-handle for drag-start.
+    knob.setAttribute('role', 'slider');
+    knob.setAttribute('tabindex', '0');
+    knob.setAttribute('aria-label', 'Reveal slider — drag to compare before and after');
+    knob.setAttribute('aria-valuemin', '0');
+    knob.setAttribute('aria-valuemax', '100');
+    knob.setAttribute('aria-valuenow', '50');
+    knob.setAttribute('aria-orientation', 'horizontal');
+
     let dragging = false;
     const onMove = e => {
       if (!dragging) return;
@@ -8629,15 +8789,37 @@
       // Disable before/after drag while the user is rearranging furniture.
       if (slider.classList.contains('rearranging')) return;
       dragging = true;
-      onMove(e);
+      // [Fix 1] DO NOT call onMove(e) on start — drag begins from the
+      // handle's current position, not the click X. This is what stops
+      // taps elsewhere from hijacking the slider position.
       e.preventDefault();
     };
-    slider.addEventListener('mousedown', start);
-    slider.addEventListener('touchstart', start, { passive: false });
+    // [Fix 1] Bind drag-start to the HANDLE only, not the slider container.
+    // Events on the knob (child) bubble up to the handle parent.
+    handle.addEventListener('mousedown', start);
+    handle.addEventListener('touchstart', start, { passive: false });
     document.addEventListener('mousemove', onMove);
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('mouseup', () => dragging = false);
     document.addEventListener('touchend', () => dragging = false);
+
+    // [Fix 1] Keyboard accessibility per spec:
+    // Left/Right arrows move 5% (10% with Shift), Home → 0%, End → 100%.
+    knob.addEventListener('keydown', e => {
+      const step = e.shiftKey ? 10 : 5;
+      let next = _sliderPctState;
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowDown': next = Math.max(0, _sliderPctState - step); break;
+        case 'ArrowRight':
+        case 'ArrowUp':   next = Math.min(100, _sliderPctState + step); break;
+        case 'Home':      next = 0; break;
+        case 'End':       next = 100; break;
+        default: return;
+      }
+      e.preventDefault();
+      setSliderPct(next);
+    });
   })();
 
   // ---------- Lighting ----------
