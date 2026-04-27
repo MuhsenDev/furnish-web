@@ -9258,14 +9258,19 @@ html[data-theme="dark"] .reset-dialog-intro,
 html[data-theme="dark"] .reset-dialog-footer {
   color: rgba(216, 176, 126, 0.78);
 }
+/* [DM-FIX] Same `var(--cream)`-as-text bug we hit on .style-dna-card.
+   In dark mode --cream is #1C1410 (page background), not a text color.
+   Result was dark-on-dark across the entire reset dialog: title invisible,
+   "WHAT GETS RESET" / "WHAT STAYS" headers dim, "What stays" body text
+   unreadable. Use --ink for body and --deep for the headline. */
 html[data-theme="dark"] .reset-dialog-list-stays li {
-  color: var(--cream, #f0e3d1);
+  color: var(--ink);
 }
 html[data-theme="dark"] #resetDialogTitle {
-  color: var(--cream, #f0e3d1);
+  color: var(--deep);
 }
 html[data-theme="dark"] .reset-dialog-list-h {
-  color: var(--cream, #d8b07e);
+  color: var(--brown-2);
 }
 html[data-theme="dark"] .reset-dialog-confirm {
   border-color: rgba(255, 130, 110, 0.55);
