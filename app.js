@@ -716,23 +716,32 @@
     if (!pill || !text || !room) return;
     const start = (typeof room.timestamp === 'number') ? room.timestamp : Date.now();
     const expiresAt = start + 24 * 60 * 60 * 1000;
+    const pad = (n) => String(n).padStart(2, '0');
     const tick = () => {
       const msLeft = expiresAt - Date.now();
       if (msLeft <= 0) {
         text.textContent = 'Sign in now to save this redesign';
         pill.classList.add('expired');
+        if (_guestCountdownTimer) { clearInterval(_guestCountdownTimer); _guestCountdownTimer = null; }
         return;
       }
       const hours = Math.floor(msLeft / (60 * 60 * 1000));
       const minutes = Math.floor((msLeft % (60 * 60 * 1000)) / (60 * 1000));
+      const seconds = Math.floor((msLeft % (60 * 1000)) / 1000);
+      // [Polish] Tick every SECOND with seconds shown so the countdown
+      // visibly moves. The previous 60s tick made the timer look frozen
+      // because hours+minutes only changes every 60s. Seconds give the
+      // user immediate visual feedback that this is a real countdown.
       text.textContent = hours >= 1
-        ? `${hours}h ${minutes}m to save this forever`
-        : `${minutes}m to save this forever`;
+        ? `${hours}h ${pad(minutes)}m ${pad(seconds)}s to save this forever`
+        : minutes >= 1
+          ? `${minutes}m ${pad(seconds)}s to save this forever`
+          : `${seconds}s to save this forever`;
     };
     pill.hidden = false;
     pill.classList.remove('expired');
     tick();
-    _guestCountdownTimer = setInterval(tick, 60 * 1000);
+    _guestCountdownTimer = setInterval(tick, 1000);
   }
   function stopGuestRevealCountdown() {
     if (_guestCountdownTimer) {
@@ -743,14 +752,127 @@
     if (pill) { pill.hidden = true; pill.classList.remove('expired'); }
   }
 
+  // ==========================================================
+  // [ToS consent block] mountAuthConsentGate()
+  // ==========================================================
+  // Wires the .auth-consent-block on the signin screen so:
+  //   - All 5 auth buttons get disabled + .auth-blocked while ToS is
+  //     unchecked (visibly disabled, not just functionally).
+  //   - #authConsentHelper microcopy appears below the form when blocked.
+  //   - Real <input type="checkbox"> elements remain accessible to screen
+  //     readers and keyboard nav.
+  //   - Consent-link clicks (Terms / Privacy) route to their stub screens
+  //     without toggling the wrapping label's checkbox.
+  //   - Analytics events fire on every state change and on any blocked-
+  //     submit attempt (signup_blocked_no_consent).
+  // Per AUDIT_TOS_CONSENT.md decision policy.
+  function mountAuthConsentGate() {
+    const tosBox = document.getElementById('tosConsent');
+    const mktBox = document.getElementById('marketingConsent');
+    const helper = document.getElementById('authConsentHelper');
+    if (!tosBox || !mktBox) return;
+
+    // Selector for every gated auth control on the signin screen.
+    const gatedSelector = [
+      '[data-screen="signin"] .signin-social-btn',
+      '[data-screen="signin"] #signinSubmit',
+      '[data-screen="signin"] #signinSoftForm button[type="submit"]'
+    ].join(', ');
+
+    function refreshGate() {
+      const ok = !!tosBox.checked;
+      document.querySelectorAll(gatedSelector).forEach(btn => {
+        btn.classList.toggle('auth-blocked', !ok);
+        if (ok) {
+          btn.removeAttribute('aria-disabled');
+        } else {
+          btn.setAttribute('aria-disabled', 'true');
+        }
+        // Note: we deliberately don't set `disabled` on the form-submit
+        // buttons — that would prevent the click handler from firing
+        // and we'd lose the signup_blocked_no_consent analytics. The
+        // .auth-blocked CSS class handles the visible disabled look,
+        // and each handler short-circuits when !tosBox.checked.
+      });
+      if (helper) helper.hidden = ok;
+    }
+
+    tosBox.addEventListener('change', () => {
+      trackEvent(tosBox.checked ? 'tos_consent_checked' : 'tos_consent_unchecked');
+      refreshGate();
+    });
+    mktBox.addEventListener('change', () => {
+      trackEvent(mktBox.checked ? 'marketing_consent_checked' : 'marketing_consent_unchecked');
+    });
+
+    // Consent-link clicks (Terms / Privacy) — route to stub screens
+    // WITHOUT toggling the wrapping label's checkbox.
+    document.querySelectorAll('.auth-consent-block .consent-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const dest = link.dataset.go;
+        if (!dest) return;
+        // Remember which screen we came from so the back button works.
+        state._tosBackTo = 'signin';
+        save();
+        showScreen(dest);
+      });
+    });
+
+    refreshGate();
+  }
+
+  // Auth-gate guard called from each auth submit handler.
+  // Returns true if blocked (handler should short-circuit). Logs the
+  // signup_blocked_no_consent analytics event with the source path.
+  function authConsentBlocked(source) {
+    const tosBox = document.getElementById('tosConsent');
+    if (!tosBox || tosBox.checked) return false;
+    trackEvent('signup_blocked_no_consent', { source });
+    // Visual nudge — flash the helper if visible, else briefly highlight
+    // the consent block so the user sees what's blocking them.
+    const helper = document.getElementById('authConsentHelper');
+    const block = document.querySelector('.auth-consent-block');
+    if (helper) {
+      helper.hidden = false;
+      helper.style.color = 'var(--danger, #b54b3a)';
+      setTimeout(() => { helper.style.color = ''; }, 1400);
+    }
+    if (block) {
+      block.style.transition = 'box-shadow 200ms ease, transform 200ms ease';
+      block.style.boxShadow = '0 0 0 2px rgba(181, 75, 58, 0.45)';
+      setTimeout(() => { block.style.boxShadow = ''; }, 1400);
+    }
+    toast('Agree to terms above to continue');
+    return true;
+  }
+
+  // Capture current consent state for persistence on submit.
+  function readConsentInputs() {
+    const tosBox = document.getElementById('tosConsent');
+    const mktBox = document.getElementById('marketingConsent');
+    return {
+      tosAccepted: !!(tosBox && tosBox.checked),
+      marketingOptIn: !!(mktBox && mktBox.checked)
+    };
+  }
+
+  // Mount the gate after DOM is ready (the IIFE runs after DOMContentLoaded
+  // because `<script>` is at end of body, so the element is present).
+  mountAuthConsentGate();
+
   $('#signinForm').addEventListener('submit', async e => {
     e.preventDefault();
     const email = $('#signinEmail').value.trim();
     const password = $('#signinPassword').value;
     const name = $('#signinName').value.trim();
+    // [ToS consent block] Gate before any auth network call.
+    if (authConsentBlocked('email_password_form')) return;
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast('Enter a valid email'); return; }
     if (!password || password.length < 6) { toast('Password must be 6+ characters'); return; }
     if (signinMode === 'signup' && !name) { toast('Enter your name'); return; }
+    const _consent = readConsentInputs();
 
     const submitBtn = $('#signinSubmit');
     submitBtn.disabled = true;
@@ -805,6 +927,8 @@
         provider: 'email',
         signedInAt: Date.now()
       };
+      // [ToS consent block] Persist tos + marketing consent on success.
+      recordConsent(_consent);
       save();
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
       // [Batch 6 — Dim 13 REC-13.2] PostHog identify on auth success.
@@ -836,6 +960,8 @@
       provider: 'email',
       signedInAt: Date.now()
     };
+    // [ToS consent block] Persist tos + marketing consent on local-fallback success.
+    recordConsent(_consent);
     save();
     submitBtn.disabled = false;
     submitBtn.textContent = signinMode === 'signup' ? 'Create account' : 'Sign in';
@@ -858,6 +984,12 @@
       const provider = btn.dataset.provider;
       const label = provider === 'google' ? 'Google' : 'Apple';
 
+      // [ToS consent block] Gate every OAuth/social path. Fires
+      // signup_blocked_no_consent + flashes the consent block + toasts
+      // the helper microcopy.
+      if (authConsentBlocked('social_' + (provider || 'unknown'))) return;
+      const _socialConsent = readConsentInputs();
+
       if (provider === 'apple') {
         toast('Apple sign-in coming soon');
         return;
@@ -879,6 +1011,8 @@
           provider: 'amazon',
           signedInAt: Date.now()
         };
+        // [ToS consent block] Persist on mock-Amazon success.
+        recordConsent(_socialConsent);
         save();
         toast('Signed in with Amazon');
         afterSigninRouting();
@@ -886,6 +1020,11 @@
       }
 
       if (window.furnishBackend?.mode === 'supabase' && provider === 'google') {
+        // [ToS consent block] Stash consent state before the OAuth
+        // redirect so the post-redirect session-restoration handler can
+        // call recordConsent() once the Supabase session lands.
+        state._pendingConsent = _socialConsent;
+        save();
         const { error } = await window.furnishBackend.auth.signInWithGoogle();
         if (error) toast(error.message || 'Google sign-in failed');
         // Successful OAuth → page redirects to Google → back to here.
@@ -904,6 +1043,8 @@
         provider,
         signedInAt: Date.now()
       };
+      // [ToS consent block] Persist on mock-social signin success.
+      recordConsent(_socialConsent);
       save();
       toast(`Signed in with ${label}`);
       afterSigninRouting();
@@ -941,6 +1082,12 @@
         firstRedesignTutorialSeen: cachedTier.firstRedesignTutorialSeen
       };
       try { await window.furnishBackend.pullAll(state); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // [ToS consent block] If consent was stashed pre-OAuth-redirect,
+      // persist it now that the session is back.
+      if (state._pendingConsent) {
+        recordConsent(state._pendingConsent);
+        delete state._pendingConsent;
+      }
       // pullAll has just written the server values into state.user. Pass the
       // pre-pull cached snapshot so reconcile can detect cross-device drift.
       reconcileTierWithBackend(cachedTier.isPro, cachedTier.used);
@@ -1239,6 +1386,47 @@
   });
   // Public surface for future callers (settings, voice debug, etc.)
   window.FurnishOKT = FURNISH_OKT;
+
+  // [ToS consent block] Source-of-truth version string. Bump this date
+  // when terms or privacy policy materially changes; on next boot, the
+  // re-consent flag fires for all signed-in users whose stored
+  // tosVersion < this value. Per AUDIT_TOS_CONSENT.md decision policy.
+  const FURNISH_TOS_VERSION = '2026.04.26';
+  window.FurnishTosVersion = FURNISH_TOS_VERSION;
+
+  // [ToS consent block] Read current consent state. Returns shape:
+  //   { tosAccepted: bool, tosVersion: string|null, marketingOptIn: bool,
+  //     reconsentRequired: bool }
+  function getConsentState() {
+    const u = state.user || {};
+    const tosAccepted = !!u.tosAcceptedAt && !!u.tosVersion;
+    return {
+      tosAccepted,
+      tosVersion: u.tosVersion || null,
+      tosAcceptedAt: u.tosAcceptedAt || null,
+      marketingOptIn: !!u.marketingOptIn,
+      marketingOptInAt: u.marketingOptInAt || null,
+      reconsentRequired: tosAccepted && u.tosVersion !== FURNISH_TOS_VERSION
+    };
+  }
+
+  // [ToS consent block] Set consent at signup/signin/soft-capture submit.
+  // Idempotent. tosAccepted=true is required (we don't allow submit
+  // through the consent gate when ToS is unchecked); marketingOptIn is
+  // independent.
+  function recordConsent({ tosAccepted, marketingOptIn }) {
+    if (!state.user) state.user = {};
+    if (tosAccepted) {
+      state.user.tosAcceptedAt = Date.now();
+      state.user.tosVersion = FURNISH_TOS_VERSION;
+    }
+    // Marketing is revocable; always overwrite to current checkbox state.
+    state.user.marketingOptIn = !!marketingOptIn;
+    if (marketingOptIn) state.user.marketingOptInAt = Date.now();
+    save();
+  }
+  window.FurnishGetConsent = getConsentState;
+  window.FurnishRecordConsent = recordConsent;
 
   const FREE_PLAN_CARD = Object.freeze({
     title: 'Furnish Free',
@@ -4076,6 +4264,12 @@
 
   // ---------- Profile screen ----------
   function renderProfilePage() {
+    // [ToS consent block] Re-sync the Email Preferences toggle every time
+    // the profile screen renders. The toggle is wired ONCE at boot, but
+    // state.user.marketingOptIn can change in between (signup, OAuth
+    // round-trip, future server pull) — without this re-sync, the
+    // toggle's aria-checked goes stale and the user sees the wrong state.
+    syncMarketingPrefsToggle();
     const user = state.user || {};
     const name = user.name || 'Guest';
     const email = user.email || 'Not signed in';
@@ -8282,6 +8476,36 @@
     });
   }
 
+  // [ToS consent block] Email Preferences toggle on the profile screen.
+  // Revocable marketing opt-in per the GDPR/CCPA requirement that
+  // marketing consent be revocable. Reads/writes state.user.marketingOptIn
+  // + state.user.marketingOptInAt. Fires the same analytics events the
+  // signin-time checkbox fires, so dashboards see both surfaces.
+  function syncMarketingPrefsToggle() {
+    const btn = document.getElementById('marketingPrefsToggle');
+    if (!btn) return;
+    const on = !!state.user?.marketingOptIn;
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    btn.classList.toggle('on', on);
+  }
+  window.FurnishSyncMarketingPrefs = syncMarketingPrefsToggle;
+  function wireMarketingPrefsToggle() {
+    const btn = document.getElementById('marketingPrefsToggle');
+    if (!btn) return;
+    syncMarketingPrefsToggle();
+    btn.addEventListener('click', () => {
+      if (!state.user) state.user = {};
+      const next = !state.user.marketingOptIn;
+      state.user.marketingOptIn = next;
+      if (next) state.user.marketingOptInAt = Date.now();
+      save();
+      syncMarketingPrefsToggle();
+      trackEvent(next ? 'marketing_consent_checked' : 'marketing_consent_unchecked', {
+        source: 'profile_email_preferences'
+      });
+    });
+  }
+
   // [B2-16 / Dim 11 D.3] Skeleton render helper.
   // Per Reforge Constrained Divergence p.6: same wait, more pleasant.
   // Returns a promise that resolves on next animation frame so callers
@@ -8449,11 +8673,16 @@
     if (!form || !emailInput) return;
     form.addEventListener('submit', e => {
       e.preventDefault();
+      // [ToS consent block] Gate soft-capture too — we're storing an
+      // email, ToS applies even though no full account is created.
+      if (authConsentBlocked('soft_email_capture')) return;
       const email = emailInput.value;
       if (!softEmailCapture(email)) {
         toast('Enter a valid email so we can send your design.');
         return;
       }
+      // [ToS consent block] Persist on soft-capture success.
+      recordConsent(readConsentInputs());
       // User chose to skip signin — stash the design link, return to welcome
       // with a confirmation toast. The actual email send is deferred to
       // backend cutover (DEFERRED.md item 6).
@@ -9319,6 +9548,7 @@
 
     // [Batch 2 additions]
     wireSoundToggle();              // Dim 11 D.5 — sound-effects toggle
+    wireMarketingPrefsToggle();      // [ToS consent block] Email prefs toggle
 
     // [Batch 3 additions]
     maybeIncrementSessionCount();   // Dim 04 — session-count for tutorial gate

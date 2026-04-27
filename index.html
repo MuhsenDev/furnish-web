@@ -195,6 +195,32 @@
       <div class="signin-card">
         <p class="subtle" id="signinSubtitle">Welcome back. Sign in to sync your profiles and saved rooms.</p>
 
+        <!-- [ToS consent block] Single instance gating ALL 5 auth paths
+             below (Google, Apple, Amazon, soft email-capture, email/password).
+             Per AUDIT_TOS_CONSENT.md: real <input type="checkbox"> elements
+             wrapped in <label> for native a11y. Both unchecked by default
+             (Reforge User Psychology + GDPR/CCPA: marketing pre-check is
+             illegal + erodes trust; required-pre-check is a darker pattern
+             implying consent). Helper microcopy below the auth options
+             does the prompting work.  -->
+        <div class="auth-consent-block" data-auth-consent>
+          <label class="consent-row consent-row-required">
+            <input type="checkbox" id="tosConsent" data-consent="tos" />
+            <span class="consent-text">
+              I agree to the
+              <a href="#" class="consent-link" data-go="terms">Terms of Service</a>
+              and
+              <a href="#" class="consent-link" data-go="privacy">Privacy Policy</a>
+            </span>
+          </label>
+          <label class="consent-row consent-row-optional">
+            <input type="checkbox" id="marketingConsent" data-consent="marketing" />
+            <span class="consent-text">
+              Send me product updates, redesign tips, and occasional offers
+            </span>
+          </label>
+        </div>
+
         <!-- [Batch 3 — Dim 03 R-Account1] Google OAuth visually dominant.
              Per Reforge Convert And Activate (Uber multi-payment example):
              reduce friction by making the lowest-friction option primary.
@@ -257,11 +283,76 @@
           <button type="submit" class="btn btn-primary big" id="signinSubmit">Sign In</button>
         </form>
 
+        <!-- [ToS consent block] Helper microcopy. Hidden by default; shown
+             via mountAuthConsentGate() whenever the ToS checkbox is
+             unchecked. Concrete + warm + calm per VOICE.md. -->
+        <p class="auth-consent-helper" id="authConsentHelper" hidden>
+          Agree to terms above to continue
+        </p>
+
         <p class="signin-toggle">
           <span id="signinToggleText">New to Furnish?</span>
           <button class="link" type="button" id="signinToggleBtn">Create an Account</button>
         </p>
       </div>
+    </section>
+
+    <!-- [ToS consent block] Stub Terms of Service screen. Real legal
+         copy is a lawyer task and lives in DEFERRED.md. Routed via
+         data-go="terms" (consent-block link + future profile menu). -->
+    <section class="screen" data-screen="terms">
+      <header class="topbar">
+        <button class="btn-icon" data-go="signin" aria-label="Back">‹</button>
+        <h2>Terms of Service</h2>
+      </header>
+      <article class="legal-doc">
+        <p class="legal-meta">Effective version: <strong>2026.04.26</strong> &nbsp;·&nbsp; <em>Draft pending legal review</em></p>
+        <h3>Welcome to Furnish</h3>
+        <p>By using Furnish, you agree to these terms. The full version is being prepared by counsel and will replace this placeholder before public launch.</p>
+        <h3>Plain-English summary</h3>
+        <ul>
+          <li>You can use Furnish to redesign your own rooms and shop the items in those redesigns.</li>
+          <li>The AI redesigns are visualizations — actual products, prices, and availability come from the retailers we link to.</li>
+          <li>Furnish earns a commission when you buy through the affiliate links we surface. The price you pay is identical to going to the retailer directly.</li>
+          <li>Don't upload photos that aren't yours, and don't use the app to harass, defraud, or violate any law.</li>
+          <li>We can suspend accounts that abuse the service.</li>
+          <li>You can cancel Pro before the trial ends with no charge.</li>
+        </ul>
+        <h3>Placeholder — full legal text pending</h3>
+        <p class="muted">Sections to come: license terms, payment + refunds, dispute resolution, governing law, intellectual property, disclaimers + limitations of liability, account termination, modifications to these terms, contact information.</p>
+        <p class="muted small">Last updated: 2026-04-26</p>
+      </article>
+    </section>
+
+    <!-- [ToS consent block] Stub Privacy Policy screen. Real legal copy
+         is a lawyer task and lives in DEFERRED.md. Routed via
+         data-go="privacy" (consent-block link + future profile menu). -->
+    <section class="screen" data-screen="privacy">
+      <header class="topbar">
+        <button class="btn-icon" data-go="signin" aria-label="Back">‹</button>
+        <h2>Privacy Policy</h2>
+      </header>
+      <article class="legal-doc">
+        <p class="legal-meta">Effective version: <strong>2026.04.26</strong> &nbsp;·&nbsp; <em>Draft pending legal review</em></p>
+        <h3>What we collect</h3>
+        <ul>
+          <li><strong>Your account info</strong> when you sign up (email, name, optional avatar).</li>
+          <li><strong>Your photos</strong> when you upload a room — used to generate your redesign and stored on your device + your account.</li>
+          <li><strong>Your style preferences</strong> from the onboarding quiz so the AI gets sharper for you.</li>
+          <li><strong>Anonymized interaction events</strong> so we know what's working and what isn't.</li>
+        </ul>
+        <h3>What we don't do</h3>
+        <ul>
+          <li>We don't sell your data.</li>
+          <li>We don't share your photos with anyone outside the AI provider that processes them for your redesign.</li>
+          <li>We don't put raw user IDs in URL parameters that go to retailers — affiliate click IDs are opaque random hashes.</li>
+        </ul>
+        <h3>Marketing emails</h3>
+        <p>If you check the optional marketing box, we'll send product updates and occasional offers. You can unsubscribe at any time from the email itself or from the Email Preferences setting in your profile.</p>
+        <h3>Placeholder — full legal text pending</h3>
+        <p class="muted">Sections to come: cookies + tracking technologies, third-party services + data processors, your data-protection rights (access, deletion, portability), data retention, security measures, international transfers, GDPR + CCPA addenda, contact information for privacy requests.</p>
+        <p class="muted small">Last updated: 2026-04-26</p>
+      </article>
     </section>
 
     <!-- SCREEN: Profile select -->
@@ -680,6 +771,26 @@
               <span class="muted small">Subtle audio at peak moments. Off by default.</span>
             </span>
             <button class="toggle-switch" id="soundToggle" aria-checked="false" aria-label="Toggle sound effects" type="button">
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+          <!-- [ToS consent block] Email Preferences row — revocable
+               marketing opt-in. Mirrors the existing Sound Effects toggle
+               pattern (real <button class="toggle-switch">). State =
+               state.user.marketingOptIn; toggle fires marketing_consent_*
+               analytics + persists immediately. -->
+          <div class="pp-setting" role="group">
+            <span class="pps-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2"/>
+                <path d="M3 7l9 6 9-6"/>
+              </svg>
+            </span>
+            <span class="settings-label">
+              <span>Email Preferences</span>
+              <span class="muted small">Product updates, redesign tips, occasional offers</span>
+            </span>
+            <button class="toggle-switch" id="marketingPrefsToggle" aria-checked="false" aria-label="Toggle marketing emails" type="button">
               <span class="toggle-thumb"></span>
             </button>
           </div>

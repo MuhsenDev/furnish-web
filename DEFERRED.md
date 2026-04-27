@@ -660,7 +660,63 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 
 ---
 
+## ToS + Privacy legal copy + marketing send + re-consent flow (consent-block ship — backend + legal phase)
+
+**Source:** `AUDIT_TOS_CONSENT.md` decision policy. Locked 2026-04-26 alongside the consent-block ship.
+
+**What shipped client-side now:**
+1. `.auth-consent-block` with required ToS checkbox + optional marketing checkbox above the 5 auth paths on `data-screen="signin"`.
+2. `mountAuthConsentGate()` disables all 5 auth controls + shows `#authConsentHelper` microcopy while ToS unchecked. Visible disabled state (opacity + cursor + suppressed hover) on every gated button.
+3. `recordConsent()` persists `state.user.tosAcceptedAt`, `state.user.tosVersion`, `state.user.marketingOptIn`, `state.user.marketingOptInAt` on every successful auth path (full signup + Google OAuth + mock Apple/Amazon + email/password + soft email-capture).
+4. `FURNISH_TOS_VERSION = '2026.04.26'` constant. `getConsentState()` exposes `reconsentRequired` flag computed from version-mismatch on every read — scaffolded but no UI prompt yet.
+5. `data-screen="terms"` + `data-screen="privacy"` stub pages with placeholder copy ("Draft pending legal review") and a back arrow to signin.
+6. "Email Preferences" toggle row in the profile screen (`#marketingPrefsToggle`) — revocable opt-in/out per GDPR/CCPA. Wired via `wireMarketingPrefsToggle()` at boot.
+7. Analytics events: `tos_consent_checked`, `tos_consent_unchecked`, `marketing_consent_checked`, `marketing_consent_unchecked`, `signup_blocked_no_consent`.
+
+**Why these items deferred:**
+
+### A. Real ToS + Privacy Policy legal copy
+Lawyer task, not a Claude task. The stub pages live at `/terms` and `/privacy` (via `data-go="terms"` / `data-go="privacy"` routes). Each currently shows: effective version `2026.04.26`, plain-English summary bullets, "Draft pending legal review" eyebrow, list of placeholder section headings to be filled in.
+
+**Required at legal review:**
+- Replace `data-screen="terms"` `.legal-doc` body with the lawyer-drafted ToS.
+- Replace `data-screen="privacy"` `.legal-doc` body with the lawyer-drafted Privacy Policy.
+- If the version date in the document changes, bump `FURNISH_TOS_VERSION` in `app.js` to the new ISO date — the boot-time re-consent check picks up the mismatch automatically.
+
+### B. Marketing email send infrastructure
+Already covered by DEFERRED.md item 6 ("Email lifecycle"). The `state.user.marketingOptIn` flag is captured client-side now; SMTP wiring at backend cutover reads this flag before adding the user to any marketing list.
+
+**Required at backend cutover:**
+- SMTP provider (Resend / SendGrid / Postmark) selected and wired.
+- Marketing email pipeline reads `marketingOptIn === true` on every send. Drop the user from the send if false.
+- Unsubscribe link in every marketing email writes `marketingOptIn: false` + `marketingOptInAt: Date.now()` server-side; client picks up via next `pullAll()`.
+- "Manage email preferences" deep-link from emails routes to the profile screen's Email Preferences toggle.
+
+### C. Re-consent flow trigger when ToS version changes
+Scaffolded in `getConsentState().reconsentRequired` — fires `true` when `state.user.tosVersion !== FURNISH_TOS_VERSION`. No UI prompt exists yet because pre-launch we haven't bumped the version once.
+
+**Required when first version bump happens:**
+- A modal that shows on next boot for any signed-in user whose `getConsentState().reconsentRequired === true`.
+- Modal copy: "We've updated our Terms / Privacy Policy. Review and re-accept to continue using Furnish."
+- Required ToS checkbox + same marketing checkbox + submit. On submit: `recordConsent({ tosAccepted: true, marketingOptIn: <whatever they choose> })` overwrites the stored version + opt-in.
+- Until they re-accept, gate every auth-required action with the same disabled-state pattern. Read-only screens (welcome, terms, privacy) stay accessible.
+- This is a paywall-shaped surface; reuse `.modal` shell + `.auth-consent-block` markup so we don't fork the consent UI.
+
+### D. Server-side sync of consent fields
+`tosAcceptedAt`, `tosVersion`, `marketingOptIn`, `marketingOptInAt` need to round-trip via Supabase like other `state.user` fields. Bundle with the next `user_settings` schema change (already a deferred item).
+
+**Required at Supabase schema cutover:**
+- Add columns: `tos_accepted_at TIMESTAMPTZ`, `tos_version TEXT`, `marketing_opt_in BOOLEAN`, `marketing_opt_in_at TIMESTAMPTZ`.
+- Update `profileToRow` / `rowToProfile` (or `userSettingsToRow` if user-settings is its own table) in `supabase-client.js`.
+- Backfill: any user without `tos_accepted_at` is treated as not-yet-consented and flagged for re-consent on next signin.
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during the ToS + Marketing Consent Block ship.
+- 4 new deferred items (legal copy, marketing send infra, re-consent flow, server-side sync).
+- All five `tos_*` / `marketing_*` / `signup_blocked_no_consent` analytics events fire client-side now and dual-write to PostHog at backend cutover.
 
 Updated: 2026-04-26 during Batch 6 implementation (Dim 13 Data Instrumentation — FINAL PASS 6/6).
 - Added: PostHog Cloud project + dashboards (REC-13.2).
