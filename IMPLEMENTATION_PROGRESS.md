@@ -981,3 +981,175 @@ This is the **psychology pass** of Batch 5. Part 1 (Dim 06 Monetization, commit 
 Five batches and one Part-2 down. All 14 dimensions touched (Dim 02, 03, 04, 05, 07, 08, 09, 10, 11, 12, 14 shipped; Dim 01 + 06 shipped in their respective batches; Dim 13 Instrumentation is the lone remaining dimension). All 9 conflicts LOCKED. Master priority stack 1–5 shipped or spec-deferred. Conflict 4 governance held throughout.
 
 **Next batch — recommended:** **Batch 6 — Dim 13 Instrumentation.** The accumulated event dictionary across Batches 1–5 is now substantial (~40 distinct events). Batch 6's job is to organize them into Reforge's Action / Contextual / Backstory taxonomy, define cohort definitions (Email-only, Power-Free, Habit-formed, Returned-for-session-2, Style-twin, Welcome-back-yes, Tonight's-recap-clicked), and spec the dashboard contract — closing the DEFERRED.md item "Paywall analytics dashboard" and unblocking post-launch optimization.
+
+---
+---
+
+# Batch 6 — Dim 13 Data Instrumentation — COMPLETE (FINAL PASS 6/6)
+
+**Date:** 2026-04-26
+**Source:** `OPTIMIZATION_PLAN.md` Dim 13 (12 entries + 76-event taxonomy + 15 cohorts, ~85% Reforge) + `BATCH_6_AUDIT.md`.
+**Conflicts touched:** None new. Conflict 4 (no fake numbers) governs the privacy fix's defensible-data-only treatment.
+**Critical bug shipped:** YES — `affiliate_click.fclick` URL parameter PII leak (raw UUID/email → retailer logs + browser history). **Privacy fix shipped first**, regardless of context budget.
+
+## Decisions auto-resolved per "approve all changes"
+
+12-row table in `BATCH_6_AUDIT.md` §C. Highlights:
+
+| # | Decision |
+|---|----------|
+| 1 | **WRDCAL** declared as canonical north star. `FURNISH_NORTH_STAR` constant + `computeWRDCALProxy()` helper for per-user signal. |
+| 2 | **PostHog dual-write scaffolded.** SDK loads when `window.posthog` is present (gated on a backend-injected key). Pre-cutover: safe no-op. Identify/reset/setUserProperty hooks wired. |
+| 3 | **Failure event taxonomy** — 6 highest-leverage shipped (`signup_failed`, `signin_failed`, `analyze_failed`, `error_thrown`, `error_shown`, `share_system_failed`). Remaining 12 deferred to a copy-pass + drop-step batch. |
+| 5 | **PRIVACY FIX (REC-13.5) — SHIPPED.** Opaque random `fclickId` (16 hex chars from `crypto.getRandomValues`) replaces raw UUID/email in affiliate URLs. Persisted alongside click record so server-side attribution can reconcile when backend lands. |
+| 7 | **Cohort definitions** captured as `COHORT_DEFINITIONS` constant in `app.js` for code-resident reference; PostHog cohort UI consumes the same predicates at backend cutover. |
+| 8 | **`dormancy_state_changed` + lifecycle user property** — fires from `touchLastVisit()` on bucket transitions; sticky `state.user.cachedLifecycle` carries persisted attribute. |
+| 10 | **`share_completed { channel }` consolidation event** — additive dual-fire alongside the existing 5 channel-specific events. 30-day deprecation window per Reforge spec. |
+| 12 | **`tSinceX` timing properties** — `_timing` map populated by `trackEvent` for milestone events (welcome_cta_clicked, signup_started, signin_attempted, signup_completed, setup_complete, aha_first_results, paywall_shown). Downstream events (setup_complete, aha_first_results, affiliate_click) include the elapsed time. |
+
+## Architecture
+
+The instrumentation layer is the **measurement backbone** for everything Batches 1–5 shipped. Every prior batch added `trackEvent(...)` call sites; Batch 6 adds the contract that turns those calls into queryable cohorts.
+
+**Three-tier architecture:**
+1. **Client-side `trackEvent`** — local rolling buffer (200-cap) + dual-write to PostHog when present + `console.log` debug tail.
+2. **Sticky user properties** — `cachedLifecycle`, `tier`, propagated via `setUserProperty()` so cohort filters work without recomputation.
+3. **Activation timing map** — `state._timing` populated by trackEvent for milestone events; downstream events read elapsed time.
+
+The privacy fix is structurally independent of the rest. It replaces the `${userId}-${timestamp}` URL parameter pattern with opaque random IDs that match the threat model: zero PII visible in retailer logs, browser history, or screenshots.
+
+## What landed (per phase)
+
+### Phase A — PRIVACY FIX (REC-13.5)
+
+- **`generateFclickId()`** — 16 hex chars from `crypto.getRandomValues` with synchronous fallback. Exposed as `window.FurnishGenerateFclickId`.
+- **`buildAffiliateUrl(item)`** — replaces `fclick=${userId-or-email}-${timestamp}` with `fclick=${randomFclickId}`. Zero PII in the outbound URL.
+- **`trackAffiliateClick(item, surface)`** — generates a fresh `fclickId` for the click record + emits in the `affiliate_click` analytics event. Future affiliate-network attribution can join on `(itemId, surface, ts ± window)` server-side; the persisted ID is the canonical record for our analytics.
+- **No PII anywhere** — verified live: every sample `fclick` is 16 hex chars, no UUID/email substring detected.
+
+### Phase B — `trackEvent` PostHog dual-write scaffold (REC-13.2)
+
+- **`trackEvent(name, props)`** — fans out to `state._events` (debug buffer) + `posthog.capture` (when present) + `console.log`.
+- **`identifyUserForAnalytics(userId, traits)`** — wired into auth-success path (Supabase + local fallback). Uses Supabase UUID, NOT email (PII).
+- **`resetAnalyticsIdentity()`** — wired into both signout paths (`signout` + `switch` actions). Ensures next session is unattributed until next identify.
+- **`setUserProperty(key, value)`** — locally + via `posthog.people.set` when present. Used for `cachedLifecycle`, `tier`.
+- **Real PostHog project key DEFERRED** — `window.POSTHOG_PROJECT_KEY` injected at backend cutover. Pre-cutover, the dual-write branch is a safe no-op.
+
+### Phase C — Failure events + `screen_viewed` + `dormancy_state_changed` (REC-13.3 + REC-13.8 partial)
+
+- **`signup_failed` / `signin_failed`** — fires on Supabase auth-error path with reason segmentation (`email_exists` / `credential` / `network` / `other`).
+- **`signup_email_confirmation_required`** — fires when Supabase returns no user but no error (email verification pending).
+- **`analyze_failed`** — wraps the entire generation flow in try/catch; emits with reason + duration. Today the happy path is mock; once Replicate calls land, this catch covers real network/model failures.
+- **`analyze_completed`** — explicit success event with `tier` + `durationMs`.
+- **`error_thrown`** — global `window.onerror` + `unhandledrejection` handlers.
+- **`error_shown`** — toast wrapper detects negative-language messages and emits.
+- **`screen_viewed`** — fires from `showScreen()` with `screenName`, `previousScreen`, `prevDwellMs`, `lifecycle`.
+- **`dormancy_state_changed`** — fires from `touchLastVisit()` only when bucket transitions vs cached. Sets `state.user.cachedLifecycle` + propagates as user property.
+
+### Phase D — `share_completed { channel }` consolidation (REC-13.10)
+
+- **`share_completed { channel: 'download' | 'caption' | 'invite_link' | 'pinterest' | 'system' }`** — fires alongside each of the 5 channel-specific success events. 30-day dual-fire window before deprecation. Consolidated event simplifies "share rate" queries from union-of-5 to single-event-with-property.
+- **`share_system_failed`** — failure event for navigator.share rejection path.
+
+### Phase E — `tSinceX` timing properties (REC-13.12)
+
+- **`state._timing`** — milestone timestamps map populated by `trackEvent` for: welcome_cta_clicked, signup_started, signin_attempted, signup_completed, setup_complete, aha_first_results, paywall_shown.
+- **`setup_complete`** event now includes `tSinceSignup`.
+- **`aha_first_results`** event now includes `tSinceSetupComplete` + `tSinceSignup`.
+- **`affiliate_click`** event now includes `tSinceAhaFirstResults`.
+- **`signin_completed`** event includes `durationMs` from the signin attempt.
+
+### Phase F — WRDCAL + altitude scorecard + cohort definitions (REC-13.1 + REC-13.6 + REC-13.7)
+
+- **`FURNISH_NORTH_STAR`** constant — the canonical metric definition + cadence + Reforge citations. Exposed as `window.FurnishNorthStar`.
+- **`computeWRDCALProxy()`** — per-user signal computed from `state._events` rolling buffer. Returns `{qualifies, designed, revealUnlocked, clicked, returning, windowDays}`. Pre-backend, this is the only WRDCAL approximation available; org-wide WRDCAL requires server aggregation. Exposed as `window.FurnishComputeWRDCAL`.
+- **`altitudeScorecard()`** — local-only scorecard helper returning the §B altitude map metrics from `state._events`. Structured `{generatedAt, windowDays, high: {WRDCAL_qualifies, WRDCAL_legs, activationRatePct, sessionsInWindow}, mid: {affiliateClicks7d, revealUnlockRatePct, paywallConversionPct, premiumUpsellCTRPct, quizCompletionPct, generations7d, habitFormed}, low: {wishlistAdded7d, priceDropBannerCTRPct, homeProgressClicks7d, affiliateDisclosureViews7d, errorsThrown7d, errorsShown7d, screenViews7d, dormancyTransitions7d}, cohort: {lifecycle, tier, grandfathered}}`. Exposed as `window.FurnishAltitudeScorecard`.
+- **`COHORT_DEFINITIONS`** — frozen constant with all 15 cohort predicates (D1 through D15) + the canonical 4-line block convention (populations / starting point / behavior / time period). Exposed as `window.FurnishCohorts`.
+
+## Files changed in Batch 6
+
+| File | Lines | Summary |
+|------|-------|---------|
+| `app.js` | +280 / ~25 surgical | All instrumentation work. New: `generateFclickId`, `identifyUserForAnalytics`, `resetAnalyticsIdentity`, `setUserProperty`, `computeWRDCALProxy`, `altitudeScorecard`, `COHORT_DEFINITIONS`, `FURNISH_NORTH_STAR`, `_timing` map, global `error`/`unhandledrejection` handlers. Surgical: `trackEvent` dual-write + timing-map update, `buildAffiliateUrl` opaque fclick, `trackAffiliateClick` persists fclickId + emits tSinceAhaFirstResults, `touchLastVisit` emits dormancy_state_changed + sets cachedLifecycle/tier, `showScreen` emits screen_viewed, `toast` emits error_shown for negative copy, signin/signup error paths emit failure events, analyze flow wrapped in try/catch with analyze_completed/failed, signin success emits identify + signin_completed, signout calls resetAnalyticsIdentity, all 4 share success paths emit share_completed alongside legacy events, share_system_failed on navigator.share rejection, setup_complete + aha_first_results include tSinceX timing. |
+| `BATCH_6_AUDIT.md` | NEW | 12-row decisions table, WRDCAL canonical declaration, altitude map, 15 cohort definitions, privacy-fix specification. |
+| `DEFERRED.md` | +85 | 9 new deferred items (real PostHog key, dashboards, Stripe + affiliate webhook events, server-side rate-limit events, remaining 12 failure events, share-channel deprecation, paywall_cta_clicked rename). |
+| `IMPLEMENTATION_PROGRESS.md` | this section | Batch 6 migration log. |
+| `OPTIMIZATION_ROLLOUT_SUMMARY.md` | NEW | Final summary across all 6 batches. |
+
+## Reforge framework citations (Batch 6)
+
+- *Data For Product Managers — Identifying The Altitudes And Outcome Metrics* (Sean Klaus) — WRDCAL declaration + altitude scorecard structure
+- *Data For Product Managers — Building Your Altitude Scorecard* L3 — north-star sense-check ("recite from memory" test)
+- *Data For Product Managers — Building A Structured Event Dictionary* — event-name discipline (success/intent/failure; action/contextual/backstory)
+- *Data For Product Managers — Cohort Analysis* L4 — populations / starting point / behavior / time period
+- *Data For Product Managers — Instrumentation Best Practices* — backend-fired revenue events; user-property segmentation
+- *Retention + Engagement — Defining Retention* — natural frequency alignment for WRDCAL window
+- *Retention + Engagement — Managing Infrequent Products / ICED Theory* — dormant/churned cohort definitions D8/D9
+- *Monetization + Pricing — Pricing Strategies* — Pro conversion-rate denominator/numerator hygiene (REC-13.9)
+- *Brand Marketing — Identity Governance* — privacy-fix rationale (PII hygiene as brand asset)
+
+## Verification (preview-tested)
+
+- **Privacy fix:** `FurnishGenerateFclickId()` produces unique 16-char hex with zero UUID/email substring across multiple samples. ✓
+- **PostHog stub:** `window.posthog` undefined pre-cutover; trackEvent dual-write branch is no-op. ✓
+- **Altitude scorecard:** returns structured `{high, mid, low, cohort}` with 4 high-altitude keys + 7 mid-altitude keys + 8 low-altitude keys. ✓
+- **WRDCAL proxy:** computes 4 legs (`designed`, `revealUnlocked`, `clicked`, `returning`); `qualifies: false` for fresh user (correct). ✓
+- **Cohort definitions:** all 15 cohorts (D1-D15) exposed via `window.FurnishCohorts`. ✓
+- **Lifecycle user property:** `state.user.cachedLifecycle` set to `"active"` on session_started. ✓
+- **`screen_viewed` event:** fires on every screen change with `screenName` + `previousScreen` + `prevDwellMs`. ✓
+- **`session_started` event:** fires on boot. ✓
+- **No console errors at boot.** ✓
+
+## What did NOT ship (deferred — see DEFERRED.md)
+
+- **PostHog Cloud account creation + project key** — Hassan's task at posthog.com (free 1M events/mo).
+- **Real PostHog dashboards** (WRDCAL, activation funnel, cohort heat-maps) — built in PostHog UI once events flow ≥30 days.
+- **Stripe webhook server-side events** (`pro_subscription_renewed`, `_cancelled`, `_payment_failed`) — at Stripe cutover.
+- **Affiliate-network attribution events** (`affiliate_attribution_received`) — weekly cron.
+- **`subscriptions` + `affiliate_clicks` Supabase tables** — already specced.
+- **Server-side rate-limit + abuse events** — anti-abuse infra.
+- **Remaining 12 failure events** (capture_rejected, swap_cancelled, wishlist_removed, bookmark_removed, reveal_gate_dismissed, email_capture_failed, push_pre_prompt_dismissed, etc.) — copy-pass + drop-step instrumentation batch.
+- **Share-channel event deprecation** — after 30-day dual-fire validates parity.
+- **`paywall_cta_clicked → pro_subscription_started` backend rename** — at Stripe cutover.
+
+## Compatibility / migration notes
+
+- **`buildAffiliateUrl`** signature unchanged. Existing call sites continue to work; the URL just no longer carries PII.
+- **`trackAffiliateClick`** signature unchanged. Persisted record now includes `fclickId`; existing readers (none today) tolerate the extra field.
+- **`affiliate_click` event** now includes `fclickId` + `tSinceAhaFirstResults`. Existing properties unchanged.
+- **`trackEvent`** signature unchanged. New `_timing` map side-effect for milestone events; readers (`setup_complete`, `aha_first_results`, `affiliate_click`) gracefully handle missing entries.
+- **`closePaywall`** signature unchanged from Batch 5; `paywall_dismissed` event already shipping.
+- **`window.posthog`** is referenced but never assumed. All call sites are conditional + try/catch wrapped — analytics never breaks user flow.
+- **State shape additions:** `state.user.cachedLifecycle`, `state._timing`, `state.affiliateClicks[].fclickId`. All lazy-initialized; no migration step.
+
+## Time spent
+
+- Recon (Dim 13 read + locating fclick bug + audit decisions): ~25 min
+- BATCH_6_AUDIT.md write: ~15 min
+- Phase A (privacy fix): ~15 min
+- Phase B (PostHog dual-write scaffold + identify/reset/setUserProperty + signin/signout wiring): ~25 min
+- Phase C (failure events + screen_viewed + dormancy_state_changed + global error handler): ~30 min
+- Phase D (share_completed consolidation): ~10 min
+- Phase E (timing map + tSinceX properties): ~15 min
+- Phase F (WRDCAL + altitude scorecard + cohorts): ~25 min
+- Phase G (sweep + verify): ~15 min
+- Phase H (this log + rollout summary + DEFERRED + commit): ~30 min
+- **Total: ~3h 25min execution.**
+
+## Status: ✅ COMPLETE — FINAL PASS 6/6
+
+**ALL 14 DIMENSIONS SHIPPED.** All 9 conflicts LOCKED. Master priority stack 1–5 + privacy-bug-fix all shipped or spec-deferred. Conflict 4 governance held throughout all 6 batches.
+
+The optimization rollout is complete. Furnish is now grounded in:
+- A canonical north star (WRDCAL)
+- A 14-dimension Reforge-grounded optimization plan, fully implemented
+- A 9-conflict canonical resolution log, all locked
+- A 76-event taxonomy with 6 highest-leverage failure events live
+- 15 cohort definitions ready for PostHog cutover
+- A scaffolded altitude scorecard
+- Zero PII in affiliate URLs
+- A complete migration log spanning ~16 hours of execution across 6 batches
+
+See `OPTIMIZATION_ROLLOUT_SUMMARY.md` for the full cross-batch summary.
+
+**Next action (Hassan's call):** Sign up posthog.com, paste the project key into `index.html` head as `<script>window.POSTHOG_PROJECT_KEY = '...';</script>`, then load the PostHog SDK. The dual-write becomes live without further code changes.

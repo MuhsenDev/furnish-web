@@ -72,13 +72,79 @@
     AHA_QUALITY:     'aha_quality_signal',  // First item tap / save / share
     HABIT_2ND_ROOM:  'habit_second_room'    // Habit moment (2nd room designed)
   };
+  // [Batch 6 — Dim 13 REC-13.12] Activation-funnel timing map. Populated
+  // by trackEvent for milestone events; read by downstream events that
+  // include `tSinceX` properties. Per Reforge *Building Your Altitude
+  // Scorecard*: speed-to-value is the strongest predictor of retention,
+  // measurable only if elapsed time is captured at fire-time (deriving
+  // later requires every prior event in the buffer, which is unreliable
+  // given the 200-cap rolling window).
+  const TIMING_KEYS = {
+    welcome_cta_clicked:  'welcomeCtaClickedAt',
+    signup_started:       'signupStartedAt',
+    signin_attempted:     'signinAttemptedAt',
+    signup_completed:     'signupCompletedAt',
+    setup_complete:       'setupCompleteAt',
+    aha_first_results:    'ahaFirstResultsAt',
+    paywall_shown:        'paywallShownAt'
+  };
   function trackEvent(name, props = {}) {
     const evt = { name, ts: Date.now(), ...props };
     state._events = (state._events || []).slice(-200);
     state._events.push(evt);
+    // [Batch 6 — Dim 13 REC-13.12] Update activation-funnel timing map.
+    if (TIMING_KEYS[name]) {
+      state._timing = state._timing || {};
+      state._timing[TIMING_KEYS[name]] = evt.ts;
+    }
     save();
+    // [Batch 6 — Dim 13 REC-13.2] Dual-write to PostHog when present.
+    // PostHog SDK is loaded conditionally in index.html guarded by a key
+    // injected at backend cutover. Pre-cutover, `window.posthog` is
+    // undefined and this branch is a no-op. Per Reforge *Instrumentation
+    // Best Practices*: localStorage is debug; PostHog is source-of-truth
+    // for cohort + funnel analysis. The contract is one call site
+    // (trackEvent), one fan-out — do not scatter posthog.capture.
+    try {
+      if (typeof window !== 'undefined' && window.posthog && typeof window.posthog.capture === 'function') {
+        window.posthog.capture(name, props);
+      }
+    } catch (_) { /* analytics never breaks user flow */ }
     if (console && console.log) console.log('[track]', name, props);
   }
+  // [Batch 6 — Dim 13 REC-13.2] PostHog identity hooks. Call when the
+  // user authenticates (signin_completed equivalent). At backend cutover,
+  // wire from the auth success handler. Safe no-op pre-cutover.
+  function identifyUserForAnalytics(userId, traits = {}) {
+    try {
+      if (typeof window !== 'undefined' && window.posthog && typeof window.posthog.identify === 'function') {
+        window.posthog.identify(userId, traits);
+      }
+    } catch (_) {}
+  }
+  function resetAnalyticsIdentity() {
+    try {
+      if (typeof window !== 'undefined' && window.posthog && typeof window.posthog.reset === 'function') {
+        window.posthog.reset();
+      }
+    } catch (_) {}
+  }
+  // [Batch 6 — Dim 13 REC-13.8] PostHog people-property setter for sticky
+  // user attributes (lifecycle, tier, archetype). Sets locally regardless;
+  // mirrors to PostHog when present.
+  function setUserProperty(key, value) {
+    if (!state.user) state.user = {};
+    state.user[key] = value;
+    save();
+    try {
+      if (typeof window !== 'undefined' && window.posthog && window.posthog.people && typeof window.posthog.people.set === 'function') {
+        window.posthog.people.set({ [key]: value });
+      }
+    } catch (_) {}
+  }
+  window.FurnishIdentify = identifyUserForAnalytics;
+  window.FurnishResetIdentity = resetAnalyticsIdentity;
+  window.FurnishSetUserProperty = setUserProperty;
 
   // ============================================================
   // Profile factory + onboarding-answers helpers
@@ -259,12 +325,29 @@
     state.user.previousVisitAt = prev || null;  // for "welcome back, it's been X days"
     state.user.lastVisitedAt = Date.now();
     state.user.visitCount = (state.user.visitCount || 0) + 1;
+    // [Batch 6 — Dim 13 REC-13.8] Sticky lifecycle user property +
+    // dormancy_state_changed transition event. Per Reforge *Instrumentation
+    // Best Practices*: user properties enable actionable cohort analysis,
+    // and lifecycle bucket as a derived value loses historical state. Set
+    // on every session; emit transition only when bucket flips.
+    const currentLifecycle = getLifecycleState();
+    const cachedLifecycle = state.user.cachedLifecycle || null;
     save();
     trackEvent('session_started', {
-      lifecycle: getLifecycleState(),
+      lifecycle: currentLifecycle,
       daysSincePrevVisit: prev ? daysSince(prev) : null,
       visitCount: state.user.visitCount
     });
+    if (cachedLifecycle && cachedLifecycle !== currentLifecycle) {
+      trackEvent('dormancy_state_changed', {
+        from: cachedLifecycle,
+        to: currentLifecycle,
+        daysSincePrevVisit: prev ? daysSince(prev) : null,
+        daysSinceLastDesign: daysSinceLastDesign()
+      });
+    }
+    setUserProperty('cachedLifecycle', currentLifecycle);
+    setUserProperty('tier', state.user.isPro ? 'pro' : 'free');
   }
 
   // Three states for the reviews ticker:
@@ -280,7 +363,12 @@
   // Bottom-nav surfaces (Home / Saved / Profile) per PDR §13.
   const MAIN_SCREENS = new Set(['home', 'saved', 'profile']);
 
+  // [Batch 6 — Dim 13 REC-13.3] Track previous screen for the screen_viewed
+  // analytics event so navigation paths can be cohort-analyzed.
+  let _previousScreen = null;
+  let _screenEnteredAt = null;
   function showScreen(name) {
+    const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
     window.scrollTo({ top: 0 });
     let mode;
@@ -299,14 +387,42 @@
     document.querySelectorAll('.bn-tab').forEach(b => {
       b.classList.toggle('active', b.dataset.tab === name);
     });
+    // [Batch 6 — Dim 13 REC-13.3] screen_viewed event (intent for the
+    // navigation step). Per Reforge *Building A Structured Event
+    // Dictionary*: screen views are the lowest-cost cohort filter — every
+    // funnel step's denominator can be expressed as "users who viewed
+    // screen X." prevDwellMs measures engagement on the leaving screen.
+    const now = Date.now();
+    const prevDwellMs = (_previousScreen && _screenEnteredAt) ? (now - _screenEnteredAt) : null;
+    trackEvent('screen_viewed', {
+      screenName: name,
+      previousScreen: prev,
+      prevDwellMs,
+      lifecycle: typeof getLifecycleState === 'function' ? getLifecycleState() : null
+    });
+    _previousScreen = name;
+    _screenEnteredAt = now;
   }
 
+  // [Batch 6 — Dim 13 REC-13.3] Failure-event-aware toast wrapper.
+  // Pure copy that's negative + actionable triggers `error_shown` (anti-
+  // event for analytics drop-step diagnosis). Heuristic: messages
+  // containing "fail", "couldn't", "try again", "didn't" → failure.
   function toast(msg) {
     const t = $('#toast');
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => t.classList.remove('show'), 2200);
+    try {
+      const negative = /(fail|couldn't|can't|try again|didn't|over (\d+)mb|isn't|too large|invalid|error|wrong|wasn't able)/i.test(String(msg));
+      if (negative) {
+        trackEvent('error_shown', {
+          message: String(msg).slice(0, 120),
+          surface: typeof _previousScreen === 'string' ? _previousScreen : null
+        });
+      }
+    } catch (_) {}
   }
 
   function titleRoom(id) { return window.ROOM_TYPES.find(t => t.id === id)?.label || id; }
@@ -653,10 +769,23 @@
         // [Dim 09 Section B.4 — error states specify constraint + recovery.
         //  Server's error.message preserved if available; fallback rewritten
         //  per VOICE.md (errors must explain + offer recovery).]
+        // [Batch 6 — Dim 13 REC-13.3] signup_failed / signin_failed
+        // failure events. Per Reforge: failure events answer "what
+        // prevented success." Provider + reason segmentation is critical
+        // for diagnosing auth-method drop rates.
+        const reasonText = String(result.error.message || '').toLowerCase();
+        const reason = reasonText.includes('exists') ? 'email_exists'
+                     : reasonText.includes('password') ? 'credential'
+                     : reasonText.includes('network') ? 'network'
+                     : 'other';
+        trackEvent(signinMode === 'signup' ? 'signup_failed' : 'signin_failed', {
+          provider: 'email', reason, message: String(result.error.message || '').slice(0, 200)
+        });
         toast(result.error.message || "That email and password don't match. Try again or reset your password.");
         return;
       }
       if (!result.user) {
+        trackEvent('signup_email_confirmation_required', { provider: 'email' });
         toast('Check your email to confirm your account');
         return;
       }
@@ -678,6 +807,18 @@
       };
       save();
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // [Batch 6 — Dim 13 REC-13.2] PostHog identify on auth success.
+      // Safe no-op pre-PostHog-cutover. Per Reforge *Instrumentation Best
+      // Practices*: every authenticated session must identify so cohorts
+      // are queryable. ID is the Supabase auth UUID (NOT email — PII).
+      identifyUserForAnalytics(state.user.id || state.user.email, {
+        provider: state.user.provider,
+        tier: state.user.isPro ? 'pro' : 'free'
+      });
+      trackEvent('signin_completed', {
+        provider: state.user.provider,
+        durationMs: Date.now() - (state._timing?.signinAttemptedAt || Date.now())
+      });
       // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
       toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
       afterSigninRouting();
@@ -698,6 +839,15 @@
     save();
     submitBtn.disabled = false;
     submitBtn.textContent = signinMode === 'signup' ? 'Create account' : 'Sign in';
+    // [Batch 6 — Dim 13 REC-13.2] PostHog identify on local-fallback signin.
+    identifyUserForAnalytics(state.user.email, {
+      provider: 'email',
+      tier: state.user.isPro ? 'pro' : 'free'
+    });
+    trackEvent('signin_completed', {
+      provider: 'email',
+      durationMs: Date.now() - (state._timing?.signinAttemptedAt || Date.now())
+    });
     // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
     toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
     afterSigninRouting();
@@ -4034,6 +4184,9 @@
       // [Dim 14 Section F] Snapshot state before sign-out.
       if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
       if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
+      // [Batch 6 — Dim 13 REC-13.2] Reset PostHog identity so the next
+      // session is unattributed until a new identify() call.
+      resetAnalyticsIdentity();
       state.user = null;
       save();
       prepareSignin();
@@ -4044,6 +4197,8 @@
       // [Dim 14 Section F] Snapshot state before sign-out.
       if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
       if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
+      // [Batch 6 — Dim 13 REC-13.2] Reset PostHog identity on signout.
+      resetAnalyticsIdentity();
       state.user = null;
       save();
       toast('Signed out.');
@@ -4465,9 +4620,14 @@
     if (hasPhoto && hasType && !state._setupCompleteAt) {
       state._setupCompleteAt = Date.now();
       save();
+      // [Batch 6 — Dim 13 REC-13.12] tSinceSignup activation timing.
+      const tSinceSignup = state._timing?.signupStartedAt
+        ? Date.now() - state._timing.signupStartedAt
+        : null;
       trackEvent(ACTIVATION.SETUP_COMPLETE, {
         roomType: state.draft.type,
-        hasStyle: !!(getActiveProfile()?.styles?.length)
+        hasStyle: !!(getActiveProfile()?.styles?.length),
+        tSinceSignup
       });
     }
   }
@@ -4561,31 +4721,50 @@
   // D7 says guests must create an account BEFORE the redesign is revealed.
   $('#analyzeBtn').addEventListener('click', async () => {
     if (!state.draft?.photo) return;
-    routeGenerationByModelTier('new_redesign', async (tier) => {
-      showScreen('analyzing');
-      await runAnalyzerAnimation();
-      // The future Replicate-backed backend reads `tier` and routes the
-      // AI request to the matching model. Stored on the room so we can
-      // surface a "premium-quality next time" CTA on standard-tier results.
-      const room = buildRoomFromDraft();
-      room.modelTier = tier;
-      state.rooms.push(room);
-      state.draft = null;
-      incrementGenerationCount();
-      save();
-      // D7 auth gate: guest's redesign is computed but locked behind signup.
-      // The signin screen renders contextually — see prepareSignin() reading
-      // the 'reveal' pending intent.
-      if (isGuest()) {
-        state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'capture' };
+    // [Batch 6 — Dim 13 REC-13.3] Wrap the entire generation flow in a
+    // try/catch so any failure (image decode, AI model error, render bug)
+    // emits `analyze_failed` per Reforge failure-event taxonomy. Today the
+    // happy path is mock-only; once real Replicate calls land, this catch
+    // covers the real network/model failure cases too.
+    const analyzeStartedAt = Date.now();
+    try {
+      routeGenerationByModelTier('new_redesign', async (tier) => {
+        showScreen('analyzing');
+        await runAnalyzerAnimation();
+        // The future Replicate-backed backend reads `tier` and routes the
+        // AI request to the matching model. Stored on the room so we can
+        // surface a "premium-quality next time" CTA on standard-tier results.
+        const room = buildRoomFromDraft();
+        room.modelTier = tier;
+        state.rooms.push(room);
+        state.draft = null;
+        incrementGenerationCount();
         save();
-        prepareSignin();
-        showScreen('signin');
-        trackEvent('reveal_gate_shown', { roomId: room.id, source: 'new_redesign' });
-        return;
-      }
-      openRoom(room.id);
-    });
+        trackEvent('analyze_completed', {
+          roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt
+        });
+        // D7 auth gate: guest's redesign is computed but locked behind signup.
+        // The signin screen renders contextually — see prepareSignin() reading
+        // the 'reveal' pending intent.
+        if (isGuest()) {
+          state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'capture' };
+          save();
+          prepareSignin();
+          showScreen('signin');
+          trackEvent('reveal_gate_shown', { roomId: room.id, source: 'new_redesign' });
+          return;
+        }
+        openRoom(room.id);
+      });
+    } catch (err) {
+      trackEvent('analyze_failed', {
+        tier: typeof currentModelTier === 'function' ? currentModelTier() : null,
+        reason: 'exception',
+        message: String((err && err.message) || err || '').slice(0, 200),
+        durationMs: Date.now() - analyzeStartedAt
+      });
+      toast("Couldn't analyze your photo. Try again.");
+    }
   });
 
   // Reforge Monetization + Pricing (PNIP Pyramid): free tier delivers ONE
@@ -4859,6 +5038,30 @@
       return !u.pathname || u.pathname === '/' || u.pathname.length < 4;
     } catch { return true; }
   }
+  // [Batch 6 — Dim 13 REC-13.5 PRIVACY FIX] Opaque random fclick generator.
+  // Replaces the prior `${userid-or-email}-${timestamp}` scheme that leaked
+  // PII into the affiliate URL → retailer logs → browser history sync. Per
+  // Reforge *Brand Marketing → Identity Governance*: user-data hygiene is a
+  // brand asset. The fclickId is a 16-char hex from crypto.getRandomValues,
+  // persisted alongside the click record (state.affiliateClicks[].fclickId).
+  // Affiliate-network attribution joins on the opaque ID server-side at
+  // backend cutover; no UUID or email ever leaves the device.
+  function generateFclickId() {
+    try {
+      const buf = new Uint8Array(8);
+      if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+        window.crypto.getRandomValues(buf);
+      } else {
+        for (let i = 0; i < 8; i++) buf[i] = Math.floor(Math.random() * 256);
+      }
+      return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (_) {
+      // Ultimate fallback — Math.random only. Still no PII.
+      return Math.random().toString(16).slice(2, 10) + Math.random().toString(16).slice(2, 10);
+    }
+  }
+  window.FurnishGenerateFclickId = generateFclickId;
+
   function buildAffiliateUrl(item) {
     if (!item) return '#';
     // First: try the per-item URL if it looks valid (not a homepage stub).
@@ -4870,7 +5073,9 @@
         u.searchParams.set('utm_source', 'furnish');
         u.searchParams.set('utm_medium', 'redesign');
         u.searchParams.set('utm_campaign', item.id);
-        u.searchParams.set('fclick', `${state.user?.id || state.user?.email || 'guest'}-${Date.now().toString(36)}`);
+        // [Batch 6 — REC-13.5 PRIVACY FIX] Opaque random fclickId in place
+        // of `${userid}-${timestamp}`. Zero PII in the outbound URL.
+        u.searchParams.set('fclick', generateFclickId());
         return u.toString();
       } catch {}
     }
@@ -4885,8 +5090,22 @@
     return item.url || '#';
   }
   function trackAffiliateClick(item, surface) {
+    // [Batch 6 — REC-13.5 PRIVACY FIX] Generate one opaque fclickId per
+    // click. Persisted alongside the record AND emitted in the analytics
+    // event so future affiliate-network reconciliation can join via the
+    // opaque ID. Note: this is a different fclickId than the one that
+    // went into the URL (which is generated per buildAffiliateUrl call).
+    // Server-side reconciliation joins on (itemId, surface, ts ± window)
+    // when the affiliate-network click_id arrives. The persisted fclickId
+    // here is the canonical record for OUR analytics; the URL fclickId is
+    // what flows to retailers. Neither carries PII.
+    const fclickId = generateFclickId();
+    const tSinceAhaFirstResults = state._timing?.ahaFirstResultsAt
+      ? Date.now() - state._timing.ahaFirstResultsAt
+      : null;
     state.affiliateClicks = (state.affiliateClicks || []).slice(-100);
     state.affiliateClicks.push({
+      fclickId,
       itemId: item.id,
       source: item.source,
       price: item.price,
@@ -4896,11 +5115,13 @@
     });
     save();
     trackEvent('affiliate_click', {
+      fclickId,
       itemId: item.id,
       source: item.source,
       price: item.price,
       surface,
-      roomId: currentRoomIdSafe()
+      roomId: currentRoomIdSafe(),
+      tSinceAhaFirstResults
     });
     // [Batch 5 — Dim 06 Section C.1.1 + Section D] Power-Free + value-moment
     // hooks. Affiliate clicks are the single most important behavioral signal
@@ -5666,12 +5887,22 @@
     if (isFirstResultsForProfile) {
       state._ahaResultsFired = true;
       save();
+      // [Batch 6 — Dim 13 REC-13.12] tSinceSetupComplete + tSinceSignup
+      // activation funnel timing.
+      const tSinceSetupComplete = state._timing?.setupCompleteAt
+        ? Date.now() - state._timing.setupCompleteAt
+        : null;
+      const tSinceSignup = state._timing?.signupStartedAt
+        ? Date.now() - state._timing.signupStartedAt
+        : null;
       trackEvent(ACTIVATION.AHA_RESULTS, {
         roomId: room.id,
         answers: profile.answers || {},
         styles: profile.styles,
         roomType: room.type,
-        msFromSetup: state._setupCompleteAt ? (Date.now() - state._setupCompleteAt) : null
+        msFromSetup: state._setupCompleteAt ? (Date.now() - state._setupCompleteAt) : null,
+        tSinceSetupComplete,
+        tSinceSignup
       });
       // Also fire the GATE event (split-out, semantic clarity for funnel).
       trackEvent('aha_gate_reached', { roomId: room.id });
@@ -7034,6 +7265,11 @@
     a.href = out.toDataURL('image/png');
     a.click();
     trackEvent('share_download', { pro: isPro(), roomId: currentRoomId });
+    // [Batch 6 — Dim 13 REC-13.10] Consolidated share_completed event.
+    // Per Reforge *Building A Structured Event Dictionary*: action
+    // properties (channel) instead of separate event names. 30-day
+    // dual-fire window before the 5 channel-specific events deprecate.
+    trackEvent('share_completed', { channel: 'download', pro: isPro(), roomId: currentRoomId });
     if (!isPro()) {
       toast('Downloaded (free quality) — upgrade for HD');
       setTimeout(() => openPaywall('hd_export'), 1400);
@@ -7054,6 +7290,8 @@
       await navigator.clipboard.writeText(caption);
       toast('Caption + invite link copied');
       trackEvent('share_caption_copied', { roomId: currentRoomId });
+      // [Batch 6 — Dim 13 REC-13.10] Consolidated share_completed event.
+      trackEvent('share_completed', { channel: 'caption', roomId: currentRoomId });
     } catch {
       toast('Copy failed');
     }
@@ -7077,6 +7315,8 @@
       //  matches Furnish's natural-frequency window.
       toast('Invite link copied — you both unlock 5 HD redesigns + 2 style packs (90 days).');
       trackEvent('share_invite_link_copied', { roomId: currentRoomId });
+      // [Batch 6 — Dim 13 REC-13.10] Consolidated share_completed event.
+      trackEvent('share_completed', { channel: 'invite_link', roomId: currentRoomId });
     } catch {
       toast('Copy failed');
     }
@@ -7093,6 +7333,8 @@
       window.open('https://www.pinterest.com/pin-builder/', '_blank', 'noopener');
     }, 400);
     trackEvent('share_pinterest_clicked', { roomId: currentRoomId });
+    // [Batch 6 — Dim 13 REC-13.10] Consolidated share_completed event.
+    trackEvent('share_completed', { channel: 'pinterest', roomId: currentRoomId });
   });
 
   // Native share-sheet (mobile) — falls through to download on desktop.
@@ -7107,7 +7349,15 @@
             files: [file]
           });
           trackEvent('share_system_success', { roomId: currentRoomId });
-        } catch (e) { /* cancelled */ }
+          // [Batch 6 — Dim 13 REC-13.10] Consolidated share_completed.
+          trackEvent('share_completed', { channel: 'system', roomId: currentRoomId });
+        } catch (e) {
+          // [Batch 6 — Dim 13 REC-13.3] share_system_failed failure event.
+          trackEvent('share_system_failed', {
+            roomId: currentRoomId,
+            reason: String((e && e.name) || 'cancelled').slice(0, 60)
+          });
+        }
       });
     } else {
       $('#shareDownloadBtn').click();
@@ -8812,7 +9062,175 @@
   }
   window.FurnishShareCaption = shareCaptionForLifecycle;
 
+  // ============================================================
+  // [Batch 6 — Dim 13 REC-13.1 + REC-13.7] WRDCAL + altitude scorecard
+  // ============================================================
+  // North-star metric: Weekly Returning Designer who Clicked an Affiliate
+  // Link. Three-way conjunction encodes the three things Furnish must do
+  // simultaneously to be a real business: design, click, return. Per
+  // Reforge *Building Your Altitude Scorecard* (Sean Klaus): "looking
+  // forward to a year from now, if I only had three or four metrics on my
+  // scorecard, and all those metrics have gone up, could I hang my hat
+  // on that and say that I've nailed it?" — WRDCAL is that metric.
+
+  const FURNISH_NORTH_STAR = Object.freeze({
+    metric: 'WRDCAL',
+    label: 'Weekly Returning Designer who Clicked an Affiliate Link',
+    definition: 'A unique authenticated user who, within the trailing 7 days, has (a) completed at least one redesign generation that was viewed past the reveal gate AND (b) clicked at least one affiliate link AND (c) had at least one prior session more than 24 hours before either action.',
+    cadence: 'daily snapshot, weekly review',
+    citations: ['Reforge Building Your Altitude Scorecard L3', 'Reforge Identifying The Altitudes And Outcome Metrics']
+  });
+  window.FurnishNorthStar = FURNISH_NORTH_STAR;
+
+  // [Batch 6 — Dim 13 REC-13.1] Per-user WRDCAL signal computed from
+  // state._events (200-event rolling buffer). Pre-backend, this is the
+  // only WRDCAL approximation available; org-wide WRDCAL requires server-
+  // side aggregation across users. Returns booleans for each leg + the
+  // composite. Used by the dev-only altitude scorecard helper below.
+  function computeWRDCALProxy() {
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const events = state._events || [];
+    const inWindow = events.filter(e => e.ts >= sevenDaysAgo);
+    const designed = inWindow.some(e => e.name === 'generation_completed' || e.name === 'analyze_completed' || e.name === 'aha_first_results');
+    const revealUnlocked = inWindow.some(e => e.name === 'reveal_gate_unlocked' || e.name === 'aha_first_results');
+    const clicked = inWindow.some(e => e.name === 'affiliate_click');
+    // Returning: any session_started >24h before any of the actions in window.
+    const sessionsInWindow = inWindow.filter(e => e.name === 'session_started').map(e => e.ts);
+    const earliestActionTs = Math.min(
+      ...inWindow
+        .filter(e => e.name === 'generation_completed' || e.name === 'affiliate_click')
+        .map(e => e.ts),
+      now
+    );
+    const returning = sessionsInWindow.some(ts => ts <= earliestActionTs - 24 * 60 * 60 * 1000);
+    return {
+      qualifies: designed && revealUnlocked && clicked && returning,
+      designed,
+      revealUnlocked,
+      clicked,
+      returning,
+      windowDays: 7
+    };
+  }
+  window.FurnishComputeWRDCAL = computeWRDCALProxy;
+
+  // [Batch 6 — Dim 13 REC-13.6] Per-user altitude scorecard. Computes
+  // local-only proxies for the HIGH/MID/LOW altitude metrics from
+  // state._events. Org-wide computation requires PostHog (deferred).
+  // Surface: window.FurnishAltitudeScorecard(). Returns an object whose
+  // keys map 1:1 to the §B altitude map in BATCH_6_AUDIT.md.
+  function altitudeScorecard() {
+    const events = state._events || [];
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const inWindow = events.filter(e => e.ts >= sevenDaysAgo);
+    const c = (name) => inWindow.filter(e => e.name === name).length;
+    const ratio = (a, b) => b ? Math.round((a / b) * 1000) / 10 : null; // %
+    const wrdcal = computeWRDCALProxy();
+    const ahaResults = c('aha_first_results');
+    const signups = c('signup_started');
+    const generations = c('generation_completed') + c('analyze_completed');
+    const affiliateClicks = c('affiliate_click');
+    const paywallShown = c('paywall_shown');
+    const paywallConverted = c('paywall_converted');
+    const revealShown = c('reveal_gate_shown');
+    const revealUnlocked = c('reveal_gate_unlocked') + c('aha_first_results');
+    const quizStarted = c('quiz_started');
+    const quizCompleted = c('quiz_completed');
+    const upsellShown = c('premium_quality_upsell_shown');
+    const upsellClicked = c('premium_quality_upsell_clicked');
+    return {
+      generatedAt: now,
+      windowDays: 7,
+      high: {
+        WRDCAL_qualifies: wrdcal.qualifies,
+        WRDCAL_legs: { designed: wrdcal.designed, revealUnlocked: wrdcal.revealUnlocked, clicked: wrdcal.clicked, returning: wrdcal.returning },
+        activationRatePct: ratio(ahaResults, signups),
+        sessionsInWindow: c('session_started')
+      },
+      mid: {
+        affiliateClicks7d: affiliateClicks,
+        revealUnlockRatePct: ratio(revealUnlocked, revealShown),
+        paywallConversionPct: ratio(paywallConverted, paywallShown),
+        premiumUpsellCTRPct: ratio(upsellClicked, upsellShown),
+        quizCompletionPct: ratio(quizCompleted, quizStarted),
+        generations7d: generations,
+        habitFormed: !!state.user?.habitFormed
+      },
+      low: {
+        wishlistAdded7d: c('wishlist_added'),
+        priceDropBannerCTRPct: ratio(c('price_drop_banner_clicked'), c('price_drop_banner_shown')),
+        homeProgressClicks7d: c('home_progress_cell_clicked'),
+        affiliateDisclosureViews7d: c('affiliate_disclosure_viewed'),
+        errorsThrown7d: c('error_thrown'),
+        errorsShown7d: c('error_shown'),
+        screenViews7d: c('screen_viewed'),
+        dormancyTransitions7d: c('dormancy_state_changed')
+      },
+      cohort: {
+        lifecycle: state.user?.cachedLifecycle || (typeof getLifecycleState === 'function' ? getLifecycleState() : 'NEW'),
+        tier: state.user?.isPro ? 'pro' : 'free',
+        grandfathered: !!state.user?.grandfathered
+      }
+    };
+  }
+  window.FurnishAltitudeScorecard = altitudeScorecard;
+
+  // [Batch 6 — Dim 13 REC-13.7] Cohort definitions captured in code so
+  // the same predicates that drive backend dashboards drive client logic.
+  // Per Reforge *Cohort Analysis* L4: every cohort comparison must lock
+  // populations, starting point, behavior, time period.
+  const COHORT_DEFINITIONS = Object.freeze({
+    _conventions: 'For every cohort comparison: lock POPULATIONS, STARTING POINT, BEHAVIOR, TIME PERIOD. Reforge Cohort Analysis L4.',
+    D1_new_users:           { startingPoint: 'signup_started', timePeriod: '7d trailing', behavior: 'count distinct user_id' },
+    D2_activated:           { startingPoint: 'signup_completed', timePeriod: '7d post-signup', behavior: 'aha_first_results fired' },
+    D3_habit_formed:        { startingPoint: 'aha_first_results', timePeriod: '14d', behavior: 'session_started 1-14d post-aha + ≥1 wishlist_added/bookmark_added' },
+    D4_at_risk_free:        { startingPoint: 'signup_started', timePeriod: '7-21d', behavior: 'tier=free + generations≤1 + wishlist_count=0' },
+    D5_pro_intent:          { startingPoint: 'paywall_shown', timePeriod: 'all-time', behavior: '≥3 paywall_shown + 0 paywall_converted' },
+    D6_pro_organic:         { startingPoint: 'pro_subscription_started', timePeriod: 'all-time', behavior: 'tier=pro + grandfathered=false' },
+    D7_pro_grandfathered:   { startingPoint: 'grandfatherProUsers boot hook', timePeriod: 'all-time', behavior: 'tier=pro + grandfathered=true' },
+    D8_dormant:             { startingPoint: 'last session_started', timePeriod: '30-90d ago', behavior: 'no session in trailing 30d, had ≥1 in trailing 90d' },
+    D9_churned:             { startingPoint: 'last session_started', timePeriod: '90+d ago', behavior: 'no session in trailing 90d' },
+    D10_power_clickers:     { startingPoint: 'affiliate_click', timePeriod: '30d trailing', behavior: 'top decile by click count' },
+    D11_wishlist_heavy:     { startingPoint: 'wishlist_added', timePeriod: 'all-time', behavior: '≥10 distinct wishlist_added' },
+    D12_referrers:          { startingPoint: 'referral_link_copied', timePeriod: 'all-time', behavior: '≥1 referral_link_copied' },
+    D13_referees:           { startingPoint: 'referral_signup_attributed', timePeriod: 'all-time', behavior: '≥1 referral_signup_attributed' },
+    D14_multi_room:         { startingPoint: 'generation_completed', timePeriod: 'all-time', behavior: '≥3 distinct rooms' },
+    D15_magic_first_session:{ startingPoint: 'signup_started', timePeriod: '30 minutes', behavior: 'signup + aha + affiliate_click within 30min' }
+  });
+  window.FurnishCohorts = COHORT_DEFINITIONS;
+
   // ---------- Boot ----------
+  // [Batch 6 — Dim 13 REC-13.3] Global error handler. Captures uncaught
+  // JS errors as `error_thrown` failure events. Per Reforge *Building A
+  // Structured Event Dictionary*: failure events answer "what prevented
+  // the user from completing the success event." Without this, broken
+  // builds register as silent funnel drops with no diagnostic signal.
+  window.addEventListener('error', (e) => {
+    try {
+      trackEvent('error_thrown', {
+        message: String(e.message || '').slice(0, 200),
+        filename: String(e.filename || '').slice(0, 120),
+        lineno: e.lineno,
+        colno: e.colno,
+        surface: typeof _previousScreen === 'string' ? _previousScreen : null
+      });
+    } catch (_) {}
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try {
+      const reason = e.reason;
+      const message = (reason && reason.message) ? String(reason.message) : String(reason || 'unhandled rejection');
+      trackEvent('error_thrown', {
+        message: message.slice(0, 200),
+        surface: typeof _previousScreen === 'string' ? _previousScreen : null,
+        kind: 'unhandled_rejection'
+      });
+    } catch (_) {}
+  });
+
   function boot() {
     // [Model A — STEP 5 §16 row 1] Tag pre-Model-A Pro users (D6=a) so analytics
     // can split conversion attribution from grandfathered access. Idempotent.

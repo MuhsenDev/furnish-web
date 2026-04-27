@@ -564,7 +564,111 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 
 ---
 
+## PostHog Cloud project + dashboards (Batch 6 — backend phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 13 REC-13.2. Locked Batch 6 2026-04-26.
+
+**Why deferred:** Batch 6 ships the dual-write SDK plumbing (`trackEvent` fans out to `window.posthog.capture` when present; identify/reset/setUserProperty hooks wired). Real PostHog project key + SDK script tag + dashboards are a one-time setup that requires a PostHog account.
+
+**Required at backend phase:**
+1. Sign up posthog.com (EU data residency option; free 1M events/mo).
+2. Inject project key into `index.html`:
+   ```html
+   <script>
+     !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){...});
+     posthog.init('phc_REAL_PROJECT_KEY', { api_host: 'https://eu.posthog.com' });
+   </script>
+   ```
+3. Verify ≥30 days of dual-write parity vs `state._events` buffer.
+4. Build dashboards:
+   - **WRDCAL weekly trend** (single number + sparkline)
+   - **Activation funnel:** `signup_started → setup_complete → aha_first_results → habit_second_room`
+   - **Paywall conversion by context** (post 8→3 layout consolidation)
+   - **Cohort heat-maps** for D1-D15 (per `COHORT_DEFINITIONS` in `app.js`)
+   - **Power-Free signal funnel** (`power_free_signal_shown / clicked / dismissed`)
+   - **Share funnel by channel** (`share_completed { channel }` distribution)
+5. Add `funnel.activation` saved insight per REC-13.11.
+6. Add per-context paywall conversion saved insights per REC-13.7.
+
+**Cutover work when this lands:**
+- Open `OPTIMIZATION_ROLLOUT_SUMMARY.md` § "Cumulative event taxonomy" — every listed event is the contract PostHog will receive.
+- Bookmark `optimization/dashboard.html` (or PostHog dashboard URL) — open every Monday before any other action.
+
+---
+
+## Server-side fired events (Batch 6 — backend phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 13 REC-13.4 + REC-13.9. Locked Batch 6 2026-04-26.
+
+**Why deferred:** Per Reforge *Instrumentation Best Practices*: "track 100% of revenue data from the back end." Client cannot be trusted with monetization truth (ad-blockers eat 10-30%; malicious clients can fake events).
+
+**Required at backend phase:**
+1. Stripe webhooks fire server-side events:
+   - `pro_subscription_started { plan, source, triggeringContext }` (replaces client mock)
+   - `pro_subscription_renewed { plan, tenureD }`
+   - `pro_subscription_cancelled { plan, tenureD, reason }`
+   - `pro_subscription_payment_failed { plan, tenureD, attempt }`
+2. Affiliate-network reconciliation cron fires:
+   - `affiliate_attribution_received { userId, itemId, commission, network, fclickId }`
+   - Joins on `state.affiliateClicks[].fclickId` synced to Supabase `affiliate_clicks` table.
+3. Server-side rate-limit triggers fire:
+   - `rate_limit_hit { userId, tier, endpoint, cap }`
+4. Server-side push delivery fires:
+   - `push_received { userId, campaignId }`
+   - `price_drop_detected { itemId, userId, oldPrice, newPrice, dropPct }`
+5. Rename: client `paywall_converted` → `paywall_cta_clicked` (intent only); backend webhook becomes the success event.
+
+**Anti-fraud:** All revenue dashboards numerator from backend; denominator from client `paywall_shown` is fine.
+
+---
+
+## Remaining 12 failure events (Batch 6 — copy-pass + drop-step instrumentation batch)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 13 REC-13.3. Partial-shipped Batch 6 (6 of 18); rest deferred.
+
+**Already shipped Batch 6:** `signup_failed`, `signin_failed`, `analyze_failed`, `error_thrown`, `error_shown`, `share_system_failed`. Batch 5 already shipped `paywall_dismissed`. The `quiz_skipped` event from the 10-Q migration covers part of the gap.
+
+**Required when this lands** (per Reforge Building A Structured Event Dictionary):
+1. `capture_rejected { method, reason }` — wire into capture validation failure paths (file too large, wrong type, decode error).
+2. `swap_cancelled { roomId, itemId, reason }` — wire into swap-flow back-out path.
+3. `wishlist_removed { itemId, tenureD }` — heart-toggle off.
+4. `bookmark_removed { roomId, tenureD }` — bookmark-toggle off.
+5. `reveal_gate_dismissed { roomId, source }` — user closes gate without unlocking (currently no signal).
+6. `email_capture_failed { source, reason }` — invalid email entered into soft-capture lane.
+7. `push_pre_prompt_dismissed { triggeringContext }` — pre-prompt rejected.
+8. `tier_reconcile_mismatch_detected { cachedTier, serverTier }` — already-existing event, but rename to flag the failure semantics.
+9. `quiz_back_clicked { fromStep, toStep }` — back navigation in quiz (intent, but flags drop intent).
+10. `analyze_started { tier, actionId, roomId, method }` — paired with analyze_completed/failed for per-step funnel.
+11. `analyze_progress { roomId, progressPct }` — ~25% increments for diagnostic depth.
+12. `screen_dwell { screenName, durationMs }` — derived from `screen_viewed.prevDwellMs` if needed as discrete event.
+
+**Effort:** L (~1 day to wire all 12). Bundle with the §3 "drop-step instrumentation" batch.
+
+---
+
+## Share-channel event deprecation (Batch 6 — after 30-day dual-fire)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 13 REC-13.10. Dual-fire shipped Batch 6.
+
+**Why deferred:** Batch 6 added `share_completed { channel }` alongside the 5 existing channel-specific events (`share_download`, `share_caption_copied`, `share_invite_link_copied`, `share_pinterest_clicked`, `share_system_success`). The 30-day dual-fire window per Reforge spec validates parity before deprecation.
+
+**Required at deprecation:**
+1. Confirm PostHog dashboards using the legacy 5 events match dashboards using `share_completed`.
+2. Rewrite all dashboards to use `share_completed` filtered by `channel` property.
+3. Remove the 5 legacy `trackEvent('share_*', ...)` call sites in app.js.
+4. Update analytics docs.
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during Batch 6 implementation (Dim 13 Data Instrumentation — FINAL PASS 6/6).
+- Added: PostHog Cloud project + dashboards (REC-13.2).
+- Added: Server-side fired events (REC-13.4 + REC-13.9 — Stripe webhooks + affiliate reconciliation).
+- Added: Remaining 12 failure events (REC-13.3 — copy-pass + drop-step batch).
+- Added: Share-channel event deprecation (REC-13.10 — post 30-day dual-fire).
+- **PRIVACY FIX shipped Batch 6** (REC-13.5) — `affiliate_click.fclick` now uses opaque random 16-char hex IDs instead of raw UUID/email. No PII in affiliate URLs.
+- **Optimization rollout COMPLETE** — see `OPTIMIZATION_ROLLOUT_SUMMARY.md`.
 
 Updated: 2026-04-26 during Batch 5 Part 2 implementation (Dim 02 User Psychology).
 - Added: Quantitative price-drop loss banner (D02-1, fake-numbers blocker).
