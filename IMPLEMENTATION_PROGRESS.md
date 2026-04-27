@@ -398,3 +398,101 @@ Both are clear shipping paths. Hassan's call.
 ## Status: ✅ COMPLETE
 
 Next batch — same recommendations as Batch 1's "next batch" note: D7-reveal-gate batch (Conflict 5) or Onboarding-architecture batch (Conflicts 7 + 8). Both cleanly defined.
+
+---
+---
+
+# Batch 3 — Dim 04 Activation + Dim 12 Onboarding + Dim 03 Conversion — COMPLETE
+
+**Date:** 2026-04-26
+**Source audit:** `BATCH_3_AUDIT.md` — stopped ONCE with consolidated decision request, Hassan approved all 8 calls + locked the "approve all changes" policy going forward.
+**Conflicts touched:** 5, 7, 8 — all locked in this batch. Only Conflict 6 remains pending.
+
+## Decisions locked in this batch
+
+- **A1 = B+C:** Quiz architecture — kept current order (capture-after-quiz preserves the consistency boost since the 10-Q onboarding already sequences low-friction asks before the photo step). Q3 swap proposal (Conflict 8) was OBSOLETED — the 10-Q onboarding migration already replaced the old 4-Q structure. Documented as obsolete in CONFLICTS_RESOLVED.md.
+- **A2 = MODIFY:** Price tags delayed to Frame 5 of Batch 2 reveal choreography — the infrastructure was already in place from Batch 2; semantics now align with ELMR (emotion lands first, logic ripples in 1500ms later).
+- **A3 = DEMOTE:** Skip button on quiz intro now styled as a small text link (CSS override on `#skipQuipBtn`).
+- **A4 = CONFIRM (Conflict 5 lock):** Soft email capture lane added before the D7 reveal gate. `softEmailCapture()` writes `state.user.recoveryEmail` + `state.emailIntent`; backend send wired at cutover.
+- **A5 = DEFER:** Quarterly Core flip (Dim 04 R7) explicitly deferred to a structural batch. Conflict 1's lock honored.
+- **A6 = KEEP CURRENT:** Hero tagline unchanged ("Watch any room transform — about a minute, sit tight.") — none of the Dim 03 R-Top3 candidates beat it on voice rubric.
+- **A7 = APPROVE:** Aha event split. `aha_gate_reached` fires on render; `aha_moment_reached` fires only on user-signaled experience (Love-tap, Close-tap, item-tap, Shop-all, wishlist-save, or 10s dwell). Per-room single-fire flag prevents double-counting.
+- **A8 = APPROVE (Conflict 7 lock):** Tutorial defers to session 2 home arrival. `queueFirstRedesignTutorial()` is now a no-op on first reveal; `maybeFireSessionTwoTutorial()` gates on `state.user.sessionCount >= 2 && state.rooms.length >= 1 && !firstRedesignTutorialSeen`.
+
+## Decision policy update (locked in CLAUDE.md)
+Hassan locked: "From here on out I APPROVE ALL CHANGES." When an audit raises ambiguity, the recommended call is approved and shipped — do NOT stop and ask. Streamlined-gate still applies; cross-dim disagreements still get surfaced for visibility, but ship with the recommended call.
+
+## Files changed
+
+| File | Lines changed | Summary |
+|------|---------------|---------|
+| `app.js` | +250 (Batch 3 block) + ~40 surgical edits | Batch 3 functions: `fireAhaMomentIfFresh` + `scheduleAhaDwellTimer` (Aha split), `isSessionTwoArrival` + `maybeIncrementSessionCount` + `maybeFireSessionTwoTutorial` (tutorial defer), `isReturningGuestWithProgress` (returning-guest skip), `logHabitAction` (habit metric), `softEmailCapture` + `wireSoftEmailCaptureForm` (Conflict 5), `showPromiseFitMicrosurvey` (post-Love survey), `maybeFireValueMomentPaywall` (value-moment paywall triggers), `rankItemsForCondensedList` (top-3 expander), `wireStickyShopAllCTA`. Wired into existing `openRoom` (Aha gate fire + dwell timer + 2nd-redesign habit log), Aha-feedback Love/Close handlers (Aha experience signal + microsurvey), `toggleWishlist` (Aha + habit + 3rd-save value-moment), `shopAllBtn` (Aha shop signal), item-sheet open (Aha item-tap), `style_pulse_shown` (habit log), `price_drop_banner_clicked` (habit log), `welcomeStartBtn` (returning-guest skip), `queueFirstRedesignTutorial` (no-op + comment redirect to session-2 trigger), `openPaywall` (8→3 layout class). PAYWALL_LAYOUTS + PAYWALL_CONTEXT_LAYOUT consolidation map. |
+| `index.html` | ~40 changed | Welcome screen: trust-strip chips ABOVE CTA (No signup / ~1 min / Free), `.hd-frame.auto-play` class on welcome demo. Capture screen: progress bar + headline change to "Last Step — Your Room Photo". Signin screen: Google OAuth promoted to `btn-primary big` ("Reveal in 1 tap with Google"), Apple/Amazon demoted to side-by-side ghost row, soft email-capture lane added between social row and email form, divider copy refined. Paywall card: "MOST POPULAR" pill + "Save $24/yr" anchor (replaces "Save 33%"). |
+| `styles.css` | +320 (Batch 3 override block) | Auto-playing welcome demo keyframes (with `prefers-reduced-motion` fallback), `.hero-trust-strip` + `.hts-chip`, `.signin-google-primary` + `.signin-social-secondary`, `.signin-soft-capture` family (with dark-mode coverage), `.capture-progress` family, `.items-expander`, `.sticky-shop-all` family, `.promise-fit-survey` family, `.pw-most-popular` pill + paywall-layout color tints (A_quality / B_power / C_save), Skip-button demote, `.quiz-reassurance`, `.quiz-help-btn` + `.quiz-help-tooltip`. |
+| `CLAUDE.md` | +6 | Decision policy: "approve all changes" locked. |
+| `CONFLICTS_RESOLVED.md` | ~10 | Conflicts 5, 7, 8 locked. Conflict 8 marked OBSOLETE (old 4-Q quiz superseded by 10-Q onboarding). |
+| `DEFERRED.md` | +4 | Email recovery dependency (Conflict 5 backend half), push timing change (item 7 push), tutorial sync semantics (item 3 — session-2 trigger). |
+| `BATCH_3_AUDIT.md` | NEW | Streamlined-gate audit + consolidated decision request + decision matrix. |
+
+## What did NOT ship
+
+- **Q2 palette room thumbs (E2):** asset task — config-driven slot ready (Hassan supplies images later).
+- **Capture "What works" tip strip (E9):** asset task — slot ready.
+- **A1 Path A (full Setup-after-Aha):** structural batch later. Ships if Hassan wants to scrap the 10-Q onboarding entirely (unlikely given recent migration investment).
+- **A5 Quarterly Core flip:** structural batch later (Conflict 1 lock honored).
+- **Hero tagline rewrite (A6):** kept current.
+- **Skip-default 5-second taste filter (E4):** scoped out — the 10-Q onboarding's defaults are richer than the old 4-Q minimalist trio; the proposal was framed against a flow that no longer exists. If Hassan still wants this, file as a follow-up.
+- **Per-question "?" tooltip + Q3 reassurance (E10/E11):** CSS hooks shipped (`.quiz-help-btn`, `.quiz-reassurance`); JS wiring deferred since the 10-Q renderer doesn't yet have a per-question copy table for the help text. Future copy task.
+- **HD-export value-moment trigger:** `maybeFireValueMomentPaywall('hd_export_attempt')` exists; call site needs HD-export feature first (DEFERRED.md item — HD export is a Pro feature whose UI is partially built).
+- **2nd-room-intent value-moment trigger:** `maybeFireValueMomentPaywall('second_room_intent')` exists; call site is "user taps New from Photo when state.rooms.length >= 1 and !isPro". Wire when home-screen state allows.
+- **Love-dwell 5min value-moment trigger:** function exposed; needs a 5min dwell timer on the results screen — not wired this batch.
+- **Progressive disclosure on prefs (E6):** scoped out — the 10-Q onboarding has progressive disclosure built into the per-question flow already.
+- **Promise-Fit microsurvey JS wiring beyond Love-tap:** complete; only fires once per user on Love.
+- **Email backend send:** DEFERRED.md item 6.
+- **Native push timing change:** DEFERRED.md item 7.
+
+## Verification plan
+
+- **New user, full flow (cold start):** Welcome → trust strip visible above CTA → "Redesign My Room" → 10-Q onboarding → capture (with progress bar showing 90%) → analyze → reveal. After reveal: Love-tap → microsurvey appears within 600ms. Wishlist 1st save: push pre-prompt fires. 3rd save: value-moment paywall fires. Sticky shop CTA appears on scroll past totals card.
+- **Returning guest (rooms exist OR draft set):** Welcome → "Redesign My Room" → routes directly to home (skips onboarding). Test: `state.rooms.length === 1 && isGuest()`.
+- **Session 2 home arrival:** Open app → bump session count → on home arrival with prior redesign + tutorial unseen → tutorial coachmarks fire (Styles → Color Moods → Budget). Test: simulate by clearing `_lastSessionStart` to >1h ago.
+- **Aha event split:** confirm `aha_gate_reached` fires on results render; `aha_moment_reached` only fires on Love OR item-tap OR Shop-all OR wishlist-save OR 10s dwell. Verify single-fire per room (`room._ahaMomentFired` flag).
+- **Soft email capture:** open D7 reveal gate as guest → enter email in soft-capture lane → tap "Save & Skip Signin" → toast confirms → `state.user.recoveryEmail` set → returns to welcome. `state.emailIntent` map populated.
+- **Paywall layout consolidation:** trigger `openPaywall('premium_quality')` → modal opens with `layout-A_quality` class + tan badge. `openPaywall('profile')` → `layout-B_power` + brown badge. `openPaywall('advanced_price_filters')` → `layout-C_save` + green badge.
+- **Habit metric:** save 2 wishlist items in <28d → `state.user.habitFormed = true`, `habit_formed` event fires.
+- **Items list top-3:** open a room with >4 items → only 3 visible by default + "See all N pieces" expander; tap expander → all items render, sticky.
+- **Welcome demo loop:** confirm BEFORE/sweep/AFTER cycle plays automatically every ~4s (and respects `prefers-reduced-motion`).
+
+## Reforge framework citations (Batch 3)
+
+- *Retention + Engagement — Module 03* (Defining Aha / Setup / Habit moments)
+- *Retention + Engagement — Module 04* (Activation Strategies — Aha experience, Setup experience, Habit experience)
+- *Retention + Engagement — Module 02* (Natural Behavior Use Cases)
+- *Retention + Engagement — Module 06* (Engagement Strategies / Frequency Strategy)
+- *Retention + Engagement — Module 09 BONUS* (Managing Infrequent Products / ICED Theory) — Expanding Touchpoints
+- *Retention + Engagement — Module 04* (Four Activation Fits + PNIP Pyramid)
+- *Monetization + Pricing* (Convert And Activate — Optimization Equation, value-moment triggers)
+- *Product Marketing — Positioning And Messaging* (One Key Takeaway — paywall consolidation)
+- *Growth Series — User Psychology* (ELMR Decision Hill, Motivational Boosts: Consistency, Completion, Bargain, Belonging)
+- *Mastering Product Management — Decision Architecture* (Decision Budget & Circles)
+
+## Time spent
+
+- Phase A audit + cross-dim disagreement surfacing: ~30 min
+- Conflicts lock + DEFERRED + CLAUDE.md policy update: ~10 min
+- Phase A-D app.js work: ~80 min
+- index.html edits (welcome trust strip + signin OAuth + soft email + capture progress + paywall anchor): ~25 min
+- styles.css Batch 3 block: ~30 min
+- This log + commit: ~15 min
+- **Total: ~3h 10min execution.**
+
+## Status: ✅ COMPLETE
+
+Conflicts 5, 7, 8 locked. Conflict 6 (gen-50 power-user signal) remains pending — file under monetization-batch when that runs.
+
+Three batches down, three to go. Remaining major dimensions:
+- **Dim 05 Retention** (engagement loops, content cadence) — depends on logged habit-action data
+- **Dim 06 Monetization** (pricing psych, Pro entitlement bundling) — Conflict 6 territory
+- **Dim 07 Personalization** + **Dim 08 Social** + **Dim 13 Instrumentation** — could group together as a "data + commerce backbone" batch
+
+Pick when ready.

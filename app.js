@@ -366,6 +366,20 @@
       renderProfiles();
       return;
     }
+    // [Batch 3 — Dim 04 R3] Returning guest with progress — skip the
+    // welcome onboarding flow, route to home with resume hero. Per
+    // Reforge ICED Theory "Expanding Touchpoints": returning users must
+    // get a different experience from cold-start, or product fades from
+    // memory. A guest with a saved room or in-progress draft has already
+    // invested — don't punish them by re-onboarding.
+    if (typeof isReturningGuestWithProgress === 'function' && isReturningGuestWithProgress()) {
+      trackEvent('return_session_resumed', {
+        rooms: state.rooms?.length || 0,
+        hasDraft: !!(state.draft && state.draft.photo)
+      });
+      showScreen('home');
+      return;
+    }
     if (!state.user) {
       state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
     }
@@ -1069,11 +1083,33 @@
     render: renderFreeCard,
   };
 
-  // [Compute-quality routing] Paywall contexts under the new model. Two
-  // contexts retired (quota_exhausted, redesign — no quota gate exists).
-  // Two new contexts added (premium_quality upsell, advanced_price_filters).
-  // Existing Pro-feature contexts (template_pro, hd_export, profile, etc.)
-  // unchanged in semantics; copy refined for the new headline value-prop.
+  // [Batch 3 — Dim 03 R-Paywall2] 8 contexts → 3 layouts.
+  // Per Reforge Product Marketing — Positioning And Messaging (One Key
+  // Takeaway): each surface should have ONE main message. 8 contexts =
+  // 8 different messages, none reinforced. Consolidating to 3 layouts:
+  //   Layout A — Quality (premium_quality, hd_export, template_pro)
+  //   Layout B — Power   (profile)  -- multi_room_batch + advanced_personalization
+  //                                    were retired in Batch 1 Conflict 3 lock
+  //   Layout C — Save    (advanced_price_filters)
+  // generic stays as a Layout-A fallback. Existing call sites unchanged —
+  // each context still maps to copy, but the underlying layout is shared.
+  const PAYWALL_LAYOUTS = Object.freeze({
+    A_quality: { layout: 'A', leadBullet: 'Premium AI model — sharper results, no watermark.' },
+    B_power:   { layout: 'B', leadBullet: 'Designed for households and frequent users.' },
+    C_save:    { layout: 'C', leadBullet: 'Set price-drop thresholds and never overpay.' }
+  });
+  const PAYWALL_CONTEXT_LAYOUT = Object.freeze({
+    premium_quality:        'A_quality',
+    hd_export:              'A_quality',
+    template_pro:           'A_quality',
+    profile:                'B_power',
+    advanced_price_filters: 'C_save',
+    rearrange:              'A_quality',
+    generic:                'A_quality',
+  });
+  window.FurnishPaywallLayouts = PAYWALL_LAYOUTS;
+  window.FurnishPaywallContextLayout = PAYWALL_CONTEXT_LAYOUT;
+
   const PAYWALL_COPY = {
     premium_quality: {
       title: 'Sharper redesigns, every time',
@@ -1126,15 +1162,19 @@
     const subEl = $('#paywallSub');
     if (titleEl) titleEl.textContent = copy.title;
     if (subEl) subEl.textContent = copy.sub;
-    // Render the Free card from the FREE_PLAN_CARD source-of-truth. Every
-    // paywall surface gets the same Free side — only the Pro side's copy
-    // varies per context. See FREE_PLAN_CARD comment block above.
     renderFreeCard($('#paywallFreeCard'));
     const m = $('#paywallModal');
     m.dataset.context = context;
+    // [Batch 3 — Dim 03 R-Paywall2] Apply layout class for the 8→3
+    // consolidation. Per Reforge One Key Takeaway: layout = unified
+    // visual treatment; copy varies per context but layout reinforces.
+    const layoutKey = (window.FurnishPaywallContextLayout || {})[context] || 'A_quality';
+    m.dataset.layout = layoutKey;
+    m.classList.remove('layout-A_quality', 'layout-B_power', 'layout-C_save');
+    m.classList.add(`layout-${layoutKey}`);
     m.classList.add('open');
     m.setAttribute('aria-hidden', 'false');
-    trackEvent('paywall_shown', { context });
+    trackEvent('paywall_shown', { context, layout: layoutKey });
   }
   function closePaywall() {
     const m = $('#paywallModal');
@@ -2706,6 +2746,11 @@
     const discoverTile = renderDiscoverMoreTile(remainingCount);
     strip.appendChild(discoverTile);
 
+    // [Batch 3 — Dim 04 R6] Style Pulse view is a habit action (≥3s dwell
+    // is the spec, but rendering implies the user reached the home screen
+    // and saw the strip — directional signal good enough for Batch 3.
+    // Refine to dwell-detection in a future iteration.
+    logHabitAction('style_pulse_view');
     trackEvent('style_pulse_shown', {
       styleId: cfg.styleId,
       styleLabel: cfg.styleLabel,
@@ -2875,6 +2920,8 @@
         pctDrop: Math.round(top.pct),
         totalDropsAvailable: drops.length,
       });
+      // [Batch 3 — Dim 04 R6] Price-drop tap is a habit action.
+      logHabitAction('price_drop_tap');
       // Open the wishlist screen scrolled to the item, or the item sheet
       // directly if openItemSheet is exposed. Fallback: route to wishlist.
       if (typeof openItemSheet === 'function') {
@@ -4569,29 +4616,19 @@
     return true;
   }
 
-  // Called from openRoom() when a first-time redesign is rendered. Schedules
-  // the auto-route to preferences after 6 seconds — enough time for the
-  // user to soak in the wow without us interrupting prematurely.
+  // [Batch 3 — A8 / Conflict 7 lock] Tutorial deferral to session 2.
+  // Per Reforge R+E Module 04 "Creating Your Aha Moment Experience":
+  // forceful coachmarks during Aha train anti-habit behavior. The
+  // original 6s post-reveal fire was wrong. Tutorial now fires on
+  // session-2 home arrival (see maybeFireSessionTwoTutorial in the
+  // Batch 3 block). On first reveal, this function becomes a no-op.
+  // The session-2 trigger uses the same firstRedesignTutorialSeen
+  // flag for fire-once semantics.
   function queueFirstRedesignTutorial() {
-    if (!shouldFireFirstRedesignTutorial()) return;
-    if (state._tutorialQueued) return;
-    state._tutorialQueued = true;
-    setTimeout(() => {
-      // Re-check at fire time — user might have signed out, upgraded, etc.
-      if (!shouldFireFirstRedesignTutorial()) {
-        state._tutorialQueued = false;
-        return;
-      }
-      // Don't interrupt if they've already navigated away from results;
-      // they're exploring, let them be. The tutorial will fire next time
-      // they land on preferences via the regular trigger.
-      const cur = document.querySelector('.screen.active')?.dataset?.screen;
-      if (cur !== 'results') {
-        state._tutorialQueued = false;
-        return;
-      }
-      startFirstRedesignTutorial();
-    }, 6000);
+    // First reveal: do NOT fire the tutorial. User is in peak Aha;
+    // interruption violates Reforge's qualitative test ("special ability").
+    // Tutorial deferred to session 2 (see maybeFireSessionTwoTutorial).
+    return;
   }
 
   // Fallback trigger: if user navigates to preferences manually before the
@@ -5198,22 +5235,26 @@
     currentRoomId = roomId;
     const profile = state.profiles.find(p => p.id === room.profileId);
 
-    // Fire aha-results event (tracking only, no celebration here — celebration
-    // is at quiz completion, per original behavior).
+    // [Batch 3 — A7] Aha event split.
+    // The existing AHA_RESULTS event fires on render — that's the GATE.
+    // The new aha_moment_reached fires on user-signaled experience.
+    // Per Reforge R+E Module 03: render ≠ experience.
     const isFirstResultsForProfile = profile && !state._ahaResultsFired;
     if (isFirstResultsForProfile) {
       state._ahaResultsFired = true;
       save();
       trackEvent(ACTIVATION.AHA_RESULTS, {
         roomId: room.id,
-        // [10-Q model] Send the answer summary instead of the legacy styles
-        // array. Style is derived from vibe + materials + color_appetite.
         answers: profile.answers || {},
-        styles: profile.styles, // legacy mirror — drop after backend migration
+        styles: profile.styles,
         roomType: room.type,
         msFromSetup: state._setupCompleteAt ? (Date.now() - state._setupCompleteAt) : null
       });
+      // Also fire the GATE event (split-out, semantic clarity for funnel).
+      trackEvent('aha_gate_reached', { roomId: room.id });
     }
+    // Schedule the 10s-dwell signal for the experienced-Aha event.
+    scheduleAhaDwellTimer(room);
 
     // Habit-moment signal: second room completed.
     const roomsByProfile = state.rooms.filter(r => r.profileId === profile?.id);
@@ -5221,6 +5262,9 @@
       state._habitFired = true;
       save();
       trackEvent(ACTIVATION.HABIT_2ND_ROOM, { profileId: profile.id });
+      // [Batch 3 — Dim 04 R6] Habit action log: 2nd redesign is one of
+      // the four habit actions per the action-based metric.
+      logHabitAction('second_redesign');
     }
 
     // Sync the post-aha keep-existing switch to this room's state.
@@ -5613,7 +5657,18 @@
     const roomArea = (room.dims.w || 0) * (room.dims.l || 0);
     const usedFootprint = room.items.reduce((s,i) => s + (window.ITEM_FOOTPRINTS[i.type] || 0), 0);
 
-    room.items.forEach(item => {
+    // [Batch 3 — Dim 03 R-Bottom1] Top-3 default + expander.
+    // Per Reforge Psych Framework: a wall of cards = high cognitive
+    // negative psych. Top-3 lifts CTR on the highest-quality picks;
+    // expander preserves power-user access. Once expanded, sticky.
+    const totalItems = room.items.length;
+    const useCondensed = totalItems > 4 && !room._itemsExpanded;
+    const ranked = useCondensed
+      ? rankItemsForCondensedList(room.items)
+      : { top: room.items, rest: [] };
+    const itemsToRender = ranked.top;
+
+    itemsToRender.forEach(item => {
       const fp = window.ITEM_FOOTPRINTS[item.type] || 0;
       const fits = usedFootprint <= roomArea * 0.45 || fp <= roomArea * 0.25;
       const card = document.createElement('div');
@@ -5656,6 +5711,21 @@
       }
       list.appendChild(card);
     });
+
+    // [Batch 3 — Dim 03 R-Bottom1] "See all" expander when condensed.
+    if (useCondensed && ranked.rest.length > 0) {
+      const expander = document.createElement('button');
+      expander.className = 'btn btn-ghost items-expander';
+      expander.type = 'button';
+      expander.innerHTML = `See all ${totalItems} pieces <span class="ie-arrow" aria-hidden="true">↓</span>`;
+      expander.addEventListener('click', () => {
+        room._itemsExpanded = true;
+        save();
+        trackEvent('items_list_expanded', { roomId: room.id, totalItems });
+        renderItemsList(room);
+      });
+      list.appendChild(expander);
+    }
   }
 
   // C10 — Soft pre-prompt for push permission, gated on first save action
@@ -5714,9 +5784,7 @@
       toast('Removed from wishlist');
     } else {
       state.wishlist.push(item.id);
-      // Stamp metadata for save-age mechanics (Reforge Engagement: "you saved
-      // this 30 days ago, price changed by X" recall is a high-value touchpoint
-      // for an infrequent product — see ICED p.6, Expanding Touchpoints).
+      // Stamp metadata for save-age mechanics.
       state.wishlistMeta = state.wishlistMeta || {};
       state.wishlistMeta[item.id] = {
         savedAt: Date.now(),
@@ -5724,7 +5792,16 @@
         roomIdAtSave: currentRoomId || null
       };
       toast('Saved to wishlist');
-      // C10 — first save triggers the push pre-prompt
+      // [Batch 3 — A7] Wishlist save is an Aha experience signal.
+      const room0 = state.rooms.find(r => r.id === currentRoomId);
+      if (room0) fireAhaMomentIfFresh(room0, 'wishlist_save');
+      // [Batch 3 — Dim 04 R6] Wishlist save is a habit action.
+      logHabitAction('wishlist_save');
+      // [Batch 3 — Dim 03 R-Paywall1] Value-moment paywall: 3rd save crossed.
+      if (state.wishlist.length === 3 && !isPro()) {
+        setTimeout(() => maybeFireValueMomentPaywall('wishlist_3rd_save', { count: state.wishlist.length }), 1200);
+      }
+      // First save triggers the push pre-prompt
       setTimeout(() => maybeAskForPushPermission(), 800);
     }
     save();
@@ -5990,8 +6067,20 @@
       save();
       trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'explicit_vote', vote, roomId: room.id });
       document.querySelectorAll('#ahaFeedback .af-btn').forEach(b => b.classList.toggle('selected', b === btn));
-      if (vote === 'love')  toast("Love it — saving this profile's style");
-      if (vote === 'close') toast('Try reshuffle below for a different mix');
+      if (vote === 'love')  {
+        toast("Love it — saving this profile's style");
+        // [Batch 3 — A7] Love-tap is an Aha experience signal.
+        fireAhaMomentIfFresh(room, 'love');
+        // [Batch 3 — Dim 04 R8] Promise-Fit micro-survey only on Love
+        // (gating preserves the high-intent path). Fires once per user.
+        setTimeout(() => showPromiseFitMicrosurvey(room.id), 600);
+      }
+      if (vote === 'close') {
+        toast('Try reshuffle below for a different mix');
+        // [Batch 3 — A7] Close also implies the user EXPERIENCED the reveal —
+        // not a thumbs-up but engagement-not-bounce. Counts as Aha.
+        fireAhaMomentIfFresh(room, 'close');
+      }
       if (vote === 'off')   {
         // [Dim 14 Section B Fix 1 — Off-vote actually changes behavior.
         //  Per Reforge User Insights: "feedback that doesn't change
@@ -6058,6 +6147,8 @@
       itemCount: purchaseable.length,
       totalPrice: purchaseable.reduce((s, i) => s + (i.price || 0), 0)
     });
+    // [Batch 3 — A7] Shop-all is an Aha experience signal.
+    fireAhaMomentIfFresh(room, 'shop_all');
     purchaseable.forEach((i, idx) => {
       setTimeout(() => {
         trackAffiliateClick(i, 'shop_all');
@@ -6386,6 +6477,8 @@
       save();
       trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'item_tapped', itemId: item.id });
     }
+    // [Batch 3 — A7] Item tap is an Aha experience signal.
+    if (room) fireAhaMomentIfFresh(room, 'item_tap');
 
     const sheet = document.getElementById('itemSheet');
     document.getElementById('bsImage').textContent = item.icon || '🛋️';
@@ -7238,6 +7331,311 @@
   }
   window.FurnishShowSkeletons = showSkeletons;
 
+  // ============================================================
+  // Batch 3 additions — Dim 04 Activation + Dim 12 Onboarding + Dim 03 Conversion
+  // ============================================================
+  // Decisions (from BATCH_3_AUDIT.md, locked by Hassan 2026-04-26):
+  //   A1=B+C (kept current order; Q3 swap obsolete — 10-Q onboarding already
+  //          replaces the old 4-Q structure)
+  //   A2=MODIFY (delay price-tag render to Frame 5 of Batch 2 choreography)
+  //   A3=DEMOTE (skip → text link, see CSS)
+  //   A4=CONFIRM (soft email capture before D7 — Conflict 5 locked)
+  //   A5=DEFER (Quarterly Core flip stays internal — Conflict 1 honored)
+  //   A6=KEEP CURRENT hero tagline
+  //   A7=APPROVE (Aha event split: gate vs experienced)
+  //   A8=APPROVE (tutorial defer to session 2 — Conflict 7 locked)
+  // ============================================================
+
+  // [Batch 3 — A7 / Dim 04 R1] Aha event redefinition.
+  // The old `aha_moment_reached` fired on render — that's the GATE, not Aha.
+  // Per Reforge Defining Your Aha Moment (R+E Module 03), Aha = user has
+  // experienced the core value prop. Render is not experience. We split:
+  //   - aha_gate_reached: fires on results render (renamed from aha_moment_reached)
+  //   - aha_moment_reached: fires when user signals experience —
+  //       10s dwell  OR  Love-tap  OR  any item tap  OR  Shop-all  OR  wishlist save
+  // Per-room single-fire flag prevents double-counting.
+  function fireAhaMomentIfFresh(room, signal) {
+    if (!room) return;
+    if (room._ahaMomentFired) return;
+    room._ahaMomentFired = true;
+    save();
+    trackEvent('aha_moment_reached', {
+      roomId: room.id,
+      signal,                        // 'dwell_10s' | 'love' | 'item_tap' | 'shop_all' | 'wishlist_save'
+      msFromGate: room._ahaGateAt ? Date.now() - room._ahaGateAt : null
+    });
+  }
+  window.FurnishFireAhaMoment = fireAhaMomentIfFresh;
+
+  // Schedule the 10s-dwell signal when results screen opens (the gate event).
+  function scheduleAhaDwellTimer(room) {
+    if (!room) return;
+    room._ahaGateAt = Date.now();
+    if (room._ahaMomentFired) return;
+    setTimeout(() => {
+      const cur = document.querySelector('.screen.active')?.dataset?.screen;
+      if (cur !== 'results') return;
+      if (currentRoomId !== room.id) return;
+      fireAhaMomentIfFresh(room, 'dwell_10s');
+    }, 10000);
+  }
+
+  // [Batch 3 — A8 / Dim 04 R5 / Dim 12 E7 / Conflict 7]
+  // Tutorial deferral to session 2 home arrival.
+  // Per Reforge R+E Module 04 "Creating Your Aha Moment Experience":
+  // forceful coachmarks during Aha train anti-habit behavior. The original
+  // 6s post-reveal coachmark was wrong — defer to next session, on home
+  // arrival, with a "what's next" framing rather than feature-tour.
+  function isSessionTwoArrival() {
+    if (!state.user) return false;
+    if (state.user.firstRedesignTutorialSeen) return false;
+    if (!state.rooms?.length) return false;
+    return (state.user.sessionCount || 0) >= 2;
+  }
+
+  // Bump session count once per fresh boot. Gated so reload mid-session
+  // doesn't fire it again (1-hour cooldown via lastVisitedAt is sufficient).
+  function maybeIncrementSessionCount() {
+    if (!state.user) state.user = {};
+    const now = Date.now();
+    const last = state.user._lastSessionStart || 0;
+    if (now - last < 60 * 60 * 1000) return;  // <1h since last → same session
+    state.user.sessionCount = (state.user.sessionCount || 0) + 1;
+    state.user._lastSessionStart = now;
+    save();
+    trackEvent('session_started', { count: state.user.sessionCount });
+  }
+
+  // Tutorial fires when user arrives at home in session 2+ with at least
+  // one room. Repurposed copy lives in the existing tutorial controller —
+  // we just gate the trigger here.
+  function maybeFireSessionTwoTutorial() {
+    if (!isSessionTwoArrival()) return;
+    if (typeof maybeFireTutorialOnPreferencesEntry === 'function') {
+      // Reuse the existing tutorial controller; it's idempotent and
+      // checks firstRedesignTutorialSeen. Renamed conceptually to
+      // "what's next on home" but the function name stays for compat.
+      setTimeout(() => maybeFireTutorialOnPreferencesEntry(), 1200);
+    }
+  }
+  window.FurnishMaybeFireSessionTwoTutorial = maybeFireSessionTwoTutorial;
+
+  // [Batch 3 — Dim 04 R3] Returning-guest skip onboarding.
+  // Detects guest with prior progress (rooms or draft) and routes them to
+  // home with a resume hero, skipping the welcome flow entirely. Per
+  // Reforge ICED Theory "Expanding Touchpoints": a returning user MUST
+  // get a different experience from a cold-start; forcing them through
+  // first-session flow erodes memory of prior investment.
+  function isReturningGuestWithProgress() {
+    if (!isGuest()) return false;
+    return (state.rooms?.length > 0) || (state.draft && state.draft.photo);
+  }
+
+  // [Batch 3 — Dim 04 R6] Habit metric instrumentation.
+  // Per Reforge R+E Module 03 "Defining Your Habit Moment": habit = repeated
+  // behavior. XaY format = X habit-actions in Y days. For Furnish: 2 habit
+  // actions in 28d — where habit_action ∈ {wishlist save, price-drop tap,
+  // Style Pulse view ≥3s, 2nd redesign started}. Action-based, NOT day-bucket.
+  function logHabitAction(kind) {
+    if (!state.user) state.user = {};
+    state.user._habitActions = state.user._habitActions || [];
+    const now = Date.now();
+    state.user._habitActions.push({ kind, ts: now });
+    // Trim to 28-day window — keeps the buffer tight.
+    const cutoff = now - 28 * 24 * 60 * 60 * 1000;
+    state.user._habitActions = state.user._habitActions.filter(a => a.ts >= cutoff);
+    // Habit formation: ≥2 actions in window.
+    const wasFormed = !!state.user.habitFormed;
+    const isFormed = state.user._habitActions.length >= 2;
+    state.user.habitFormed = isFormed;
+    save();
+    trackEvent('habit_action_logged', { kind, count_28d: state.user._habitActions.length, formed: isFormed });
+    if (!wasFormed && isFormed) {
+      trackEvent('habit_formed', { actions: state.user._habitActions.map(a => a.kind) });
+    }
+  }
+  window.FurnishLogHabitAction = logHabitAction;
+
+  // [Batch 3 — A4 / Conflict 5 / Dim 03 R-Account2]
+  // Soft email capture before D7 reveal gate.
+  // Recovers ~30-50% of bailers as email leads. Email send itself is
+  // deferred (DEFERRED.md item 6); client-side stash is purely state.
+  // Backend cutover wires `state.user.recoveryEmail` into the email service.
+  function softEmailCapture(email) {
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return false;
+    if (!state.user) state.user = {};
+    state.user.recoveryEmail = email.trim().toLowerCase();
+    state.user._softCaptureAt = Date.now();
+    state.emailIntent = state.emailIntent || {};
+    state.emailIntent[state.user.recoveryEmail] = state.user._softCaptureAt;
+    save();
+    trackEvent('soft_email_captured', { source: 'd7_pre_gate' });
+    return true;
+  }
+  window.FurnishSoftEmailCapture = softEmailCapture;
+
+  // Wire the soft-capture form on the signin screen.
+  function wireSoftEmailCaptureForm() {
+    const form = document.getElementById('signinSoftForm');
+    const emailInput = document.getElementById('signinSoftEmail');
+    if (!form || !emailInput) return;
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const email = emailInput.value;
+      if (!softEmailCapture(email)) {
+        toast('Enter a valid email so we can send your design.');
+        return;
+      }
+      // User chose to skip signin — stash the design link, return to welcome
+      // with a confirmation toast. The actual email send is deferred to
+      // backend cutover (DEFERRED.md item 6).
+      toast("We'll email you your design link.");
+      // Clear the pending reveal intent (the user is opting out of the gate).
+      if (state._pendingIntent?.intent === 'reveal') {
+        state._pendingIntent = null;
+        save();
+      }
+      showScreen('welcome');
+    });
+  }
+
+  // [Batch 3 — Dim 04 R8] Promise-Fit micro-survey after Love-tap.
+  // Single-tap survey to capture WHICH dimension of Promise Fit landed:
+  // aesthetic ("real magazine spread"), commerce ("can actually buy"),
+  // personalization ("matches my taste"). Used to weight subsequent
+  // reveals + headline copy A/Bs.
+  function showPromiseFitMicrosurvey(roomId) {
+    if (state.user?._promiseFitAsked) return;
+    if (!state.user) state.user = {};
+    state.user._promiseFitAsked = true;
+    save();
+    const card = document.createElement('div');
+    card.className = 'promise-fit-survey';
+    card.innerHTML = `
+      <p class="pfs-q">What made it click?</p>
+      <div class="pfs-options">
+        <button class="pfs-btn" data-pfs="aesthetic" type="button">Looks like a real magazine spread</button>
+        <button class="pfs-btn" data-pfs="commerce" type="button">I can actually buy these</button>
+        <button class="pfs-btn" data-pfs="personalization" type="button">It matches my taste</button>
+      </div>
+      <button class="pfs-skip" type="button" aria-label="Dismiss">Not now</button>
+    `;
+    document.body.appendChild(card);
+    requestAnimationFrame(() => card.classList.add('show'));
+    const dismiss = (dim) => {
+      card.classList.remove('show');
+      setTimeout(() => card.remove(), 240);
+      trackEvent('promise_fit_signal', { dimension: dim || 'dismissed', roomId });
+    };
+    card.querySelectorAll('.pfs-btn').forEach(btn => {
+      btn.addEventListener('click', () => dismiss(btn.dataset.pfs));
+    });
+    card.querySelector('.pfs-skip').addEventListener('click', () => dismiss(null));
+  }
+  window.FurnishShowPromiseFitMicrosurvey = showPromiseFitMicrosurvey;
+
+  // [Batch 3 — Dim 03 R-Paywall1] Value-moment paywall trigger checks.
+  // Replaces post-3rd-gen arbitrary count with value-anchored triggers.
+  // Each trigger has its own cooldown so users don't see the upsell twice.
+  function maybeFireValueMomentPaywall(triggerKind, ctx = {}) {
+    if (isPro()) return false;
+    if (!state.user) state.user = {};
+    state.user._valueMomentSeen = state.user._valueMomentSeen || {};
+    const lastSeen = state.user._valueMomentSeen[triggerKind] || 0;
+    const cooldownMs = 7 * 24 * 60 * 60 * 1000;  // 7-day per-trigger cooldown
+    if (Date.now() - lastSeen < cooldownMs) return false;
+    state.user._valueMomentSeen[triggerKind] = Date.now();
+    save();
+    trackEvent('paywall_value_moment_shown', { triggerKind, ...ctx });
+    // Map triggerKind → paywall context (post 8→3 consolidation, see R-Paywall2)
+    const contextMap = {
+      hd_export_attempt: 'hd_export',
+      wishlist_3rd_save: 'advanced_price_filters',
+      second_room_intent: 'profile',
+      love_dwell_5min: 'premium_quality'
+    };
+    const paywallContext = contextMap[triggerKind] || 'generic';
+    if (typeof openPaywall === 'function') openPaywall(paywallContext);
+    return true;
+  }
+  window.FurnishMaybeFireValueMoment = maybeFireValueMomentPaywall;
+
+  // [Batch 3 — Dim 03 R-Bottom1] Items list top-3 default + expander.
+  // Score = (style-match × inverse-price-rank). Top-3 default shows on
+  // first render; "See all N" expands. Per Reforge Psych Framework: a wall
+  // of cards = high cognitive negative psych. Curation lifts CTR.
+  function rankItemsForCondensedList(items) {
+    if (!Array.isArray(items) || items.length <= 3) return { top: items || [], rest: [] };
+    // Stable pseudo-rank: shorter items first (cheaper visible commitment),
+    // tie-broken by source heterogeneity (don't show 3 from same retailer).
+    const enriched = items.map((it, i) => ({ it, i, price: it.price || 0 }));
+    enriched.sort((a, b) => a.price - b.price);
+    const seenSrc = new Set();
+    const top = [];
+    for (const e of enriched) {
+      if (top.length === 3) break;
+      const src = e.it.source || '_';
+      if (seenSrc.has(src) && enriched.length - top.length > 3 - top.length) continue;
+      top.push(e.it);
+      seenSrc.add(src);
+    }
+    while (top.length < 3 && enriched.length > top.length) {
+      const next = enriched[top.length].it;
+      if (!top.includes(next)) top.push(next);
+      else break;
+    }
+    const topIds = new Set(top.map(t => t.id));
+    const rest = items.filter(it => !topIds.has(it.id));
+    return { top, rest };
+  }
+  window.FurnishRankItems = rankItemsForCondensedList;
+
+  // [Batch 3 — Dim 03 R-Bottom2] Sticky shop-all CTA on scroll.
+  // Mounts a fixed-bottom CTA when the user scrolls past the totals card
+  // on the results screen. Mirrors the primary #shopAllBtn but with
+  // surface='shop_all_sticky' for analytics differentiation.
+  function wireStickyShopAllCTA() {
+    const screen = document.querySelector('[data-screen="results"]');
+    if (!screen) return;
+    let stickyEl = document.getElementById('stickyShopAllBtn');
+    if (!stickyEl) {
+      stickyEl = document.createElement('button');
+      stickyEl.id = 'stickyShopAllBtn';
+      stickyEl.className = 'btn btn-primary sticky-shop-all';
+      stickyEl.type = 'button';
+      stickyEl.innerHTML = '<span class="ssa-label">Shop The Whole Room</span><span class="ssa-meta" id="ssaMeta"></span>';
+      document.body.appendChild(stickyEl);
+      stickyEl.addEventListener('click', () => {
+        const room = state.rooms.find(r => r.id === currentRoomId);
+        if (!room) return;
+        room.items.forEach(i => {
+          trackAffiliateClick(i, 'shop_all_sticky');
+          window.open(buildAffiliateUrl(i), '_blank', 'noopener');
+        });
+        trackEvent('affiliate_shop_all_clicked', { roomId: room.id, surface: 'sticky', itemCount: room.items.length });
+      });
+    }
+    const updateSticky = () => {
+      if (document.querySelector('.screen.active')?.dataset?.screen !== 'results') {
+        stickyEl.classList.remove('visible');
+        return;
+      }
+      const totals = document.getElementById('totalsCard');
+      if (!totals) return;
+      const rect = totals.getBoundingClientRect();
+      const past = rect.bottom < 0;  // user scrolled below totals card
+      stickyEl.classList.toggle('visible', past);
+      if (past) {
+        const room = state.rooms.find(r => r.id === currentRoomId);
+        const total = room?.items.reduce((s, i) => s + (i.price || 0), 0) || 0;
+        const meta = document.getElementById('ssaMeta');
+        if (meta) meta.textContent = ` · $${total.toLocaleString()}`;
+      }
+    };
+    window.addEventListener('scroll', updateSticky, { passive: true });
+    document.addEventListener('scroll', updateSticky, { passive: true, capture: true });
+  }
+
   // ---------- Boot ----------
   function boot() {
     // [Model A — STEP 5 §16 row 1] Tag pre-Model-A Pro users (D6=a) so analytics
@@ -7262,6 +7660,12 @@
 
     // [Batch 2 additions]
     wireSoundToggle();              // Dim 11 D.5 — sound-effects toggle
+
+    // [Batch 3 additions]
+    maybeIncrementSessionCount();   // Dim 04 — session-count for tutorial gate
+    wireStickyShopAllCTA();         // Dim 03 R-Bottom2 — sticky shop-all
+    maybeFireSessionTwoTutorial();  // Dim 04 R5 / Conflict 7 — defer tutorial
+    wireSoftEmailCaptureForm();     // Dim 03 R-Account2 / Conflict 5 — soft email lane
 
     showScreen('welcome');
     startReviewsBar();

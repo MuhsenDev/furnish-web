@@ -88,6 +88,12 @@ In priority order, flagged whether they cost money:
 - `DEFERRED.md` — backend-phase items.
 - `IMPLEMENTATION_PROGRESS.md` — batch-by-batch migration log.
 
+## Decision policy (locked 2026-04-26 by Hassan)
+- **"From here on out I APPROVE ALL CHANGES."** When an audit raises ambiguity, the recommended call is approved and shipped — do NOT stop and ask, do NOT try to talk Hassan out of his calls.
+- The auto-resolve / auto-defer rules from Batch 2 still apply (no emoji, voice-rubric compliance, vanilla stack, missing assets → config-driven slots, real backend → DEFERRED.md).
+- The streamlined-gate rule still applies. New contradictions with shipped decisions still get surfaced — but pick the best call and ship rather than block on user input. Hassan reviews the migration log post-ship.
+- Cross-dim disagreements within an audit still get surfaced for visibility, but ship with the recommended call.
+
 ## Quick orientation
 ```bash
 git log --oneline           # recent history

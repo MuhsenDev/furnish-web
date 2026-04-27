@@ -59,8 +59,12 @@
              was false except for skip-quiz path. Honest, conversational, sets
              the right expectation per VOICE.md (concrete + calm). -->
         <p class="tagline">Watch any room transform — about a minute, sit tight.</p>
+        <!-- [Batch 3 — Dim 03 R-Top1] Auto-playing welcome demo loop.
+             CSS-only; the .auto-play class on .hd-frame triggers the
+             BEFORE-hold → sweep → AFTER-hold cycle every ~4s. Honors
+             prefers-reduced-motion via styles.css. -->
         <div class="hero-demo" aria-hidden="true">
-          <div class="hd-frame">
+          <div class="hd-frame auto-play">
             <img class="hd-before" src="assets/quiz/q1/farmhouse-dusk.jpg" alt="" />
             <div class="hd-after-wrap">
               <img class="hd-after" src="assets/quiz/q1/airy-loft.jpg" alt="" />
@@ -81,13 +85,27 @@
             <span class="hd-badge">shoppable</span>
           </div>
         </div>
+        <!-- [Batch 3 — Dim 03 R-Top2] Friction-killers promoted ABOVE the CTA
+             as chip badges. Per Reforge Convert And Activate p.5: surface
+             friction-removers at decision-time (Drift "no credit card" pattern).
+             Chips are higher visual weight than muted-grey body text below CTA. -->
+        <div class="hero-trust-strip" aria-label="Trust signals">
+          <span class="hts-chip">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+            No signup
+          </span>
+          <span class="hts-chip">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            ~1 min
+          </span>
+          <span class="hts-chip">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M5 9l7-7 7 7"/></svg>
+            Free
+          </span>
+        </div>
         <button class="btn btn-primary big" id="welcomeStartBtn">Redesign My Room →</button>
-        <p class="muted small">No signup needed · About a minute — sit tight.</p>
-        <!-- [Conflict 4 lock — qualitative social proof only. The fictitious
-             "12,400+ rooms designed" anchor was a Reforge brand-governance
-             violation (Evangelizing Brand Guidelines p.21). Real or nothing.
-             When real traction lands, swap in honest small numbers. -->
-        <div class="welcome-proof" aria-label="Trust signals">
+        <!-- [Conflict 4 lock — qualitative social proof only.] -->
+        <div class="welcome-proof" aria-label="What we are">
           <span class="wp-claim">Real catalog</span>
           <span class="wp-dot">·</span>
           <span class="wp-claim">Real prices</span>
@@ -152,28 +170,51 @@
       <div class="signin-card">
         <p class="subtle" id="signinSubtitle">Welcome back. Sign in to sync your profiles and saved rooms.</p>
 
+        <!-- [Batch 3 — Dim 03 R-Account1] Google OAuth visually dominant.
+             Per Reforge Convert And Activate (Uber multi-payment example):
+             reduce friction by making the lowest-friction option primary.
+             Email/password = high physical negative psych on mobile;
+             Google = ~zero. Apple/Amazon stay ghost. -->
         <div class="signin-social">
-          <button class="btn btn-ghost signin-social-btn" data-provider="google">
-            <span class="social-glyph">G</span> Continue with Google
+          <button class="btn btn-primary big signin-social-btn signin-google-primary" data-provider="google">
+            <span class="social-glyph" aria-hidden="true">G</span>
+            Reveal in 1 tap with Google
           </button>
-          <button class="btn btn-ghost signin-social-btn" data-provider="apple">
-            <span class="social-glyph" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="14" height="14">
-                <path fill="#8B6F47" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-              </svg>
-            </span> Continue with Apple
-          </button>
-          <button class="btn btn-ghost signin-social-btn" data-provider="amazon">
-            <span class="social-glyph" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8B6F47" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 12 Q12 21 20 12"/>
-                <path d="M16.5 9.5 L20 12 L17.5 15.5"/>
-              </svg>
-            </span> Continue with Amazon
-          </button>
+          <div class="signin-social-secondary">
+            <button class="btn btn-ghost signin-social-btn" data-provider="apple">
+              <span class="social-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14">
+                  <path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+              </span> Apple
+            </button>
+            <button class="btn btn-ghost signin-social-btn" data-provider="amazon">
+              <span class="social-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 12 Q12 21 20 12"/>
+                  <path d="M16.5 9.5 L20 12 L17.5 15.5"/>
+                </svg>
+              </span> Amazon
+            </button>
+          </div>
         </div>
 
-        <div class="signin-divider"><span>or</span></div>
+        <!-- [Batch 3 — A4 / Conflict 5 lock] Soft email-capture lane.
+             D7 hard gate stays. This adjacent lane recovers the ~30-50%
+             of users who would otherwise bail at signin. Captures email
+             only (no password). On submit: stash in state.user.recoveryEmail
+             + state.emailIntent, then close the gate with a "We'll email
+             your design when it's ready" toast. Backend send wired at
+             email-cutover (DEFERRED.md item 6). -->
+        <div class="signin-soft-capture" id="signinSoftCapture">
+          <p class="ssc-hint">Not ready to sign up?</p>
+          <form id="signinSoftForm" class="ssc-form" novalidate>
+            <input type="email" id="signinSoftEmail" autocomplete="email" placeholder="Email — we'll save your design" />
+            <button class="btn btn-ghost small" type="submit">Save & Skip Signin</button>
+          </form>
+        </div>
+
+        <div class="signin-divider"><span>or sign up with email</span></div>
 
         <form id="signinForm" class="signin-form" novalidate>
           <label class="signin-field" id="nameField" style="display:none">
@@ -662,8 +703,20 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
           </button>
         </div>
-        <h2>Your Room</h2>
+        <h2>Last Step — Your Room Photo</h2>
       </header>
+
+      <!-- [Batch 3 — Dim 03 R-Mid3] Capture progress bar.
+           Per Reforge User Psychology — Motivational Boosts (Completion):
+           "Status bars, checklists, making something look undone." The
+           Credit Karma example (Psych! p.13) is canonical. The hardest step
+           in the funnel (camera permission + photo) needs the strongest
+           motivational signal. -->
+      <div class="capture-progress" aria-label="Setup progress">
+        <span class="cp-label">Last step</span>
+        <div class="cp-bar"><span class="cp-fill" style="width: 90%"></span></div>
+        <span class="cp-pct">90%</span>
+      </div>
 
       <div class="capture-card">
         <div class="photo-frame" id="photoFrame">
@@ -1069,10 +1122,16 @@
             <span class="paywall-social-text"><strong>Cancel before day 7</strong> · No charge. We don't auto-bill surprise.</span>
           </div>
 
+          <!-- [Batch 3 — Dim 03 R-Paywall3] Annual price anchor.
+               Per Reforge Convert And Activate p.4 (Figma critique slide):
+               anchor the annual price against monthly with concrete dollars
+               (Bargain motivational boost) + "Most Popular" pill (Belonging
+               boost). Concrete dollars beat percentages on mobile paywalls. -->
           <div class="paywall-toggle" role="tablist" aria-label="Billing period">
             <button class="pw-toggle-btn" data-plan="monthly" role="tab" aria-selected="false">Monthly</button>
             <button class="pw-toggle-btn active" data-plan="annual" role="tab" aria-selected="true">
-              Annual <span class="pw-save">Save 33%</span>
+              <span class="pw-most-popular">MOST POPULAR</span>
+              Annual <span class="pw-save">Save $24/yr</span>
             </button>
           </div>
 

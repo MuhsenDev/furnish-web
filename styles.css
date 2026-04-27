@@ -7814,3 +7814,415 @@ html[data-theme="dark"] .skeleton {
 .toggle-switch[aria-checked="true"] .toggle-thumb { left: 21px; }
 
 
+/* ============================================================
+   BATCH 3 — Dim 04 Activation + Dim 12 Onboarding + Dim 03 Conversion
+   ============================================================ */
+
+/* [B3 / Dim 03 R-Top1] Auto-playing welcome demo loop.
+   Cycle: BEFORE 600ms hold → sweep 1400ms → AFTER 1600ms hold.
+   The .hd-sweep div animates its width from 0 → 100% during the sweep
+   phase, revealing the .hd-after-wrap underneath. Reduced-motion
+   fallback: simple cross-fade. */
+@keyframes hdSweepLoop {
+  0%, 15%   { width: 0%; opacity: 1; }       /* BEFORE hold */
+  50%       { width: 100%; opacity: 1; }     /* sweep complete */
+  85%       { width: 100%; opacity: 1; }     /* AFTER hold */
+  86%       { width: 100%; opacity: 0; }     /* fade out */
+  100%      { width: 0%; opacity: 0; }       /* reset */
+}
+@keyframes hdAfterReveal {
+  0%, 15%   { opacity: 0; }
+  50%, 85%  { opacity: 1; }
+  86%, 100% { opacity: 0; }
+}
+@keyframes hdPriceTagFadeIn {
+  0%, 50%  { opacity: 0; transform: scale(0.85); }
+  60%      { opacity: 1; transform: scale(1); }
+  85%      { opacity: 1; transform: scale(1); }
+  86%, 100% { opacity: 0; transform: scale(1); }
+}
+.hd-frame.auto-play .hd-sweep {
+  animation: hdSweepLoop 4s ease-in-out infinite;
+}
+.hd-frame.auto-play .hd-after-wrap {
+  animation: hdAfterReveal 4s ease-in-out infinite;
+}
+.hd-frame.auto-play .hd-price-tag {
+  animation: hdPriceTagFadeIn 4s ease-in-out infinite;
+}
+.hd-frame.auto-play .hd-price-tag:nth-child(2) { animation-delay: 0.1s; }
+.hd-frame.auto-play .hd-price-tag:nth-child(3) { animation-delay: 0.2s; }
+.hd-frame.auto-play .hd-price-tag:nth-child(4) { animation-delay: 0.3s; }
+.hd-frame.auto-play .hd-price-tag:nth-child(5) { animation-delay: 0.4s; }
+@media (prefers-reduced-motion: reduce) {
+  .hd-frame.auto-play .hd-sweep,
+  .hd-frame.auto-play .hd-after-wrap,
+  .hd-frame.auto-play .hd-price-tag {
+    animation: none;
+  }
+  .hd-frame.auto-play .hd-after-wrap { opacity: 1; }
+  .hd-frame.auto-play .hd-sweep { width: 0%; }
+}
+
+/* [B3 / Dim 03 R-Top2] Hero trust strip (chips above CTA). */
+.hero-trust-strip {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 14px;
+}
+.hts-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brown-2);
+  box-shadow: var(--shadow-1);
+}
+.hts-chip svg { color: var(--brown); }
+html[data-theme="dark"] .hts-chip {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.24);
+  color: var(--ink);
+}
+
+/* [B3 / Dim 03 R-Account1] Google OAuth visually dominant. */
+.signin-google-primary {
+  width: 100%;
+  margin-bottom: 12px;
+  justify-content: center;
+}
+.signin-google-primary .social-glyph {
+  font-weight: 700;
+  background: #fff;
+  color: var(--brown);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  font-size: 14px;
+}
+.signin-social-secondary {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.signin-social-secondary .signin-social-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* [B3 / A4 / Conflict 5] Soft email-capture lane on signin.
+   Adjacent to the form, lower visual weight. Per VOICE.md: Calm. */
+.signin-soft-capture {
+  margin: 14px 0 18px;
+  padding: 14px 16px;
+  background: var(--beige);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.signin-soft-capture .ssc-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--brown-2);
+  font-weight: 500;
+}
+.signin-soft-capture .ssc-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.signin-soft-capture input[type="email"] {
+  flex: 1 1 auto;
+  min-width: 200px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+.signin-soft-capture .btn { white-space: nowrap; }
+html[data-theme="dark"] .signin-soft-capture {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .signin-soft-capture input[type="email"] {
+  background: var(--beige);
+}
+
+/* [B3 / Dim 03 R-Mid3] Capture screen progress bar.
+   Per Reforge User Psychology — Motivational Boosts (Completion). */
+.capture-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0 4px;
+}
+.cp-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brown-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cp-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.cp-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--tan), var(--brown));
+  border-radius: 3px;
+  transition: width 320ms var(--ease-premium);
+}
+.cp-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brown);
+  font-variant-numeric: tabular-nums;
+}
+
+/* [B3 / Dim 03 R-Bottom1] Items list "See all N" expander. */
+.items-expander {
+  display: block;
+  width: 100%;
+  margin: 12px auto 4px;
+  padding: 12px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--brown-2);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 220ms var(--ease-premium), border-color 220ms var(--ease-premium);
+}
+.items-expander:hover {
+  background: var(--beige);
+  border-color: var(--tan);
+  border-style: solid;
+}
+.items-expander .ie-arrow {
+  margin-left: 4px;
+  display: inline-block;
+  transition: transform 220ms var(--ease-premium);
+}
+.items-expander:hover .ie-arrow { transform: translateY(2px); }
+
+/* [B3 / Dim 03 R-Bottom2] Sticky shop-all CTA on scroll. */
+.sticky-shop-all {
+  position: fixed;
+  bottom: 88px;          /* clear the reviews bar */
+  left: 50%;
+  transform: translateX(-50%) translateY(120%);
+  z-index: 60;
+  width: min(440px, calc(100% - 32px));
+  padding: 14px 18px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: transform 320ms var(--ease-premium), opacity 220ms ease;
+  opacity: 0;
+  pointer-events: none;
+}
+.sticky-shop-all.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.sticky-shop-all .ssa-meta {
+  font-weight: 500;
+  opacity: 0.85;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 480px) {
+  .sticky-shop-all { bottom: 76px; padding: 12px 16px; font-size: 14px; }
+}
+
+/* [B3 / Dim 04 R8] Promise-Fit micro-survey card. */
+.promise-fit-survey {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%) translateY(40px);
+  width: min(420px, calc(100% - 24px));
+  padding: 18px 16px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-3);
+  z-index: 70;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms var(--ease-premium), transform 320ms var(--ease-premium);
+}
+.promise-fit-survey.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+.promise-fit-survey .pfs-q {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--ink);
+  text-align: center;
+}
+.promise-fit-survey .pfs-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.promise-fit-survey .pfs-btn {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+.promise-fit-survey .pfs-btn:hover {
+  background: var(--beige);
+  border-color: var(--tan);
+}
+.promise-fit-survey .pfs-skip {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+}
+html[data-theme="dark"] .promise-fit-survey { background: var(--surface); }
+html[data-theme="dark"] .promise-fit-survey .pfs-btn { background: var(--beige); }
+
+/* [B3 / Dim 03 R-Paywall3] Annual price anchor — "MOST POPULAR" pill. */
+.pw-most-popular {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--brown);
+  color: var(--cream);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pw-toggle-btn { position: relative; }
+
+/* [B3 / Dim 03 R-Paywall2] Paywall layout variants A/B/C.
+   Visual differentiation per Reforge One Key Takeaway: each layout
+   reinforces a single message across its trigger contexts. Subtle
+   color tinting on the badge differentiates without breaking the 2-card
+   structure (locked from earlier batches). */
+#paywallModal.layout-A_quality .paywall-badge {
+  /* Quality layout: warm tan accent */
+  color: var(--tan) !important;
+}
+#paywallModal.layout-B_power .paywall-badge {
+  /* Power layout: deeper brown — household/multi-profile feel */
+  color: var(--brown) !important;
+}
+#paywallModal.layout-C_save .paywall-badge {
+  /* Save layout: green — savings/bargain feel */
+  color: var(--ok) !important;
+}
+
+/* [B3 / A3 / Dim 12 E3] Demote quiz-intro Skip button to text link.
+   Per Reforge Setup Moment Experience: setup phase should be slightly
+   forceful since collecting must-have info; Skip should not be louder
+   than Continue. */
+#skipQuizBtn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+  padding: 8px 12px !important;
+  margin-top: 4px;
+  font-weight: 400 !important;
+  box-shadow: none !important;
+}
+#skipQuizBtn:hover {
+  color: var(--brown-2);
+  background: transparent !important;
+}
+
+/* [B3 / Dim 12 E11] Q3 reassurance line during quiz. */
+.quiz-reassurance {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px auto 0;
+  max-width: 320px;
+  line-height: 1.4;
+}
+
+/* [B3 / Dim 12 E10] Per-question "?" tooltip trigger. */
+.quiz-help-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--brown-2);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-weight: 600;
+}
+.quiz-help-btn:hover {
+  background: var(--beige);
+  border-color: var(--tan);
+}
+.quiz-help-tooltip {
+  position: absolute;
+  background: var(--ink);
+  color: var(--cream);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 240px;
+  z-index: 80;
+  box-shadow: var(--shadow-3);
+}
+
+
+

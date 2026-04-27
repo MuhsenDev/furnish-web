@@ -392,6 +392,11 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 
 ## Last review
 
+Updated: 2026-04-26 during Batch 3 implementation (Dim 04 Activation + Dim 12 Onboarding + Dim 03 Conversion).
+- Email lifecycle (item 6) gets new sub-item: drain `state.user.recoveryEmail` (set by soft-capture lane on signin) into the email service on backend cutover. Send a magic-link email to the recovered email so the user can resume their saved redesign without full signup. Dovetails with the email-only cohort spec already documented.
+- Push pre-prompt timing change deferred to push infrastructure (item 7): the audit spec'd moving the prompt from post-first-save to pre-first-save (Variant A) or reveal-screen (Variant B). Variant B preferred per Reforge PNIP Pyramid manufactured-trigger alignment with the organic intent moment. Implement when Capacitor wrap lands.
+- Tutorial server sync (item 3): semantics expanded — `firstRedesignTutorialSeen` flag is now set by the **session-2 home arrival** trigger (Conflict 7 lock). Cross-device sync requirements unchanged.
+
 Updated: 2026-04-26 during Batch 2 implementation (Dim 01 Visual Design + Dim 11 Performance & Feel).
 - Added: Haptic feedback table for day-1 Capacitor cutover (D.7).
 

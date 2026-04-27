@@ -1,6 +1,6 @@
 # CONFLICTS_RESOLVED.md
 
-**Status:** ✅ LOCKED — Hassan decided 2026-04-26. Conflicts 1–4 + 9 are RESOLVED for Batch 1 implementation. Conflicts 5, 6, 7, 8 remain pending for later batches.
+**Status:** ✅ LOCKED — Conflicts 1–5, 7–9 resolved across Batches 1 + 3. Only Conflict 6 (gen-50 soft signal) remains pending for the monetization batch.
 **Created:** 2026-04-26 · **Locked:** 2026-04-26 (Batch 1 conflicts only)
 **Source:** `OPTIMIZATION_PLAN.md` → CONFLICTS WITH EXISTING DECISIONS section
 **Why this file exists:** Canonical source of truth. Every implementation batch references this file when touching a conflict zone.
@@ -15,10 +15,10 @@
 | 2 | Pro-trial-for-both currency | LOCKED | MODIFY — switch to "5 HD redesigns + 2 style packs over 90 days" |
 | 3 | "Coming soon" Pro bullets | LOCKED | CONFIRM removal + add Roadmap link in pricing footer |
 | 4 | Fictitious social proof | LOCKED | CONFIRM — qualitative only, no fake numbers, ever |
-| 5 | D7 reveal-gate soft email | PENDING | (Batch covering D7 reveal gate) |
+| 5 | D7 reveal-gate soft email | LOCKED 2026-04-26 (Batch 3) | CONFIRM — soft email-capture lane added before D7 |
 | 6 | Gen-50/30d soft signal | PENDING | (Batch covering Free→Pro power-user conversion) |
-| 7 | Tutorial timing (session 2 deferral) | PENDING | (Batch covering onboarding architecture) |
-| 8 | Q3 (material) → Q3 (room type) swap | PENDING | (Batch covering quiz architecture) |
+| 7 | Tutorial timing (session 2 deferral) | LOCKED 2026-04-26 (Batch 3) | APPROVE — tutorial fires on session-2 home arrival, repurposed as "what's next" |
+| 8 | Q3 (material) → Q3 (room type) swap | LOCKED 2026-04-26 (Batch 3) | OBSOLETE — old 4-Q quiz no longer exists; new 10-Q onboarding (`ONBOARDING_QUESTIONS`) covers room-type intent via `room_use` (function priority) and capture-screen room-type chip grid. Q3-swap proposal is moot. |
 | 9 | "~30 seconds" Promise-Fit | LOCKED | MODIFY — replace with "About a minute — sit tight." |
 
 ---
