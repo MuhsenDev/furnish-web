@@ -5458,7 +5458,13 @@ body.theme-dark .sp-strip .sp-card .mc-sub   { color: #C7B493; }
    make it read as an inviting destination — not an escape hatch.
    ============================================================ */
 .results-explore {
-  margin: 18px 0 28px;
+  /* Bottom margin reserves clearance for the .sticky-shop-all CTA
+     (bottom: 72px desktop / 64px mobile, ~48px tall). Without this,
+     the sticky button overlaps Explore More Designs at max scroll. */
+  margin: 18px 0 140px;
+}
+@media (max-width: 480px) {
+  .results-explore { margin-bottom: 120px; }
 }
 .btn-explore-more {
   width: 100%;
@@ -8525,7 +8531,13 @@ html[data-theme="dark"] .style-dna-card {
   background: linear-gradient(180deg, #2b1f12 0%, #20170c 100%);
   border-color: rgba(216, 176, 126, 0.22);
 }
-html[data-theme="dark"] .style-dna-card .sdc-label { color: var(--cream, #f0e3d1); }
+/* In dark mode --cream is redefined to a near-black surface color
+   (#1C1410), so var(--cream) here would render dark-on-dark and the
+   fallback never activates. Use --ink (the dark-mode text token,
+   #EBDDC8) for proper contrast. */
+html[data-theme="dark"] .style-dna-card .sdc-label { color: var(--ink); }
+html[data-theme="dark"] .style-dna-card .sdc-label strong { color: var(--deep); }
+html[data-theme="dark"] .style-dna-card .sdc-hint { color: rgba(216, 176, 126, 0.62); }
 html[data-theme="dark"] .style-dna-card .sdc-bar { background: rgba(216, 176, 126, 0.15); }
 html[data-theme="dark"] .style-dna-card .sdc-summary { color: rgba(216, 176, 126, 0.78); }
 
