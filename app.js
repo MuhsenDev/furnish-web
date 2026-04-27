@@ -1428,6 +1428,132 @@
   window.FurnishGetConsent = getConsentState;
   window.FurnishRecordConsent = recordConsent;
 
+  // ==========================================================
+  // [Reset Profile] resetUserDesignProfile()
+  // ==========================================================
+  // Clears the user's design profile + history. PRESERVES auth +
+  // consent + tier + session metadata. Per Hassan's spec: "A reset
+  // should clear what the user is asking to reset (their design
+  // profile and history), not punish them for it. Forcing re-login
+  // adds friction proportional to 'I deleted your account' when the
+  // user only intended 'start my preferences over.'"
+  //
+  // Uses an explicit allow-list of user fields that survive — safer
+  // than a deny-list because future design-state fields automatically
+  // get wiped without us remembering to add them.
+  const RESET_PRESERVED_USER_FIELDS = new Set([
+    // Identity (auth survives)
+    'id', 'email', 'name', 'provider', 'signedInAt',
+    // Tier / subscription state (Pro doesn't disappear on reset)
+    'isPro', 'grandfathered', 'tier', 'tierGrantedAt',
+    // Consent (already agreed; no need to re-consent)
+    'tosAcceptedAt', 'tosVersion', 'marketingOptIn', 'marketingOptInAt',
+    // Email-recovery-lane stash (independent of design state)
+    'recoveryEmail',
+    // Session metadata that's not tied to design content
+    'lastVisitedAt', 'visitCount', 'sessionCount',
+    '_sessionsByHour', '_sessionsByDow', '_lastSessionStart'
+  ]);
+
+  function resetUserDesignProfile() {
+    if (!state.user) state.user = {};
+
+    // 1. Clear the active profile's design fields. Other profiles
+    //    (multi-profile Pro users) keep their data — the reset is
+    //    scoped to the active profile, not the household.
+    const p = getActiveProfile();
+    const activeId = state.activeProfileId || p?.id;
+    if (p) {
+      p.answers = {};
+      p.styles = [];
+      p.colors = [];
+      p.customColors = [];
+      p.budget = 3000;
+      p.avatar = null;
+      p.seenFinale = false;
+      delete p._maxCompleteness;
+      delete p.styleScores;
+      delete p.ahaHistory;
+      delete p.keepExisting;
+    }
+
+    // 2. Wipe rooms tied to the active profile (preserve other
+    //    profiles' rooms).
+    if (Array.isArray(state.rooms)) {
+      state.rooms = state.rooms.filter(r => r.profileId !== activeId);
+    }
+
+    // 3. Wipe shared design state. Wishlist + bookmarks + price-alerts
+    //    are top-level but the user explicitly asked for "saved rooms"
+    //    to be wiped, and these are part of the saved-design context.
+    state.draft = null;
+    state.quiz = null;
+    state.wishlist = [];
+    state.bookmarkedRooms = [];
+    state.priceAlerts = {};
+    state.wishlistMeta = {};
+    state.affiliateClicks = [];
+
+    // 4. Reset state-level activation flags + event buffer.
+    state._events = [];
+    state._timing = {};
+    state._setupCompleteAt = null;
+    state._tourShown = false;
+    state._habitFired = false;
+    state._ahaResultsFired = false;
+    state._templateTipShown = false;
+    state._evolutionDismissedRooms = {};
+    state._lastAIPrompt = null;
+    state._showExploreWelcome = false;
+    state._premiumUpsellShownThisSession = false;
+    state._pendingIntent = null;
+    state._pendingProAction = null;
+    state._pendingConsent = null;
+    state._tosBackTo = null;
+
+    // 5. Reset state.user via allow-list. Anything not in the
+    //    PRESERVED set gets dropped. Counter fields then re-seeded
+    //    to sensible defaults so downstream code that reads them
+    //    doesn't NPE.
+    const u = state.user;
+    Object.keys(u).forEach(k => {
+      if (!RESET_PRESERVED_USER_FIELDS.has(k)) delete u[k];
+    });
+    u.generationsUsed = 0;
+    u.redesignsUsed = 0;
+    u.firstRedesignTutorialSeen = false;
+    u.habitFormed = false;
+    u._habitActions = [];
+    u._gen30dWindow = [];
+    u._clicks30dWindow = [];
+    u._valueMomentSeen = {};
+    u._valueMomentDismissed = {};
+
+    save();
+
+    // 6. Analytics.
+    trackEvent('profile_reset_design_only', {
+      profileId: activeId,
+      preserved: {
+        auth: !!u.id || !!u.email,
+        tier: !!u.isPro,
+        consent: !!u.tosAcceptedAt,
+        marketingOptIn: !!u.marketingOptIn
+      }
+    });
+  }
+  window.FurnishResetUserDesignProfile = resetUserDesignProfile;
+
+  // Confirm-dialog copy is identical from both reset entry points
+  // (profile screen + preferences screen). Defined once so the wording
+  // can't drift between surfaces. Per Hassan's spec: explicit about
+  // what's wiped + explicit that auth survives.
+  const RESET_CONFIRM_COPY =
+    'Reset your design profile?\n\n' +
+    "This clears your saved rooms, preferences, and design history. " +
+    "You'll start fresh from the welcome page. " +
+    "You'll stay signed in — your account is safe. This can't be undone.";
+
   const FREE_PLAN_CARD = Object.freeze({
     title: 'Furnish Free',
     subtitle: 'What you already have',
@@ -4429,20 +4555,15 @@
       toast('Signed out.');
       showScreen('welcome');
     } else if (action === 'reset') {
-      if (!confirm('Reset this profile? Onboarding answers, budget, and avatar will clear. Saved rooms stay.')) return;
+      if (!confirm(RESET_CONFIRM_COPY)) return;
       const p = getActiveProfile();
       if (!p) { toast('No active profile'); return; }
-      // [10-Q model] Reset clears the new answers + the legacy bridge fields.
-      p.answers = {};
-      p.styles = [];
-      p.colors = [];
-      p.customColors = [];
-      p.budget = 3000;
-      p.avatar = null;
-      p.seenFinale = false;
-      save();
-      renderProfilePage();
-      toast('Profile reset');
+      // [Reset] Wipes design + history; preserves auth + consent + tier.
+      // Routes to welcome (signed-in variant — welcomeStartBtn handler
+      // detects signed-in users and skips the create-account prompt).
+      resetUserDesignProfile();
+      toast('Profile reset — your account is still signed in');
+      showScreen('welcome');
     }
   });
 
@@ -4458,21 +4579,18 @@
   document.querySelector('[data-screen="preferences"]')?.addEventListener('click', (e) => {
     const btn = e.target.closest('#prefsResetBtn');
     if (!btn) return;
-    if (!confirm('Reset this profile? Onboarding answers, budget, and avatar will clear. Saved rooms stay.')) return;
+    if (!confirm(RESET_CONFIRM_COPY)) return;
     const p = getActiveProfile();
     if (!p) { toast('No active profile'); return; }
-    p.answers = {};
-    p.styles = [];
-    p.colors = [];
-    p.customColors = [];
-    p.budget = 3000;
-    p.avatar = null;
-    p.seenFinale = false;
-    delete p._maxCompleteness;
-    save();
     trackEvent('profile_reset_from_preferences', { profileId: p.id });
-    if (typeof openPreferences === 'function') openPreferences(p.id);
-    toast('Profile reset');
+    // [Reset] Same wipe contract as the profile-screen reset. Routes to
+    // welcome instead of staying on preferences — per spec, the user
+    // wants a "start fresh from welcome" feel, not staying on a now-
+    // empty preferences screen. The 10-Q onboarding fires again when
+    // they next click Redesign My Room.
+    resetUserDesignProfile();
+    toast('Profile reset — your account is still signed in');
+    showScreen('welcome');
   });
 
   // Click avatar in profile page → re-use the photo source modal
