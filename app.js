@@ -476,7 +476,47 @@
     if (dest === 'profile') renderProfilePage();
     if (dest === 'this-week') renderThisWeekPage();
     if (dest === 'styles-index') trackEvent('styles_index_visited', { source: 'this_week_browse_all' });
+    if (dest === 'home-gallery') renderHomeGallery();
   });
+
+  // [Your Home progress] Stub gallery render — lists every designed room
+  // with a thumb + label. Tap → openRoom. Full gallery layout deferred.
+  function renderHomeGallery() {
+    const list = document.getElementById('homeGalleryList');
+    if (!list) return;
+    list.innerHTML = '';
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const profile = getActiveProfile();
+    const myRooms = (state.rooms || []).filter(r => !profile?.id || r.profileId === profile.id);
+    if (!myRooms.length) {
+      list.innerHTML = '<p class="muted small" style="padding:14px;text-align:center">No rooms yet — start designing.</p>';
+      return;
+    }
+    // Group by type, take most recent of each
+    const byType = {};
+    myRooms.forEach(r => {
+      if (!byType[r.type] || (r.createdAt || 0) > (byType[r.type].createdAt || 0)) {
+        byType[r.type] = r;
+      }
+    });
+    HOME_ROOM_ORDER.forEach(type => {
+      const r = byType[type];
+      if (!r) return;
+      const card = document.createElement('button');
+      card.className = 'home-gallery-card';
+      card.type = 'button';
+      const total = (r.items || []).reduce((s, i) => s + (i.price || 0), 0);
+      card.innerHTML = `
+        <div class="hgc-photo" ${r.photo ? `style="background-image:url('${r.photo}')"` : ''}></div>
+        <div class="hgc-body">
+          <div class="hgc-label">${ROOM_LABELS[type] || type}</div>
+          <div class="hgc-meta muted small">${(r.items || []).length} pieces · $${total.toLocaleString()}</div>
+        </div>
+      `;
+      card.addEventListener('click', () => openRoom(r.id));
+      list.appendChild(card);
+    });
+  }
 
   // Welcome "Get Started" → skip signin on first run (Reforge: setup friction
   // before aha kills retention). Guest profile auto-created, quiz comes first.
@@ -1434,6 +1474,77 @@
   }
   window.FurnishGetConsent = getConsentState;
   window.FurnishRecordConsent = recordConsent;
+
+  // ==========================================================
+  // [Your Home progress] state.user.homeProgress
+  // ==========================================================
+  // Single source of truth for the 9-room progress grid. Decouples
+  // the visible progress display from `state.rooms` so:
+  // 1. Generation failures don't pollute progress (only successful
+  //    redesigns add to designedRooms — the hook fires inside the
+  //    success branch of routeGenerationByModelTier)
+  // 2. Pro multi-room batch can append per-room as each completes
+  // 3. The 9/9 celebration has a clear one-shot flag (`celebrated`)
+  // 4. Reset wipes via the allow-list pattern (homeProgress is NOT
+  //    in RESET_PRESERVED_USER_FIELDS so it auto-wipes)
+  // Per STYLE_ROOM_PICKER_AUDIT.md.
+  const HOME_ROOM_ORDER = Object.freeze([
+    'bedroom', 'living', 'kitchen', 'dining', 'bathroom',
+    'office', 'nursery', 'closet', 'laundry'
+  ]);
+  window.FurnishHomeRoomOrder = HOME_ROOM_ORDER;
+
+  function getHomeProgress() {
+    if (!state.user) state.user = {};
+    if (!state.user.homeProgress) {
+      state.user.homeProgress = { designedRooms: [], celebrated: false, flyoutLastRoom: null };
+    }
+    return state.user.homeProgress;
+  }
+
+  // Migration: backfill designedRooms from the existing state.rooms
+  // array on first read after upgrade. Idempotent — only runs if
+  // designedRooms is empty AND there are existing rooms.
+  function migrateHomeProgressFromRooms() {
+    const hp = getHomeProgress();
+    if (hp.designedRooms.length > 0) return; // already populated
+    if (!Array.isArray(state.rooms) || !state.rooms.length) return;
+    const activeId = state.activeProfileId;
+    const types = new Set(
+      state.rooms
+        .filter(r => !activeId || r.profileId === activeId)
+        .map(r => r.type)
+        .filter(t => HOME_ROOM_ORDER.includes(t))
+    );
+    hp.designedRooms = HOME_ROOM_ORDER.filter(t => types.has(t)); // canonical order
+    save();
+  }
+
+  // Append a room type to designedRooms (deduped, capped at 9).
+  // Fires home_progress_room_completed on first add. Returns true
+  // if newly added, false if already present.
+  function recordHomeProgressRoom(roomType, source) {
+    if (!roomType || !HOME_ROOM_ORDER.includes(roomType)) return false;
+    const hp = getHomeProgress();
+    if (hp.designedRooms.includes(roomType)) return false;
+    hp.designedRooms.push(roomType);
+    save();
+    trackEvent('home_progress_room_completed', {
+      room_type: roomType,
+      source: source || 'unknown',
+      total_completed_after: hp.designedRooms.length
+    });
+    return true;
+  }
+
+  // "Next up" canonical-order suggestion — first un-designed room
+  // type in HOME_ROOM_ORDER. Returns null when 9/9 done.
+  function nextHomeRoomSuggestion() {
+    const hp = getHomeProgress();
+    return HOME_ROOM_ORDER.find(t => !hp.designedRooms.includes(t)) || null;
+  }
+
+  window.FurnishHomeProgress = { getHomeProgress, recordHomeProgressRoom, nextHomeRoomSuggestion };
 
   // ==========================================================
   // [Reset Profile] resetUserDesignProfile()
@@ -3746,17 +3857,22 @@
     if (!heroParent) return;
     heroParent.querySelector('.home-progress')?.remove();
     if (!profile) return;
+    // [Your Home progress] Read from the new state.user.homeProgress field
+    // instead of deriving from state.rooms each render. Decouples progress
+    // display from the rooms array so failures don't pollute and reset
+    // wipes work via the allow-list pattern. Per STYLE_ROOM_PICKER_AUDIT.md.
+    const hp = getHomeProgress();
     const rooms = (state.rooms || []).filter(r => r.profileId === profile.id);
-    if (!rooms.length) return; // first-time users: don't show empty map
+    if (!hp.designedRooms.length && !rooms.length) return; // first-time users: don't show empty map
 
-    const ROOM_ORDER = ['bedroom','living','kitchen','dining','bathroom','office','nursery','closet','laundry'];
-    const designed = new Set(rooms.map(r => r.type));
-    const totalDesigned = rooms.length;
-    const totalRoomTypesDesigned = ROOM_ORDER.filter(t => designed.has(t)).length;
+    const ROOM_ORDER = HOME_ROOM_ORDER; // canonical 9-room order constant
+    const designed = new Set(hp.designedRooms);
+    const totalRoomTypesDesigned = hp.designedRooms.length;
+    const totalDesigned = totalRoomTypesDesigned;
+    const isComplete = totalRoomTypesDesigned === 9;
 
-    // Pick the next-room nudge: a room type the user hasn't done yet, in
-    // the canonical home-tour order. (Bedroom → Living → Kitchen → ...)
-    const nextRoomType = ROOM_ORDER.find(t => !designed.has(t));
+    // "Next up" — first un-designed room in canonical order. null when 9/9.
+    const nextRoomType = nextHomeRoomSuggestion();
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
     // [No-emoji rule per CLAUDE.md] Custom SVG icons replace the emoji-
     // sourced ROOM_TYPES.icon for the home-progress grid. Line-style,
@@ -3802,12 +3918,24 @@
 
     const wrap = document.createElement('section');
     wrap.className = 'home-progress';
+    if (isComplete) wrap.classList.add('hp-complete');
+    // "Next up" / completion copy — when 9/9 hit, swap to the celebratory
+    // line and surface a "See your full home" CTA. Per the spec:
+    // "When all 9 are designed, the 'Next up' line changes to a
+    // celebratory state."
+    const headerSubHtml = isComplete
+      ? `<p class="muted small hp-sub hp-sub-complete">All 9 rooms designed.</p>
+         <button class="hp-see-home-cta" type="button" data-go="home-gallery">
+           See your full home
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+         </button>`
+      : `<p class="muted small hp-sub">${nextRoomType ? `Next up: ${ROOM_LABELS[nextRoomType] || nextRoomType}` : 'Every room covered. Time for a refresh?'}</p>`;
     wrap.innerHTML = `
       <header class="hp-head">
         <div>
           <span class="hp-eyebrow">YOUR HOME</span>
           <h3 class="section-h hp-title">${totalRoomTypesDesigned} of 9 rooms designed</h3>
-          <p class="muted small hp-sub">${nextRoomType ? `Next up: ${ROOM_LABELS[nextRoomType] || nextRoomType}` : 'Every room covered. Time for a refresh?'}</p>
+          ${headerSubHtml}
         </div>
         <div class="hp-progress-bar" aria-hidden="true">
           <div class="hp-progress-fill" style="width: ${(totalRoomTypesDesigned / 9) * 100}%"></div>
@@ -3825,12 +3953,15 @@
     }
 
     // Wire each cell. Designed → open the most recent room of that type.
-    // Undesigned → start a new redesign for that room type (capture flow
-    // pre-seeded with that room type if possible; falls back to capture).
+    // Undesigned → open the flyout (Upload a photo / Pick from a style).
     wrap.querySelectorAll('[data-hp-room]').forEach(btn => {
       btn.addEventListener('click', () => {
         const type = btn.dataset.hpRoom;
         const isDone = designed.has(type);
+        // [Your Home progress] New analytics event per spec — fires on
+        // every tap regardless of designed state, so cancel-rate of the
+        // flyout (and engagement on designed-cell taps) is measurable.
+        trackEvent('home_progress_card_tapped', { room_type: type, was_already_designed: isDone });
         if (isDone) {
           // Open the most recent room of this type
           const recent = rooms.filter(r => r.type === type).sort((a,b) => (b.createdAt||0) - (a.createdAt||0))[0];
@@ -3839,12 +3970,12 @@
             openRoom(recent.id);
           }
         } else {
-          // Pre-seed draft with this room type and route to capture
+          // [Your Home progress] Flyout (Upload a photo / Pick from a style)
+          // replaces the prior direct-to-capture route. Per spec: the user
+          // gets two clear start options, both of which pre-select the room
+          // type so the next step (capture / templates) lands targeted.
           trackEvent('home_progress_cell_clicked', { roomType: type, action: 'start_new' });
-          state.draft = { type, photo: null, dims: { w: 12, l: 14, h: 9 }, keep: false };
-          save();
-          showScreen('capture');
-          if (typeof prepareCapture === 'function') prepareCapture();
+          openHomeProgressFlyout(type, btn);
         }
       });
     });
@@ -3854,7 +3985,133 @@
       uniqueTypesDesigned: totalRoomTypesDesigned,
       nextRoomType: nextRoomType || null,
     });
+
+    // [Your Home progress] 9/9 completion celebration — one-time per user.
+    // celebrated flag in state.user.homeProgress prevents re-firing across
+    // sessions. Soft pulse animation across all 9 cards (CSS keyframe
+    // hpCompletionPulse) lasts ~1500ms total; matches the existing
+    // animation library (no new motion lib introduced).
+    if (isComplete && !hp.celebrated) {
+      hp.celebrated = true;
+      save();
+      trackEvent('home_completion_celebrated');
+      requestAnimationFrame(() => {
+        wrap.classList.add('hp-celebrating');
+        setTimeout(() => wrap.classList.remove('hp-celebrating'), 1800);
+      });
+    }
   }
+
+  // [Your Home progress] Flyout for un-designed cells. Pinned to the
+  // tapped cell. Two CTAs: Upload a photo (routes to capture with
+  // state.draft.suggestedType pre-seeded) and Pick from a style (routes
+  // to templates with state._templateRoomFilter pre-seeded). Dismisses
+  // on outside-click / Escape / scroll / picking either CTA.
+  let _hpFlyoutCloseHandler = null;
+  function openHomeProgressFlyout(roomType, anchorBtn) {
+    closeHomeProgressFlyout();
+    if (!anchorBtn || !roomType) return;
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const label = ROOM_LABELS[roomType] || roomType;
+    const fly = document.createElement('div');
+    fly.className = 'hp-flyout';
+    fly.id = 'hpFlyout';
+    fly.setAttribute('role', 'dialog');
+    fly.setAttribute('aria-label', `Start a ${label} redesign`);
+    fly.innerHTML = `
+      <div class="hp-flyout-arrow" aria-hidden="true"></div>
+      <div class="hp-flyout-card">
+        <p class="hp-flyout-title">Start your ${label}</p>
+        <button class="hp-flyout-cta" data-hpf-action="upload" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Upload a photo
+        </button>
+        <button class="hp-flyout-cta hp-flyout-cta-secondary" data-hpf-action="pick" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Pick from a style
+        </button>
+      </div>
+    `;
+    document.body.appendChild(fly);
+    // Position relative to the anchor button
+    const r = anchorBtn.getBoundingClientRect();
+    const flyW = 240;
+    const left = Math.max(12, Math.min(window.innerWidth - flyW - 12, r.left + r.width / 2 - flyW / 2));
+    const top = r.bottom + window.scrollY + 8;
+    fly.style.left = left + 'px';
+    fly.style.top = top + 'px';
+    fly.style.width = flyW + 'px';
+    requestAnimationFrame(() => fly.classList.add('open'));
+
+    if (state.user && state.user.homeProgress) {
+      state.user.homeProgress.flyoutLastRoom = roomType;
+      save();
+    }
+    trackEvent('home_progress_flyout_opened', { room_type: roomType, source: 'card_tap' });
+
+    // CTA wiring — mark `actionTaken` before close so the dismiss-
+    // without-action analytics doesn't double-fire.
+    fly.querySelector('[data-hpf-action="upload"]')?.addEventListener('click', () => {
+      fly.dataset.actionTaken = 'upload_photo';
+      trackEvent('home_progress_flyout_action', { room_type: roomType, action: 'upload_photo' });
+      closeHomeProgressFlyout();
+      // Pre-seed the draft with the chosen room type. Existing capture
+      // flow honors state.draft.type during prepareCapture's room-type
+      // chooser (renders selected if set).
+      state.draft = { type: roomType, photo: null, dims: { w: 12, l: 14, h: 9 }, keep: false };
+      state.draft.suggestedType = roomType; // explicit hint for the chooser
+      save();
+      showScreen('capture');
+      if (typeof prepareCapture === 'function') prepareCapture();
+    });
+    fly.querySelector('[data-hpf-action="pick"]')?.addEventListener('click', () => {
+      fly.dataset.actionTaken = 'pick_style';
+      trackEvent('home_progress_flyout_action', { room_type: roomType, action: 'pick_style' });
+      closeHomeProgressFlyout();
+      // Pre-seed the templates filter so the templates screen highlights
+      // matching-room templates. Existing renderTemplates logic doesn't
+      // yet honor this — flagged in DEFERRED.md as content/render follow-up.
+      state._templateRoomFilter = roomType;
+      save();
+      showScreen('templates');
+      if (typeof renderTemplates === 'function') renderTemplates();
+    });
+    // Outside-click + Escape + scroll dismissal
+    _hpFlyoutCloseHandler = (e) => {
+      if (e.type === 'keydown' && e.key !== 'Escape') return;
+      if (e.type === 'click' && fly.contains(e.target)) return;
+      if (e.type === 'click' && anchorBtn.contains(e.target)) return; // don't immediately close on the trigger click bubble
+      closeHomeProgressFlyout();
+    };
+    setTimeout(() => {
+      document.addEventListener('click', _hpFlyoutCloseHandler);
+      document.addEventListener('keydown', _hpFlyoutCloseHandler);
+      window.addEventListener('scroll', closeHomeProgressFlyout, { passive: true });
+    }, 0);
+  }
+  function closeHomeProgressFlyout() {
+    const fly = document.getElementById('hpFlyout');
+    if (fly) {
+      const lastRoom = state.user?.homeProgress?.flyoutLastRoom || 'unknown';
+      // Only fire the dismiss-without-action event if the flyout was
+      // closed without picking a CTA. The CTA handlers fire their own
+      // 'upload_photo' / 'pick_style' events before calling close, so
+      // by the time we get here, the action was already counted IF
+      // the flyout's data-action attribute is set.
+      if (!fly.dataset.actionTaken) {
+        trackEvent('home_progress_flyout_action', { room_type: lastRoom, action: 'dismiss' });
+      }
+      fly.classList.remove('open');
+      setTimeout(() => fly.remove(), 200);
+    }
+    if (_hpFlyoutCloseHandler) {
+      document.removeEventListener('click', _hpFlyoutCloseHandler);
+      document.removeEventListener('keydown', _hpFlyoutCloseHandler);
+      window.removeEventListener('scroll', closeHomeProgressFlyout);
+      _hpFlyoutCloseHandler = null;
+    }
+  }
+  window.FurnishOpenHomeProgressFlyout = openHomeProgressFlyout;
 
   // Lifecycle scheduler — would-fire log for the welcome / mid-funnel /
   // dormant / churned campaigns from the Retention pass strategy doc.
@@ -5098,6 +5355,10 @@
         state.rooms.push(room);
         state.draft = null;
         incrementGenerationCount();
+        // [Your Home progress] Successful template generation — append
+        // room.type to designedRooms (deduped). Source 'template' for
+        // analytics.
+        recordHomeProgressRoom(room.type, 'template');
         save();
         // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
         if (isGuest()) {
@@ -5291,6 +5552,9 @@
         state.rooms.push(room);
         state.draft = null;
         incrementGenerationCount();
+        // [Your Home progress] Successful own-photo redesign — append
+        // room.type to designedRooms (deduped). Source 'own_photo'.
+        recordHomeProgressRoom(room.type, 'own_photo');
         save();
         trackEvent('analyze_completed', {
           roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt
@@ -5950,6 +6214,22 @@
     if (skip) skip.addEventListener('click', () => {
       if (!isTutorialActive()) return;
       endTutorial(false);
+    });
+    // [Back-button fix] Backdrop click on the dark surround dismisses
+    // the tutorial. Without this, users on a screen with a back button
+    // (like the results-screen header) couldn't reach it because the
+    // overlay was eating the click. The .frt-tip card itself doesn't
+    // bubble its clicks here (handled by Next/Skip directly), and the
+    // .frt-spotlight has pointer-events:none so it never receives clicks.
+    const overlayEl = document.getElementById('frtOverlay');
+    if (overlayEl) overlayEl.addEventListener('click', (e) => {
+      if (!isTutorialActive()) return;
+      // Only treat as backdrop dismiss if the click target IS the
+      // overlay itself (not a descendant — buttons + tip card handle
+      // their own clicks).
+      if (e.target === overlayEl) {
+        endTutorial(false);
+      }
     });
     // ESC dismisses (counts as skip).
     document.addEventListener('keydown', e => {
@@ -9826,6 +10106,9 @@
     // that predates the new model so AI-prompt builder + tutorial don't see
     // an empty answers object. Idempotent.
     migrateAllProfiles();
+    // [Your Home progress] Backfill state.user.homeProgress.designedRooms
+    // from existing state.rooms on first boot after upgrade. Idempotent.
+    migrateHomeProgressFromRooms();
     syncFreeModeClass();
     touchLastVisit();
     applyWelcomeRecallState();

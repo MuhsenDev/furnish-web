@@ -9362,6 +9362,194 @@ html[data-theme="dark"] .pmp-sub {
   color: rgba(216, 176, 126, 0.65);
 }
 
+/* ============================================================
+   Your Home progress — flyout + completion celebration + gallery
+   See STYLE_ROOM_PICKER_AUDIT.md
+   ============================================================ */
+
+/* Flyout — pinned below an un-designed cell with two start CTAs */
+.hp-flyout {
+  position: absolute;
+  z-index: 1100;
+  background: var(--cream, #faf3e7);
+  border: 1px solid rgba(139, 111, 71, 0.20);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(58, 38, 18, 0.18), 0 2px 6px rgba(58, 38, 18, 0.06);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  pointer-events: auto;
+}
+.hp-flyout.open {
+  opacity: 1;
+  transform: translateY(0);
+}
+.hp-flyout-arrow {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: var(--cream, #faf3e7);
+  border-top: 1px solid rgba(139, 111, 71, 0.20);
+  border-left: 1px solid rgba(139, 111, 71, 0.20);
+}
+.hp-flyout-card {
+  padding: 12px 12px 10px;
+}
+.hp-flyout-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--brown, #8b6f47);
+  text-align: left;
+}
+.hp-flyout-cta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface, #fff);
+  border: 1px solid rgba(139, 111, 71, 0.18);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink, #2b2218);
+  cursor: pointer;
+  margin-bottom: 6px;
+  text-align: left;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.hp-flyout-cta:last-child { margin-bottom: 0; }
+.hp-flyout-cta:hover {
+  background: var(--beige, #f4e8d0);
+  border-color: rgba(139, 111, 71, 0.32);
+}
+.hp-flyout-cta-secondary {
+  background: transparent;
+}
+html[data-theme="dark"] .hp-flyout {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .hp-flyout-arrow {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .hp-flyout-cta {
+  background: rgba(216, 176, 126, 0.06);
+  border-color: rgba(216, 176, 126, 0.18);
+  color: var(--cream, #f0e3d1);
+}
+html[data-theme="dark"] .hp-flyout-cta:hover {
+  background: rgba(216, 176, 126, 0.14);
+}
+
+/* 9/9 completion — soft pulse animation across all 9 cards once */
+@keyframes hpCompletionPulse {
+  0%   { transform: scale(1);     box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.0); }
+  30%  { transform: scale(1.04);  box-shadow: 0 0 0 6px rgba(212, 165, 116, 0.30); }
+  70%  { transform: scale(1.01);  box-shadow: 0 0 0 4px rgba(212, 165, 116, 0.10); }
+  100% { transform: scale(1);     box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.0); }
+}
+.home-progress.hp-celebrating .hp-cell {
+  animation: hpCompletionPulse 1500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.home-progress.hp-celebrating .hp-cell:nth-child(2) { animation-delay: 60ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(3) { animation-delay: 120ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(4) { animation-delay: 180ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(5) { animation-delay: 240ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(6) { animation-delay: 300ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(7) { animation-delay: 360ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(8) { animation-delay: 420ms; }
+.home-progress.hp-celebrating .hp-cell:nth-child(9) { animation-delay: 480ms; }
+@media (prefers-reduced-motion: reduce) {
+  .home-progress.hp-celebrating .hp-cell {
+    animation: none;
+  }
+}
+
+/* Completion CTA — "See your full home →" replaces the "Next up" copy */
+.hp-sub-complete {
+  font-weight: 600;
+  color: var(--deep, #5c4128) !important;
+  margin-bottom: 6px !important;
+}
+.hp-see-home-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--brown, #8b6f47);
+  color: var(--cream, #faf3e7);
+  border: none;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.hp-see-home-cta:hover { background: var(--deep, #5c4128); }
+html[data-theme="dark"] .hp-see-home-cta {
+  background: var(--cream, #d8b07e);
+  color: #2b1a0d;
+}
+
+/* Home gallery stub screen — lists rooms; full content deferred */
+[data-screen="home-gallery"] .home-gallery-intro {
+  margin: 8px 16px 18px;
+  padding: 12px 14px;
+  background: rgba(244, 232, 208, 0.45);
+  border: 1px solid rgba(139, 111, 71, 0.18);
+  border-radius: 12px;
+}
+.home-gallery-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 24px;
+}
+@media (max-width: 540px) {
+  .home-gallery-list { grid-template-columns: 1fr; }
+}
+.home-gallery-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #fff);
+  border: 1px solid rgba(139, 111, 71, 0.16);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.home-gallery-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(58, 38, 18, 0.10);
+}
+.hgc-photo {
+  height: 120px;
+  background: linear-gradient(135deg, rgba(232, 193, 147, 0.5), rgba(165, 126, 79, 0.6));
+  background-size: cover;
+  background-position: center;
+}
+.hgc-body { padding: 10px 12px; }
+.hgc-label { font-weight: 700; color: var(--deep, #5c4128); font-size: 14px; }
+.hgc-meta { margin-top: 2px; }
+html[data-theme="dark"] .home-gallery-card {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.16);
+}
+html[data-theme="dark"] [data-screen="home-gallery"] .home-gallery-intro {
+  background: rgba(216, 176, 126, 0.10);
+  border-color: rgba(216, 176, 126, 0.18);
+}
+
 /* 2. Tier pill padding — more vertical air above + below the label */
 .paywall-card .pw-toggle-btn {
   padding: 13px 14px;

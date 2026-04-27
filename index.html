@@ -297,6 +297,23 @@
       </div>
     </section>
 
+    <!-- [Your Home progress] Stub home-gallery screen. Lands here from
+         the "See your full home →" CTA fired after 9/9 completion. Full
+         curated gallery (timeline / cross-room mood-board) is a content
+         batch deferred — DEFERRED.md. For now: a placeholder that lists
+         the user's 9 designed rooms via existing room data with a back
+         arrow to home. -->
+    <section class="screen" data-screen="home-gallery">
+      <header class="topbar">
+        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
+        <h2>Your Full Home</h2>
+      </header>
+      <div class="home-gallery-intro">
+        <p class="muted small">All 9 rooms designed. The full curated gallery view is on the way — for now, here's a quick index of every room you've designed.</p>
+      </div>
+      <div class="home-gallery-list" id="homeGalleryList"></div>
+    </section>
+
     <!-- [ToS consent block] Stub Terms of Service screen. Real legal
          copy is a lawyer task and lives in DEFERRED.md. Routed via
          data-go="terms" (consent-block link + future profile menu). -->

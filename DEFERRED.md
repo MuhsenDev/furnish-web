@@ -712,7 +712,30 @@ Scaffolded in `getConsentState().reconsentRequired` — fires `true` when `state
 
 ---
 
+## Your Home gallery + style-room-picker filter prefill (Your Home integration)
+
+**Source:** STYLE_ROOM_PICKER_AUDIT.md. Locked 2026-04-26.
+
+**Why partial-deferred:** the addendum spec asked for a full curated gallery view at `data-screen="home-gallery"` reached via the "See your full home →" CTA after 9/9 completion. The route is live (stub renders an index of every designed room with thumb + label + meta + tap-to-openRoom). The CURATED layout (timeline / cross-room mood-board / story-driven narrative) defers to a future content batch.
+
+**Plus:** the templates-screen filter prefill via `state._templateRoomFilter` is plumbed (set by the flyout's "Pick from a style" CTA) but the templates render doesn't currently honor it (no `t.room` filter applied). Existing template definitions may need a `room` field audit before this works correctly.
+
+**Required when this lands:**
+1. Replace `data-screen="home-gallery"` stub body with the curated layout — likely some mix of: hero collage of all 9 rooms; timeline strip showing redesign chronology; "your style across rooms" theme summary; share-the-whole-home CTA.
+2. Update `renderTemplates()` to read `state._templateRoomFilter` and filter visible templates by `t.room === filterRoomType`. Clear the filter on screen entry from any other source.
+3. Audit `window.ROOM_TEMPLATES` (in `furniture.js`) — every template needs a `room` field for the filter to work. Items missing `room` either stay always-visible (default) or get auto-tagged based on style heuristics.
+4. Capture flow room-type prefill: `state.draft.suggestedType` is set by the flyout's "Upload a photo" CTA. The existing capture-screen room-type chooser needs to honor this — show the suggestedType pre-selected. ~1-line change in `prepareCapture()`.
+
+**Cutover work when this lands:**
+- The `home_progress_flyout_action { action: 'pick_style' }` analytics event is already firing — once filter is wired, dashboards will show how often the prefill leads to a successful template generation.
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during the Your Home progress integration ship.
+- Added: home-gallery curated layout + templates filter prefill + capture room-type prefill.
+- Stub home-gallery screen ships with a basic grid of designed rooms; full curated content defers.
 
 Updated: 2026-04-26 during the ToS + Marketing Consent Block ship.
 - 4 new deferred items (legal copy, marketing send infra, re-consent flow, server-side sync).
