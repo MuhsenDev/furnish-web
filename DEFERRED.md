@@ -731,7 +731,68 @@ Scaffolded in `getConsentState().reconsentRequired` — fires `true` when `state
 
 ---
 
+## Save Home backend persistence + cross-device sync + sharing + cross-tab sync
+
+**Source:** SAVE_HOME_AUDIT.md. Locked 2026-04-26.
+
+**What shipped client-side now (commit follows):**
+- `state.user.activeHome` (id, startedAt, excludedRooms, designedRooms{}, celebrated)
+- `state.user.savedHomes[]` — array of completed snapshots
+- `state.user.savedRooms[]` — array of standalone room saves (overwrites + excludes + explicit "Save to Saved Rooms")
+- 11 new analytics events
+- 3-tier save model (active vs saved-home vs saved-room)
+- Overwrite protection (existing room moves to savedRooms with reason='overwrite')
+- Profile-screen exclusions UI with 2-room minimum
+- Post-generation save surface
+- Saved tab Homes / Rooms / Items 3-pane refactor + saved-home detail view
+- Bottom-nav badge
+
+**Required at backend cutover:**
+
+### A. Real persistence of savedHomes
+Currently lives in localStorage. At Supabase cutover:
+1. Add `saved_homes` table:
+   ```sql
+   CREATE TABLE saved_homes (
+     id UUID PRIMARY KEY,
+     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+     saved_at TIMESTAMPTZ DEFAULT now(),
+     rooms JSONB,
+     excluded_rooms TEXT[]
+   );
+   ```
+2. Update `supabase-client.js` `pullAll`/`pushAll` to round-trip `state.user.savedHomes` and `state.user.savedRooms`.
+3. Backfill: existing localStorage savedHomes pushed once at first signed-in pull.
+
+### B. Cross-device sync of activeHome
+Same `pullAll`/`pushAll` extension. activeHome is a single record per user — last-write-wins until conflict resolution lands.
+
+### C. Sharing a saved home
+Future Social-dimension feature. Architecturally:
+1. Each saved home gets a public-readable URL `/h/<savedHomeId>` (Edge Function reads from saved_homes table)
+2. OG metadata image generated server-side (collage of saved rooms)
+3. Share format chips on the saved-home detail view (Pinterest / Instagram / link)
+4. Tracks `saved_home_shared { saved_home_id, channel }` for K-factor measurement
+
+Per Reforge UGC Loop Variations Lesson 5: saved-home sharing has high branching factor (one user shares to many friends, each may save their own home in response).
+
+### D. Cross-tab synchronization (per spec edge case #10)
+Currently last-write-wins via localStorage. Real solution:
+1. `BroadcastChannel('furnish-state')` — postMessage on every save() so other open tabs reload state
+2. Or supabase realtime channel after backend cutover
+
+Low priority — most users won't have two tabs open. Logged for completeness.
+
+### E. Data export including savedHomes
+Per spec edge case #7: "if/when that feature exists, defer". No current export feature. When export ships, savedHomes JSON dump is straightforward; format the rooms metadata for downstream import.
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during the Save Home feature ship.
+- Added: 4 deferred items (real persistence, cross-device sync, sharing, cross-tab sync, data export).
+- 11 new analytics events ship client-side: `home_save_button_tapped`, `home_save_incomplete_dialog_room_tapped`, `home_save_confirmed`, `home_save_completion_celebrated`, `save_to_home_selected`, `save_to_home_overwrote_previous`, `save_to_saved_rooms_selected`, `room_excluded`, `room_unexcluded`, `saved_home_opened`, `saved_home_reopened`, `saved_home_deleted`, `save_home_migration_completed`.
 
 Updated: 2026-04-26 during the Your Home progress integration ship.
 - Added: home-gallery curated layout + templates filter prefill + capture room-type prefill.

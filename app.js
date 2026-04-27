@@ -1502,6 +1502,193 @@
     return state.user.homeProgress;
   }
 
+  // ==========================================================
+  // [Save Home] activeHome / savedHomes / savedRooms — 3-tier model
+  // ==========================================================
+  // Per SAVE_HOME_AUDIT.md. Three tiers of room artifact:
+  //   1. activeHome = the in-progress home (one per user). Designed
+  //      rooms live in activeHome.designedRooms[room_type] as objects.
+  //      Excluded rooms live in activeHome.excludedRooms[].
+  //   2. savedHomes = completed-and-archived bundles. Each saved home
+  //      snapshots designedRooms + excludedRooms at save-time.
+  //   3. savedRooms = individual standalone room saves. Populated by:
+  //      (a) overwrite-protection (existing room in slot moves here
+  //          when a new generation overwrites), (b) exclude-after-design
+  //          (excluding a room you'd already designed), (c) explicit
+  //          "Save to Saved Rooms" choice on the post-generation save surface.
+  function uuid() {
+    // Lightweight UUID-ish — sufficient for client-side activeHome ids.
+    // Real backend cutover replaces with crypto.randomUUID() when available.
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+
+  function emptyDesignedRoomsMap() {
+    const map = {};
+    HOME_ROOM_ORDER.forEach(t => { map[t] = null; });
+    return map;
+  }
+
+  function getActiveHome() {
+    if (!state.user) state.user = {};
+    if (!state.user.activeHome) {
+      state.user.activeHome = {
+        id: uuid(),
+        startedAt: Date.now(),
+        excludedRooms: [],
+        designedRooms: emptyDesignedRoomsMap(),
+        celebrated: false
+      };
+    }
+    // Defensive: ensure all 9 keys exist (older state may be missing some)
+    HOME_ROOM_ORDER.forEach(t => {
+      if (!(t in state.user.activeHome.designedRooms)) {
+        state.user.activeHome.designedRooms[t] = null;
+      }
+    });
+    return state.user.activeHome;
+  }
+
+  function getSavedHomes() {
+    if (!state.user) state.user = {};
+    if (!Array.isArray(state.user.savedHomes)) state.user.savedHomes = [];
+    return state.user.savedHomes;
+  }
+
+  function getSavedRoomsList() {
+    // Note: this is state.user.savedRooms — distinct from state.savedRooms
+    // (legacy bookmarks) and state.wishlist (saved items).
+    if (!state.user) state.user = {};
+    if (!Array.isArray(state.user.savedRooms)) state.user.savedRooms = [];
+    return state.user.savedRooms;
+  }
+
+  // Required rooms = 9 minus excluded count. Minimum 2 enforced at toggle time.
+  function homeRequiredCount() {
+    const ah = getActiveHome();
+    return 9 - (ah.excludedRooms || []).length;
+  }
+  function homeDesignedCount() {
+    const ah = getActiveHome();
+    return HOME_ROOM_ORDER.filter(t => !ah.excludedRooms.includes(t) && ah.designedRooms[t] !== null).length;
+  }
+  function homeIsComplete() {
+    return homeDesignedCount() >= homeRequiredCount() && homeRequiredCount() >= 2;
+  }
+  function nextHomeRoomSuggestionV2() {
+    // Skip excluded rooms.
+    const ah = getActiveHome();
+    return HOME_ROOM_ORDER.find(t => !ah.excludedRooms.includes(t) && ah.designedRooms[t] === null) || null;
+  }
+
+  // Migration from old homeProgress.designedRooms[] array → activeHome.
+  // Idempotent. Runs on boot.
+  function migrateHomeProgressToActiveHome() {
+    if (!state.user) state.user = {};
+    if (state.user.activeHome) return; // already migrated or fresh init
+
+    // No prior progress and no rooms → no-op (lazy init at next getActiveHome)
+    const oldHp = state.user.homeProgress;
+    const haveOldHp = oldHp && Array.isArray(oldHp.designedRooms) && oldHp.designedRooms.length > 0;
+    if (!haveOldHp) return;
+
+    const ah = {
+      id: uuid(),
+      startedAt: oldHp.startedAt || Date.now(),
+      excludedRooms: [],
+      designedRooms: emptyDesignedRoomsMap(),
+      celebrated: !!oldHp.celebrated
+    };
+    const activeId = state.activeProfileId;
+    oldHp.designedRooms.forEach(roomType => {
+      if (!HOME_ROOM_ORDER.includes(roomType)) return;
+      // Find the most recent state.rooms entry of this type for the active profile
+      const matches = (state.rooms || [])
+        .filter(r => r.type === roomType && (!activeId || r.profileId === activeId))
+        .sort((a, b) => (b.createdAt || b.timestamp || 0) - (a.createdAt || a.timestamp || 0));
+      const r = matches[0];
+      ah.designedRooms[roomType] = r
+        ? { roomId: r.id, roomType, generatedAt: r.createdAt || r.timestamp || 0, source: 'migration' }
+        : { roomId: null, roomType, generatedAt: 0, source: 'migration_stub' };
+    });
+    state.user.activeHome = ah;
+    if (!Array.isArray(state.user.savedHomes)) state.user.savedHomes = [];
+    if (!Array.isArray(state.user.savedRooms)) state.user.savedRooms = [];
+    save();
+    trackEvent('save_home_migration_completed', { migratedRooms: oldHp.designedRooms.length });
+  }
+
+  // Set a designed room in activeHome. If the slot is already occupied,
+  // move the existing entry to savedRooms with reason='overwrite'. Returns
+  // { added: bool, overwroteRoomId: string|null }.
+  function setActiveHomeRoom(roomType, payload) {
+    if (!HOME_ROOM_ORDER.includes(roomType)) return { added: false, overwroteRoomId: null };
+    const ah = getActiveHome();
+    const existing = ah.designedRooms[roomType];
+    let overwroteRoomId = null;
+    if (existing) {
+      // Move existing to savedRooms (overwrite-protection)
+      const sr = getSavedRoomsList();
+      sr.push({
+        roomGenerationId: existing.roomGenerationId || existing.roomId || null,
+        roomId: existing.roomId || null,
+        roomType,
+        savedAt: Date.now(),
+        source: existing.source || 'unknown',
+        reason: 'overwrite'
+      });
+      overwroteRoomId = existing.roomId || null;
+    }
+    ah.designedRooms[roomType] = {
+      roomGenerationId: payload?.roomGenerationId || payload?.roomId || null,
+      roomId: payload?.roomId || null,
+      roomType,
+      generatedAt: payload?.generatedAt || Date.now(),
+      source: payload?.source || 'unknown'
+    };
+    save();
+    return { added: true, overwroteRoomId };
+  }
+
+  // Remove a designed room from activeHome and move it to savedRooms with
+  // reason='exclude'. Used by the exclusion-of-already-designed-room flow.
+  function moveActiveHomeRoomToSaved(roomType, reason) {
+    if (!HOME_ROOM_ORDER.includes(roomType)) return null;
+    const ah = getActiveHome();
+    const existing = ah.designedRooms[roomType];
+    if (!existing) return null;
+    const sr = getSavedRoomsList();
+    sr.push({
+      roomGenerationId: existing.roomGenerationId || existing.roomId || null,
+      roomId: existing.roomId || null,
+      roomType,
+      savedAt: Date.now(),
+      source: existing.source || 'unknown',
+      reason: reason || 'standalone'
+    });
+    ah.designedRooms[roomType] = null;
+    save();
+    return existing;
+  }
+
+  // Check whether a room id is "claimed" by either activeHome or savedRooms
+  // (used by the post-generation save surface gate — don't re-show surface
+  // for an already-claimed room).
+  function isRoomClaimed(roomId) {
+    if (!roomId) return false;
+    const ah = getActiveHome();
+    for (const t of HOME_ROOM_ORDER) {
+      if (ah.designedRooms[t] && ah.designedRooms[t].roomId === roomId) return true;
+    }
+    return getSavedRoomsList().some(s => s.roomId === roomId);
+  }
+
+  window.FurnishActiveHome = {
+    getActiveHome, getSavedHomes, getSavedRoomsList,
+    homeRequiredCount, homeDesignedCount, homeIsComplete, nextHomeRoomSuggestionV2,
+    setActiveHomeRoom, moveActiveHomeRoomToSaved, isRoomClaimed
+  };
+
   // Migration: backfill designedRooms from the existing state.rooms
   // array on first read after upgrade. Idempotent — only runs if
   // designedRooms is empty AND there are existing rooms.
@@ -1523,18 +1710,41 @@
   // Append a room type to designedRooms (deduped, capped at 9).
   // Fires home_progress_room_completed on first add. Returns true
   // if newly added, false if already present.
-  function recordHomeProgressRoom(roomType, source) {
+  // [Save Home] DUAL-WRITE: maintains the legacy homeProgress.designedRooms[]
+  // array (for backward-compat readers) AND populates activeHome.designedRooms
+  // {object} with metadata. activeHome is the new source of truth; the array
+  // is kept in sync for migration safety.
+  function recordHomeProgressRoom(roomType, source, payload) {
     if (!roomType || !HOME_ROOM_ORDER.includes(roomType)) return false;
     const hp = getHomeProgress();
-    if (hp.designedRooms.includes(roomType)) return false;
-    hp.designedRooms.push(roomType);
-    save();
-    trackEvent('home_progress_room_completed', {
-      room_type: roomType,
-      source: source || 'unknown',
-      total_completed_after: hp.designedRooms.length
+    const ah = getActiveHome();
+    // Don't add to activeHome if room is excluded — caller should have
+    // checked, but defensive.
+    if ((ah.excludedRooms || []).includes(roomType)) return false;
+    const wasNew = !hp.designedRooms.includes(roomType);
+    if (wasNew) hp.designedRooms.push(roomType);
+    // setActiveHomeRoom handles overwrite-protection (moves existing to savedRooms)
+    const result = setActiveHomeRoom(roomType, {
+      roomId: payload?.roomId || null,
+      roomGenerationId: payload?.roomGenerationId || payload?.roomId || null,
+      generatedAt: payload?.generatedAt || Date.now(),
+      source: source || 'unknown'
     });
-    return true;
+    save();
+    if (wasNew) {
+      trackEvent('home_progress_room_completed', {
+        room_type: roomType,
+        source: source || 'unknown',
+        total_completed_after: hp.designedRooms.length
+      });
+    }
+    if (result.overwroteRoomId) {
+      trackEvent('save_to_home_overwrote_previous', {
+        room_type: roomType,
+        previous_room_id: result.overwroteRoomId
+      });
+    }
+    return wasNew;
   }
 
   // "Next up" canonical-order suggestion — first un-designed room
@@ -3857,22 +4067,25 @@
     if (!heroParent) return;
     heroParent.querySelector('.home-progress')?.remove();
     if (!profile) return;
-    // [Your Home progress] Read from the new state.user.homeProgress field
-    // instead of deriving from state.rooms each render. Decouples progress
-    // display from the rooms array so failures don't pollute and reset
-    // wipes work via the allow-list pattern. Per STYLE_ROOM_PICKER_AUDIT.md.
+    // [Save Home] Read from activeHome.designedRooms object (the new 3-tier
+    // model) — the legacy homeProgress array is kept in sync via dual-write
+    // but activeHome is the source of truth for exclusions + metadata.
     const hp = getHomeProgress();
+    const ah = getActiveHome();
     const rooms = (state.rooms || []).filter(r => r.profileId === profile.id);
-    if (!hp.designedRooms.length && !rooms.length) return; // first-time users: don't show empty map
+    const visibleRoomTypes = HOME_ROOM_ORDER.filter(t => !(ah.excludedRooms || []).includes(t));
+    const designedTypes = visibleRoomTypes.filter(t => ah.designedRooms[t] !== null);
+    if (!designedTypes.length && !rooms.length && !ah.excludedRooms.length) return; // first-time
 
-    const ROOM_ORDER = HOME_ROOM_ORDER; // canonical 9-room order constant
-    const designed = new Set(hp.designedRooms);
-    const totalRoomTypesDesigned = hp.designedRooms.length;
+    const ROOM_ORDER = HOME_ROOM_ORDER;
+    const designed = new Set(designedTypes);
+    const totalRoomTypesDesigned = designedTypes.length;
     const totalDesigned = totalRoomTypesDesigned;
-    const isComplete = totalRoomTypesDesigned === 9;
+    const requiredCount = visibleRoomTypes.length; // 9 - excludedCount
+    const isComplete = homeIsComplete();
 
-    // "Next up" — first un-designed room in canonical order. null when 9/9.
-    const nextRoomType = nextHomeRoomSuggestion();
+    // "Next up" — first un-designed non-excluded room in canonical order. null when complete.
+    const nextRoomType = nextHomeRoomSuggestionV2();
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
     // [No-emoji rule per CLAUDE.md] Custom SVG icons replace the emoji-
     // sourced ROOM_TYPES.icon for the home-progress grid. Line-style,
@@ -3903,7 +4116,10 @@
     };
     const fallbackSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9z"/></svg>`;
 
-    const cells = ROOM_ORDER.map(type => {
+    // [Save Home] Hide excluded rooms entirely from the grid. Counter +
+    // progress bar reflect "X of [9 - excluded]". Per spec edge-case #2 +
+    // #5 and the exclusion-aware Next up.
+    const cells = visibleRoomTypes.map(type => {
       const isDone = designed.has(type);
       const isNext = !isDone && type === nextRoomType;
       const cls = ['hp-cell'];
@@ -3924,24 +4140,21 @@
     // "When all 9 are designed, the 'Next up' line changes to a
     // celebratory state."
     const headerSubHtml = isComplete
-      ? `<p class="muted small hp-sub hp-sub-complete">All 9 rooms designed.</p>
-         <button class="hp-see-home-cta" type="button" data-go="home-gallery">
-           See your full home
-           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-         </button>`
-      : `<p class="muted small hp-sub">${nextRoomType ? `Next up: ${ROOM_LABELS[nextRoomType] || nextRoomType}` : 'Every room covered. Time for a refresh?'}</p>`;
+      ? `<p class="muted small hp-sub hp-sub-complete">All ${requiredCount} rooms designed — ready to save.</p>`
+      : `<p class="muted small hp-sub">${nextRoomType ? `Next up: ${ROOM_LABELS[nextRoomType] || nextRoomType}` : 'Every room covered.'}</p>`;
     wrap.innerHTML = `
       <header class="hp-head">
         <div>
           <span class="hp-eyebrow">YOUR HOME</span>
-          <h3 class="section-h hp-title">${totalRoomTypesDesigned} of 9 rooms designed</h3>
+          <h3 class="section-h hp-title">${totalRoomTypesDesigned} of ${requiredCount} rooms designed</h3>
           ${headerSubHtml}
         </div>
         <div class="hp-progress-bar" aria-hidden="true">
-          <div class="hp-progress-fill" style="width: ${(totalRoomTypesDesigned / 9) * 100}%"></div>
+          <div class="hp-progress-fill" style="width: ${requiredCount > 0 ? (totalRoomTypesDesigned / requiredCount) * 100 : 0}%"></div>
         </div>
       </header>
       <div class="hp-grid">${cells}</div>
+      <div class="hp-save-row" data-hp-save-row></div>
     `;
 
     // Insert AFTER home-hero, BEFORE styling pulse / other strips.
@@ -3986,21 +4199,578 @@
       nextRoomType: nextRoomType || null,
     });
 
-    // [Your Home progress] 9/9 completion celebration — one-time per user.
-    // celebrated flag in state.user.homeProgress prevents re-firing across
-    // sessions. Soft pulse animation across all 9 cards (CSS keyframe
-    // hpCompletionPulse) lasts ~1500ms total; matches the existing
-    // animation library (no new motion lib introduced).
-    if (isComplete && !hp.celebrated) {
-      hp.celebrated = true;
+    // [Save Home] Render the persistent "Save this home" button below
+    // the grid. Visual state depends on completion. Per spec: muted when
+    // incomplete, primary brand-brown when complete. Tap → either the
+    // incomplete dialog (lists missing rooms as next steps) or the
+    // confirm dialog (commits the save).
+    renderSaveHomeButton(wrap.querySelector('[data-hp-save-row]'));
+
+    // [Save Home] 9/9 completion celebration — one-time per user when
+    // designedCount === requiredCount (NOT === 9 anymore — handles the
+    // "user excluded 7 rooms, designed 2, hits completion" case per spec).
+    // The activeHome.celebrated flag is the single source of truth.
+    if (isComplete && !ah.celebrated) {
+      ah.celebrated = true;
       save();
-      trackEvent('home_completion_celebrated');
+      trackEvent('home_save_completion_celebrated');
       requestAnimationFrame(() => {
         wrap.classList.add('hp-celebrating');
         setTimeout(() => wrap.classList.remove('hp-celebrating'), 1800);
       });
     }
   }
+
+  // [Save Home] renderSaveHomeButton — persistent button below the grid.
+  // Visual state: muted when incomplete (lower contrast, smaller, helper
+  // microcopy below); primary brand-brown when complete (no muting). Per
+  // spec, button is tappable in both states — incomplete tap opens a
+  // "missing rooms" dialog, complete tap opens a confirm dialog.
+  function renderSaveHomeButton(host) {
+    if (!host) return;
+    host.innerHTML = '';
+    const ah = getActiveHome();
+    const designedCount = homeDesignedCount();
+    const requiredCount = homeRequiredCount();
+    const complete = homeIsComplete();
+    const btn = document.createElement('button');
+    btn.className = 'hp-save-home-btn' + (complete ? ' hp-save-home-btn--complete' : ' hp-save-home-btn--incomplete');
+    btn.type = 'button';
+    btn.textContent = 'Save this home';
+    const helper = document.createElement('p');
+    helper.className = 'hp-save-home-helper muted small';
+    helper.textContent = complete
+      ? `All ${requiredCount} rooms designed — ready to save.`
+      : 'Complete your remaining rooms first.';
+    btn.addEventListener('click', () => {
+      trackEvent('home_save_button_tapped', {
+        state: complete ? 'complete' : 'incomplete',
+        required_rooms_count: requiredCount,
+        designed_rooms_count: designedCount
+      });
+      if (complete) {
+        openSaveHomeConfirmDialog();
+      } else {
+        openSaveHomeIncompleteDialog();
+      }
+    });
+    host.appendChild(btn);
+    host.appendChild(helper);
+  }
+  window.FurnishRenderSaveHomeButton = renderSaveHomeButton;
+
+  // [Save Home] Incomplete-state dialog — shows missing rooms as a
+  // tappable next-step list. Per Reforge User Psychology: friction-as-
+  // productive-step turns "you can't" into "here's how." Each row routes
+  // to either the capture flow (own photo) or templates (pick a style)
+  // via the existing hp-flyout pattern shipped in cabd9df.
+  function openSaveHomeIncompleteDialog() {
+    closeSaveHomeDialog();
+    const ah = getActiveHome();
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const missing = HOME_ROOM_ORDER.filter(t => !ah.excludedRooms.includes(t) && ah.designedRooms[t] === null);
+    const requiredCount = homeRequiredCount();
+    const designedCount = homeDesignedCount();
+    const remaining = requiredCount - designedCount;
+    const dlg = document.createElement('div');
+    dlg.className = 'modal save-home-dialog open';
+    dlg.id = 'saveHomeDialog';
+    dlg.setAttribute('role', 'dialog');
+    dlg.setAttribute('aria-modal', 'true');
+    dlg.setAttribute('aria-labelledby', 'saveHomeDialogTitle');
+    dlg.innerHTML = `
+      <div class="modal-card save-home-dialog-card">
+        <button class="modal-close" id="saveHomeDialogClose" type="button" aria-label="Cancel">×</button>
+        <h3 id="saveHomeDialogTitle">Almost there</h3>
+        <p class="save-home-dialog-body">You have ${remaining} room${remaining === 1 ? '' : 's'} left to design before you can save this home.</p>
+        <ul class="save-home-missing-list">
+          ${missing.map(t => `
+            <li>
+              <button class="save-home-missing-row" type="button" data-missing-room="${t}">
+                <span class="bullet" aria-hidden="true">·</span>
+                <span class="save-home-missing-label">${ROOM_LABELS[t] || t}</span>
+                <span class="save-home-missing-arrow" aria-hidden="true">Start →</span>
+              </button>
+            </li>
+          `).join('')}
+        </ul>
+        <div class="save-home-dialog-actions">
+          <button class="btn btn-ghost" id="saveHomeDialogDismiss" type="button">Got it</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dlg);
+    const close = (reason) => closeSaveHomeDialog(reason);
+    dlg.querySelector('#saveHomeDialogClose').addEventListener('click', () => close('close'));
+    dlg.querySelector('#saveHomeDialogDismiss').addEventListener('click', () => close('dismiss'));
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close('backdrop'); });
+    dlg.querySelectorAll('[data-missing-room]').forEach(row => {
+      row.addEventListener('click', () => {
+        const roomType = row.dataset.missingRoom;
+        trackEvent('home_save_incomplete_dialog_room_tapped', { room_type: roomType });
+        close('row_tapped');
+        // Reuse the existing Your Home flyout to give the user the
+        // Upload-photo / Pick-from-style choice (per spec).
+        const cell = document.querySelector(`.hp-cell[data-hp-room="${roomType}"]`);
+        if (cell) {
+          openHomeProgressFlyout(roomType, cell);
+        } else {
+          // Fallback: pre-seed draft + route to capture
+          state.draft = { type: roomType, photo: null, dims: { w: 12, l: 14, h: 9 }, keep: false };
+          save();
+          showScreen('capture');
+          if (typeof prepareCapture === 'function') prepareCapture();
+        }
+      });
+    });
+  }
+
+  // [Save Home] Complete-state confirm dialog. Two buttons: Cancel
+  // (default focus) and Save home. Save commits the snapshot, resets
+  // activeHome, routes to Saved tab.
+  function openSaveHomeConfirmDialog() {
+    closeSaveHomeDialog();
+    const requiredCount = homeRequiredCount();
+    const dlg = document.createElement('div');
+    dlg.className = 'modal save-home-dialog open';
+    dlg.id = 'saveHomeDialog';
+    dlg.setAttribute('role', 'dialog');
+    dlg.setAttribute('aria-modal', 'true');
+    dlg.setAttribute('aria-labelledby', 'saveHomeDialogTitle');
+    dlg.innerHTML = `
+      <div class="modal-card save-home-dialog-card">
+        <button class="modal-close" id="saveHomeDialogClose" type="button" aria-label="Cancel">×</button>
+        <h3 id="saveHomeDialogTitle">Save this home?</h3>
+        <p class="save-home-dialog-body">Your ${requiredCount} designed rooms will be saved to your Saved tab. Your Home will reset so you can start a new home.</p>
+        <div class="save-home-dialog-actions">
+          <button class="btn btn-ghost" id="saveHomeDialogCancel" type="button" autofocus>Cancel</button>
+          <button class="btn btn-primary" id="saveHomeDialogConfirm" type="button">Save home</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dlg);
+    setTimeout(() => dlg.querySelector('#saveHomeDialogCancel')?.focus(), 50);
+    const close = (reason) => closeSaveHomeDialog(reason);
+    dlg.querySelector('#saveHomeDialogClose').addEventListener('click', () => close('close'));
+    dlg.querySelector('#saveHomeDialogCancel').addEventListener('click', () => close('cancel'));
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close('backdrop'); });
+    dlg.querySelector('#saveHomeDialogConfirm').addEventListener('click', () => {
+      commitSaveHome();
+      close('confirmed');
+    });
+  }
+
+  function closeSaveHomeDialog(reason) {
+    const dlg = document.getElementById('saveHomeDialog');
+    if (!dlg) return;
+    dlg.classList.remove('open');
+    setTimeout(() => dlg.remove(), 180);
+  }
+
+  // [Save Home] Commit the current activeHome to savedHomes + reset.
+  function commitSaveHome() {
+    const ah = getActiveHome();
+    const savedHomes = getSavedHomes();
+    const requiredCount = homeRequiredCount();
+    const designedCount = homeDesignedCount();
+    if (designedCount < Math.max(2, requiredCount)) {
+      toast("You can't save an incomplete home.");
+      return;
+    }
+    // Snapshot
+    const snapshot = {
+      id: uuid(),
+      savedAt: Date.now(),
+      rooms: JSON.parse(JSON.stringify(ah.designedRooms)),
+      excludedRooms: ah.excludedRooms.slice()
+    };
+    savedHomes.unshift(snapshot); // newest first
+    trackEvent('home_save_confirmed', {
+      rooms_count: designedCount,
+      excluded_count: ah.excludedRooms.length
+    });
+    // Reset activeHome (full reset — new id, all rooms re-included, all null)
+    state.user.activeHome = {
+      id: uuid(),
+      startedAt: Date.now(),
+      excludedRooms: [],
+      designedRooms: emptyDesignedRoomsMap(),
+      celebrated: false
+    };
+    // Also reset the legacy homeProgress array for backward compat
+    if (state.user.homeProgress) {
+      state.user.homeProgress.designedRooms = [];
+      state.user.homeProgress.celebrated = false;
+    }
+    save();
+    toast('Home saved.');
+    // Route to Saved tab + flag a brief celebration on arrival
+    state._savedHomeCelebrationId = snapshot.id;
+    save();
+    showScreen('saved');
+    if (typeof renderSaved === 'function') renderSaved();
+  }
+  window.FurnishCommitSaveHome = commitSaveHome;
+
+  // ==========================================================
+  // [Save Home] Profile-screen exclusions UI ("Rooms in your home")
+  // ==========================================================
+  // 9 toggles, one per HOME_ROOM_ORDER. Min 2 rooms must stay on.
+  // Toggling off an already-designed room fires a confirm dialog
+  // (Keep it / Exclude and move to Saved). Per spec.
+  function renderRoomExclusionsList() {
+    const list = document.getElementById('roomExclusionsList');
+    const counter = document.getElementById('roomExclusionsCounter');
+    if (!list) return;
+    list.innerHTML = '';
+    const ah = getActiveHome();
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const includedCount = HOME_ROOM_ORDER.filter(t => !ah.excludedRooms.includes(t)).length;
+
+    HOME_ROOM_ORDER.forEach(roomType => {
+      const isIncluded = !ah.excludedRooms.includes(roomType);
+      const row = document.createElement('div');
+      row.className = 'pp-setting room-exclusion-row';
+      row.setAttribute('role', 'group');
+      row.innerHTML = `
+        <span class="settings-label">
+          <span>${ROOM_LABELS[roomType] || roomType}</span>
+        </span>
+        <button class="toggle-switch" data-room-toggle="${roomType}" aria-checked="${isIncluded ? 'true' : 'false'}" aria-label="Include ${ROOM_LABELS[roomType] || roomType} in Your Home" type="button">
+          <span class="toggle-thumb"></span>
+        </button>
+      `;
+      list.appendChild(row);
+      row.querySelector('[data-room-toggle]').addEventListener('click', () => {
+        toggleRoomExclusion(roomType);
+      });
+    });
+    if (counter) {
+      counter.textContent = includedCount === 9
+        ? 'Currently: 9 of 9 included'
+        : `Currently: ${includedCount} of 9 included. Keep at least 2 on.`;
+    }
+  }
+
+  function toggleRoomExclusion(roomType) {
+    const ah = getActiveHome();
+    const isCurrentlyIncluded = !ah.excludedRooms.includes(roomType);
+    if (isCurrentlyIncluded) {
+      // Trying to EXCLUDE
+      const includedCount = HOME_ROOM_ORDER.filter(t => !ah.excludedRooms.includes(t)).length;
+      if (includedCount <= 2) {
+        toast('You need at least 2 rooms to build a home.');
+        return;
+      }
+      const hasDesign = ah.designedRooms[roomType] !== null;
+      if (hasDesign) {
+        // Confirm dialog before excluding a designed room (per spec)
+        openExcludeDesignedRoomDialog(roomType);
+        return;
+      }
+      // No existing design → instant exclude
+      ah.excludedRooms.push(roomType);
+      save();
+      trackEvent('room_excluded', { room_type: roomType, had_existing_design: false });
+      renderRoomExclusionsList();
+      // Re-render the home grid if visible (live update per spec)
+      const profile = getActiveProfile();
+      if (profile && document.querySelector('[data-screen="home"].active')) renderHomeProgress(profile);
+    } else {
+      // INCLUDE (un-exclude). Per spec: stays null (user must redesign).
+      ah.excludedRooms = ah.excludedRooms.filter(t => t !== roomType);
+      save();
+      trackEvent('room_unexcluded', { room_type: roomType });
+      renderRoomExclusionsList();
+      const profile = getActiveProfile();
+      if (profile && document.querySelector('[data-screen="home"].active')) renderHomeProgress(profile);
+    }
+  }
+
+  function openExcludeDesignedRoomDialog(roomType) {
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const label = ROOM_LABELS[roomType] || roomType;
+    const dlg = document.createElement('div');
+    dlg.className = 'modal save-home-dialog open';
+    dlg.id = 'excludeDesignedRoomDialog';
+    dlg.setAttribute('role', 'dialog');
+    dlg.setAttribute('aria-modal', 'true');
+    dlg.innerHTML = `
+      <div class="modal-card save-home-dialog-card">
+        <button class="modal-close" id="excDlgClose" type="button" aria-label="Cancel">×</button>
+        <h3>Exclude ${label}?</h3>
+        <p class="save-home-dialog-body">You already designed a ${label} for this home. If you exclude it, that design moves to your Saved Rooms instead.</p>
+        <div class="save-home-dialog-actions">
+          <button class="btn btn-ghost" id="excDlgKeep" type="button" autofocus>Keep it</button>
+          <button class="btn reset-dialog-confirm" id="excDlgConfirm" type="button">
+            <span class="reset-dialog-confirm-label">Exclude and move to Saved</span>
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dlg);
+    setTimeout(() => dlg.querySelector('#excDlgKeep')?.focus(), 50);
+    const close = () => { dlg.classList.remove('open'); setTimeout(() => dlg.remove(), 180); };
+    dlg.querySelector('#excDlgClose').addEventListener('click', close);
+    dlg.querySelector('#excDlgKeep').addEventListener('click', close);
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+    dlg.querySelector('#excDlgConfirm').addEventListener('click', () => {
+      const ah = getActiveHome();
+      moveActiveHomeRoomToSaved(roomType, 'exclude');
+      ah.excludedRooms.push(roomType);
+      save();
+      trackEvent('room_excluded', { room_type: roomType, had_existing_design: true });
+      renderRoomExclusionsList();
+      const profile = getActiveProfile();
+      if (profile && document.querySelector('[data-screen="home"].active')) renderHomeProgress(profile);
+      close();
+      toast(`${label} moved to your Saved Rooms.`);
+    });
+  }
+  window.FurnishRenderRoomExclusionsList = renderRoomExclusionsList;
+
+  // ==========================================================
+  // [Save Home] Post-generation save surface
+  // ==========================================================
+  // Modal that fires once after a successful redesign opens. Two
+  // options: Save to Home (primary, with overwrite-protection toast)
+  // and Save to Saved Rooms (secondary). Excluded rooms get only
+  // Save to Saved Rooms.
+  function openPostGenerationSaveSurface(room) {
+    if (!room) return;
+    if (isRoomClaimed(room.id)) return; // already saved/claimed
+    closePostGenerationSaveSurface();
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const label = ROOM_LABELS[room.type] || room.type;
+    const ah = getActiveHome();
+    const isExcluded = ah.excludedRooms.includes(room.type);
+    const slotOccupied = ah.designedRooms[room.type] !== null;
+
+    const dlg = document.createElement('div');
+    dlg.className = 'modal save-surface-modal open';
+    dlg.id = 'saveSurfaceModal';
+    dlg.setAttribute('role', 'dialog');
+    dlg.setAttribute('aria-modal', 'true');
+    dlg.setAttribute('aria-labelledby', 'saveSurfaceTitle');
+    dlg.innerHTML = `
+      <div class="modal-card save-surface-card">
+        <button class="modal-close" id="saveSurfaceClose" type="button" aria-label="Close">×</button>
+        <h3 id="saveSurfaceTitle">Save your ${label}</h3>
+        ${isExcluded
+          ? `<p class="save-surface-note muted small">${label} is excluded from Your Home. Save it to your Saved Rooms instead, or include the room in Settings.</p>`
+          : `<p class="save-surface-body">${slotOccupied ? `Replace your current ${label} in Your Home, or save this as a standalone room.` : `Add this ${label} to Your Home, or save it as a standalone room.`}</p>`
+        }
+        <div class="save-surface-actions">
+          ${isExcluded
+            ? ''
+            : `<button class="btn btn-primary big" id="saveToHomeBtn" type="button">
+                <span class="save-surface-cta-label">Save as your ${label} in Your Home</span>
+                ${slotOccupied ? `<span class="save-surface-cta-sub muted small">Previous ${label} moves to Saved Rooms</span>` : ''}
+              </button>`
+          }
+          <button class="btn btn-ghost" id="saveToSavedRoomsBtn" type="button">Save to Saved Rooms</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dlg);
+    const close = () => closePostGenerationSaveSurface();
+    dlg.querySelector('#saveSurfaceClose').addEventListener('click', close);
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+    if (!isExcluded) {
+      dlg.querySelector('#saveToHomeBtn').addEventListener('click', () => {
+        const result = setActiveHomeRoom(room.type, {
+          roomId: room.id,
+          roomGenerationId: room.id,
+          generatedAt: room.timestamp || room.createdAt || Date.now(),
+          source: 'save_surface'
+        });
+        // Update the legacy homeProgress array for backward-compat
+        const hp = getHomeProgress();
+        if (!hp.designedRooms.includes(room.type)) {
+          hp.designedRooms.push(room.type);
+          save();
+        }
+        trackEvent('save_to_home_selected', {
+          room_type: room.type,
+          overwrote_previous: !!result.overwroteRoomId
+        });
+        if (result.overwroteRoomId) {
+          toast(`${label} updated. Previous design saved to your Saved Rooms.`);
+        } else {
+          toast(`${label} added to Your Home.`);
+        }
+        close();
+      });
+    }
+    dlg.querySelector('#saveToSavedRoomsBtn').addEventListener('click', () => {
+      const sr = getSavedRoomsList();
+      sr.push({
+        roomGenerationId: room.id,
+        roomId: room.id,
+        roomType: room.type,
+        savedAt: Date.now(),
+        source: 'save_surface',
+        reason: 'standalone'
+      });
+      save();
+      trackEvent('save_to_saved_rooms_selected', { room_type: room.type });
+      toast(`${label} saved to your Saved Rooms.`);
+      close();
+    });
+  }
+  function closePostGenerationSaveSurface() {
+    const m = document.getElementById('saveSurfaceModal');
+    if (!m) return;
+    m.classList.remove('open');
+    setTimeout(() => m.remove(), 200);
+  }
+  window.FurnishOpenPostGenerationSaveSurface = openPostGenerationSaveSurface;
+
+  // ==========================================================
+  // [Save Home] Saved tab — saved-homes section + detail view
+  // ==========================================================
+  function renderSavedHomes() {
+    const list = document.getElementById('savedHomesList');
+    if (!list) return;
+    const homes = getSavedHomes();
+    list.innerHTML = '';
+    if (!homes.length) {
+      list.innerHTML = '<div class="empty-state" style="padding:40px 24px;text-align:center"><p>No saved homes yet. Save your first home from the homepage.</p></div>';
+      return;
+    }
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    homes.forEach(home => {
+      const designedTypes = HOME_ROOM_ORDER.filter(t => home.rooms[t]);
+      const heroTypes = designedTypes.slice(0, 2);
+      const dateStr = new Date(home.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const card = document.createElement('button');
+      card.className = 'saved-home-card';
+      card.type = 'button';
+      card.dataset.homeId = home.id;
+      card.innerHTML = `
+        <div class="shc-hero">
+          ${heroTypes.map(t => {
+            const sourceRoom = (state.rooms || []).find(r => r.id === home.rooms[t]?.roomId);
+            const photo = sourceRoom?.photo;
+            return `<div class="shc-hero-thumb" ${photo ? `style="background-image:url('${photo}')"` : ''}></div>`;
+          }).join('') || '<div class="shc-hero-thumb shc-hero-thumb--empty"></div>'}
+        </div>
+        <div class="shc-body">
+          <div class="shc-title">Home saved ${dateStr}</div>
+          <div class="shc-meta muted small">${designedTypes.length} room${designedTypes.length === 1 ? '' : 's'}</div>
+        </div>
+      `;
+      card.addEventListener('click', () => {
+        trackEvent('saved_home_opened', { saved_home_id: home.id, age_days: Math.round((Date.now() - home.savedAt) / 86400000) });
+        openSavedHomeDetail(home.id);
+      });
+      list.appendChild(card);
+    });
+    // Celebration on the just-saved home (one-shot per save)
+    if (state._savedHomeCelebrationId) {
+      const targetCard = list.querySelector(`[data-home-id="${state._savedHomeCelebrationId}"]`);
+      if (targetCard) {
+        targetCard.classList.add('saved-home-card--celebrating');
+        setTimeout(() => targetCard.classList.remove('saved-home-card--celebrating'), 1800);
+      }
+      delete state._savedHomeCelebrationId;
+      save();
+    }
+  }
+
+  function openSavedHomeDetail(homeId) {
+    state._savedHomeDetailId = homeId;
+    save();
+    showScreen('saved-home-detail');
+    renderSavedHomeDetail();
+  }
+  function renderSavedHomeDetail() {
+    const homeId = state._savedHomeDetailId;
+    const home = getSavedHomes().find(h => h.id === homeId);
+    const grid = document.getElementById('savedHomeDetailGrid');
+    const meta = document.getElementById('savedHomeDetailMeta');
+    const title = document.getElementById('savedHomeDetailTitle');
+    if (!home || !grid) return;
+    const dateStr = new Date(home.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (title) title.textContent = `Home saved ${dateStr}`;
+    const designedTypes = HOME_ROOM_ORDER.filter(t => home.rooms[t]);
+    if (meta) meta.textContent = `${designedTypes.length} room${designedTypes.length === 1 ? '' : 's'} · saved ${dateStr}`;
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    grid.innerHTML = '';
+    designedTypes.forEach(t => {
+      const entry = home.rooms[t];
+      const sourceRoom = (state.rooms || []).find(r => r.id === entry?.roomId);
+      const card = document.createElement('button');
+      card.className = 'saved-home-detail-card';
+      card.type = 'button';
+      const photo = sourceRoom?.photo;
+      const total = (sourceRoom?.items || []).reduce((s, i) => s + (i.price || 0), 0);
+      card.innerHTML = `
+        <div class="shdc-photo" ${photo ? `style="background-image:url('${photo}')"` : ''}></div>
+        <div class="shdc-body">
+          <div class="shdc-label">${ROOM_LABELS[t] || t}</div>
+          ${sourceRoom ? `<div class="shdc-meta muted small">${(sourceRoom.items || []).length} pieces · $${total.toLocaleString()}</div>` : '<div class="shdc-meta muted small">Room data archived</div>'}
+        </div>
+      `;
+      if (sourceRoom) card.addEventListener('click', () => openRoom(sourceRoom.id));
+      grid.appendChild(card);
+    });
+    // Wire the topbar actions
+    const reopenBtn = document.getElementById('savedHomeReopenBtn');
+    const deleteBtn = document.getElementById('savedHomeDeleteBtn');
+    if (reopenBtn) reopenBtn.onclick = () => onReopenSavedHome(home);
+    if (deleteBtn) deleteBtn.onclick = () => onDeleteSavedHome(home);
+  }
+
+  function onReopenSavedHome(home) {
+    const ah = getActiveHome();
+    const hasProgress = HOME_ROOM_ORDER.some(t => ah.designedRooms[t] !== null);
+    if (hasProgress && !confirm('You have an in-progress home. Re-opening this saved home will replace it. Continue?')) return;
+    state.user.activeHome = {
+      id: uuid(),
+      startedAt: Date.now(),
+      excludedRooms: (home.excludedRooms || []).slice(),
+      designedRooms: JSON.parse(JSON.stringify(home.rooms)),
+      celebrated: false
+    };
+    // Sync legacy homeProgress array
+    if (state.user.homeProgress) {
+      state.user.homeProgress.designedRooms = HOME_ROOM_ORDER.filter(t => state.user.activeHome.designedRooms[t]);
+      state.user.homeProgress.celebrated = false;
+    }
+    save();
+    trackEvent('saved_home_reopened', { saved_home_id: home.id });
+    toast('Saved home re-opened.');
+    showScreen('home');
+    if (typeof renderHome === 'function') renderHome();
+  }
+  function onDeleteSavedHome(home) {
+    if (!confirm(`Delete this saved home from ${new Date(home.savedAt).toLocaleDateString()}? This can't be undone.`)) return;
+    const homes = getSavedHomes();
+    const idx = homes.findIndex(h => h.id === home.id);
+    if (idx >= 0) homes.splice(idx, 1);
+    save();
+    trackEvent('saved_home_deleted', { saved_home_id: home.id, age_days: Math.round((Date.now() - home.savedAt) / 86400000) });
+    toast('Saved home deleted.');
+    showScreen('saved');
+    if (typeof renderSaved === 'function') renderSaved();
+  }
+  window.FurnishRenderSavedHomes = renderSavedHomes;
+  window.FurnishRenderSavedHomeDetail = renderSavedHomeDetail;
+
+  // ==========================================================
+  // [Save Home] Bottom nav Saved tab badge — derived selector
+  // ==========================================================
+  function hasSavedItems() {
+    return getSavedHomes().length > 0 || getSavedRoomsList().length > 0;
+  }
+  function updateSavedTabBadge() {
+    const badge = document.querySelector('.bn-tab[data-tab="saved"] .bn-tab-badge');
+    if (!badge) return;
+    const show = hasSavedItems();
+    badge.style.display = show ? '' : 'none';
+  }
+  window.FurnishUpdateSavedTabBadge = updateSavedTabBadge;
 
   // [Your Home progress] Flyout for un-designed cells. Pinned to the
   // tapped cell. Two CTAs: Upload a photo (routes to capture with
@@ -4696,20 +5466,29 @@
     });
   }
 
-  // ---------- Saved screen (Rooms + Items sub-tabs) ----------
+  // ---------- Saved screen (Homes + Rooms + Items sub-tabs) ----------
+  // [Save Home] Three-pane refactor: Saved Homes (new) + Saved Rooms
+  // (existing bookmarked + new state.user.savedRooms entries from
+  // overwrite/exclude paths) + Saved Items (existing wishlist).
   function renderSaved() {
-    // Counts — only rooms the user explicitly bookmarked.
-    const rooms = state.rooms.filter(r =>
+    // Counts
+    const homes = getSavedHomes();
+    // Saved Rooms = bookmarked rooms (legacy) UNION state.user.savedRooms (new)
+    const bookmarkedRooms = state.rooms.filter(r =>
       r.profileId === state.activeProfileId &&
-      state.bookmarkedRooms.includes(r.id)
+      (state.bookmarkedRooms || []).includes(r.id)
     );
+    const newSavedRooms = getSavedRoomsList();
+    const totalRooms = bookmarkedRooms.length + newSavedRooms.length;
     const items = state.wishlist || [];
-    $('#stRoomsCount').textContent = rooms.length;
+    const homesCountEl = document.getElementById('stHomesCount');
+    if (homesCountEl) homesCountEl.textContent = homes.length;
+    $('#stRoomsCount').textContent = totalRooms;
     $('#stItemsCount').textContent = items.length;
-
-    // Default to whichever sub-tab is currently active
-    const active = document.querySelector('.st-tab.active')?.dataset?.st || 'rooms';
+    // Default sub-tab
+    const active = document.querySelector('.st-tab.active')?.dataset?.st || 'homes';
     showSavedPane(active);
+    updateSavedTabBadge();
   }
 
   function showSavedPane(which) {
@@ -4718,9 +5497,12 @@
       t.classList.toggle('active', on);
       t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    const homesPane = document.getElementById('savedHomesPane');
+    if (homesPane) homesPane.style.display = which === 'homes' ? '' : 'none';
     $('#savedRoomsPane').style.display = which === 'rooms' ? '' : 'none';
     $('#savedItemsPane').style.display = which === 'items' ? '' : 'none';
-    if (which === 'rooms') renderSavedRooms();
+    if (which === 'homes') renderSavedHomes();
+    else if (which === 'rooms') renderSavedRooms();
     else renderSavedItems();
   }
 
@@ -4833,6 +5615,10 @@
     // round-trip, future server pull) — without this re-sync, the
     // toggle's aria-checked goes stale and the user sees the wrong state.
     syncMarketingPrefsToggle();
+    // [Save Home] Render the "Rooms in your home" exclusions UI. The 9
+    // toggles + counter footer rebuild on each profile open so they
+    // reflect the current activeHome.excludedRooms state.
+    renderRoomExclusionsList();
     const user = state.user || {};
     const name = user.name || 'Guest';
     const email = user.email || 'Not signed in';
@@ -5357,8 +6143,12 @@
         incrementGenerationCount();
         // [Your Home progress] Successful template generation — append
         // room.type to designedRooms (deduped). Source 'template' for
-        // analytics.
-        recordHomeProgressRoom(room.type, 'template');
+        // analytics. [Save Home] Pass roomId payload so activeHome can
+        // store the metadata for overwrite-protection.
+        recordHomeProgressRoom(room.type, 'template', { roomId: room.id, generatedAt: Date.now() });
+        // [Save Home] Mark this room as just-generated so the post-
+        // generation save surface fires once when openRoom runs.
+        state._justGeneratedRoomId = room.id;
         save();
         // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
         if (isGuest()) {
@@ -5554,7 +6344,11 @@
         incrementGenerationCount();
         // [Your Home progress] Successful own-photo redesign — append
         // room.type to designedRooms (deduped). Source 'own_photo'.
-        recordHomeProgressRoom(room.type, 'own_photo');
+        // [Save Home] Pass roomId payload so activeHome can store the
+        // metadata for overwrite-protection. Also flag as just-generated
+        // so the post-generation save surface fires once.
+        recordHomeProgressRoom(room.type, 'own_photo', { roomId: room.id, generatedAt: Date.now() });
+        state._justGeneratedRoomId = room.id;
         save();
         trackEvent('analyze_completed', {
           roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt
@@ -6710,6 +7504,17 @@
     if (!room) return;
     currentRoomId = roomId;
     const profile = state.profiles.find(p => p.id === room.profileId);
+
+    // [Save Home] Fire the post-generation save surface ONCE per just-
+    // generated room. _justGeneratedRoomId is set inside the success
+    // branch of routeGenerationByModelTier; cleared after the surface
+    // fires so revisits don't re-prompt.
+    if (state._justGeneratedRoomId === roomId) {
+      delete state._justGeneratedRoomId;
+      save();
+      // Defer to next tick so the results-screen layout settles first
+      setTimeout(() => openPostGenerationSaveSurface(room), 600);
+    }
 
     // [Batch 3 — A7] Aha event split.
     // The existing AHA_RESULTS event fires on render — that's the GATE.
@@ -10109,6 +10914,12 @@
     // [Your Home progress] Backfill state.user.homeProgress.designedRooms
     // from existing state.rooms on first boot after upgrade. Idempotent.
     migrateHomeProgressFromRooms();
+    // [Save Home] Migrate from homeProgress.designedRooms[] array →
+    // activeHome.designedRooms{} object. Idempotent.
+    migrateHomeProgressToActiveHome();
+    // [Save Home] Initial badge state at boot. Updated again after every
+    // savedHomes/savedRooms mutation via the helpers' save() side effect.
+    updateSavedTabBadge();
     syncFreeModeClass();
     touchLastVisit();
     applyWelcomeRecallState();

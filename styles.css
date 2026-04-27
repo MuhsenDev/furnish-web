@@ -9550,6 +9550,313 @@ html[data-theme="dark"] [data-screen="home-gallery"] .home-gallery-intro {
   border-color: rgba(216, 176, 126, 0.18);
 }
 
+/* ============================================================
+   Save Home feature — homepage button, dialogs, save surface,
+   saved-homes section, detail view, exclusions UI, nav badge.
+   See SAVE_HOME_AUDIT.md.
+   ============================================================ */
+
+/* Save Home button (homepage, below the grid) */
+.hp-save-row {
+  margin: 14px 0 4px;
+  text-align: center;
+}
+.hp-save-home-btn {
+  display: inline-block;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+  letter-spacing: 0.02em;
+}
+.hp-save-home-btn--complete {
+  background: var(--brown, #8b6f47);
+  color: var(--cream, #faf3e7);
+  border-color: var(--brown, #8b6f47);
+}
+.hp-save-home-btn--complete:hover {
+  background: var(--deep, #5c4128);
+  border-color: var(--deep, #5c4128);
+  transform: translateY(-1px);
+}
+.hp-save-home-btn--incomplete {
+  background: transparent;
+  color: var(--muted, #8a7765);
+  border-color: rgba(139, 111, 71, 0.22);
+  font-size: 13px;
+  padding: 9px 22px;
+}
+.hp-save-home-btn--incomplete:hover {
+  background: rgba(139, 111, 71, 0.06);
+  color: var(--brown, #8b6f47);
+  border-color: rgba(139, 111, 71, 0.40);
+}
+.hp-save-home-helper {
+  margin: 6px 0 0;
+  text-align: center;
+}
+html[data-theme="dark"] .hp-save-home-btn--complete {
+  background: var(--cream, #d8b07e);
+  color: #2b1a0d;
+  border-color: var(--cream, #d8b07e);
+}
+
+/* Save Home dialogs (incomplete + confirm + exclude-designed) reuse
+   the .modal chrome. Add specific tweaks for the missing-rooms list. */
+.save-home-dialog .save-home-dialog-card {
+  max-width: 460px;
+  text-align: left;
+}
+.save-home-dialog h3 {
+  margin: 0 30px 8px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--deep, #5c4128);
+}
+.save-home-dialog .save-home-dialog-body {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--muted, #6e5d48);
+  line-height: 1.5;
+}
+.save-home-dialog .save-home-missing-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.save-home-missing-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(244, 232, 208, 0.45);
+  border: 1px solid rgba(139, 111, 71, 0.16);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--ink, #2b2218);
+  transition: background 160ms ease, border-color 160ms ease;
+  text-align: left;
+}
+.save-home-missing-row:hover {
+  background: rgba(244, 232, 208, 0.85);
+  border-color: rgba(139, 111, 71, 0.30);
+}
+.save-home-missing-row .bullet {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(139, 111, 71, 0.18);
+  color: var(--brown, #8b6f47);
+  font-weight: 700;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.save-home-missing-label { flex: 1 1 auto; font-weight: 600; }
+.save-home-missing-arrow { font-size: 12px; color: var(--brown, #8b6f47); font-weight: 600; }
+.save-home-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+html[data-theme="dark"] .save-home-dialog h3 { color: var(--cream, #f0e3d1); }
+html[data-theme="dark"] .save-home-missing-row {
+  background: rgba(216, 176, 126, 0.08);
+  border-color: rgba(216, 176, 126, 0.16);
+  color: var(--cream, #f0e3d1);
+}
+html[data-theme="dark"] .save-home-missing-row .bullet {
+  background: rgba(216, 176, 126, 0.20);
+  color: var(--cream, #d8b07e);
+}
+
+/* Post-generation save surface — modal with two CTAs */
+.save-surface-modal .save-surface-card {
+  max-width: 420px;
+  text-align: left;
+}
+.save-surface-modal h3 {
+  margin: 0 30px 6px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--deep, #5c4128);
+}
+.save-surface-modal .save-surface-body,
+.save-surface-modal .save-surface-note {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted, #6e5d48);
+}
+.save-surface-modal .save-surface-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.save-surface-modal .save-surface-actions .btn-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 14px;
+  text-align: center;
+}
+.save-surface-cta-label { font-weight: 700; font-size: 14px; }
+.save-surface-cta-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+html[data-theme="dark"] .save-surface-modal h3 { color: var(--cream, #f0e3d1); }
+
+/* Saved Homes pane (Saved tab) */
+.saved-homes-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px 16px 24px;
+}
+@media (min-width: 540px) {
+  .saved-homes-list { grid-template-columns: 1fr 1fr; }
+}
+.saved-home-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--surface, #fff);
+  border: 1px solid rgba(139, 111, 71, 0.16);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.saved-home-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(58, 38, 18, 0.10);
+}
+.saved-home-card .shc-hero {
+  flex: 0 0 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--beige, #f4e8d0);
+}
+.saved-home-card .shc-hero-thumb {
+  flex: 1 1 0;
+  background: linear-gradient(135deg, rgba(232, 193, 147, 0.6), rgba(165, 126, 79, 0.7));
+  background-size: cover;
+  background-position: center;
+  min-height: 50px;
+}
+.saved-home-card .shc-hero-thumb--empty { opacity: 0.35; }
+.saved-home-card .shc-body {
+  flex: 1 1 auto;
+  padding: 14px 14px 12px;
+}
+.saved-home-card .shc-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--deep, #5c4128);
+  margin-bottom: 2px;
+}
+.saved-home-card .shc-meta { font-size: 12px; }
+@keyframes shcCelebratePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.0); }
+  40%      { box-shadow: 0 0 0 8px rgba(212, 165, 116, 0.32); }
+}
+.saved-home-card--celebrating {
+  animation: shcCelebratePulse 1500ms ease-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .saved-home-card--celebrating { animation: none; }
+}
+html[data-theme="dark"] .saved-home-card {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.18);
+}
+
+/* Saved home detail view */
+[data-screen="saved-home-detail"] .topbar { gap: 6px; }
+[data-screen="saved-home-detail"] .topbar-right .btn-ghost.small {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+[data-screen="saved-home-detail"] .saved-home-detail-meta {
+  margin: 6px 16px 12px;
+}
+.saved-home-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px 24px;
+}
+@media (max-width: 380px) {
+  .saved-home-detail-grid { grid-template-columns: 1fr; }
+}
+.saved-home-detail-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #fff);
+  border: 1px solid rgba(139, 111, 71, 0.16);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+}
+.shdc-photo {
+  height: 100px;
+  background: linear-gradient(135deg, rgba(232, 193, 147, 0.5), rgba(165, 126, 79, 0.6));
+  background-size: cover;
+  background-position: center;
+}
+.shdc-body { padding: 8px 10px; }
+.shdc-label { font-weight: 700; font-size: 13px; color: var(--deep, #5c4128); }
+.shdc-meta { margin-top: 1px; font-size: 11.5px; }
+html[data-theme="dark"] .saved-home-detail-card {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.18);
+}
+
+/* Bottom nav Saved tab badge */
+.bn-tab { position: relative; }
+.bn-tab-badge {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 18px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brown, #8b6f47);
+  border: 1.5px solid var(--cream, #faf3e7);
+  pointer-events: none;
+}
+html[data-theme="dark"] .bn-tab-badge {
+  background: var(--cream, #d8b07e);
+  border-color: var(--surface, #2b1a0d);
+}
+
+/* Room exclusions list (profile-screen "Rooms in your home" section) */
+.room-exclusions-list .room-exclusion-row {
+  border-bottom: 1px solid var(--line, rgba(139, 111, 71, 0.12));
+}
+.room-exclusions-list .room-exclusion-row:last-child { border-bottom: 0; }
+.room-exclusions-list .toggle-switch {
+  flex-shrink: 0;
+}
+
 /* 2. Tier pill padding — more vertical air above + below the label */
 .paywall-card .pw-toggle-btn {
   padding: 13px 14px;

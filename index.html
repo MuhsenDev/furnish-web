@@ -704,7 +704,14 @@
         <h2>Saved</h2>
       </header>
       <div class="saved-tabs" id="savedTabs" role="tablist" aria-label="Saved categories">
-        <button class="st-tab active" data-st="rooms" role="tab" aria-selected="true">
+        <!-- [Save Home] New "Homes" sub-tab — saved-home bundles from
+             tapping "Save this home" on the homepage. Sits before the
+             existing Rooms / Items tabs. -->
+        <button class="st-tab active" data-st="homes" role="tab" aria-selected="true">
+          <span>Saved Homes</span>
+          <span class="st-count" id="stHomesCount">0</span>
+        </button>
+        <button class="st-tab" data-st="rooms" role="tab" aria-selected="false">
           <span>Saved Rooms</span>
           <span class="st-count" id="stRoomsCount">0</span>
         </button>
@@ -713,12 +720,34 @@
           <span class="st-count" id="stItemsCount">0</span>
         </button>
       </div>
-      <div class="saved-pane" id="savedRoomsPane">
+      <!-- [Save Home] Saved Homes pane — populated by renderSavedHomes() -->
+      <div class="saved-pane" id="savedHomesPane">
+        <div class="saved-homes-list" id="savedHomesList"></div>
+      </div>
+      <div class="saved-pane" id="savedRoomsPane" style="display:none">
         <div class="rooms-grid" id="savedRoomsGrid"></div>
       </div>
       <div class="saved-pane" id="savedItemsPane" style="display:none">
         <div class="items-list" id="savedItemsGrid"></div>
       </div>
+    </section>
+
+    <!-- [Save Home] Saved home detail view — opens when user taps a
+         saved home card. Lists every room in that bundle with
+         re-open + delete top-bar actions. -->
+    <section class="screen" data-screen="saved-home-detail">
+      <header class="topbar">
+        <button class="btn-icon" data-go="saved" aria-label="Back">‹</button>
+        <h2 id="savedHomeDetailTitle">Saved Home</h2>
+        <div class="topbar-right">
+          <button class="btn btn-ghost small" id="savedHomeReopenBtn" type="button">Re-open this home</button>
+          <button class="btn-icon" id="savedHomeDeleteBtn" aria-label="Delete saved home" title="Delete saved home">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </header>
+      <p class="saved-home-detail-meta muted small" id="savedHomeDetailMeta"></p>
+      <div class="saved-home-detail-grid" id="savedHomeDetailGrid"></div>
     </section>
 
     <!-- SCREEN: Profile -->
@@ -750,6 +779,15 @@
 
         <h3 class="section-h">Active Design Profile</h3>
         <div class="pp-active-row" id="profileActiveRow"></div>
+
+        <!-- [Save Home] "Rooms in your home" section — exclusions UI.
+             Lets the user toggle off rooms they don't have so the Your
+             Home grid + Save Home flow only ask for rooms that exist.
+             Min 2 rooms must stay on (enforced in toggleRoomExclusion). -->
+        <h3 class="section-h">Rooms in your home</h3>
+        <p class="muted small" style="margin: 4px 0 12px;">Turn off any rooms you don't have. We'll only ask you to design the ones you do.</p>
+        <div class="pp-settings room-exclusions-list" id="roomExclusionsList"></div>
+        <p class="muted small" id="roomExclusionsCounter" style="margin: 8px 0 18px; text-align: center;">Currently: 9 of 9 included</p>
 
         <h3 class="section-h">Settings</h3>
         <div class="pp-settings">
@@ -1580,6 +1618,10 @@
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
       </svg>
       <span>Saved</span>
+      <!-- [Save Home] Badge dot — visible when savedHomes or savedRooms
+           has items. Toggled by updateSavedTabBadge() from a derived
+           selector (no separate stored state). -->
+      <span class="bn-tab-badge" aria-hidden="true" style="display:none"></span>
     </button>
     <button class="bn-tab" data-go="profile" data-tab="profile" role="tab">
       <svg class="bn-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
