@@ -9187,15 +9187,28 @@ html[data-theme="dark"] .reset-dialog-confirm-fill {
      the underlying tier pill (badges are labels, not buttons)
    ============================================================ */
 
-/* 1. Breathing room between comparison line and toggle.
-   Use ONLY anchor's margin-bottom (no toggle margin-top) — adjacent
-   vertical margins collapse to the larger value, so the cleanest way
-   to own the gap budget is one rule. The gap budget covers both
-   visible breathing room (24-32px desktop / 20-24px mobile per spec)
-   AND the floating space needed for the absolute MOST POPULAR ribbon
-   that sits ~41px above the Annual pill on desktop. */
+/* 1. Breathing room between comparison line and toggle + bordered
+   callout treatment so the value-anchor reads as a deliberate frame,
+   not floating text. Per Reforge Monetization (Anchoring): the
+   $5,200 renovation comparison is the highest-leverage psych element
+   on the paywall — bordering it pulls the eye to the comparison
+   first, then the price. Visual language matches the existing
+   .paywall-urgency callout below (light tan tint + brown border +
+   rounded corners) but uses a SOLID border (vs dashed on urgency)
+   because this is a fact-anchor, not a time-limited offer.
+   Margin-bottom owns the full gap budget (no toggle margin-top to
+   avoid margin-collapse) — covers visible breathing room AND the
+   floating space for the absolute MOST POPULAR ribbon at -41px. */
 .paywall-card .paywall-anchor {
   margin: 6px 0 58px;
+  padding: 12px 14px;
+  border: 1.5px solid rgba(139, 111, 71, 0.32);
+  border-radius: 12px;
+  background: rgba(212, 165, 116, 0.18);
+}
+html[data-theme="dark"] .paywall-card .paywall-anchor {
+  border-color: rgba(216, 176, 126, 0.28);
+  background: rgba(216, 176, 126, 0.10);
 }
 
 /* 2. Tier pill padding — more vertical air above + below the label */
