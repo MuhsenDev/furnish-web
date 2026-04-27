@@ -1341,6 +1341,47 @@
             <li><span class="bullet">✓</span> Premium template library</li>
           </ul>
 
+          <!-- [More Pro perks dropdown] Native <details> element so the
+               toggle is fully keyboard-navigable + screen-reader-aware
+               with zero JS. Lists every remaining Pro perk + the
+               currently-deferred coming-soon items. Per Conflict 3 lock,
+               coming-soon items get a clearly-labeled tag (disclosure-
+               only — we're not pricing them as available features). -->
+          <details class="paywall-more-perks" id="paywallMorePerks">
+            <summary class="paywall-more-perks-summary">
+              <span class="pmp-label">More Pro perks</span>
+              <svg class="pmp-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </summary>
+            <ul class="paywall-more-perks-list">
+              <li>
+                <span class="bullet" aria-hidden="true">✓</span>
+                <span class="pmp-text"><strong>Founding-member rate</strong> — locks in your price for life</span>
+              </li>
+              <li>
+                <span class="bullet" aria-hidden="true">✓</span>
+                <span class="pmp-text"><strong>Real-time push alerts</strong> — every price drop the moment it happens (Free tier sees the top picks; Pro sees them all)</span>
+              </li>
+              <li>
+                <span class="bullet" aria-hidden="true">✓</span>
+                <span class="pmp-text"><strong>Cancel anytime</strong> before day 7 — no charge, no surprise auto-bill</span>
+              </li>
+              <li>
+                <span class="bullet pmp-bullet-soon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+                </span>
+                <span class="pmp-text">Multi-room batch design <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Design every room in one pass.</span></span>
+              </li>
+              <li>
+                <span class="bullet pmp-bullet-soon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+                </span>
+                <span class="pmp-text">Style that learns over time <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Saves, swaps, and price-drop taps feed your AI for sharper picks every redesign.</span></span>
+              </li>
+            </ul>
+          </details>
+
           <!-- [Batch 5 — Dim 06 Section E entry 9] Founding-member cap with
                scarcity counter. Replaces unbounded "this month" framing with
                a bounded "first 1,000 spots" promise. Per Reforge Convert

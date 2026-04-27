@@ -9211,6 +9211,157 @@ html[data-theme="dark"] .paywall-card .paywall-anchor {
   background: rgba(216, 176, 126, 0.10);
 }
 
+/* More Pro perks dropdown — native <details> styling.
+   Lives between .paywall-list (the 5 headline bullets) and
+   .paywall-urgency (the founding-member callout). Visual language
+   matches the rest of the Pro card — same .bullet check pattern as
+   .paywall-list, same color palette, no new tokens. Coming-soon
+   items get a tag per Conflict 3 lock so they read as disclosure,
+   not entitlements being priced. */
+.paywall-more-perks {
+  margin: 4px 0 14px;
+  border-top: 1px dashed rgba(139, 111, 71, 0.20);
+  padding-top: 10px;
+}
+.paywall-more-perks-summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brown, #8b6f47);
+  letter-spacing: 0.02em;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.paywall-more-perks-summary::-webkit-details-marker { display: none; }
+.paywall-more-perks-summary::marker { content: ''; }
+.paywall-more-perks-summary:hover { color: var(--deep, #5c4128); }
+.paywall-more-perks-summary:focus-visible {
+  outline: 2px solid rgba(139, 111, 71, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.pmp-chevron {
+  transition: transform 220ms ease;
+}
+.paywall-more-perks[open] .pmp-chevron {
+  transform: rotate(180deg);
+}
+.paywall-more-perks-list {
+  list-style: none;
+  padding: 8px 0 4px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paywall-more-perks-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink, #2b2218);
+  text-align: left;
+  background: rgba(244, 232, 208, 0.45);
+  border: 1px solid rgba(139, 111, 71, 0.14);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.paywall-more-perks-list .bullet {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(139, 111, 71, 0.18);
+  color: var(--brown, #8b6f47);
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.paywall-more-perks-list .pmp-bullet-soon {
+  background: rgba(139, 111, 71, 0.10);
+  color: var(--muted, #8a7a66);
+}
+.pmp-text { flex: 1 1 auto; }
+.pmp-soon-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--brown, #8b6f47);
+  border-radius: 999px;
+  vertical-align: 1px;
+}
+.pmp-sub {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--muted, #6e5d48);
+  line-height: 1.4;
+}
+.paywall-more-perks-list li:has(.pmp-bullet-soon) {
+  opacity: 0.92;
+  background: rgba(244, 232, 208, 0.30);
+  border-style: dashed;
+}
+/* Open animation — staggered fade-in for each list item so the
+   reveal feels intentional, not abrupt. */
+@keyframes pmpItemFadeIn {
+  0% { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.paywall-more-perks[open] .paywall-more-perks-list li {
+  animation: pmpItemFadeIn 240ms ease-out both;
+}
+.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(2) { animation-delay: 40ms; }
+.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(3) { animation-delay: 80ms; }
+.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(4) { animation-delay: 120ms; }
+.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(5) { animation-delay: 160ms; }
+@media (prefers-reduced-motion: reduce) {
+  .paywall-more-perks[open] .paywall-more-perks-list li,
+  .pmp-chevron { animation: none; transition: none; }
+}
+
+/* Dark-mode treatment. */
+html[data-theme="dark"] .paywall-more-perks {
+  border-top-color: rgba(216, 176, 126, 0.18);
+}
+html[data-theme="dark"] .paywall-more-perks-summary {
+  color: var(--cream, #d8b07e);
+}
+html[data-theme="dark"] .paywall-more-perks-list li {
+  background: rgba(216, 176, 126, 0.08);
+  border-color: rgba(216, 176, 126, 0.16);
+  color: var(--cream, #f0e3d1);
+}
+html[data-theme="dark"] .paywall-more-perks-list li:has(.pmp-bullet-soon) {
+  background: rgba(216, 176, 126, 0.05);
+}
+html[data-theme="dark"] .paywall-more-perks-list .bullet {
+  background: rgba(216, 176, 126, 0.18);
+  color: var(--cream, #d8b07e);
+}
+html[data-theme="dark"] .pmp-soon-tag {
+  background: rgba(216, 176, 126, 0.16);
+  color: var(--cream, #d8b07e);
+}
+html[data-theme="dark"] .pmp-sub {
+  color: rgba(216, 176, 126, 0.65);
+}
+
 /* 2. Tier pill padding — more vertical air above + below the label */
 .paywall-card .pw-toggle-btn {
   padding: 13px 14px;

@@ -1991,6 +1991,15 @@
     m.setAttribute('aria-hidden', 'false');
     trackEvent('paywall_roadmap_viewed');
   });
+
+  // [More Pro perks dropdown] Native <details> toggle event. Fires
+  // analytics on each expand/collapse so dashboards can measure
+  // dropdown engagement (high open-rate = users want more disclosure;
+  // low rate = the headline 5 bullets cover the decision).
+  document.getElementById('paywallMorePerks')?.addEventListener('toggle', (e) => {
+    const opened = e.target.open;
+    trackEvent(opened ? 'paywall_more_perks_opened' : 'paywall_more_perks_closed');
+  });
   document.getElementById('paywallRoadmapClose')?.addEventListener('click', () => {
     const m = document.getElementById('paywallRoadmapModal');
     if (!m) return;
