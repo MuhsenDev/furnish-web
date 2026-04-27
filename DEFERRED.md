@@ -273,12 +273,12 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 1. `rooms` table aggregates across all users (already implied in CHANGES_APPLIED.md sync wiring).
 2. Anonymous-readable count aggregation (security policy: `SELECT COUNT(*) FROM rooms WHERE created_at > now() - interval '24 hours'` permitted for `anon` role; no row data exposed, only the count).
 3. Edge Function or a cached view that returns the count without exposing rows.
-4. Client fetches at boot, falls back to "Real catalog · Real prices · Built by Hassan" (the static qualitative anchor) if count <10 OR if fetch fails.
+4. Client fetches at boot, falls back to "Real catalog · Real prices · Indie-built" (the static qualitative anchor) if count <10 OR if fetch fails.
 5. 5-minute client-side cache (sessionStorage) so each session refreshes once.
 
 **Cutover work when this lands:**
 - Wire `fetchLiveRoomCount()` per Dim 10 Recommendation 6 code sketch.
-- Replace welcome-proof line with conditional: `count >= 10 ? "{N} rooms designed today" : "Real catalog · Real prices · Built by Hassan"`.
+- Replace welcome-proof line with conditional: `count >= 10 ? "{N} rooms designed today" : "Real catalog · Real prices · Indie-built"`.
 - Add `live_count_displayed` analytics event.
 
 ---

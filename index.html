@@ -65,18 +65,27 @@
         <!-- [Batch 3 — Dim 03 R-Top1] Auto-playing welcome demo loop.
              CSS-only; the .auto-play class on .hd-frame triggers the
              BEFORE-hold → sweep → AFTER-hold cycle every ~4s. Honors
-             prefers-reduced-motion via styles.css. -->
+             prefers-reduced-motion via styles.css.
+             [Restore]: BEFORE = empty-room "Test-Image" (user's actual
+             starting point); AFTER = designed-bedroom "Post-Test Image"
+             with shoppable price tags overlaid. The empty→designed
+             contrast is what makes "Watch your room transform" make
+             sense — the prior farmhouse-dusk / airy-loft pair showed
+             two already-furnished scenes which broke the demo. Drop
+             real images at assets/welcome/test-image.jpg + post-test-image.jpg. -->
         <div class="hero-demo" aria-hidden="true">
           <div class="hd-frame auto-play">
-            <img class="hd-before" src="assets/quiz/q1/farmhouse-dusk.jpg" alt="" />
+            <img class="hd-before" src="assets/welcome/test-image.jpg" alt="Empty room before redesign" />
             <div class="hd-after-wrap">
-              <img class="hd-after" src="assets/quiz/q1/airy-loft.jpg" alt="" />
+              <img class="hd-after" src="assets/welcome/post-test-image.jpg" alt="Designed bedroom after Furnish redesign" />
               <!-- Shoppable price tags: demonstrate affiliate value prop on welcome.
-                   Only render on the 'after' image (revealed by the sweep). -->
-              <span class="hd-price-tag" style="top:32%;left:20%">$899</span>
-              <span class="hd-price-tag" style="top:22%;left:58%">$189</span>
-              <span class="hd-price-tag" style="top:68%;left:40%">$279</span>
-              <span class="hd-price-tag" style="top:48%;left:78%">$129</span>
+                   Only render on the 'after' image (revealed by the sweep).
+                   Coords positioned to land on the bed / pendant / nightstand /
+                   rug regions of the designed bedroom Post-Test Image. -->
+              <span class="hd-price-tag" style="top:46%;left:50%">$899</span>
+              <span class="hd-price-tag" style="top:24%;left:74%">$189</span>
+              <span class="hd-price-tag" style="top:72%;left:42%">$279</span>
+              <span class="hd-price-tag" style="top:38%;left:22%">$129</span>
             </div>
             <div class="hd-sweep"></div>
           </div>
@@ -113,7 +122,7 @@
           <span class="wp-dot">·</span>
           <span class="wp-claim">Real prices</span>
           <span class="wp-dot">·</span>
-          <span class="wp-claim">Built by Hassan</span>
+          <span class="wp-claim">Indie-built</span>
         </div>
       </div>
     </section>
@@ -492,6 +501,27 @@
       <div class="actions-row">
         <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
       </div>
+
+      <!-- [Polish] Reset Profile Pro feature on Preferences screen.
+           Mirrors the existing data-action="reset" button on the profile
+           screen (PRO · Free Preview badge, same handler shape). Handler
+           is scoped to data-screen="preferences" so it doesn't fight the
+           profile-screen handler. Per CLAUDE.md decision policy: this is
+           a Pro-tier teaser available to Free as a preview. -->
+      <h3 class="section-h">Profile Actions</h3>
+      <div class="prefs-actions-list">
+        <button class="pp-setting" data-action="reset" id="prefsResetBtn" type="button">
+          <span class="pps-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+          </span>
+          <span class="pps-label">Reset Profile</span>
+          <span class="pps-badge-pro">PRO · Free Preview</span>
+          <span class="pps-arrow">›</span>
+        </button>
+      </div>
     </section>
 
     <!-- SCREEN: Home / dashboard -->
@@ -547,21 +577,13 @@
       <h3 class="section-h">Seasonal</h3>
       <div class="collections-strip" id="collectionsStrip"></div>
 
-      <div class="saved-pair">
-        <div class="saved-pair-col">
-          <h3 class="section-h">Saved Rooms</h3>
-          <div class="rooms-grid compact" id="roomsGrid">
-            <div class="empty-state" id="roomsEmpty">
-              <div class="empty-art">◠</div>
-              <p>Snap a photo to design your first room.</p>
-            </div>
-          </div>
-        </div>
-        <div class="saved-pair-col">
-          <h3 class="section-h">Saved Items</h3>
-          <div class="saved-items-strip vertical" id="homeSavedItems"></div>
-        </div>
-      </div>
+      <!-- [Polish] Saved Rooms + Saved Items moved out of home and live
+           exclusively in the Saved tab below (data-screen="saved"). The
+           home page now ends with collections + the bottom-nav anchor.
+           Render calls renderRoomsGrid() and renderHomeSavedItems() are
+           removed from the home flow; the Saved tab uses its own
+           renderers (renderSavedRoomsGrid / renderSavedItemsGrid) into
+           #savedRoomsGrid and #savedItemsGrid. -->
       <div style="height:32px"></div>
     </section>
 

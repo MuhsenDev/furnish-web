@@ -2162,7 +2162,7 @@
   function openPreferences(profileId) {
     const p = state.profiles.find(x => x.id === profileId);
     if (!p) return;
-    $('#prefTitle').textContent = `${p.name} — preferences`;
+    $('#prefTitle').textContent = `${p.name} — Preferences`;
 
     // Wire up the editable name input on the profile card
     const nameInput = document.getElementById('ppNameInput');
@@ -2172,7 +2172,7 @@
         const v = nameInput.value.trim();
         if (v) {
           p.name = v;
-          $('#prefTitle').textContent = `${v} — preferences`;
+          $('#prefTitle').textContent = `${v} — Preferences`;
           const initEl = document.getElementById('ppInitials');
           if (initEl) initEl.textContent = (v.match(/\d+|\S/) || ['?'])[0];
         }
@@ -2739,8 +2739,12 @@
     renderHomeProgress(p);
     renderStylePulse(p);
     renderCollections();
-    renderRoomsGrid();
-    renderHomeSavedItems();
+    // [Polish] Saved Rooms + Saved Items removed from home — they live
+    // exclusively in the Saved tab now. The original `renderRoomsGrid()`
+    // and `renderHomeSavedItems()` calls targeted #roomsGrid + #homeSavedItems
+    // which no longer exist on the home screen. The Saved tab has its own
+    // independent renderers (renderSavedRoomsGrid / renderSavedItemsGrid)
+    // wired through the .st-tab click handler.
     // [Retention pass — lifecycle scaffolding]
     // Computes which lifecycle campaigns (welcome / mid-funnel / dormant /
     // churned) would fire RIGHT NOW for this user, given their lifecycle
@@ -3260,7 +3264,34 @@
     // the canonical home-tour order. (Bedroom → Living → Kitchen → ...)
     const nextRoomType = ROOM_ORDER.find(t => !designed.has(t));
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
-    const ROOM_ICONS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.icon; return acc; }, {});
+    // [No-emoji rule per CLAUDE.md] Custom SVG icons replace the emoji-
+    // sourced ROOM_TYPES.icon for the home-progress grid. Line-style,
+    // 22px, currentColor strokes — matches the rest of the app's icon
+    // language (bottom-nav, settings rows, paywall bullets, hp-check).
+    // Source-of-truth `window.ROOM_TYPES[].icon` retains its emoji for
+    // any non-grid surface (capture topbar, room-type confirmation) where
+    // emoji are still in flight pending a future asset pass.
+    const ROOM_SVG = {
+      // [Icon redesign — clearer silhouettes per Hassan feedback]
+      // BED: low frame + clearly raised headboard + pillow rectangle on top.
+      bedroom:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v-3a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v3"/><path d="M2 18h20v2H2z"/><path d="M5 12V8h7v4"/><path d="M2 20v1M22 20v1"/></svg>`,
+      living:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13v-3a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3"/><path d="M3 13h18v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/><path d="M6 19v2M18 19v2"/></svg>`,
+      // KITCHEN: stove top + pot with handles + steam wisps. Reads as cooking,
+      // not just a generic pot.
+      kitchen:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5z"/><path d="M4 12h16"/><path d="M3 12l1 0M20 12l1 0"/><path d="M9 6c0 1.5 1 1.5 1 3M14 5c0 1.5 1 1.5 1 3"/></svg>`,
+      // DINING: clear round table with two chair backs visible above/below.
+      dining:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="8" ry="2"/><path d="M4 13v2a8 2 0 0 0 16 0v-2"/><path d="M8 11V7"/><path d="M16 11V7"/><path d="M6 17v3M18 17v3"/></svg>`,
+      // BATHROOM: bathtub with feet + water tap. Clearer than the prior
+      // showerhead-with-drops version.
+      bathroom: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3z"/><path d="M5 12V8a2 2 0 0 1 2-2h2"/><circle cx="9" cy="6" r="1"/><path d="M6 19v2M18 19v2"/></svg>`,
+      office:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg>`,
+      // NURSERY: clear crib silhouette — solid frame with vertical bars +
+      // a small mobile/heart on top to read as baby's room, not a fence.
+      nursery:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19v-9h16v9"/><path d="M3 19h18v1H3z"/><path d="M7 10v9M11 10v9M15 10v9M19 10v9"/><path d="M10 7c0-1 1-2 2-2s2 1 2 2c0 1.5-2 2.5-2 2.5s-2-1-2-2.5z"/></svg>`,
+      closet:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 8v2"/><path d="M3 19l9-7 9 7H3z"/></svg>`,
+      laundry:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="8" cy="6.5" r="0.5" fill="currentColor"/><circle cx="12" cy="6.5" r="0.5" fill="currentColor"/></svg>`
+    };
+    const fallbackSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9z"/></svg>`;
 
     const cells = ROOM_ORDER.map(type => {
       const isDone = designed.has(type);
@@ -3269,9 +3300,9 @@
       if (isDone) cls.push('hp-done');
       if (isNext) cls.push('hp-next');
       return `<button class="${cls.join(' ')}" data-hp-room="${type}" type="button" aria-label="${ROOM_LABELS[type] || type} ${isDone ? 'designed' : 'not yet designed'}">
-        <span class="hp-icon" aria-hidden="true">${ROOM_ICONS[type] || '🏠'}</span>
+        <span class="hp-icon" aria-hidden="true">${ROOM_SVG[type] || fallbackSvg}</span>
         <span class="hp-label">${ROOM_LABELS[type] || type}</span>
-        ${isDone ? '<span class="hp-check" aria-hidden="true">✓</span>' : ''}
+        ${isDone ? `<span class="hp-check" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg></span>` : ''}
       </button>`;
     }).join('');
 
@@ -4221,6 +4252,35 @@
     }
   });
 
+  // [Polish] Reset Profile button on the Preferences screen.
+  // Same shape as the profile-screen handler above, but scoped to
+  // data-screen="preferences" and re-renders via openPreferences() so
+  // the user stays on the preferences page (the answers editor + budget
+  // slider + DNA gauge re-paint with cleared state). Per Reforge
+  // Monetization Pricing — this surface is the "Free Preview" of the
+  // Pro reset entitlement: badge advertises Pro, behavior is accessible
+  // to Free as a teaser (same pattern as the existing profile-screen
+  // reset).
+  document.querySelector('[data-screen="preferences"]')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('#prefsResetBtn');
+    if (!btn) return;
+    if (!confirm('Reset this profile? Onboarding answers, budget, and avatar will clear. Saved rooms stay.')) return;
+    const p = getActiveProfile();
+    if (!p) { toast('No active profile'); return; }
+    p.answers = {};
+    p.styles = [];
+    p.colors = [];
+    p.customColors = [];
+    p.budget = 3000;
+    p.avatar = null;
+    p.seenFinale = false;
+    delete p._maxCompleteness;
+    save();
+    trackEvent('profile_reset_from_preferences', { profileId: p.id });
+    if (typeof openPreferences === 'function') openPreferences(p.id);
+    toast('Profile reset');
+  });
+
   // Click avatar in profile page → re-use the photo source modal
   document.getElementById('profilePageAvatar').addEventListener('click', () => {
     const p = getActiveProfile();
@@ -4363,6 +4423,11 @@
 
   function renderRoomsGrid() {
     const grid = $('#roomsGrid');
+    // [Polish] #roomsGrid was removed from the home screen — Saved Rooms
+    // moved exclusively to the Saved tab. Null-guard so legacy callers
+    // (none today, but defensive against future regressions) can no-op
+    // safely instead of throwing on null.innerHTML.
+    if (!grid) return;
     // "Saved Rooms" on home = only rooms the user explicitly bookmarked.
     // Unsaved design history still lives in state.rooms but isn't shown here.
     const rooms = state.rooms.filter(r =>
@@ -7651,7 +7716,7 @@
     function liveCounterRow() {
       const variants = [
         { icon: '✦', text: `<strong>Real catalog</strong> · IKEA, Wayfair, West Elm, Amazon` },
-        { icon: '◯', text: `<strong>Built by Hassan</strong> · 1-person team` },
+        { icon: '◯', text: `<strong>Indie-built</strong> · ad-free, affiliate-funded` },
         { icon: '✶', text: `<strong>No subscription</strong> needed to see your redesign` },
         { icon: '◈', text: `<strong>$0 to try</strong> · No credit card, no signup` }
       ];

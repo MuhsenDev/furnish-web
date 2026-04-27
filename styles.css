@@ -5649,16 +5649,19 @@ body.theme-dark .bem-icon {
   .paywall-pro-card  { flex: 1 1 auto; }
 }
 
-/* ===== FREE CARD (de-emphasized) ===== */
+/* ===== FREE CARD (de-emphasized) =====
+   [Polish] Removed `opacity: 0.92` (it dimmed text + badges + background
+   uniformly, producing a translucent/washed-out look against the modal
+   backdrop). The de-emphasis is now achieved via a more solid background
+   tint + slightly muted body color, keeping all elements crisp. */
 .paywall-free-card {
   position: relative;
-  border: 1px solid rgba(139, 111, 71, 0.18);
+  border: 1px solid rgba(139, 111, 71, 0.20);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(244, 232, 208, 0.28) 0%, rgba(244, 232, 208, 0.12) 100%);
+  background: linear-gradient(180deg, #FBF3DF 0%, #F4E8D0 100%);
   padding: 16px 16px 14px;
   text-align: left;
-  /* Slight de-saturation to push it visually behind Pro. */
-  opacity: 0.92;
+  box-shadow: 0 1px 3px rgba(58, 38, 18, 0.04);
 }
 .pfree-header {
   display: flex;
@@ -6683,9 +6686,18 @@ body.theme-dark .pdb-emoji { color: #B0CC8C; }
 }
 .hp-icon {
   font-size: 22px;
-  filter: grayscale(0.4) opacity(0.55);
-  transition: filter 220ms ease;
+  /* [No-emoji rule] hp-icon now hosts inline SVG. Emoji-era opacity filter
+     was visually muddy on stroked SVG; replace with explicit color +
+     stroke-opacity for crisp de-emphasis on undesigned cells. */
+  color: var(--brown);
+  opacity: 0.55;
+  transition: opacity 220ms ease, color 220ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
 }
+.hp-icon svg { display: block; }
 .hp-label {
   margin-top: 4px;
   font-size: 11px;
@@ -6700,6 +6712,8 @@ body.theme-dark .pdb-emoji { color: #B0CC8C; }
 }
 .hp-cell.hp-done .hp-icon {
   filter: none;
+  opacity: 1;
+  color: var(--deep);
 }
 .hp-cell.hp-done .hp-label { color: var(--deep); font-weight: 700; }
 .hp-check {
@@ -6716,13 +6730,29 @@ body.theme-dark .pdb-emoji { color: #B0CC8C; }
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
 }
+.hp-check svg { display: block; }
+
+/* [Polish] Reset Profile container on the Preferences screen.
+   Mirrors the .pp-settings-list visual style on the profile page —
+   bordered rounded container with the .pp-setting buttons inside. */
+.prefs-actions-list {
+  margin: 12px 0 24px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, rgba(139, 111, 71, 0.16));
+  border-radius: 14px;
+  overflow: hidden;
+}
+html[data-theme="dark"] .prefs-actions-list {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.16);
+}
 /* Next-up cell — subtle dashed border + breathing pulse. */
 .hp-cell.hp-next {
   border-style: dashed;
   border-color: rgba(139, 111, 71, 0.55);
   animation: hpNextPulse 2400ms ease-in-out infinite;
 }
-.hp-cell.hp-next .hp-icon { filter: grayscale(0.2) opacity(0.85); }
+.hp-cell.hp-next .hp-icon { opacity: 0.85; color: var(--brown); }
 @keyframes hpNextPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.3); }
   50%      { box-shadow: 0 0 0 6px rgba(212, 165, 116, 0); }
