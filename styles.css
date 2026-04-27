@@ -7884,11 +7884,32 @@ html[data-theme="dark"] .skeleton {
   85%      { opacity: 1; transform: scale(1); }
   86%, 100% { opacity: 0; transform: scale(1); }
 }
+/* [Polish — fix "slides into a white blob" bug]
+   The base `.hero-demo .hd-after-wrap` rule sets `clip-path: inset(0 100%
+   0 0)` (clipped to nothing) + an old `hdSweep` clip-based animation, so
+   without an explicit override the AFTER image stays clipped to 0% even
+   when its opacity reaches 1 — never reveals the bedroom. Reset clip-path
+   to none under .auto-play so the new opacity-based hdAfterReveal animation
+   actually shows the AFTER image. The base `.hero-demo .hd-sweep` is also
+   styled as a 3px white-gradient sweeping line; under .auto-play the new
+   hdSweepLoop animates its width 0% → 100%, combined with the white-
+   gradient background that produces a giant white curtain across the
+   frame ("the white blob"). Override the sweep's background to a soft
+   semi-translucent cream wash so the sweep reads as a tasteful reveal,
+   not a white wipe. */
 .hd-frame.auto-play .hd-sweep {
   animation: hdSweepLoop 4s ease-in-out infinite;
+  background: linear-gradient(90deg, rgba(250,243,231,0) 0%, rgba(250,243,231,0.55) 60%, rgba(250,243,231,0.85) 100%);
+  box-shadow: none;
+  /* Cap left so the curtain expands rightward from the left edge */
+  left: 0;
 }
 .hd-frame.auto-play .hd-after-wrap {
   animation: hdAfterReveal 4s ease-in-out infinite;
+  /* Override the base clip-path (inset(0 100% 0 0)) so the AFTER image
+     can actually become visible when opacity > 0. */
+  clip-path: none;
+  -webkit-clip-path: none;
 }
 .hd-frame.auto-play .hd-price-tag {
   animation: hdPriceTagFadeIn 4s ease-in-out infinite;
