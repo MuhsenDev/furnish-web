@@ -5853,8 +5853,21 @@ body.theme-dark #paywallModal .paywall-header .paywall-sub { color: #C7B493; }
   border: 1px solid rgba(139, 111, 71, 0.18);
   padding: 16px 16px 14px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
-  pointer-events: auto;
+  /* [Back-button fix #2] Tip is a child of .frt-overlay but has its own
+     pointer-events:auto so the buttons inside it remain clickable while
+     the overlay's backdrop is pointer-events:none. Without gating on
+     .frt-overlay.open, the tip stays at its initial (0,0) position
+     after FRT ends or for users who never start FRT, invisibly
+     intercepting clicks on the top-left of every screen — including
+     the results-screen back button. Hide entirely unless the parent
+     overlay is .open. */
+  display: none;
+  pointer-events: none;
   animation: frtTipIn 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.frt-overlay.open .frt-tip {
+  display: block;
+  pointer-events: auto;
 }
 @keyframes frtTipIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -7267,7 +7280,7 @@ body.theme-dark .affiliate-disclosure-v2 {
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  margin: 12px 0 0;
+  margin: 20px 0;
   background: var(--beige);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -8095,7 +8108,7 @@ html[data-theme="dark"] .signin-soft-capture input[type="email"] {
 /* [B3 / Dim 03 R-Bottom2] Sticky shop-all CTA on scroll. */
 .sticky-shop-all {
   position: fixed;
-  bottom: 88px;          /* clear the reviews bar */
+  bottom: 72px;          /* sits just above bottom-nav; reviews bar is hidden on results */
   left: 50%;
   transform: translateX(-50%) translateY(120%);
   z-index: 60;
@@ -8125,7 +8138,7 @@ html[data-theme="dark"] .signin-soft-capture input[type="email"] {
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 480px) {
-  .sticky-shop-all { bottom: 76px; padding: 12px 16px; font-size: 14px; }
+  .sticky-shop-all { bottom: 64px; padding: 12px 16px; font-size: 14px; }
 }
 
 /* [B3 / Dim 04 R8] Promise-Fit micro-survey card. */
