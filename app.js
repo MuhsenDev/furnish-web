@@ -368,6 +368,13 @@
   let _previousScreen = null;
   let _screenEnteredAt = null;
   function showScreen(name) {
+    // [Reset Dialog] Edge-case per spec: if user navigates away mid-dialog
+    // (browser back, deep link, etc.), close the dialog cleanly so no
+    // stale reset state lingers. closeResetDialog is a no-op when the
+    // dialog isn't open.
+    if (typeof _resetDialogState !== 'undefined' && _resetDialogState) {
+      closeResetDialog('navigation');
+    }
     const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
     window.scrollTo({ top: 0 });
@@ -1553,6 +1560,170 @@
     "This clears your saved rooms, preferences, and design history. " +
     "You'll start fresh from the welcome page. " +
     "You'll stay signed in — your account is safe. This can't be undone.";
+
+  // ==========================================================
+  // [Reset Dialog] openResetDialog / closeResetDialog
+  // ==========================================================
+  // Single source of truth for the reset confirmation modal. Both
+  // entry points (profile screen + preferences screen) route through
+  // openResetDialog({source}). Hold-to-confirm friction (1s) on the
+  // destructive button. Focus-trapped, ARIA-modal, keyboard-navigable.
+  // Per RESET_DIALOG_AUDIT.md.
+  const RESET_HOLD_MS = 1000;
+  let _resetDialogState = null; // { source, holdTimer, holdStartedAt, confirmed, openerEl, lastActiveEl }
+
+  function openResetDialog(options = {}) {
+    const m = document.getElementById('resetDialog');
+    if (!m) return;
+    if (_resetDialogState) return; // guard against double-open
+    const source = options.source || 'unknown';
+    const opener = options.opener || document.activeElement;
+    _resetDialogState = {
+      source,
+      holdTimer: null,
+      holdStartedAt: 0,
+      confirmed: false,
+      openerEl: opener,
+      lastActiveEl: document.activeElement
+    };
+    m.classList.add('open');
+    m.setAttribute('aria-hidden', 'false');
+    trackEvent('reset_dialog_opened', { source });
+    // Default focus: Cancel button (per spec — Enter without thinking
+    // does nothing destructive).
+    setTimeout(() => {
+      document.getElementById('resetDialogCancel')?.focus();
+    }, 50);
+  }
+
+  function closeResetDialog(reason) {
+    const m = document.getElementById('resetDialog');
+    if (!m || !_resetDialogState) return;
+    const { source, holdTimer, confirmed, lastActiveEl } = _resetDialogState;
+    if (holdTimer) clearTimeout(holdTimer);
+    cancelHoldVisual();
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden', 'true');
+    if (!confirmed) {
+      trackEvent('reset_dialog_cancelled', { source, dismissReason: reason || 'cancel' });
+    }
+    // Return focus to the original opener (the Reset Profile button).
+    try {
+      if (lastActiveEl && typeof lastActiveEl.focus === 'function') {
+        lastActiveEl.focus();
+      }
+    } catch (_) {}
+    _resetDialogState = null;
+  }
+  window.FurnishOpenResetDialog = openResetDialog;
+
+  // Hold-to-confirm visual control.
+  function startHoldVisual() {
+    const fill = document.querySelector('.reset-dialog-confirm-fill');
+    const btn = document.getElementById('resetDialogConfirm');
+    if (!fill || !btn) return;
+    btn.classList.add('holding');
+    // Override the snap-back transition with a linear 1s fill grow.
+    fill.style.transition = `width ${RESET_HOLD_MS}ms linear`;
+    fill.style.width = '100%';
+  }
+  function cancelHoldVisual() {
+    const fill = document.querySelector('.reset-dialog-confirm-fill');
+    const btn = document.getElementById('resetDialogConfirm');
+    if (!fill || !btn) return;
+    btn.classList.remove('holding');
+    fill.style.transition = '';
+    fill.style.width = '0';
+  }
+
+  function onResetHoldStart(e) {
+    if (!_resetDialogState || _resetDialogState.confirmed) return;
+    if (_resetDialogState.holdTimer) return; // already holding
+    // Keyboard: only Space and Enter trigger the hold-start.
+    if (e && e.type === 'keydown' && e.key !== ' ' && e.key !== 'Enter') return;
+    if (e && e.type === 'keydown') {
+      // Suppress repeat-fire from holding the key down.
+      if (e.repeat) return;
+      e.preventDefault();
+    }
+    _resetDialogState.holdStartedAt = Date.now();
+    startHoldVisual();
+    _resetDialogState.holdTimer = setTimeout(() => {
+      // Hold completed — fire confirmed analytics, close dialog, run reset.
+      const source = _resetDialogState.source;
+      _resetDialogState.confirmed = true;
+      _resetDialogState.holdTimer = null;
+      trackEvent('reset_dialog_confirmed', { source });
+      // Preserve the per-source legacy event for backwards-compatible
+      // funnels. Pre-dialog this event fired from the prefs handler
+      // directly; now it fires only on actual reset (post-friction).
+      if (source === 'preferences_screen') {
+        trackEvent('profile_reset_from_preferences', { profileId: getActiveProfile()?.id });
+      }
+      closeResetDialog('confirmed');
+      resetUserDesignProfile();
+      toast('Profile reset — your account is still signed in');
+      showScreen('welcome');
+    }, RESET_HOLD_MS);
+  }
+  function onResetHoldEnd() {
+    if (!_resetDialogState || _resetDialogState.confirmed) return;
+    if (_resetDialogState.holdTimer) {
+      clearTimeout(_resetDialogState.holdTimer);
+      _resetDialogState.holdTimer = null;
+    }
+    cancelHoldVisual();
+  }
+
+  // Wire dialog event handlers ONCE at module load.
+  (function wireResetDialog() {
+    const m = document.getElementById('resetDialog');
+    if (!m) return;
+    document.getElementById('resetDialogCancel')?.addEventListener('click', () => closeResetDialog('cancel'));
+    document.getElementById('resetDialogClose')?.addEventListener('click', () => closeResetDialog('close'));
+    m.addEventListener('click', (e) => {
+      // Backdrop click — only close if the click target is the modal
+      // overlay itself (not the card or its descendants).
+      if (e.target === m) closeResetDialog('backdrop');
+    });
+    // Hold-to-confirm wiring.
+    const confirmBtn = document.getElementById('resetDialogConfirm');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('mousedown', onResetHoldStart);
+      confirmBtn.addEventListener('touchstart', onResetHoldStart, { passive: true });
+      confirmBtn.addEventListener('keydown', onResetHoldStart);
+      // Cancel on release / leave.
+      confirmBtn.addEventListener('mouseup', onResetHoldEnd);
+      confirmBtn.addEventListener('mouseleave', onResetHoldEnd);
+      confirmBtn.addEventListener('touchend', onResetHoldEnd);
+      confirmBtn.addEventListener('touchcancel', onResetHoldEnd);
+      confirmBtn.addEventListener('keyup', onResetHoldEnd);
+      confirmBtn.addEventListener('blur', onResetHoldEnd);
+    }
+    // Global keyboard handlers — Escape to close, Tab focus-trap.
+    document.addEventListener('keydown', (e) => {
+      if (!_resetDialogState) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeResetDialog('escape');
+        return;
+      }
+      if (e.key === 'Tab') {
+        // Trap focus inside the dialog.
+        const focusables = m.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    });
+  })();
 
   const FREE_PLAN_CARD = Object.freeze({
     title: 'Furnish Free',
@@ -4555,15 +4726,14 @@
       toast('Signed out.');
       showScreen('welcome');
     } else if (action === 'reset') {
-      if (!confirm(RESET_CONFIRM_COPY)) return;
+      // [Reset Dialog] Replaces window.confirm() with the rich confirmation
+      // dialog (lists + hold-to-confirm). The actual reset + toast + welcome
+      // routing fires inside the dialog's hold-complete branch (see
+      // onResetHoldStart). This handler just opens the dialog with the
+      // source discriminator for analytics.
       const p = getActiveProfile();
       if (!p) { toast('No active profile'); return; }
-      // [Reset] Wipes design + history; preserves auth + consent + tier.
-      // Routes to welcome (signed-in variant — welcomeStartBtn handler
-      // detects signed-in users and skips the create-account prompt).
-      resetUserDesignProfile();
-      toast('Profile reset — your account is still signed in');
-      showScreen('welcome');
+      openResetDialog({ source: 'profile_screen', opener: btn });
     }
   });
 
@@ -4579,18 +4749,14 @@
   document.querySelector('[data-screen="preferences"]')?.addEventListener('click', (e) => {
     const btn = e.target.closest('#prefsResetBtn');
     if (!btn) return;
-    if (!confirm(RESET_CONFIRM_COPY)) return;
+    // [Reset Dialog] Same routing as profile-screen reset — open the dialog.
+    // Per-source `profile_reset_from_preferences` event still fires, but
+    // moves into the dialog's hold-complete branch so it only fires on
+    // ACTUAL reset (not on dialog-open). Cancel rate by source comes
+    // from `reset_dialog_cancelled.source` analytics.
     const p = getActiveProfile();
     if (!p) { toast('No active profile'); return; }
-    trackEvent('profile_reset_from_preferences', { profileId: p.id });
-    // [Reset] Same wipe contract as the profile-screen reset. Routes to
-    // welcome instead of staying on preferences — per spec, the user
-    // wants a "start fresh from welcome" feel, not staying on a now-
-    // empty preferences screen. The 10-Q onboarding fires again when
-    // they next click Redesign My Room.
-    resetUserDesignProfile();
-    toast('Profile reset — your account is still signed in');
-    showScreen('welcome');
+    openResetDialog({ source: 'preferences_screen', opener: btn });
   });
 
   // Click avatar in profile page → re-use the photo source modal

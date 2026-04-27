@@ -1589,6 +1589,96 @@
        the Pro card. Per Reforge Monetization + Pricing — Packaging Strategies:
        roadmap belongs in opt-in disclosure, not impersonating shipped
        features. Opens from #paywallRoadmapLink in the paywall footer. -->
+  <!-- [Reset Profile] Confirmation dialog. Single source of truth for the
+       reset warning copy + hold-to-confirm friction. Both entry points
+       (profile screen .pp-setting + preferences screen #prefsResetBtn)
+       route through openResetDialog({source}). Replaces window.confirm()
+       calls so the user sees the side-by-side WHAT GETS RESET / WHAT
+       STAYS lists at a glance — auth-survives reassurance is the most
+       important content. Per RESET_DIALOG_AUDIT.md decision policy. -->
+  <div class="modal reset-dialog" id="resetDialog" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="resetDialogTitle">
+    <div class="modal-card reset-dialog-card">
+      <button class="modal-close" id="resetDialogClose" type="button" aria-label="Cancel">×</button>
+      <h3 id="resetDialogTitle">Reset your design profile?</h3>
+      <p class="reset-dialog-intro">Here's exactly what happens if you continue.</p>
+      <div class="reset-dialog-lists">
+        <section class="reset-dialog-list reset-dialog-list-reset" aria-labelledby="resetListLabel">
+          <h4 class="reset-dialog-list-h" id="resetListLabel">What gets reset</h4>
+          <ul>
+            <li>
+              <span class="reset-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
+              </span>
+              <span class="reset-mark-text">Your 10 onboarding answers (vibe, color, decor density, scope, lighting, budget, materials, room use, what to avoid, dealbreaker piece)</span>
+            </li>
+            <li>
+              <span class="reset-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
+              </span>
+              <span class="reset-mark-text">All saved rooms and redesigns</span>
+            </li>
+            <li>
+              <span class="reset-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
+              </span>
+              <span class="reset-mark-text">Any in-progress design you haven't finished</span>
+            </li>
+            <li>
+              <span class="reset-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
+              </span>
+              <span class="reset-mark-text">The first-redesign tutorial (it'll show again next time)</span>
+            </li>
+            <li>
+              <span class="reset-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
+              </span>
+              <span class="reset-mark-text">Your AI generation history</span>
+            </li>
+          </ul>
+        </section>
+        <section class="reset-dialog-list reset-dialog-list-stays" aria-labelledby="staysListLabel">
+          <h4 class="reset-dialog-list-h" id="staysListLabel">What stays</h4>
+          <ul>
+            <li>
+              <span class="stay-check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+              </span>
+              <span class="stay-text">Your account and sign-in (you'll stay logged in)</span>
+            </li>
+            <li>
+              <span class="stay-check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+              </span>
+              <span class="stay-text">Your email preferences</span>
+            </li>
+            <li>
+              <span class="stay-check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+              </span>
+              <span class="stay-text">Your Pro subscription, if you have one</span>
+            </li>
+            <li>
+              <span class="stay-check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+              </span>
+              <span class="stay-text">Your agreement to Terms of Service</span>
+            </li>
+          </ul>
+        </section>
+      </div>
+      <p class="reset-dialog-footer">This can't be undone. Your design history won't come back.</p>
+      <div class="reset-dialog-actions">
+        <button class="btn btn-ghost" id="resetDialogCancel" type="button">Cancel</button>
+        <button class="btn reset-dialog-confirm" id="resetDialogConfirm" type="button" aria-describedby="resetHoldHint">
+          <span class="reset-dialog-confirm-fill" aria-hidden="true"></span>
+          <span class="reset-dialog-confirm-label">Hold to Reset Everything</span>
+        </button>
+      </div>
+      <p id="resetHoldHint" class="reset-dialog-hold-hint muted small">Press and hold for 1 second to confirm.</p>
+    </div>
+  </div>
+
   <div class="modal" id="paywallRoadmapModal" aria-hidden="true">
     <div class="modal-card paywall-roadmap-card">
       <button class="modal-close" id="paywallRoadmapClose" aria-label="Close">×</button>
