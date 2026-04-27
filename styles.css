@@ -8296,5 +8296,158 @@ html[data-theme="dark"] .share-format-chip.active {
 }
 
 
+/* ==============================================================
+   BATCH 5 — Dim 06 Monetization
+   Renovation-cost anchor, competitive reference footer,
+   Lifetime $99 decoy toggle, annual prominence, founding-member
+   scarcity counter, power-Free slide-in micro-card.
+   ============================================================== */
 
+/* Section B.1 — Renovation-cost anchor above the price */
+.paywall-anchor {
+  margin: 6px 0 4px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted, #8a7a66);
+  line-height: 1.4;
+}
+.paywall-anchor strong {
+  color: var(--ink, #2b2218);
+  font-weight: 600;
+}
+html[data-theme="dark"] .paywall-anchor {
+  color: rgba(216, 176, 126, 0.65);
+}
+html[data-theme="dark"] .paywall-anchor strong {
+  color: var(--cream, #f0e3d1);
+}
+
+/* Section B.2 — Lifetime decoy toggle (3rd button)
+   Reuses existing .pw-toggle-btn / .pw-save typography. The button
+   inherits the toggle row's segmented look and just needs slight
+   layout breathing room when 3 buttons fit in the row. */
+.paywall-toggle {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pw-toggle-btn[data-plan="lifetime"] .pw-save {
+  /* "Pay once" tag styled like Annual's "Save $24/yr" sibling */
+  display: inline-block;
+}
+
+/* Section B.3 — Competitive reference-price footer */
+.paywall-references {
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+}
+
+/* Section E.9 — Founding-member scarcity counter */
+.paywall-urgency-cap {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.92em;
+  opacity: 0.92;
+}
+.paywall-urgency-cap strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Conflict 6 — Power-Free slide-in micro-card.
+   Bottom-anchored on mobile, bottom-right on desktop. Slides up + fades
+   in. Auto-dismisses after 12s. Visually distinct from the paywall
+   modal (frosted-card style, not full-screen) so it reads as a nudge
+   not a blocker. */
+.power-free-card {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: -180px;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 16px 18px 14px;
+  background: linear-gradient(180deg, var(--cream, #f7eedd) 0%, var(--bg, #faf3e6) 100%);
+  border: 1px solid rgba(89, 65, 41, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 14px 40px rgba(58, 38, 18, 0.22), 0 2px 6px rgba(58, 38, 18, 0.08);
+  z-index: 1200;
+  opacity: 0;
+  transition: bottom 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease-out;
+  font: inherit;
+}
+.power-free-card.show {
+  bottom: 18px;
+  opacity: 1;
+}
+@media (min-width: 720px) {
+  .power-free-card { left: auto; right: 24px; max-width: 380px; }
+  .power-free-card.show { bottom: 24px; }
+}
+.power-free-card .pfc-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted, #8a7a66);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.power-free-card .pfc-close:hover { background: rgba(89, 65, 41, 0.08); }
+.power-free-card .pfc-headline {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--ink, #2b2218);
+  margin: 0 26px 4px 0;
+  line-height: 1.4;
+}
+.power-free-card .pfc-headline strong { font-weight: 700; }
+.power-free-card .pfc-sub {
+  font-size: 0.86rem;
+  color: var(--muted, #6e5d48);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+.power-free-card .pfc-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.power-free-card .pfc-cta {
+  flex: 1 1 auto;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+}
+.power-free-card .pfc-not-now {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .power-free-card { transition: opacity 200ms ease-out; bottom: 18px; }
+  .power-free-card:not(.show) { opacity: 0; pointer-events: none; }
+}
+html[data-theme="dark"] .power-free-card {
+  background: linear-gradient(180deg, #2b1f12 0%, #20170c 100%);
+  border-color: rgba(216, 176, 126, 0.22);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+html[data-theme="dark"] .power-free-card .pfc-headline {
+  color: var(--cream, #f0e3d1);
+}
+html[data-theme="dark"] .power-free-card .pfc-sub {
+  color: rgba(216, 176, 126, 0.78);
+}
+html[data-theme="dark"] .power-free-card .pfc-close {
+  color: rgba(216, 176, 126, 0.6);
+}
+html[data-theme="dark"] .power-free-card .pfc-close:hover {
+  background: rgba(216, 176, 126, 0.12);
+}
 

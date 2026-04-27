@@ -390,7 +390,73 @@ Decision-gate: rebuild any of the five engagement loops whose archetype-grounded
 
 ---
 
+## Stripe Lifetime price-ID + Lifetime decoy activation (Batch 5 — backend phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 06 Section B.2 + Section E.5. Locked Batch 5 2026-04-26.
+
+**Why deferred:** The Lifetime $99 toggle ships in Batch 5 as a 3rd toggle button (decoy per Economist 3-tier study). Pre-Stripe, selecting Lifetime mocks the same Pro flag (`grandfatherProUsers()` covers cutover) — but a real Stripe Lifetime price-ID is required to actually charge users at cutover.
+
+**Required at backend phase:**
+1. Add `Lifetime` SKU in Stripe dashboard: `$99` one-time charge (no recurring billing).
+2. Update `subscriptions` table CHECK constraint: `plan TEXT NOT NULL CHECK (plan IN ('monthly','annual','lifetime'))`.
+3. Lifetime users get `current_period_end = NULL` (no expiry); webhook on `payment_intent.succeeded` provisions Pro forever.
+4. Refunds: Stripe customer portal; backend cancels `is_pro` on refund.
+5. Anti-abuse: rate-limit Lifetime to 1 per `stripe_customer_id` per IP per 30d (cards-shared scenario).
+6. Compute-cost analysis: at Pro $0.05/run × 200 lifetime runs = $10 cost vs $99 revenue, comfortable margin. Confirm post-launch with real run-rate data.
+
+**Cutover work when this lands:**
+- Replace mock Pro flag in `paywallCta` handler with a Stripe Checkout session create + redirect.
+- Read `state._paywallSelectedPlan` (already set by toggle handler — `'monthly' | 'annual' | 'lifetime'`) to pick the Stripe price ID.
+- Founding-member cap counter (`#paywallFoundingSpots`) wires to a real Supabase query on convertible users.
+
+---
+
+## Paywall analytics dashboard (Batch 5 — backend phase)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 06 Section E.7 + Section E.8. Locked Batch 5 2026-04-26.
+
+**Why deferred:** `paywall_shown { context, layout }`, `paywall_dismissed { context, dismissReason, shown_for_ms }`, `paywall_converted { triggeringContext }`, `paywall_value_moment_shown { triggerKind }`, `paywall_plan_selected { plan }`, `power_free_signal_shown / clicked / dismissed` all fire client-side in Batch 5. Aggregate dashboard awaits real analytics destination.
+
+**Required at backend phase:**
+1. **Per-context conversion funnel:** `paywall_converted_rate = paywall_converted / paywall_shown` segmented by `context` (post 8→3 layout consolidation: A_quality / B_power / C_save). The 3 layouts have different intrinsic conversion rates and tracking the wrong aggregate hides the insight.
+2. **Dismiss-reason segmentation:** by `dismissReason ∈ {close, maybe_later, backdrop, escape}` and by `shown_for_ms` bucket (<2s = bounce, 2–15s = read-and-rejected, >15s = considered-and-rejected).
+3. **Plan selection mix:** `paywall_plan_selected` distribution → reveals whether Lifetime decoy is doing its job (anchor effect on Annual selection rate).
+4. **Pre-convert behavior:** `paywall_converted_path { context, gens_at_paywall, days_since_signup, affiliate_clicks_pre_convert }` — segment converters. Tells whether high-converting cohort = "saw paywall on day 1" or "saw paywall after 5 redesigns + 3 saves."
+5. **Power-Free signal CTR:** `power_free_signal_clicked / power_free_signal_shown` ratio. Target ~5–10% click-through per Conflict 6 spec.
+
+**Cutover work when this lands:**
+- Pipe events to PostHog or equivalent.
+- Build dashboard queries with the segmentations above.
+- A/B test infrastructure for per-context paywall variants.
+
+---
+
+## Designer Connect — higher-ARPC future tier (Batch 5 — defer until 1,000+ Pro users)
+
+**Source:** OPTIMIZATION_PLAN.md Dim 06 Section F.2 + Section F.3 entry. Locked Batch 5 2026-04-26.
+
+**Why deferred:** Per Reforge *Strategies for Existing Healthy Customers* (Module 06.04 — Move to higher-ARPC use case), Furnish currently has Pro as the revenue ceiling. Designer Connect ($19/mo) would connect Pro users to a real interior designer (15–30 min consult per quarter) — the canonical "same persona, higher willingness to pay, additional service layer" expansion path.
+
+**Why we wait:** Requires designer recruitment, scheduling tools, payments-to-designer flow, quality control. XL effort. Per Reforge: defer until 1,000+ Pro users so the marketplace has real demand to satisfy real supply.
+
+**Required when this lands:**
+1. Designer onboarding (recruit, vet, contract).
+2. Scheduling (Calendly-class).
+3. Payments split (Stripe Connect or equivalent).
+4. Quality control (review system, rebooking flow, dispute process).
+5. New Pro tier in the paywall toggle: `Pro / Pro+Concierge`.
+
+**Expected impact when shipped:** ~3–7% of Pro users would upgrade (high-LTV cohort). Triples ARPU for that segment. ~$228/yr × 50 users = +$11.4k MRR upside at first thousand Pro users.
+
+---
+
 ## Last review
+
+Updated: 2026-04-26 during Batch 5 implementation (Dim 06 Monetization).
+- Added: Stripe Lifetime price-ID + activation (Section B.2 / E.5).
+- Added: Paywall analytics dashboard (Section E.7 / E.8 + Conflict 6 instrumentation).
+- Added: Designer Connect higher-ARPC tier (Section F.2 / F.3).
+- Conflict 6 (gen-50 power-Free signal) LOCKED. The signal ships client-side in Batch 5; backend cutover replaces the localStorage ring buffer with a server-side counter so the signal survives device wipes / multi-device gaming.
 
 Updated: 2026-04-26 during Batch 4 implementation (Dim 05 Retention + Dim 07 Personalization + Dim 08 Social).
 - **Public room pages + OG metadata** (new — was proposed in Batch 1 NC-5 list, promoted to canonical Batch 4): server-rendered `/r/<roomId>` pages with full Open Graph metadata so iMessage/WhatsApp/Slack link previews show the room photo. Required for group-chat share virality (Reforge UGC Lesson 4 third execution factor — "transition the habit of content discovery to your own product"). Also unblocks the embed widget. Architecture: Edge Function or Next.js-equivalent SSR; OG image at `/og/<roomId>.jpg` 1200×630 generated from the same canvas pipeline used for in-app shares.

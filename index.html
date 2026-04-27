@@ -1133,45 +1133,72 @@
             <span class="paywall-social-text"><strong>Cancel before day 7</strong> · No charge. We don't auto-bill surprise.</span>
           </div>
 
+          <!-- [Batch 5 — Dim 06 Section B.1] Renovation-cost anchor.
+               Per Reforge Convert + Use Case Model (Alternatives): anchor
+               against the consumer's existing alternative cost, not against
+               your own other plan. $5,200 is the HomeAdvisor median US
+               room-renovation cost. Frames Pro at <1% of one renovation. -->
+          <p class="paywall-anchor" aria-label="Cost comparison">
+            Average US room renovation: <strong>$5,200</strong> &nbsp;·&nbsp; Furnish Pro: <strong>$47.88 / year</strong>
+          </p>
+
           <!-- [Batch 3 — Dim 03 R-Paywall3] Annual price anchor.
                Per Reforge Convert And Activate p.4 (Figma critique slide):
                anchor the annual price against monthly with concrete dollars
                (Bargain motivational boost) + "Most Popular" pill (Belonging
-               boost). Concrete dollars beat percentages on mobile paywalls. -->
+               boost). Concrete dollars beat percentages on mobile paywalls.
+               [Batch 5 — Dim 06 Section B.2] 3rd toggle "Lifetime" added as
+               decoy per Economist 3-tier study. Annual stays default-selected;
+               Lifetime anchors annual as obviously cheap by comparison. -->
           <div class="paywall-toggle" role="tablist" aria-label="Billing period">
             <button class="pw-toggle-btn" data-plan="monthly" role="tab" aria-selected="false">Monthly</button>
             <button class="pw-toggle-btn active" data-plan="annual" role="tab" aria-selected="true">
               <span class="pw-most-popular">MOST POPULAR</span>
               Annual <span class="pw-save">Save $24/yr</span>
             </button>
+            <button class="pw-toggle-btn" data-plan="lifetime" role="tab" aria-selected="false">
+              Lifetime <span class="pw-save">Pay once</span>
+            </button>
           </div>
 
+          <!-- [Batch 5 — Dim 06 Section E entry 6] Annual prominence.
+               Total ($47.88/yr) raised to a headline-equivalent line so users
+               aren't doing $3.99 × 12 in their heads. Per Reforge Convert
+               (Figma critique): reduce cognitive friction at the decision
+               moment — burying the year total in a parenthetical wastes
+               the anchoring effect. -->
           <div class="paywall-price">
-            <span class="paywall-price-amount" id="paywallPrice">$3.99</span>
-            <span class="paywall-price-unit" id="paywallUnit">/month, billed annually ($47.88/yr)</span>
+            <span class="paywall-price-amount" id="paywallPrice">$47.88</span>
+            <span class="paywall-price-unit" id="paywallUnit">/year &nbsp;·&nbsp; $3.99/month equivalent</span>
           </div>
 
           <!-- [Compute-quality routing] Pro feature list — anchored on what
-               Pro actually delivers under the new model: premium AI quality,
-               depth features (HD, batch, advanced personalization), and
-               power-user controls (advanced price filters, multi-profile,
-               premium templates). Unlimited generations are FREE now — see
-               the Free card to the left/above. -->
-          <!-- [Conflict 3 lock — "coming soon" bullets stripped.
-               Per Reforge Monetization + Pricing — Packaging Strategies:
-               don't price features that don't exist. Multi-room batch and
-               Style learns over time moved to the Roadmap link in the
-               footer (opens #paywallRoadmapModal). Restore as bullets when
-               shipped + email all current Pro subscribers. -->
+               Pro actually delivers under the new model.
+               [Batch 5 — Dim 06 Section C] Reordered per Packaging Strategy
+               Matrix: HD (loop-aligned, drives shares→acquisition→affiliate)
+               first; multi-profile (clean Use-Case Persona segmentation) #2;
+               advanced price filters (Add-on quadrant for power users) #3;
+               premium AI (legibility-weak Add-on, demoted) #4; templates #5.
+               [Conflict 3 lock — "coming soon" bullets stripped, moved to
+               Roadmap link in footer.] -->
           <ul class="paywall-list">
-            <li><span class="bullet">✓</span> <strong>Premium AI quality</strong> — sharper, more accurate redesigns</li>
-            <li><span class="bullet">✓</span> HD downloads — no watermark, social-ready</li>
-            <li><span class="bullet">✓</span> Advanced price-drop filters — set thresholds + retailer prefs</li>
+            <li><span class="bullet">✓</span> <strong>HD downloads</strong> — no watermark, share-ready for Instagram &amp; Pinterest</li>
             <li><span class="bullet">✓</span> A separate style profile for every person in your home</li>
+            <li><span class="bullet">✓</span> Advanced price-drop filters — set thresholds + retailer prefs</li>
+            <li><span class="bullet">✓</span> Premium AI quality — sharper, more accurate redesigns</li>
             <li><span class="bullet">✓</span> Premium template library</li>
           </ul>
 
-          <div class="paywall-urgency">Founding-member pricing — locks in for life if you join this month.</div>
+          <!-- [Batch 5 — Dim 06 Section E entry 9] Founding-member cap with
+               scarcity counter. Replaces unbounded "this month" framing with
+               a bounded "first 1,000 spots" promise. Per Reforge Convert
+               (Drift "Limited time only" pattern): scarcity + bounded
+               commitment. Bounds the lifetime-grandfather cost per
+               Cost of Revenue lens. -->
+          <div class="paywall-urgency">
+            Founding-member pricing — locks in for life.
+            <span class="paywall-urgency-cap">First <strong id="paywallFoundingSpots">1,000</strong> spots.</span>
+          </div>
 
           <div class="paywall-actions">
             <button class="btn btn-primary big" id="paywallCta">Start 7-day free trial</button>
@@ -1181,6 +1208,15 @@
             Cancel anytime before day 7 — no charge.
             <span class="paywall-footnote-sep">·</span>
             <a class="paywall-roadmap-link" id="paywallRoadmapLink">What's on the roadmap →</a>
+          </p>
+          <!-- [Batch 5 — Dim 06 Section B.3] Competitive reference-price
+               footer. Per Reforge Use Case Model (Alternatives): if you
+               don't tell the consumer where you sit relative to their
+               existing alternatives, you forfeit the favorable comparison.
+               Pinterest=free concedes the floor; Houzz/designer anchor
+               against the nearest *paid* alternatives. -->
+          <p class="muted small center paywall-references" aria-label="Competitive reference">
+            Houzz Pro: $50/mo &nbsp;·&nbsp; Designer consult: $200+/hour &nbsp;·&nbsp; Furnish Pro: $4/mo
           </p>
         </article>
       </div>
@@ -1245,8 +1281,14 @@
       <p class="subtle">Plain-English version, then the legal version.</p>
       <div class="affiliate-content">
         <h4>The short version</h4>
-        <p>When you click on a piece of furniture in your redesign and buy it from the retailer (IKEA, Wayfair, Amazon, etc.), Furnish earns a commission. The price you pay is exactly the same as if you went to the retailer directly.</p>
-        <p>That commission is how we keep the AI redesigns and the app free. We don't charge you to view, reshuffle, swap, or shop. Furnish Pro (our paid plan, $5.99/month) upgrades you to a sharper AI model and adds power-user features — but unlimited redesigns and the full catalog are free for everyone.</p>
+        <!-- [Batch 5 — Dim 06 Section E.3] FTC disclosure reciprocity rewrite.
+             Per Reforge Convert + Brand Marketing: trust signals that frame
+             the relationship as reciprocal beat legalistic disclosures.
+             Counterintuitive but well-supported: clearer disclosure boosts
+             affiliate click-through because users trust the recommendation
+             more, not less. -->
+        <p>We earn a small commission when you buy through Furnish — and that's how we keep AI redesigns free. No extra cost to you; the price is identical to going to the retailer directly.</p>
+        <p>Furnish Pro ($5.99/month) is the paid plan that funds the rest of what we do. Unlimited redesigns and the full catalog stay free for everyone.</p>
         <h4>What we don't do</h4>
         <ul>
           <li>We don't mark up prices.</li>

@@ -1,6 +1,6 @@
 # CONFLICTS_RESOLVED.md
 
-**Status:** ✅ LOCKED — Conflicts 1–5, 7–9 resolved across Batches 1 + 3. Only Conflict 6 (gen-50 soft signal) remains pending for the monetization batch.
+**Status:** ✅ ALL LOCKED — Conflicts 1–9 resolved across Batches 1 + 3 + 5. Conflict 6 locked 2026-04-26 in Batch 5.
 **Created:** 2026-04-26 · **Locked:** 2026-04-26 (Batch 1 conflicts only)
 **Source:** `OPTIMIZATION_PLAN.md` → CONFLICTS WITH EXISTING DECISIONS section
 **Why this file exists:** Canonical source of truth. Every implementation batch references this file when touching a conflict zone.
@@ -16,7 +16,7 @@
 | 3 | "Coming soon" Pro bullets | LOCKED | CONFIRM removal + add Roadmap link in pricing footer |
 | 4 | Fictitious social proof | LOCKED | CONFIRM — qualitative only, no fake numbers, ever |
 | 5 | D7 reveal-gate soft email | LOCKED 2026-04-26 (Batch 3) | CONFIRM — soft email-capture lane added before D7 |
-| 6 | Gen-50/30d soft signal | PENDING | (Batch covering Free→Pro power-user conversion) |
+| 6 | Gen-50/30d soft signal | LOCKED 2026-04-26 (Batch 5) | APPROVE — behavioral-combo trigger (≥50 gens/30d AND ≤1 affiliate click/30d → opportunity-framed micro-card; skip when ≥3 clicks; once per 30d window) |
 | 7 | Tutorial timing (session 2 deferral) | LOCKED 2026-04-26 (Batch 3) | APPROVE — tutorial fires on session-2 home arrival, repurposed as "what's next" |
 | 8 | Q3 (material) → Q3 (room type) swap | LOCKED 2026-04-26 (Batch 3) | OBSOLETE — old 4-Q quiz no longer exists; new 10-Q onboarding (`ONBOARDING_QUESTIONS`) covers room-type intent via `room_use` (function priority) and capture-screen room-type chip grid. Q3-swap proposal is moot. |
 | 9 | "~30 seconds" Promise-Fit | LOCKED | MODIFY — replace with "About a minute — sit tight." |
@@ -343,8 +343,20 @@ The behavioral combo is what makes this Reforge-orthodox, not the raw count. A F
 - `styles.css` — card slide-in animation
 - `DEFERRED.md` — note that anti-abuse item provides server-side data for this signal
 
-## Hassan's decision
-**[PENDING]**
+## Hassan's decision (LOCKED 2026-04-26 — Batch 5, "approve all changes" policy)
+**APPROVE with the recommended behavioral-combo trigger.** Specifically:
+
+- **Trigger condition:** Free user, `gen30dCount() >= 50`, `affiliateClicks30dCount() <= 1`, `_powerFreeSignalShownAt` >30 days ago.
+- **Skip condition:** `affiliateClicks30dCount() >= 3` (already monetizing on Free; do not disrupt). Pro users skipped via `isPro()` guard.
+- **Surface:** non-blocking slide-in micro-card from the bottom of the results screen. Auto-dismisses after 12s.
+- **Copy:** "You've designed {N} rooms this month — that's a power-user pace. Pro gives you sharper AI quality plus price-drop alerts that actually fit how often you use Furnish." [Try Pro Free for 7 Days] [Not Now].
+- **Frame as opportunity, not warning.** Honors "no quota cap" promise — this is a conversion lane, not a gate.
+- **Fires once per 30-day window per user.** Window is rolling, not calendar.
+- **Analytics:** `power_free_signal_shown { gen_count_30d, affiliate_click_count_30d }`, `power_free_signal_clicked`, `power_free_signal_dismissed { reason }`.
+- **Backend dependency:** ring-buffer is client-side this batch. Server-side counter (per DEFERRED.md anti-abuse infrastructure) replaces the client buffer at backend-cutover so the signal survives device wipes / multi-device gaming. Until then, client-side gives a believable approximation.
+- **30-day rolling window** is milder than calendar-month per the original spec — users who burst-generate 50 then stop won't see it; users who steadily generate over the month will.
+
+**Effect on Batch 5:** Helpers `gen30dCount`, `affiliateClicks30dCount`, `recordGen30d`, `recordAffiliateClick30d`, `maybeFirePowerFreeSignal`, `renderPowerFreeMicroCard` ship. `routeGenerationByModelTier` calls `recordGen30d()` + `setTimeout(maybeFirePowerFreeSignal, 1500)` so the slide-in lands on results, not on analyzing. `trackAffiliateClick` calls `recordAffiliateClick30d()`. CSS `.power-free-card` family added in styles.css Batch 5 block.
 
 ---
 

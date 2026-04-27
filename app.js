@@ -1146,13 +1146,16 @@
       sub: 'Drag price tags to reposition pieces. Free for everyone.',
     },
     generic: {
-      // [Dim 09 D2 — generic paywall sub rewritten per Product Marketing
-      //  House Framework. OKT-laddered title (4 words). Sub leads with the
-      //  two pillars (premium-quality + audience-based household) that
-      //  drive the pricing decision; bullets carry the rest. References
-      //  FURNISH_OKT (defined below) for canonical voice.]
-      title: 'Sharper redesigns. Every household.',
-      sub: 'Pro upgrades the AI on every redesign and adds a separate style profile per person. The features below are why.',
+      // [Batch 5 — Dim 06 Section A.5 + Section E entry 1] Reframe Pro
+      //  headline from "Premium AI" to bundle-led "full design partner."
+      //  Per Reforge Use Case Model (Why dimension): differentiation must
+      //  be legible vs alternatives. "Premium AI" alone is invisible; the
+      //  bundle (household profiles + share-ready downloads + price tracking)
+      //  is concrete and answers the natural-frequency challenge — these
+      //  are the entitlements that accrue value between rare redesigns.
+      //  Replaces Dim 09 D2 OKT-laddered version (still ladders to OKT).
+      title: 'Your full design partner.',
+      sub: 'Sharper renders, household profiles, share-ready downloads, smarter price tracking — the toolkit that pays off between redesigns.',
     },
   };
 
@@ -1174,15 +1177,50 @@
     m.classList.add(`layout-${layoutKey}`);
     m.classList.add('open');
     m.setAttribute('aria-hidden', 'false');
+    // [Batch 5 — Dim 06 Section D + E.8] Track shown timestamp so dismiss
+    // events can compute shown_for_ms (Reforge: <2s=bounce, 2-15s=read-and-
+    // rejected, >15s=considered-and-rejected). Stored on the modal element
+    // so concurrent contexts don't trample each other.
+    m.dataset.shownAt = String(Date.now());
     trackEvent('paywall_shown', { context, layout: layoutKey });
   }
-  function closePaywall() {
+  // [Batch 5 — Dim 06 Section D + E.8] Differentiated dismiss paths.
+  // dismissReason ∈ 'close' | 'maybe_later' | 'backdrop' | 'escape'.
+  // Explicit dismisses (close button, "Maybe later") suppress the
+  // current value-moment context per Section D (21d cooldown bumped to
+  // permanent suppression for that exact context).
+  function closePaywall(dismissReason = 'close') {
     const m = $('#paywallModal');
+    if (!m) return;
+    const context = m.dataset.context || 'generic';
+    const shownAt = parseInt(m.dataset.shownAt || '0', 10) || 0;
+    const shown_for_ms = shownAt ? Date.now() - shownAt : 0;
     m.classList.remove('open');
     m.setAttribute('aria-hidden', 'true');
+    delete m.dataset.shownAt;
+    trackEvent('paywall_dismissed', { context, dismissReason, shown_for_ms });
+    // Explicit dismissals = stronger negative signal; suppress this context.
+    if (dismissReason === 'close' || dismissReason === 'maybe_later') {
+      // The triggerKind that mapped TO this context — find the inverse.
+      // For simplicity: suppress all triggerKinds that route to the
+      // dismissed context (per the contextMap in maybeFireValueMomentPaywall).
+      const trigForContext = {
+        hd_export:              ['hd_export_attempt', 'affiliate_click_2plus_items', 'share_attempt'],
+        advanced_price_filters: ['wishlist_3rd_save'],
+        profile:                ['second_room_intent'],
+        premium_quality:        ['love_dwell_5min', 'same_room_3rd_redesign'],
+      };
+      (trigForContext[context] || []).forEach(t => suppressValueMomentTrigger(t));
+    }
   }
 
-  // Monthly ↔ Annual toggle (anchor per Figma critique, Convert p.4)
+  // [Batch 5 — Dim 06 Section B.2 + E.6] Monthly/Annual/Lifetime toggle.
+  // Lifetime = decoy tier per Reforge Pricing Strategies (Economist
+  // 3-tier study). Annual stays default-selected; Lifetime $99 anchors
+  // annual ($47.88/yr) as obviously cheap by comparison. Pre-Stripe,
+  // selecting Lifetime mocks the same Pro flag (existing
+  // grandfatherProUsers covers cutover). Section E.6 also raises Annual
+  // total ($47.88/yr) to the headline price line.
   $$('.pw-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $$('.pw-toggle-btn').forEach(b => {
@@ -1190,13 +1228,20 @@
         b.classList.toggle('active', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
-      const annual = btn.dataset.plan === 'annual';
+      const plan = btn.dataset.plan;
       const priceEl = $('#paywallPrice');
       const unitEl = $('#paywallUnit');
-      // [Compute-quality routing pricing] Monthly $5.99; Annual $3.99/mo
-      // billed annually ($47.88/yr) = 33% off, per Hassan's call.
-      if (priceEl) priceEl.textContent = annual ? '$3.99' : '$5.99';
-      if (unitEl) unitEl.textContent = annual ? '/month, billed annually ($47.88/yr)' : '/month';
+      let amount = '$5.99', unit = '/month';
+      if (plan === 'annual') {
+        // Annual prominence: lead with the year total, sub-line shows /mo equiv.
+        amount = '$47.88'; unit = '/year  ·  $3.99/month equivalent';
+      } else if (plan === 'lifetime') {
+        amount = '$99';    unit = 'one-time  ·  Pay once, never billed again';
+      }
+      if (priceEl) priceEl.textContent = amount;
+      if (unitEl) unitEl.textContent = unit;
+      if (state) state._paywallSelectedPlan = plan;
+      trackEvent('paywall_plan_selected', { plan });
     });
   });
 
@@ -1247,8 +1292,21 @@
     }
   });
 
-  $('#paywallClose').addEventListener('click', closePaywall);
-  $('#paywallDismiss').addEventListener('click', closePaywall);
+  // [Batch 5 — Dim 06 Section D + E.8] Differentiated dismiss reasons.
+  // Each path passes its specific reason to closePaywall for analytics +
+  // for the suppress-explicit-dismiss rule.
+  $('#paywallClose').addEventListener('click', () => closePaywall('close'));
+  $('#paywallDismiss').addEventListener('click', () => closePaywall('maybe_later'));
+  // Backdrop click (clicking outside the modal-card)
+  $('#paywallModal').addEventListener('click', e => {
+    if (e.target.id === 'paywallModal') closePaywall('backdrop');
+  });
+  // Escape key when paywall is open
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('#paywallModal')?.classList.contains('open')) {
+      closePaywall('escape');
+    }
+  });
   $('#paywallCta').addEventListener('click', () => {
     // Mock Stripe success. Real Stripe wiring is in DEFERRED.md.
     // [Compute-quality routing] No quota_exhausted resume anymore — there is
@@ -4334,6 +4392,16 @@
   function routeGenerationByModelTier(actionId, fn) {
     const tier = currentModelTier();
     trackEvent('generation_completed', { actionId, tier });
+    // [Batch 5 — Dim 06 Section E.4 / Conflict 6 lock] Record into the
+    // 30-day rolling window for the power-Free signal trigger. Fires the
+    // signal if the gate clears (Free user, ≥50 gens in 30d, ≤1 affiliate
+    // click in 30d, fired ≤1× per 30d window). See maybeFirePowerFreeSignal.
+    try {
+      recordGen30d();
+      // Defer until after the rendered reveal so the slide-in lands on
+      // results screen, not on analyzing screen.
+      setTimeout(() => maybeFirePowerFreeSignal(), 1500);
+    } catch (_) { /* analytics never breaks generation */ }
     // Pass tier into fn so callers/the future backend can route accordingly.
     // Existing callers that ignore the argument keep working.
     return fn(tier);
@@ -4569,6 +4637,28 @@
       surface,
       roomId: currentRoomIdSafe()
     });
+    // [Batch 5 — Dim 06 Section C.1.1 + Section D] Power-Free + value-moment
+    // hooks. Affiliate clicks are the single most important behavioral signal
+    // for the Free→Pro funnel: high click count = monetizing on Free (don't
+    // disrupt); low click count + high gen count = power-Free signal target.
+    try {
+      recordAffiliateClick30d();
+      // 2+ distinct affiliate items in the same room = purchase-intent peak.
+      // Per Reforge Convert (Postmates Party): trigger on cart-engagement.
+      const roomId = currentRoomIdSafe();
+      if (roomId) {
+        const distinctInRoom = new Set(
+          (state.affiliateClicks || [])
+            .filter(c => c.roomId === roomId)
+            .map(c => c.itemId)
+        );
+        if (distinctInRoom.size >= 2) {
+          maybeFireValueMomentPaywall('affiliate_click_2plus_items', {
+            roomId, distinctItems: distinctInRoom.size
+          });
+        }
+      }
+    } catch (_) { /* never let analytics break a shop click */ }
   }
   // currentRoomId is declared later in the file; this safe accessor avoids
   // referencing it before initialization in early call paths.
@@ -5952,6 +6042,15 @@
     room.versions.push(v);
     if (room.versions.length > 6) room.versions.shift();
     room.activeVersion = v.id;
+    // [Batch 5 — Dim 06 Section D] Same-room 3rd-redesign value-moment.
+    // Per Reforge Convert: revisit signal = "user is refining this room";
+    // Pro's premium AI handles edges + lighting better. Fires once per
+    // room-trigger pair via standard cooldown + dismiss-suppression.
+    try {
+      if (typeof isPro === 'function' && !isPro() && room.versions.length >= 3) {
+        maybeFireValueMomentPaywall('same_room_3rd_redesign', { roomId: room.id, versionCount: room.versions.length });
+      }
+    } catch (_) { /* analytics never breaks redesign flow */ }
   }
 
   function renderVersions(room) {
@@ -6324,6 +6423,12 @@
   $('#shareRoomBtn').addEventListener('click', () => {
     trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'share_clicked', roomId: currentRoomId });
     trackShareFunnel('modal_opened', { source: 'header_icon' });
+    // [Batch 5 — Dim 06 Section D] Reforge gold-standard upsell trigger:
+    // user is *trying* to do the thing Pro enables (HD/no-watermark export).
+    // Fires before the modal so the paywall lands at peak intent. Only the
+    // first share-attempt per cooldown wakes the upsell; subsequent share
+    // attempts proceed to the share modal as usual.
+    if (!isPro()) maybeFireValueMomentPaywall('share_attempt', { source: 'header_icon' });
     openShareModal();
   });
   // [Batch 4 — Dim 08 Top 3 #1] Reveal-moment share trigger.
@@ -6339,6 +6444,8 @@
       state._shareDefaultFormat = defaultShareFormatForLifecycle();
       state._sharePrefilledCaption = shareCaptionForLifecycle(room);
     }
+    // [Batch 5 — Dim 06 Section D] share_attempt value-moment trigger.
+    if (!isPro()) maybeFireValueMomentPaywall('share_attempt', { source: 'reveal_cta' });
     openShareModal();
   });
   $('#shareClose').addEventListener('click', () => $('#shareModal').classList.remove('open'));
@@ -7670,11 +7777,29 @@
 
   // [Batch 3 — Dim 03 R-Paywall1] Value-moment paywall trigger checks.
   // Replaces post-3rd-gen arbitrary count with value-anchored triggers.
-  // Each trigger has its own cooldown so users don't see the upsell twice.
+  // [Batch 5 — Dim 06 Section D] Extended trigger set + dismiss-cooldown
+  // differentiation. Per Reforge Convert (Postmates "Join the Party"
+  // example): upsells fire at the value moment, not at session count.
+  // New triggers added:
+  //   • affiliate_click_2plus_items — user picking out pieces is purchase-
+  //     intent peak; "want sharper renders to share with your partner?"
+  //   • share_attempt — Reforge gold-standard trigger; user is *trying*
+  //     to do the thing Pro enables.
+  //   • same_room_3rd_redesign — revisit signal; "Pro's premium AI handles
+  //     edges + lighting better."
+  // Cooldown rules:
+  //   • shown but no action: 7d (default)
+  //   • explicitly dismissed (puh-close / paywallDismiss): 21d AND
+  //     suppress that exact context permanently (future fires of the same
+  //     triggerKind are skipped).
+  //   • converted (isPro): all firing skipped via isPro() guard.
   function maybeFireValueMomentPaywall(triggerKind, ctx = {}) {
     if (isPro()) return false;
     if (!state.user) state.user = {};
     state.user._valueMomentSeen = state.user._valueMomentSeen || {};
+    state.user._valueMomentDismissed = state.user._valueMomentDismissed || {};
+    // Hard suppress when user explicitly dismissed THIS context.
+    if (state.user._valueMomentDismissed[triggerKind]) return false;
     const lastSeen = state.user._valueMomentSeen[triggerKind] || 0;
     const cooldownMs = 7 * 24 * 60 * 60 * 1000;  // 7-day per-trigger cooldown
     if (Date.now() - lastSeen < cooldownMs) return false;
@@ -7683,16 +7808,151 @@
     trackEvent('paywall_value_moment_shown', { triggerKind, ...ctx });
     // Map triggerKind → paywall context (post 8→3 consolidation, see R-Paywall2)
     const contextMap = {
-      hd_export_attempt: 'hd_export',
-      wishlist_3rd_save: 'advanced_price_filters',
-      second_room_intent: 'profile',
-      love_dwell_5min: 'premium_quality'
+      hd_export_attempt:           'hd_export',
+      wishlist_3rd_save:           'advanced_price_filters',
+      second_room_intent:          'profile',
+      love_dwell_5min:             'premium_quality',
+      // [Batch 5 — Dim 06 Section D] new value-moment hooks
+      affiliate_click_2plus_items: 'hd_export',
+      share_attempt:               'hd_export',
+      same_room_3rd_redesign:      'premium_quality'
     };
     const paywallContext = contextMap[triggerKind] || 'generic';
     if (typeof openPaywall === 'function') openPaywall(paywallContext);
     return true;
   }
+  // [Batch 5 — Dim 06 Section D] Mark a value-moment trigger as
+  // explicitly dismissed. Called from paywall close paths AND from the
+  // premium-upsell-hint dismiss button. Suppresses the same triggerKind
+  // forever (until user upgrades or manually clears state).
+  function suppressValueMomentTrigger(triggerKind) {
+    if (!triggerKind || !state.user) return;
+    state.user._valueMomentDismissed = state.user._valueMomentDismissed || {};
+    state.user._valueMomentDismissed[triggerKind] = Date.now();
+    save();
+  }
   window.FurnishMaybeFireValueMoment = maybeFireValueMomentPaywall;
+  window.FurnishSuppressValueMoment = suppressValueMomentTrigger;
+
+  // ============================================================
+  // [Batch 5 — Dim 06 Section E.4 + Conflict 6 LOCK]
+  // Power-Free signal — gen-50/30d rolling window with affiliate-click
+  // gate. Per Reforge Monetization Triad — Cost of Revenue: variable
+  // compute cost per Free user is a real margin trap at scale. The
+  // behavioral combo (high gens + ≤1 affiliate click) catches users
+  // gaming free AI without engaging the affiliate funnel — i.e. not
+  // delivering Hassan revenue, just consuming compute. Frame as
+  // *opportunity*, not warning: "you're a power-user, here's why Pro
+  // is right." Honors "no quota cap" promise — this is a conversion
+  // lane, not a gate. Fires once per 30-day rolling window per user.
+  // ============================================================
+
+  const POWER_FREE_GEN_THRESHOLD       = 50;
+  const POWER_FREE_CLICK_LOW_THRESHOLD = 1;   // ≤1 click → trigger
+  const POWER_FREE_CLICK_SKIP_FLOOR    = 3;   // ≥3 clicks → skip (already monetizing)
+  const POWER_FREE_WINDOW_MS           = 30 * 24 * 60 * 60 * 1000; // 30d
+  const POWER_FREE_AUTODISMISS_MS      = 12 * 1000;
+
+  function pruneRolling(arr) {
+    const cutoff = Date.now() - POWER_FREE_WINDOW_MS;
+    return (arr || []).filter(ts => ts > cutoff);
+  }
+  function recordGen30d() {
+    if (!state.user) state.user = {};
+    state.user._gen30dWindow = pruneRolling(state.user._gen30dWindow);
+    state.user._gen30dWindow.push(Date.now());
+    save();
+  }
+  function recordAffiliateClick30d() {
+    if (!state.user) state.user = {};
+    state.user._clicks30dWindow = pruneRolling(state.user._clicks30dWindow);
+    state.user._clicks30dWindow.push(Date.now());
+    save();
+  }
+  function gen30dCount() {
+    if (!state.user) return 0;
+    state.user._gen30dWindow = pruneRolling(state.user._gen30dWindow);
+    return state.user._gen30dWindow.length;
+  }
+  function affiliateClicks30dCount() {
+    if (!state.user) return 0;
+    state.user._clicks30dWindow = pruneRolling(state.user._clicks30dWindow);
+    return state.user._clicks30dWindow.length;
+  }
+  window.FurnishGen30dCount = gen30dCount;
+  window.FurnishAffiliateClicks30dCount = affiliateClicks30dCount;
+
+  function maybeFirePowerFreeSignal() {
+    if (isPro()) return false;
+    if (!state.user) state.user = {};
+    // Once-per-30-day-window suppression
+    const lastShown = state.user._powerFreeSignalShownAt || 0;
+    if (Date.now() - lastShown < POWER_FREE_WINDOW_MS) return false;
+    // Behavioral-combo gate
+    const gens   = gen30dCount();
+    const clicks = affiliateClicks30dCount();
+    if (gens < POWER_FREE_GEN_THRESHOLD) return false;
+    if (clicks > POWER_FREE_CLICK_LOW_THRESHOLD) return false;
+    // Skip-floor: already monetizing on Free → don't disrupt
+    if (clicks >= POWER_FREE_CLICK_SKIP_FLOOR) return false;
+    // Surface only when on results screen (post-Aha context)
+    const onResults = !!document.querySelector('[data-screen="results"].active') ||
+                      !!document.querySelector('[data-screen="results"][data-active="true"]') ||
+                      (document.querySelector('[data-screen="results"]')?.style.display !== 'none');
+    if (!onResults) return false;
+    // Don't double up on top of a paywall
+    if (document.getElementById('paywallModal')?.classList.contains('open')) return false;
+    return renderPowerFreeMicroCard(gens, clicks);
+  }
+
+  function renderPowerFreeMicroCard(gens, clicks) {
+    document.getElementById('powerFreeCard')?.remove();
+    const card = document.createElement('div');
+    card.id = 'powerFreeCard';
+    card.className = 'power-free-card';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-live', 'polite');
+    card.innerHTML = `
+      <button class="pfc-close" type="button" aria-label="Dismiss" id="powerFreeClose">×</button>
+      <div class="pfc-headline">You've designed <strong>${gens} rooms</strong> this month — that's a power-user pace.</div>
+      <div class="pfc-sub">Pro gives you sharper AI quality plus price-drop alerts that actually fit how often you use Furnish.</div>
+      <div class="pfc-actions">
+        <button class="btn btn-primary pfc-cta" type="button" id="powerFreeCta">Try Pro Free for 7 Days</button>
+        <button class="btn btn-ghost pfc-not-now" type="button" id="powerFreeNotNow">Not Now</button>
+      </div>
+    `;
+    document.body.appendChild(card);
+    // Force a layout flush so the off-screen initial state commits before
+    // .show flips us on-screen. requestAnimationFrame is unreliable in
+    // backgrounded tabs (rAF throttles to 1Hz or stops) — the canonical
+    // reflow + class-toggle pattern is robust regardless.
+    void card.offsetHeight;
+    card.classList.add('show');
+
+    if (!state.user) state.user = {};
+    state.user._powerFreeSignalShownAt = Date.now();
+    save();
+    trackEvent('power_free_signal_shown', { gen_count_30d: gens, affiliate_click_count_30d: clicks });
+
+    let dismissed = false;
+    const dismiss = (reason) => {
+      if (dismissed) return; dismissed = true;
+      card.classList.remove('show');
+      setTimeout(() => card.remove(), 240);
+      if (reason !== 'clicked') trackEvent('power_free_signal_dismissed', { reason });
+      if (autoTimer) clearTimeout(autoTimer);
+    };
+    document.getElementById('powerFreeCta').addEventListener('click', () => {
+      trackEvent('power_free_signal_clicked', { gen_count_30d: gens, affiliate_click_count_30d: clicks });
+      dismiss('clicked');
+      openPaywall('premium_quality');
+    });
+    document.getElementById('powerFreeNotNow').addEventListener('click', () => dismiss('not_now'));
+    document.getElementById('powerFreeClose').addEventListener('click', () => dismiss('close'));
+    const autoTimer = setTimeout(() => dismiss('auto'), POWER_FREE_AUTODISMISS_MS);
+    return true;
+  }
+  window.FurnishMaybeFirePowerFreeSignal = maybeFirePowerFreeSignal;
 
   // [Batch 3 — Dim 03 R-Bottom1] Items list top-3 default + expander.
   // Score = (style-match × inverse-price-rank). Top-3 default shows on
