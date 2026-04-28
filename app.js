@@ -1564,14 +1564,16 @@
       // Just furniture — single sofa in profile, line-art only. Communicates
       // "one piece of furniture" — no walls, no decor, no lamp.
       'scope-furniture': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 36 V30 Q14 26 18 26 H82 Q86 26 86 30 V36"/><line x1="14" y1="36" x2="86" y2="36"/><rect x="12" y="44" width="76" height="22" rx="3"/><line x1="50" y1="46" x2="50" y2="64"/><line x1="12" y1="36" x2="12" y2="66"/><line x1="88" y1="36" x2="88" y2="66"/><line x1="22" y1="66" x2="22" y2="74"/><line x1="78" y1="66" x2="78" y2="74"/></svg>`,
-      // Furniture + decor — armchair + floor lamp. Two clean elements
-      // communicate "furniture plus accent piece" without the busyness
-      // of the previous three-element composition (lamp + art + bed).
-      'scope-furniture-decor': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 78 V52 Q22 48 26 48 H58 Q62 48 62 52 V78"/><line x1="20" y1="78" x2="64" y2="78"/><line x1="22" y1="56" x2="62" y2="56"/><line x1="26" y1="78" x2="26" y2="86"/><line x1="58" y1="78" x2="58" y2="86"/><line x1="78" y1="86" x2="78" y2="44"/><path d="M68 40 L88 40 L84 28 L72 28 Z"/></svg>`,
-      // Whole room — clean interior: room outline (3 walls + ceiling) +
-      // window on back wall + pendant light + sofa on floor. Reads as
-      // "complete space" with intentional spacing instead of cluttered.
-      'scope-whole-room': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14 L14 78 L86 78 L86 14"/><line x1="14" y1="14" x2="86" y2="14"/><rect x="36" y="24" width="28" height="22" rx="2"/><line x1="50" y1="24" x2="50" y2="46"/><line x1="68" y1="14" x2="68" y2="22"/><circle cx="68" cy="26" r="3.5"/><rect x="20" y="58" width="24" height="14" rx="2"/><line x1="20" y1="63" x2="44" y2="63"/></svg>`,
+      // Furniture + decor — large armchair filling most of the canvas
+      // + tall floor lamp on the left. Bigger composition than the prior
+      // version per Hassan's "make top right bigger" call.
+      'scope-furniture-decor': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="20" y1="92" x2="20" y2="22"/><path d="M8 18 L32 18 L28 6 L12 6 Z"/><path d="M42 88 V44 Q42 38 48 38 H86 Q92 38 92 44 V88"/><line x1="40" y1="88" x2="94" y2="88"/><line x1="44" y1="56" x2="90" y2="56"/><line x1="50" y1="88" x2="50" y2="96"/><line x1="84" y1="88" x2="84" y2="96"/></svg>`,
+      // Whole room — interior scene that actually reads as a furnished
+      // room. Ceiling + floor lines define the space; pendant light
+      // hangs from center; framed art on the left wall; window on the
+      // right wall; large sofa anchors the floor. Per Hassan: "try
+      // harder to make a whole room."
+      'scope-whole-room': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="12" x2="92" y2="12"/><line x1="50" y1="12" x2="50" y2="24"/><path d="M40 24 L60 24 L56 36 L44 36 Z"/><rect x="14" y="22" width="20" height="16" rx="1.5"/><rect x="68" y="22" width="20" height="16" rx="1.5"/><line x1="78" y1="22" x2="78" y2="38"/><line x1="68" y1="30" x2="88" y2="30"/><path d="M16 84 V58 Q16 54 20 54 H80 Q84 54 84 58 V84"/><line x1="16" y1="64" x2="84" y2="64"/><line x1="6" y1="90" x2="94" y2="90"/></svg>`,
       // Surprise me — bold, confident question mark. Heavier stroke
       // matches the visual prominence of the other three icons.
       'scope-surprise': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M32 36 Q32 14 50 14 Q68 14 68 32 Q68 44 52 50 Q50 52 50 62"/><circle cx="50" cy="80" r="4" fill="currentColor"/></svg>`
