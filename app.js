@@ -2664,32 +2664,40 @@
       ? (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []).slice()
       : null;
 
+    // [Hassan's call] Q6 budget renders as text-only cards (no visual /
+    // placeholder). The 5 budget options are descriptive copy, not visual
+    // categories — image slots added cognitive noise without value.
+    const isTextOnly = q.id === 'budget_tier';
+
     q.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'quiz-option-card q-' + kind;
+      btn.className = 'quiz-option-card q-' + kind + (isTextOnly ? ' q-text' : '');
       btn.style.setProperty('--stagger-i', idx);
       btn.dataset.optId = opt.id;
 
-      // Visual area — image (with placeholder fallback) or icon SVG.
-      const visual = document.createElement('div');
-      if (kind === 'icon' || (!opt.image && opt.svg)) {
-        visual.className = 'qoc-icon';
-        visual.innerHTML = window.QUIZ_SVGS[opt.svg] || defaultPlaceholderSvg();
-      } else if (opt.image) {
-        visual.className = 'qoc-photo';
-        visual.style.backgroundImage = `url('${opt.image}')`;
-      } else {
-        // Image placeholder slot — Hassan to drop in real images via the
-        // ONBOARDING_QUESTIONS config when ready. Per spec: "subtle brand-
-        // brown rectangle with a small icon and the option label inside."
-        visual.className = 'qoc-photo qoc-photo--placeholder';
-        visual.innerHTML = `
-          <span class="qoc-placeholder-icon" aria-hidden="true">${defaultPlaceholderSvg()}</span>
-        `;
-        visual.dataset.imagePending = 'true';
+      // Visual area — skip entirely for text-only questions; otherwise
+      // image (with placeholder fallback) or icon SVG.
+      if (!isTextOnly) {
+        const visual = document.createElement('div');
+        if (kind === 'icon' || (!opt.image && opt.svg)) {
+          visual.className = 'qoc-icon';
+          visual.innerHTML = window.QUIZ_SVGS[opt.svg] || defaultPlaceholderSvg();
+        } else if (opt.image) {
+          visual.className = 'qoc-photo';
+          visual.style.backgroundImage = `url('${opt.image}')`;
+        } else {
+          // Image placeholder slot — Hassan to drop in real images via the
+          // ONBOARDING_QUESTIONS config when ready. Per spec: "subtle brand-
+          // brown rectangle with a small icon and the option label inside."
+          visual.className = 'qoc-photo qoc-photo--placeholder';
+          visual.innerHTML = `
+            <span class="qoc-placeholder-icon" aria-hidden="true">${defaultPlaceholderSvg()}</span>
+          `;
+          visual.dataset.imagePending = 'true';
+        }
+        btn.appendChild(visual);
       }
-      btn.appendChild(visual);
 
       const label = document.createElement('div');
       label.className = 'qoc-label';
