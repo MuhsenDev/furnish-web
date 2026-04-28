@@ -1489,6 +1489,56 @@
       };
       _q10.options.forEach(o => { if (_q10Labels[o.id]) o.label = _q10Labels[o.id]; });
     }
+
+    // [Hassan dropped image assets] Wire up the "Find Your Style Images"
+    // folder to the matching quiz option ids. Filenames preserved as-is
+    // (no rename); encodeURI + apostrophe-escape handles spaces/commas/
+    // the single apostrophe in "Artist's Space" without breaking the
+    // renderer's `url('...')` wrapper.
+    const _imgEnc = (filename) =>
+      'Find Your Style Images/' + encodeURI(filename).replace(/'/g, '%27');
+    const _imgMap = {
+      // Q1 vibe (mood)
+      calm_grounded:        'Calm and Grounded - Copy.jpg',
+      energized_creative:   'Energized and Creative.jpg',
+      cozy_protected:       'Cozy and Protected.jpg',
+      elevated_hotel:       'Elevated, Like a Hotel.jpg',
+      inspired_artist:      "Inspired, Like an Artist's Space.jpg",
+      // Q2 color_appetite (palette)
+      neutrals_only:        'Neutrals only.png',
+      mostly_neutral:       'Mostly neutral.png',
+      confident_color:      'Confident color.png',
+      bold:                 'Go Bold.png',
+      // Q3 decor_density (reference_room)
+      clean:                'A clean look.jpg',
+      a_little_personality: 'A little personality.jpg',
+      lived_in_rich:        'Lived-in and rich.jpg',
+      maximalist:           'Maximalist.jpg',
+      // Q5 natural_light (icon → photo when image present)
+      tons:                 'Tons of natural light.jpg',
+      bright_morning:       'Bright in the morning.jpg',
+      dim:                  'Dim.jpg',
+      // unsure: no image — keeps the question-mark icon fallback
+      // Q7 materials (texture)
+      warm_woods:           'Warm woods and rattan.png',
+      soft_fabrics:         'Soft fabrics.png',
+      // metal_glass: no image yet — placeholder shows
+      stone_ceramic:        'Stone ceramic.png',
+      vintage_patina:       'Vintage and Patina.png',
+      sleek_modern:         'Sleek and Modern.png',
+      // Q8 room_use (icon → photo when image present)
+      slept_relaxed:        'Mostly slept.jpg',
+      lived_in_all_day:     'Lived in all day.jpg',
+      hosting:              'Hosting and entertaining.jpg',
+      aspirational:         'Aspirational.jpg'
+    };
+    window.ONBOARDING_QUESTIONS.forEach(q => {
+      q.options.forEach(opt => {
+        if (_imgMap[opt.id] && !opt.image) {
+          opt.image = _imgEnc(_imgMap[opt.id]);
+        }
+      });
+    });
   }
 
   if (window.QUIZ_SVGS && !window.QUIZ_SVGS['scope-furniture']) {
@@ -2726,15 +2776,18 @@
       btn.dataset.optId = opt.id;
 
       // Visual area — skip entirely for text-only questions; otherwise
-      // image (with placeholder fallback) or icon SVG.
+      // prefer real photo (opt.image) over icon SVG over placeholder.
+      // Priority inverted from earlier behavior so a Q5/Q8 option with
+      // image_kind: 'icon' STILL renders its photo when one is set —
+      // image is the strongest signal.
       if (!isTextOnly) {
         const visual = document.createElement('div');
-        if (kind === 'icon' || (!opt.image && opt.svg)) {
-          visual.className = 'qoc-icon';
-          visual.innerHTML = window.QUIZ_SVGS[opt.svg] || defaultPlaceholderSvg();
-        } else if (opt.image) {
+        if (opt.image) {
           visual.className = 'qoc-photo';
           visual.style.backgroundImage = `url('${opt.image}')`;
+        } else if (kind === 'icon' || opt.svg) {
+          visual.className = 'qoc-icon';
+          visual.innerHTML = window.QUIZ_SVGS[opt.svg] || defaultPlaceholderSvg();
         } else {
           // Image placeholder slot — Hassan to drop in real images via the
           // ONBOARDING_QUESTIONS config when ready. Per spec: "subtle brand-
