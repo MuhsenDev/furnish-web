@@ -1699,16 +1699,41 @@
     return map;
   }
 
+  // [Hassan's call] Three rooms are excluded from "Your Home" by default —
+  // office, nursery, laundry. Users who actually have these rooms can
+  // re-enable them in Profile → Rooms in your home. Reforge Activation
+  // (Dim 04): default to the rooms most users have, surface the others
+  // as opt-in to reduce decision burden during the first-redesign loop.
+  const DEFAULT_EXCLUDED_ROOMS = Object.freeze(['office', 'nursery', 'laundry']);
+
   function getActiveHome() {
     if (!state.user) state.user = {};
     if (!state.user.activeHome) {
+      // [Hassan's call] New user — pre-exclude the 3 rooms. defaultExclusions
+      // ApplyApplied marker prevents the one-time migration below from
+      // re-applying on reload.
       state.user.activeHome = {
         id: uuid(),
         startedAt: Date.now(),
-        excludedRooms: [],
+        excludedRooms: DEFAULT_EXCLUDED_ROOMS.slice(),
         designedRooms: emptyDesignedRoomsMap(),
-        celebrated: false
+        celebrated: false,
+        defaultExclusionsApplied: true
       };
+    }
+    // [Hassan's call] One-time migration for existing users who already had
+    // an activeHome BEFORE this default existed. Only add a default-excluded
+    // room if (a) it's not already excluded and (b) the user hasn't already
+    // designed it. Set the marker so the migration doesn't repeat.
+    if (!state.user.activeHome.defaultExclusionsApplied) {
+      DEFAULT_EXCLUDED_ROOMS.forEach(rt => {
+        const alreadyExcluded = state.user.activeHome.excludedRooms.includes(rt);
+        const alreadyDesigned = state.user.activeHome.designedRooms && state.user.activeHome.designedRooms[rt] !== null;
+        if (!alreadyExcluded && !alreadyDesigned) {
+          state.user.activeHome.excludedRooms.push(rt);
+        }
+      });
+      state.user.activeHome.defaultExclusionsApplied = true;
     }
     // Defensive: ensure all 9 keys exist (older state may be missing some)
     HOME_ROOM_ORDER.forEach(t => {
@@ -4708,13 +4733,18 @@
       rooms_count: designedCount,
       excluded_count: ah.excludedRooms.length
     });
-    // Reset activeHome (full reset — new id, all rooms re-included, all null)
+    // Reset activeHome (new id, designed rooms cleared) but CARRY FORWARD
+    // the user's current exclusion choices. Once a user has told the app
+    // "I have a nursery" (or "I don't"), don't make them re-tell after
+    // every home save. defaultExclusionsApplied is preserved so the new-
+    // user default-exclusion migration doesn't re-fire on the next home.
     state.user.activeHome = {
       id: uuid(),
       startedAt: Date.now(),
-      excludedRooms: [],
+      excludedRooms: ah.excludedRooms.slice(),
       designedRooms: emptyDesignedRoomsMap(),
-      celebrated: false
+      celebrated: false,
+      defaultExclusionsApplied: true
     };
     // Also reset the legacy homeProgress array for backward compat
     if (state.user.homeProgress) {
