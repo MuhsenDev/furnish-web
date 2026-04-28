@@ -1478,6 +1478,24 @@
       _q9.options.forEach(o => { if (_q9Labels[o.id]) o.label = _q9Labels[o.id]; });
     }
 
+    // [Hassan's call] Q7 materials — drop the metal_glass option (no asset),
+    // simplify labels, tighten headline. Card layout (qo-photo-text) is
+    // handled in the renderer + CSS.
+    const _q7 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'materials');
+    if (_q7 && _q7.options.some(o => o.id === 'metal_glass')) {
+      _q7.headline = 'Which speaks to you?';
+      _q7.options = _q7.options.filter(o => o.id !== 'metal_glass');
+      const _q7Labels = {
+        warm_woods:    'Warm woods',
+        soft_fabrics:  'Soft fabrics',
+        stone_ceramic: 'Stone & ceramic',
+        vintage_patina:'Vintage patina',
+        sleek_modern:  'Sleek modern'
+      };
+      _q7.options.forEach(o => { if (_q7Labels[o.id]) o.label = _q7Labels[o.id]; });
+      // 'default' was ['warm_woods', 'soft_fabrics'] — both still present, no edit needed.
+    }
+
     const _q10 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'dealbreaker');
     if (_q10 && _q10.headline.includes('one thing in your room')) {
       _q10.headline = 'Anything you want to keep?';
@@ -2774,6 +2792,14 @@
     // full palette renders left-to-right with no crop.
     const isPalette = q.id === 'color_appetite';
     opts.classList.toggle('qo-palette', isPalette);
+
+    // [Hassan's call] Q7 materials: textures have varied aspect ratios
+    // (1.0 to 2.04). qo-photo-text uses square cards with background-size
+    // contain so every image is fully visible (no crop, no rotation), and
+    // the caption sits BELOW the photo on a clean surface band — the
+    // image is never overlaid by the label gradient.
+    const isPhotoText = q.id === 'materials';
+    opts.classList.toggle('qo-photo-text', isPhotoText);
 
     q.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
