@@ -3794,10 +3794,21 @@
   // = higher save rate. Reforge User Psychology: tile-tap surfaces a
   // single-decision prompt instead of forcing budget into the global flow.
   let _pendingRoomType = null;
-  function openRoomBudgetModal(roomType) {
+  let _pendingOnConfirm = null;
+  let _pendingSource = null;
+  // [Budget per Room — generation-time] Open the modal before any AI
+  // generation event. opts.onConfirm runs after Confirm with the saved
+  // budget amount; opts.source is included in analytics so we can see
+  // which entry-point fired (analyze, reshuffle, keep_toggle, pivot,
+  // template). Cancel + backdrop dismiss abort generation cleanly —
+  // _pendingOnConfirm is cleared on close.
+  function openRoomBudgetModal(roomType, opts) {
     const profile = getActiveProfile();
     if (!profile) return;
+    opts = opts || {};
     _pendingRoomType = roomType;
+    _pendingOnConfirm = typeof opts.onConfirm === 'function' ? opts.onConfirm : null;
+    _pendingSource = opts.source || 'tile_tap';
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
     const modal = document.getElementById('roomBudgetModal');
     if (!modal) return;
@@ -3805,7 +3816,14 @@
     const slider = document.getElementById('roomBudgetSlider');
     const amountEl = document.getElementById('roomBudgetAmount');
     const ticksHost = modal.querySelector('.room-budget-ticks');
+    const sub = modal.querySelector('.room-budget-sub');
     if (title) title.textContent = ROOM_LABELS[roomType] || roomType;
+    if (sub) {
+      // Tone the sub copy to the entry source.
+      sub.textContent = _pendingSource === 'tile_tap'
+        ? 'Set the budget for this room. You can change it later.'
+        : 'Confirm or adjust the budget before we generate.';
+    }
     const initialAmount = getRoomBudget(profile, roomType);
     if (slider) slider.value = budgetToSlider(initialAmount);
     if (amountEl) amountEl.textContent = formatBudget(initialAmount);
@@ -3813,7 +3831,7 @@
     paintBudgetTicks(ticksHost);
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
-    trackEvent('room_budget_modal_opened', { room_type: roomType });
+    trackEvent('room_budget_modal_opened', { room_type: roomType, source: _pendingSource });
   }
   function closeRoomBudgetModal() {
     const modal = document.getElementById('roomBudgetModal');
@@ -3821,6 +3839,8 @@
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
     _pendingRoomType = null;
+    _pendingOnConfirm = null;
+    _pendingSource = null;
   }
   // Wire modal once on boot — events keep working through reopens.
   (() => {
@@ -3843,48 +3863,52 @@
     if (closeBtn)  closeBtn.addEventListener('click', onCancel);
     // Backdrop click closes
     modal.addEventListener('click', (e) => { if (e.target === modal) onCancel(); });
-    // Confirm: save + set draft.type + advance.
+    // Confirm: save the amount, fire analytics, run the pending callback
+    // (if any) — then close. The callback path is what wires the modal
+    // into every generation entry point (analyze, reshuffle, keep, pivot,
+    // template). When no callback is set, the modal falls back to the
+    // tile-tap default flow (set draft.type + refresh tile chip).
     if (confirmBtn) confirmBtn.addEventListener('click', () => {
       const profile = getActiveProfile();
       if (!profile || !_pendingRoomType) return closeRoomBudgetModal();
       const amount = sliderToBudget(+slider.value);
       profile.roomBudgets = profile.roomBudgets || {};
       profile.roomBudgets[_pendingRoomType] = amount;
-      // Also keep legacy profile.budget in sync with the most-recently-set
-      // room budget — any stragglers reading profile.budget see something
-      // sensible, not stale 3000. New code paths read via getRoomBudget().
+      // Keep legacy profile.budget in sync with the most-recently-set room
+      // budget so any straggler reading profile.budget gets something sane.
       profile.budget = amount;
-      state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
-      state.draft.type = _pendingRoomType;
       save();
       trackEvent('room_budget_set', {
         room_type: _pendingRoomType,
         budget_amount: amount === Infinity ? -1 : amount,
-        source: 'modal_confirm'
+        source: _pendingSource || 'modal_confirm'
       });
-      // Refresh the room-type tile selection state in-place + chip indicator.
+      // Refresh the room-tile chip indicator wherever it's rendered (capture
+      // screen). Always-safe — if the grid isn't on screen, querySelector
+      // returns nothing and the loop no-ops.
       const grid = document.getElementById('roomTypeGrid');
       if (grid) {
-        grid.querySelectorAll('.rt-card').forEach(c => {
-          const isSelected = c.dataset.roomType === _pendingRoomType;
-          c.classList.toggle('selected', isSelected);
-          c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-          // Update or insert the chip with the latest amount
-          const existingChip = c.querySelector('.rt-budget-chip');
-          if (c.dataset.roomType === _pendingRoomType) {
-            const chipText = '· ' + formatBudgetShort(amount);
-            if (existingChip) existingChip.textContent = chipText;
-            else {
-              const chip = document.createElement('span');
-              chip.className = 'rt-budget-chip';
-              chip.textContent = chipText;
-              c.querySelector('.rt-label')?.appendChild(chip);
-            }
+        const tile = grid.querySelector('.rt-card[data-room-type="' + _pendingRoomType + '"]');
+        if (tile) {
+          const chipText = '· ' + formatBudgetShort(amount);
+          let chip = tile.querySelector('.rt-budget-chip');
+          if (chip) chip.textContent = chipText;
+          else {
+            chip = document.createElement('span');
+            chip.className = 'rt-budget-chip';
+            chip.textContent = chipText;
+            tile.querySelector('.rt-label')?.appendChild(chip);
           }
-        });
+        }
       }
-      if (typeof refreshAnalyzeBtn === 'function') refreshAnalyzeBtn();
+      // Snapshot before close (closeRoomBudgetModal clears these).
+      const cb = _pendingOnConfirm;
+      const roomType = _pendingRoomType;
       closeRoomBudgetModal();
+      // Generation-mode: run the caller's callback with the confirmed amount.
+      // Tile-tap default-mode: closeRoomBudgetModal already happened — nothing
+      // more to do; the tile-tap click handler set draft.type + refreshed UI.
+      if (cb) cb(amount, roomType);
     });
   })();
   window.FurnishOpenRoomBudgetModal = openRoomBudgetModal;
@@ -6580,6 +6604,15 @@
       openPaywall('template_pro');
       return;
     }
+    // [Budget per Room — generation gate] Confirm budget before template
+    // generation. Same modal flow as the photo path. On Confirm, proceed
+    // with the existing routing.
+    openRoomBudgetModal(t.type, {
+      source: 'template',
+      onConfirm: () => _runStartFromTemplate(t)
+    });
+  }
+  function _runStartFromTemplate(t) {
     // [Compute-quality routing] Template-based redesign also routes through
     // routeGenerationByModelTier — Free uses standard model, Pro uses premium.
     // No quota cap; no resume stash needed for the standard path. The Pro-
@@ -6730,17 +6763,26 @@
         <span class="rt-label">${rt.label}${chipHtml}</span>
       `;
       card.addEventListener('click', () => {
-        // [Budget per Room] Tap opens the budget modal first. Selection +
-        // analytics fire from the modal's Confirm handler. Cancel leaves
-        // state.draft.type untouched. This replaces the prior behavior
-        // where a tile tap immediately set the room type.
-        trackEvent(ACTIVATION.SETUP_ROOM_TYPE, { roomType: rt.id, source: 'tile_tap' });
-        // Subtle pulse on the tapped tile so the user gets feedback even
-        // before the modal appears.
+        // [Budget per Room — revised] Tile tap just selects the room. Budget
+        // modal fires at every GENERATION event instead (analyze, reshuffle,
+        // keep-toggle, different-style, template). User can see their saved
+        // budget via the .rt-budget-chip on the tile.
+        state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
+        state.draft.type = rt.id;
+        save();
+        trackEvent(ACTIVATION.SETUP_ROOM_TYPE, { roomType: rt.id });
+        if (typeof refreshAnalyzeBtn === 'function') refreshAnalyzeBtn();
+        // Update selection state in-place — don't re-render the whole grid
+        // (that retriggers the stagger animation on every click).
+        grid.querySelectorAll('.rt-card').forEach(c => {
+          const isSelected = c === card;
+          c.classList.toggle('selected', isSelected);
+          c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+        // Subtle confirmation pulse on the just-selected tile only.
         card.classList.remove('rt-confirm');
         void card.offsetWidth;
         card.classList.add('rt-confirm');
-        openRoomBudgetModal(rt.id);
       });
       grid.appendChild(card);
     });
@@ -6801,6 +6843,18 @@
   // D7 says guests must create an account BEFORE the redesign is revealed.
   $('#analyzeBtn').addEventListener('click', async () => {
     if (!state.draft?.photo) return;
+    if (!state.draft?.type) return;
+    // [Budget per Room — generation gate] Open the budget modal first; only
+    // proceed with generation on Confirm. Cancel/dismiss aborts cleanly.
+    // Per Hassan's spec: budget slider fires for EVERY generation event.
+    openRoomBudgetModal(state.draft.type, {
+      source: 'analyze',
+      onConfirm: () => _runAnalyze()
+    });
+  });
+  // Extracted analyze flow — invoked from the budget modal Confirm callback.
+  async function _runAnalyze() {
+    if (!state.draft?.photo) return;
     // [Batch 6 — Dim 13 REC-13.3] Wrap the entire generation flow in a
     // try/catch so any failure (image decode, AI model error, render bug)
     // emits `analyze_failed` per Reforge failure-event taxonomy. Today the
@@ -6852,7 +6906,8 @@
       });
       toast("Couldn't analyze your photo. Try again.");
     }
-  });
+  }
+  // End _runAnalyze (extracted from the analyze button click handler).
 
   // Reforge Monetization + Pricing (PNIP Pyramid): free tier delivers ONE
   // ============================================================
@@ -9032,21 +9087,27 @@
       if (!room) return;
       const profile = state.profiles.find(p => p.id === room.profileId);
       if (!profile) return;
-      room.keepMode = !room.keepMode;
-      keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
-      keepSwitch.classList.toggle('on', room.keepMode);
-      const fresh = pickItemsForRoom(
-        { type: room.type, dims: room.dims, photo: room.photo },
-        getEffectiveAnswers(profile),
-        getRoomBudget(profile, room.type),
-        { keepMode: room.keepMode }
-      );
-      room.items = fresh;
-      pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
-      save();
-      renderRoomPieces(room);
-      renderVersions(room);
-      toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
+      // [Budget per Room — generation gate] Confirm budget before regen.
+      openRoomBudgetModal(room.type, {
+        source: 'keep_toggle',
+        onConfirm: () => {
+          room.keepMode = !room.keepMode;
+          keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
+          keepSwitch.classList.toggle('on', room.keepMode);
+          const fresh = pickItemsForRoom(
+            { type: room.type, dims: room.dims, photo: room.photo },
+            getEffectiveAnswers(profile),
+            getRoomBudget(profile, room.type),
+            { keepMode: room.keepMode }
+          );
+          room.items = fresh;
+          pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
+          save();
+          renderRoomPieces(room);
+          renderVersions(room);
+          toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
+        }
+      });
     });
   }
 
@@ -9118,21 +9179,27 @@
     if (!room) return;
     const profile = state.profiles.find(p => p.id === room.profileId);
     if (!profile) return;
-    room.reshuffleCount = (room.reshuffleCount || 0) + 1;
-    const draftLike = { type: room.type, dims: room.dims };
-    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), getRoomBudget(profile, room.type),
-      { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
-    room.items = fresh;
-    pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
-    save();
-    renderRoomPieces(room);
-    renderVersions(room);
-    // [Dim 14 Section C Fix 2 — reshuffle copy honesty. Was "Fresh picks
-    //  curated" — over-promised since picks are bounded by the same style
-    //  profile. New: name what Reshuffle actually does so users build
-    //  accurate mental models. Per Reforge User Insights: copy that
-    //  matches the actual mechanic increases retention.]
-    toast('Different items, same style.');
+    // [Budget per Room — generation gate] Confirm budget before reshuffle.
+    openRoomBudgetModal(room.type, {
+      source: 'reshuffle',
+      onConfirm: () => {
+        room.reshuffleCount = (room.reshuffleCount || 0) + 1;
+        const draftLike = { type: room.type, dims: room.dims };
+        const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), getRoomBudget(profile, room.type),
+          { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
+        room.items = fresh;
+        pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
+        save();
+        renderRoomPieces(room);
+        renderVersions(room);
+        // [Dim 14 Section C Fix 2 — reshuffle copy honesty. Was "Fresh picks
+        //  curated" — over-promised since picks are bounded by the same style
+        //  profile. New: name what Reshuffle actually does so users build
+        //  accurate mental models. Per Reforge User Insights: copy that
+        //  matches the actual mechanic increases retention.]
+        toast('Different items, same style.');
+      }
+    });
   });
 
   // [Model A] "Shop the Whole Room" — restores the original affiliate semantics.
@@ -10054,7 +10121,17 @@
       btn.className = 'different-style-chip';
       btn.dataset.styleId = s.id;
       btn.innerHTML = `<span class="dsc-label">${s.label || s.id}</span>`;
-      btn.addEventListener('click', () => pivotToStyle(room, s.id));
+      btn.addEventListener('click', () => {
+        // [Budget per Room — generation gate] Confirm budget before pivot.
+        // Close the different-style modal first so the budget modal is the
+        // only one open when the user lands on it.
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        openRoomBudgetModal(room.type, {
+          source: 'different_style',
+          onConfirm: () => pivotToStyle(room, s.id)
+        });
+      });
       grid.appendChild(btn);
     });
     modal.classList.add('open');
