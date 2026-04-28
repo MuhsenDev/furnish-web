@@ -2684,27 +2684,50 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
 }
 
 /* [Hassan's call] Q2 color_appetite — the palette PNGs are 2:1 horizontal
-   swatches. Single-column wide cards (aspect 2:1) match the image's
-   natural shape so all colors render left-to-right with no crop, no
-   letterbox, no rotation needed. The label overlays the bottom band
-   over a soft dark gradient (existing .qoc-label treatment). */
+   swatches. Single-column wide cards (photo aspect 2:1). Caption moves
+   BELOW the photo on a clean surface band — never overlays the swatches. */
 .quiz-options.qo-palette {
   grid-template-columns: 1fr;
   gap: 12px;
 }
 .quiz-options.qo-palette .quiz-option-card {
-  aspect-ratio: 2 / 1;
+  aspect-ratio: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .quiz-options.qo-palette .qoc-photo {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  aspect-ratio: 2 / 1;
   background-size: cover;
   background-position: center;
 }
+.quiz-options.qo-palette .qoc-label {
+  position: relative;
+  inset: auto;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+}
+.quiz-options.qo-palette .qoc-label-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  text-shadow: none;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
 
-/* [Hassan's call] Q7 materials — textures have mixed aspect ratios
-   (1.0 to 2.04). Square cards with background-size: contain show the
-   full image with no crop. The caption moves OUT of the image — sits
-   below on a clean surface band — so nothing overlays the texture.
-   Card structure: photo on top (square), caption below (centered text). */
+/* [Hassan's call] qo-photo-text — caption sits BELOW the photo on a clean
+   surface band so no text overlays the image. Default photo aspect is 4/5
+   portrait (matches the Q1/Q3/Q5/Q8 photos which are mostly 0.56-0.86).
+   Q7 textures use the --square modifier for 1/1 ratio. background-size
+   cover guarantees every image fills its box edge-to-edge with no
+   letterbox — Hassan's "fill the entire box like the bottom-left answer"
+   rule. Wider images get center-cropped; the textures still read clearly.
+   */
 .quiz-options.qo-photo-text .quiz-option-card {
   aspect-ratio: auto;
   display: flex;
@@ -2715,11 +2738,13 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
   position: relative;
   inset: auto;
   width: 100%;
-  aspect-ratio: 1 / 1;
-  background-size: contain;
+  aspect-ratio: 4 / 5;
+  background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
-  background-color: var(--beige);
+}
+.quiz-options.qo-photo-text--square .qoc-photo {
+  aspect-ratio: 1 / 1;
 }
 .quiz-options.qo-photo-text .qoc-label {
   position: relative;
@@ -2728,6 +2753,7 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
   background: var(--surface);
   color: var(--ink);
   text-align: center;
+  flex: 0 0 auto;
 }
 .quiz-options.qo-photo-text .qoc-label-text {
   font-size: 13.5px;
@@ -2736,9 +2762,9 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
   letter-spacing: 0;
   line-height: 1.25;
 }
-html[data-theme="dark"] .quiz-options.qo-photo-text .qoc-photo {
-  background-color: var(--beige-2);
-}
+/* Dark mode: caption band stays var(--surface)/var(--ink) for both
+   layouts — already correct via tokens. Explicit rules for clarity. */
+html[data-theme="dark"] .quiz-options.qo-palette .qoc-label,
 html[data-theme="dark"] .quiz-options.qo-photo-text .qoc-label {
   background: var(--surface);
   color: var(--ink);
@@ -5211,7 +5237,7 @@ html[data-theme="dark"] .hero-demo .hd-badge {
   background-image:
     linear-gradient(to bottom, transparent 0, transparent calc(100% - 18px), rgba(0,0,0,0.03) 100%);
 }
-body.theme-dark #paywallModal .paywall-card,
+html[data-theme="dark"]#paywallModal .paywall-card,
 html[data-theme="dark"] #paywallModal .paywall-card {
   background-color: var(--surface);
 }
@@ -5233,13 +5259,13 @@ html[data-theme="dark"] #paywallModal .paywall-card {
    in app.js). Keeping the close button absolute avoids the sticky/float
    layout fragility on a card that isn't a flex container. */
 /* Dark mode — re-tint the scrollbar so it reads on the darker card bg. */
-body.theme-dark #paywallModal .paywall-card {
+html[data-theme="dark"]#paywallModal .paywall-card {
   scrollbar-color: rgba(232, 193, 147, 0.35) transparent;
 }
-body.theme-dark #paywallModal .paywall-card::-webkit-scrollbar-thumb {
+html[data-theme="dark"]#paywallModal .paywall-card::-webkit-scrollbar-thumb {
   background: rgba(232, 193, 147, 0.32);
 }
-body.theme-dark #paywallModal .paywall-card::-webkit-scrollbar-thumb:hover {
+html[data-theme="dark"]#paywallModal .paywall-card::-webkit-scrollbar-thumb:hover {
   background: rgba(232, 193, 147, 0.55);
 }
 
@@ -5396,24 +5422,29 @@ body.theme-dark #paywallModal .paywall-card::-webkit-scrollbar-thumb:hover {
   margin-top: 4px;
 }
 
-/* Dark mode — re-tone the veil + text contrast. */
-body.theme-dark .srh-veil {
+/* [DM-FIX] Dark mode — was scoped under html[data-theme="dark"](stale selector;
+   the theme switcher uses html[data-theme="dark"]). Rules never fired,
+   leaving the SRH panel reading as washed-out cream-on-cream. Migrated
+   to the canonical selector. Also added a dark-mode rule for .srh-stat-text
+   ("ready in your style") which was inheriting the light --ink token. */
+html[data-theme="dark"] .srh-veil {
   background:
     radial-gradient(ellipse at top, rgba(40, 28, 18, 0.45) 0%, rgba(40, 28, 18, 0.62) 60%, rgba(40, 28, 18, 0.82) 100%),
     linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.25) 100%);
 }
-body.theme-dark .srh-headline {
+html[data-theme="dark"] .srh-headline {
   color: #F5E9D7;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
 }
-body.theme-dark .srh-trust {
+html[data-theme="dark"] .srh-trust {
   background: rgba(40, 28, 18, 0.55);
   color: #F5E9D7;
 }
-body.theme-dark .srh-trust-text strong { color: #F5E9D7; }
-body.theme-dark .srh-stats { color: #E8D2B4; }
-body.theme-dark .srh-num { color: #F5E9D7; }
-body.theme-dark .srh-shimmer-card {
+html[data-theme="dark"] .srh-trust-text strong { color: #F5E9D7; }
+html[data-theme="dark"] .srh-stats { color: #E8D2B4; }
+html[data-theme="dark"] .srh-stat-text { color: #E8D2B4; }
+html[data-theme="dark"] .srh-num { color: #F5E9D7; }
+html[data-theme="dark"] .srh-shimmer-card {
   background: linear-gradient(
     90deg,
     rgba(80, 56, 36, 0.55) 0%,
@@ -5423,8 +5454,8 @@ body.theme-dark .srh-shimmer-card {
   background-size: 200% 100%;
   color: #F5E9D7;
 }
-body.theme-dark .srh-lock { color: #E8C193; }
-body.theme-dark .srh-arrow { color: #E8C193; }
+html[data-theme="dark"] .srh-lock { color: #E8C193; }
+html[data-theme="dark"] .srh-arrow { color: #E8C193; }
 
 /* Small viewport — reduce the headline so it never wraps awkwardly. */
 @media (max-width: 360px) {
@@ -5439,7 +5470,7 @@ body.theme-dark .srh-arrow { color: #E8C193; }
   font-weight: 600;
   font-size: 13px;
 }
-body.theme-dark .srh-stat-text { color: #E8D2B4; }
+html[data-theme="dark"].srh-stat-text { color: #E8D2B4; }
 
 /* ============================================================
    Vibrant glow upgrade — "ready · locked behind one quick step"
@@ -5495,7 +5526,7 @@ body.theme-dark .srh-stat-text { color: #E8D2B4; }
 }
 
 /* Dark mode — keep the glow warm but brighter against dark backdrop. */
-body.theme-dark .srh-shimmer-card {
+html[data-theme="dark"].srh-shimmer-card {
   background: linear-gradient(
     90deg,
     rgba(80, 56, 36, 0.85)   0%,
@@ -5505,7 +5536,7 @@ body.theme-dark .srh-shimmer-card {
   background-size: 220% 100% !important;
   border-color: rgba(235, 199, 147, 0.55);
 }
-body.theme-dark .srh-shimmer-card {
+html[data-theme="dark"].srh-shimmer-card {
   animation:
     srhShimmer 2800ms ease-in-out infinite,
     srhGlowPulseDark 2400ms ease-in-out infinite !important;
@@ -5524,7 +5555,7 @@ body.theme-dark .srh-shimmer-card {
       0 6px 24px rgba(0, 0, 0, 0.40);
   }
 }
-body.theme-dark .srh-lock {
+html[data-theme="dark"].srh-lock {
   animation: srhLockPulseDark 2400ms ease-in-out infinite;
 }
 @keyframes srhLockPulseDark {
@@ -5606,16 +5637,16 @@ body.theme-dark .srh-lock {
 }
 
 /* Dark-mode variants for Style Pulse cards. */
-body.theme-dark .sp-strip .sp-card {
+html[data-theme="dark"].sp-strip .sp-card {
   background: rgba(50, 36, 24, 0.6);
   border-color: rgba(120, 90, 60, 0.55);
 }
-body.theme-dark .sp-strip .sp-card:hover {
+html[data-theme="dark"].sp-strip .sp-card:hover {
   border-color: rgba(235, 199, 147, 0.55);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
 }
-body.theme-dark .sp-strip .sp-card .mc-label { color: #F5E9D7; }
-body.theme-dark .sp-strip .sp-card .mc-sub   { color: #C7B493; }
+html[data-theme="dark"].sp-strip .sp-card .mc-label { color: #F5E9D7; }
+html[data-theme="dark"].sp-strip .sp-card .mc-sub   { color: #C7B493; }
 
 /* ============================================================
    "Explore More Designs" — results-screen habit-loop CTA
@@ -5744,7 +5775,7 @@ body.theme-dark .sp-strip .sp-card .mc-sub   { color: #C7B493; }
 }
 
 /* Dark mode — deeper gradient, brighter inner highlights, same energy. */
-body.theme-dark .btn-explore-more {
+html[data-theme="dark"].btn-explore-more {
   background:
     radial-gradient(ellipse at top left, rgba(235, 199, 147, 0.25) 0%, transparent 60%),
     linear-gradient(135deg, #A47C4D 0%, #6B5235 55%, #4A3320 100%);
@@ -5753,13 +5784,13 @@ body.theme-dark .btn-explore-more {
     0 2px 6px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(235, 199, 147, 0.25);
 }
-body.theme-dark .btn-explore-more:hover {
+html[data-theme="dark"].btn-explore-more:hover {
   box-shadow:
     0 16px 38px rgba(0, 0, 0, 0.6),
     0 4px 10px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(235, 199, 147, 0.35);
 }
-body.theme-dark .bem-icon {
+html[data-theme="dark"].bem-icon {
   background: rgba(245, 233, 215, 0.95);
   color: #6B5235;
 }
@@ -5938,31 +5969,31 @@ body.theme-dark .bem-icon {
    wrapper change doesn't break those because they target descendants. */
 
 /* Dark mode tinting for both cards. */
-body.theme-dark .paywall-free-card {
+html[data-theme="dark"].paywall-free-card {
   background: linear-gradient(180deg, rgba(80, 56, 36, 0.42) 0%, rgba(50, 36, 24, 0.28) 100%);
   border-color: rgba(232, 193, 147, 0.22);
 }
-body.theme-dark .pfree-title { color: #F5E9D7; }
-body.theme-dark .pfree-subtitle { color: #C7B493; }
-body.theme-dark .pfree-list li { color: #E8D2B4; }
-body.theme-dark .pfree-badge {
+html[data-theme="dark"].pfree-title { color: #F5E9D7; }
+html[data-theme="dark"].pfree-subtitle { color: #C7B493; }
+html[data-theme="dark"].pfree-list li { color: #E8D2B4; }
+html[data-theme="dark"].pfree-badge {
   color: #E8C193;
   background: rgba(232, 193, 147, 0.16);
 }
-body.theme-dark .pfree-list .bullet {
+html[data-theme="dark"].pfree-list .bullet {
   background: rgba(232, 193, 147, 0.2);
   color: #E8C193;
 }
-body.theme-dark .pfree-footer {
+html[data-theme="dark"].pfree-footer {
   color: #E8C193;
   border-color: rgba(232, 193, 147, 0.28);
 }
-body.theme-dark .paywall-pro-card {
+html[data-theme="dark"].paywall-pro-card {
   background: linear-gradient(180deg, rgba(60, 42, 28, 0.85) 0%, rgba(80, 56, 36, 0.65) 100%);
   border-color: rgba(232, 193, 147, 0.32);
 }
-body.theme-dark #paywallModal .paywall-header h3 { color: #F5E9D7; }
-body.theme-dark #paywallModal .paywall-header .paywall-sub { color: #C7B493; }
+html[data-theme="dark"]#paywallModal .paywall-header h3 { color: #F5E9D7; }
+html[data-theme="dark"]#paywallModal .paywall-header .paywall-sub { color: #C7B493; }
 
 /* ============================================================
    First-redesign tutorial overlay (.frt-*)
@@ -6128,19 +6159,19 @@ body.theme-dark #paywallModal .paywall-header .paywall-sub { color: #C7B493; }
 }
 
 /* Dark mode tinting. */
-body.theme-dark .frt-tip {
+html[data-theme="dark"].frt-tip {
   background: #2A1F12;
   border-color: rgba(232, 193, 147, 0.22);
 }
-body.theme-dark .frt-tip-title { color: #F5E9D7; }
-body.theme-dark .frt-tip-body  { color: #E8D2B4; }
-body.theme-dark .frt-step-pip {
+html[data-theme="dark"].frt-tip-title { color: #F5E9D7; }
+html[data-theme="dark"].frt-tip-body  { color: #E8D2B4; }
+html[data-theme="dark"].frt-step-pip {
   color: #E8C193;
   background: rgba(232, 193, 147, 0.16);
 }
-body.theme-dark .frt-skip { color: #B89976; }
-body.theme-dark .frt-skip:hover { background: rgba(232, 193, 147, 0.08); color: #F5E9D7; }
-body.theme-dark .frt-next {
+html[data-theme="dark"].frt-skip { color: #B89976; }
+html[data-theme="dark"].frt-skip:hover { background: rgba(232, 193, 147, 0.08); color: #F5E9D7; }
+html[data-theme="dark"].frt-next {
   background: linear-gradient(135deg, #A47C4D, #6B5235);
   color: #FAF3E7;
 }
@@ -6375,38 +6406,38 @@ body.theme-dark .frt-next {
 }
 
 /* Dark-mode variants. */
-body.theme-dark .imgcard {
+html[data-theme="dark"].imgcard {
   background: rgba(50, 36, 24, 0.6);
   border-color: rgba(120, 90, 60, 0.55);
 }
-body.theme-dark .imgcard:hover {
+html[data-theme="dark"].imgcard:hover {
   border-color: rgba(235, 199, 147, 0.55);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
 }
-body.theme-dark .imgcard-label { color: #F5E9D7; }
-body.theme-dark .imgcard-sub   { color: #C7B493; }
-body.theme-dark .imgcard-photo--placeholder {
+html[data-theme="dark"].imgcard-label { color: #F5E9D7; }
+html[data-theme="dark"].imgcard-sub   { color: #C7B493; }
+html[data-theme="dark"].imgcard-photo--placeholder {
   background:
     radial-gradient(ellipse at 30% 30%, rgba(235, 199, 147, 0.22) 0%, transparent 60%),
     linear-gradient(135deg, #6B5235 0%, #4A3320 60%, #2A1F12 100%);
   color: #F5E9D7;
 }
-body.theme-dark .imgcard-placeholder-tag {
+html[data-theme="dark"].imgcard-placeholder-tag {
   background: rgba(40, 26, 14, 0.85);
   color: #E8C193;
 }
-body.theme-dark .imgcard-roomtype-label {
+html[data-theme="dark"].imgcard-roomtype-label {
   color: #FAF3E7;
   background: rgba(20, 13, 5, 0.7);
 }
-body.theme-dark .imgcard--placeholder .imgcard-roomtype-label {
+html[data-theme="dark"].imgcard--placeholder .imgcard-roomtype-label {
   color: #F5E9D7;
   background: rgba(40, 26, 14, 0.85);
 }
-body.theme-dark .imgcard-cta {
+html[data-theme="dark"].imgcard-cta {
   background: linear-gradient(135deg, #6B5235 0%, #4A3320 60%, #2A1F12 100%);
 }
-body.theme-dark .imgcard-cta:hover {
+html[data-theme="dark"].imgcard-cta:hover {
   background: linear-gradient(135deg, #8B6F47 0%, #6B5235 60%, #4A3320 100%);
 }
 
@@ -6540,7 +6571,7 @@ body.theme-dark .imgcard-cta:hover {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-body.theme-dark .discover-more-tile {
+html[data-theme="dark"].discover-more-tile {
   background:
     radial-gradient(ellipse at top, rgba(235, 199, 147, 0.22) 0%, transparent 65%),
     linear-gradient(165deg, #6B5235 0%, #4A3320 55%, #2A1F12 100%);
@@ -6615,12 +6646,12 @@ body.theme-dark .discover-more-tile {
   font-weight: 600;
   color: var(--brown);
 }
-body.theme-dark .tw-hero {
+html[data-theme="dark"].tw-hero {
   background: linear-gradient(135deg, rgba(235, 199, 147, 0.14) 0%, rgba(140, 100, 60, 0.06) 100%);
   border-color: rgba(232, 193, 147, 0.28);
 }
-body.theme-dark .tw-hero-tagline { color: #F5E9D7; }
-body.theme-dark .tw-hero-week-stamp { color: #E8C193; }
+html[data-theme="dark"].tw-hero-tagline { color: #F5E9D7; }
+html[data-theme="dark"].tw-hero-week-stamp { color: #E8C193; }
 
 /* Grid for the 9 room cards. 2-col on mobile, 3-col on wider. */
 .tw-grid {
@@ -6699,13 +6730,13 @@ body.theme-dark .tw-hero-week-stamp { color: #E8C193; }
   color: var(--muted);
   max-width: 360px;
 }
-body.theme-dark .styles-index-stub .sis-art {
+html[data-theme="dark"].styles-index-stub .sis-art {
   background: linear-gradient(135deg, rgba(235, 199, 147, 0.18) 0%, rgba(140, 100, 60, 0.08) 100%);
   border-color: rgba(232, 193, 147, 0.32);
   color: #E8C193;
 }
-body.theme-dark .sis-title { color: #F5E9D7; }
-body.theme-dark .sis-body  { color: #C7B493; }
+html[data-theme="dark"].sis-title { color: #F5E9D7; }
+html[data-theme="dark"].sis-body  { color: #C7B493; }
 
 /* ============================================================
    Retention pass — Engagement Loop surfaces
@@ -6808,15 +6839,15 @@ body.theme-dark .sis-body  { color: #C7B493; }
   transition: background 180ms ease, color 180ms ease;
 }
 .pdb-close:hover { background: rgba(139, 111, 71, 0.1); color: var(--ink); }
-body.theme-dark .price-drop-banner {
+html[data-theme="dark"].price-drop-banner {
   background: linear-gradient(135deg, rgba(106, 143, 82, 0.18) 0%, rgba(106, 143, 82, 0.10) 100%);
   border-color: rgba(106, 143, 82, 0.42);
 }
-body.theme-dark .pdb-headline { color: #F5E9D7; }
-body.theme-dark .pdb-headline strong { color: #B0CC8C; }
-body.theme-dark .pdb-sub { color: #C7B493; }
-body.theme-dark .pdb-sub strong { color: #F5E9D7; }
-body.theme-dark .pdb-emoji { color: #B0CC8C; }
+html[data-theme="dark"].pdb-headline { color: #F5E9D7; }
+html[data-theme="dark"].pdb-headline strong { color: #B0CC8C; }
+html[data-theme="dark"].pdb-sub { color: #C7B493; }
+html[data-theme="dark"].pdb-sub strong { color: #F5E9D7; }
+html[data-theme="dark"].pdb-emoji { color: #B0CC8C; }
 @media (max-width: 380px) {
   .price-drop-banner { padding: 12px 12px 12px 14px; gap: 10px; }
   .pdb-cta { padding: 7px 12px; font-size: 12px; }
@@ -6959,20 +6990,20 @@ html[data-theme="dark"] .prefs-actions-list {
   0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.3); }
   50%      { box-shadow: 0 0 0 6px rgba(212, 165, 116, 0); }
 }
-body.theme-dark .hp-cell {
+html[data-theme="dark"].hp-cell {
   background: rgba(50, 36, 24, 0.45);
   border-color: rgba(120, 90, 60, 0.45);
 }
-body.theme-dark .hp-cell:hover {
+html[data-theme="dark"].hp-cell:hover {
   border-color: rgba(235, 199, 147, 0.55);
 }
-body.theme-dark .hp-cell.hp-done {
+html[data-theme="dark"].hp-cell.hp-done {
   background: linear-gradient(180deg, rgba(235, 199, 147, 0.18) 0%, rgba(140, 100, 60, 0.10) 100%);
   border-color: rgba(235, 199, 147, 0.45);
 }
-body.theme-dark .hp-cell.hp-done .hp-label { color: #F5E9D7; }
-body.theme-dark .hp-cell .hp-label { color: #E8D2B4; }
-body.theme-dark .hp-progress-bar { background: rgba(232, 193, 147, 0.12); }
+html[data-theme="dark"].hp-cell.hp-done .hp-label { color: #F5E9D7; }
+html[data-theme="dark"].hp-cell .hp-label { color: #E8D2B4; }
+html[data-theme="dark"].hp-progress-bar { background: rgba(232, 193, 147, 0.12); }
 @media (max-width: 380px) {
   .hp-grid { gap: 6px; }
   .hp-cell { padding: 12px 4px 8px; }
@@ -7074,13 +7105,13 @@ body[data-visit-band="veteran"] .template-tip {
   transition: background 180ms ease, color 180ms ease;
 }
 .puh-close:hover { background: rgba(139, 111, 71, 0.10); color: var(--ink); }
-body.theme-dark .premium-upsell-hint {
+html[data-theme="dark"].premium-upsell-hint {
   background: linear-gradient(135deg, rgba(235, 199, 147, 0.20) 0%, rgba(140, 100, 60, 0.12) 100%);
   border-color: rgba(232, 193, 147, 0.42);
 }
-body.theme-dark .puh-headline strong { color: #F5E9D7; }
-body.theme-dark .puh-headline { color: #E8D2B4; }
-body.theme-dark .puh-sub { color: #C7B493; }
+html[data-theme="dark"].puh-headline strong { color: #F5E9D7; }
+html[data-theme="dark"].puh-headline { color: #E8D2B4; }
+html[data-theme="dark"].puh-sub { color: #C7B493; }
 @media (max-width: 380px) {
   .premium-upsell-hint { padding: 11px 10px 11px 12px; gap: 10px; }
   .puh-cta { padding: 6px 11px; font-size: 11.5px; }
@@ -7126,9 +7157,9 @@ body.theme-dark .puh-sub { color: #C7B493; }
   transform: scale(1.45);
   box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.22);
 }
-body.theme-dark .qpd-dot { background: rgba(232, 193, 147, 0.22); }
-body.theme-dark .qpd-dot.qpd-done { background: rgba(232, 193, 147, 0.6); }
-body.theme-dark .qpd-dot.qpd-current { background: #E8C193; }
+html[data-theme="dark"].qpd-dot { background: rgba(232, 193, 147, 0.22); }
+html[data-theme="dark"].qpd-dot.qpd-done { background: rgba(232, 193, 147, 0.6); }
+html[data-theme="dark"].qpd-dot.qpd-current { background: #E8C193; }
 
 /* Image placeholder — used when a question option has image:null. Subtle
    brand-brown rectangle with a small icon so layout doesn't break. Drop
@@ -7146,7 +7177,7 @@ body.theme-dark .qpd-dot.qpd-current { background: #E8C193; }
   align-items: center;
   justify-content: center;
 }
-body.theme-dark .qoc-photo--placeholder {
+html[data-theme="dark"].qoc-photo--placeholder {
   background: linear-gradient(135deg, rgba(235, 199, 147, 0.16) 0%, rgba(140, 100, 60, 0.10) 100%) !important;
   border-color: rgba(232, 193, 147, 0.32);
   color: rgba(232, 193, 147, 0.55);
@@ -7206,12 +7237,12 @@ body.theme-dark .qoc-photo--placeholder {
   text-align: right;
   margin: 6px 2px 4px;
 }
-body.theme-dark .dealbreaker-input {
+html[data-theme="dark"].dealbreaker-input {
   background: rgba(50, 36, 24, 0.5);
   border-color: rgba(120, 90, 60, 0.45);
   color: #F5E9D7;
 }
-body.theme-dark .dealbreaker-input:focus {
+html[data-theme="dark"].dealbreaker-input:focus {
   border-color: #E8C193;
   box-shadow: 0 0 0 3px rgba(232, 193, 147, 0.22);
 }
@@ -7347,28 +7378,28 @@ body.theme-dark .dealbreaker-input:focus {
   text-align: right;
 }
 
-body.theme-dark .answer-card {
+html[data-theme="dark"].answer-card {
   background: rgba(50, 36, 24, 0.45);
   border-color: rgba(120, 90, 60, 0.45);
 }
-body.theme-dark .answer-card:has(.answer-card-detail:not([hidden])) {
+html[data-theme="dark"].answer-card:has(.answer-card-detail:not([hidden])) {
   border-color: rgba(232, 193, 147, 0.55);
 }
-body.theme-dark .ac-headline { color: #F5E9D7; }
-body.theme-dark .ac-current  { color: #C7B493; }
-body.theme-dark .answer-card-detail { border-top-color: rgba(232, 193, 147, 0.18); }
-body.theme-dark .answer-option {
+html[data-theme="dark"].ac-headline { color: #F5E9D7; }
+html[data-theme="dark"].ac-current  { color: #C7B493; }
+html[data-theme="dark"].answer-card-detail { border-top-color: rgba(232, 193, 147, 0.18); }
+html[data-theme="dark"].answer-option {
   background: rgba(50, 36, 24, 0.55);
   border-color: rgba(120, 90, 60, 0.5);
   color: #E8D2B4;
 }
-body.theme-dark .answer-option.selected {
+html[data-theme="dark"].answer-option.selected {
   background: rgba(232, 193, 147, 0.16);
   border-color: #E8C193;
   box-shadow: 0 0 0 1px rgba(232, 193, 147, 0.55) inset;
 }
-body.theme-dark .ao-visual { background: rgba(232, 193, 147, 0.16); color: #E8C193; }
-body.theme-dark .ao-label { color: #F5E9D7; }
+html[data-theme="dark"].ao-visual { background: rgba(232, 193, 147, 0.16); color: #E8C193; }
+html[data-theme="dark"].ao-label { color: #F5E9D7; }
 
 @media (max-width: 380px) {
   .answer-options { gap: 6px; }
@@ -7436,7 +7467,7 @@ body.theme-dark .ao-label { color: #F5E9D7; }
   margin-left: 4px;
   cursor: pointer;
 }
-body.theme-dark .affiliate-disclosure-v2 {
+html[data-theme="dark"].affiliate-disclosure-v2 {
   background: var(--surface);
   border-color: rgba(232, 193, 147, 0.24);
 }

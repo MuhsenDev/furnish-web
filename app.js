@@ -1564,14 +1564,14 @@
       // Just furniture — single sofa in profile, line-art only. Communicates
       // "one piece of furniture" — no walls, no decor, no lamp.
       'scope-furniture': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 36 V30 Q14 26 18 26 H82 Q86 26 86 30 V36"/><line x1="14" y1="36" x2="86" y2="36"/><rect x="12" y="44" width="76" height="22" rx="3"/><line x1="50" y1="46" x2="50" y2="64"/><line x1="12" y1="36" x2="12" y2="66"/><line x1="88" y1="36" x2="88" y2="66"/><line x1="22" y1="66" x2="22" y2="74"/><line x1="78" y1="66" x2="78" y2="74"/></svg>`,
-      // Furniture + decor — three balanced elements: pendant lamp top-left,
-      // framed wall-art top-right, simple bed bottom. Communicates "more
-      // than one piece" without becoming busy.
-      'scope-furniture-decor': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="28" y1="10" x2="28" y2="22"/><path d="M20 22 H36 L32 32 H24 Z"/><rect x="56" y="14" width="28" height="22" rx="2"/><path d="M60 32 L66 24 L70 28 L78 18"/><circle cx="76" cy="20" r="1.6" fill="currentColor"/><rect x="14" y="62" width="58" height="16" rx="3"/><rect x="18" y="58" width="18" height="6" rx="1.5"/><line x1="14" y1="78" x2="14" y2="86"/><line x1="72" y1="78" x2="72" y2="86"/></svg>`,
-      // Whole room — interior view with walls, window, pendant light, sofa,
-      // and rug. The "fullest" icon of the four — visual weight reflects
-      // scope of the redesign. Per spec the most complex one.
-      'scope-whole-room': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12 V82 H90 V12"/><rect x="32" y="20" width="24" height="22" rx="1.5"/><line x1="44" y1="20" x2="44" y2="42"/><line x1="32" y1="31" x2="56" y2="31"/><line x1="74" y1="12" x2="74" y2="22"/><circle cx="74" cy="26" r="4"/><rect x="14" y="58" width="32" height="20" rx="2"/><line x1="14" y1="64" x2="46" y2="64"/><ellipse cx="64" cy="76" rx="22" ry="3"/></svg>`,
+      // Furniture + decor — armchair + floor lamp. Two clean elements
+      // communicate "furniture plus accent piece" without the busyness
+      // of the previous three-element composition (lamp + art + bed).
+      'scope-furniture-decor': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 78 V52 Q22 48 26 48 H58 Q62 48 62 52 V78"/><line x1="20" y1="78" x2="64" y2="78"/><line x1="22" y1="56" x2="62" y2="56"/><line x1="26" y1="78" x2="26" y2="86"/><line x1="58" y1="78" x2="58" y2="86"/><line x1="78" y1="86" x2="78" y2="44"/><path d="M68 40 L88 40 L84 28 L72 28 Z"/></svg>`,
+      // Whole room — clean interior: room outline (3 walls + ceiling) +
+      // window on back wall + pendant light + sofa on floor. Reads as
+      // "complete space" with intentional spacing instead of cluttered.
+      'scope-whole-room': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14 L14 78 L86 78 L86 14"/><line x1="14" y1="14" x2="86" y2="14"/><rect x="36" y="24" width="28" height="22" rx="2"/><line x1="50" y1="24" x2="50" y2="46"/><line x1="68" y1="14" x2="68" y2="22"/><circle cx="68" cy="26" r="3.5"/><rect x="20" y="58" width="24" height="14" rx="2"/><line x1="20" y1="63" x2="44" y2="63"/></svg>`,
       // Surprise me — bold, confident question mark. Heavier stroke
       // matches the visual prominence of the other three icons.
       'scope-surprise': `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M32 36 Q32 14 50 14 Q68 14 68 32 Q68 44 52 50 Q50 52 50 62"/><circle cx="50" cy="80" r="4" fill="currentColor"/></svg>`
@@ -2787,19 +2787,22 @@
     opts.classList.toggle('qo-stack', isTextOnly);
 
     // [Hassan's call] Q2 color_appetite: the palette PNGs are 2:1 horizontal
-    // swatches. The default 4:5 card crops them, hiding most of the colors.
-    // qo-palette switches to single-column wide cards (aspect 2:1) so the
-    // full palette renders left-to-right with no crop.
+    // swatches. qo-palette switches to single-column wide cards (aspect 2:1).
+    // Caption sits BELOW the photo (not overlay) per the global mandate to
+    // keep all captions off the images.
     const isPalette = q.id === 'color_appetite';
     opts.classList.toggle('qo-palette', isPalette);
 
-    // [Hassan's call] Q7 materials: textures have varied aspect ratios
-    // (1.0 to 2.04). qo-photo-text uses square cards with background-size
-    // contain so every image is fully visible (no crop, no rotation), and
-    // the caption sits BELOW the photo on a clean surface band — the
-    // image is never overlaid by the label gradient.
-    const isPhotoText = q.id === 'materials';
+    // [Hassan's call] All photo questions get caption-below treatment so
+    // text never overlays the image. qo-photo-text applies to any question
+    // whose options carry images (Q1 vibe, Q3 decor, Q5 light, Q7 textures,
+    // Q8 room_use). Q7 specifically gets the --square modifier — its
+    // bottom-left "Sleek modern" sample is square (1:1) and Hassan called
+    // it ideal; matching all Q7 cards to 1:1 with cover-fill makes every
+    // box fill edge-to-edge like that one.
+    const isPhotoText = !isPalette && !isTextOnly && q.options.some(o => o.image);
     opts.classList.toggle('qo-photo-text', isPhotoText);
+    opts.classList.toggle('qo-photo-text--square', q.id === 'materials');
 
     q.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
