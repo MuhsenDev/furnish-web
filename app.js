@@ -2685,11 +2685,15 @@
       ? (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []).slice()
       : null;
 
-    // [Hassan's call] Q6 budget renders as text-only cards (no visual /
-    // placeholder). The 5 budget options are descriptive copy, not visual
-    // categories — image slots added cognitive noise without value.
-    // Layout: stacked full-width pillars (qo-stack) instead of the 2-col grid.
-    const isTextOnly = q.id === 'budget_tier';
+    // [Hassan's call] Text-only mode for any photo-kind question where every
+    // option still has image: null. Better than a wall of placeholder cards
+    // — images are config-driven and fall back to text when no asset has
+    // landed. Q4 (image_kind: 'icon' with registered SVGs) and Q5/Q8/Q9/Q10
+    // (icon kind with question-mark fallback) keep their visual treatment.
+    // Q6 budget is grandfathered as text-only regardless of image_kind so
+    // it stays consistent with the prior copy + pillar layout decision.
+    const allImagesPending = kind !== 'icon' && q.options.every(o => !o.image);
+    const isTextOnly = q.id === 'budget_tier' || allImagesPending;
     opts.classList.toggle('qo-stack', isTextOnly);
 
     q.options.forEach((opt, idx) => {
