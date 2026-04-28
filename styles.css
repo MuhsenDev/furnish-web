@@ -6971,6 +6971,47 @@ html[data-theme="dark"] .pdb-emoji { color: #B0CC8C; }
 }
 .hp-check svg { display: block; }
 
+/* [Hassan's call] Designed-room cells display the user's actual generated
+   image as the cell background. Photo fills the tile; icon hides; label
+   overlays the bottom on a soft dark gradient for legibility against any
+   photo tone. Check badge stays in the top-right corner with a slight
+   shadow boost for visibility. */
+.hp-cell.hp-has-photo {
+  overflow: hidden;
+}
+.hp-cell.hp-has-photo .hp-photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  border-radius: inherit;
+  z-index: 0;
+  pointer-events: none;
+}
+.hp-cell.hp-has-photo .hp-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.70) 100%);
+  border-radius: inherit;
+}
+.hp-cell.hp-has-photo .hp-icon { display: none; }
+.hp-cell.hp-has-photo .hp-label {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  color: #FAF3E7;
+  font-weight: 700;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+.hp-cell.hp-has-photo .hp-check {
+  z-index: 3;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .hp-cell.hp-has-photo .hp-label {
+  color: #FAF3E7;
+}
+
 /* [Polish] Reset Profile container on the Preferences screen.
    Mirrors the .pp-settings-list visual style on the profile page —
    bordered rounded container with the .pp-setting buttons inside. */

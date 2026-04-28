@@ -4023,33 +4023,64 @@
   // spec must include at minimum: { roomType, styleId, image (optional),
   //   styleColors (optional), label (for analytics) }
   function useTemplateFromCard(spec, source) {
-    const roomType = spec.roomType || spec.type || 'living';
+    // [Hassan's call] All Use Template paths from inspiration cards
+    // (Trending Styles, Seasonal, Style Pulse / This Week) now route to
+    // the capture screen so the user provides their own photo, sets the
+    // budget on the slider, and generates from THEIR room. Previously
+    // these triggered immediate generation against the card's image.
+    //
+    // Room preselection rule:
+    //   - this_week_* sources → preselect the card's room type (each card
+    //     is room-specific in This Week / Style Pulse)
+    //   - collection_card source → no preselect (trending/seasonal cards
+    //     don't reference the user's actual room — let them pick)
+    //   - other (defensive) → preselect if spec carries an explicit roomType
+    const roomType = spec.roomType || spec.type || null;
     const styleId = spec.styleId || THIS_WEEK_CONFIG.styleId;
-    const dims = spec.dims || DEFAULT_ROOM_DIMS[roomType] || { w: 12, l: 14, h: 9 };
     const styles = spec.styles || (spec.styleId ? [spec.styleId] : [THIS_WEEK_CONFIG.styleId]);
     const colors = spec.colors || spec.styleColors || THIS_WEEK_CONFIG.styleColors || ['warm', 'neutral'];
-    // Use the card's own image as the source if available; otherwise the
-    // style anchor (so placeholder cards still produce a valid redesign).
-    const photo = spec.image || spec.photo || THIS_WEEK_CONFIG.styleAnchorImage;
-    const tpl = {
-      id: `tpl-card-${roomType}-${styleId}-${Date.now()}`,
-      type: roomType,
-      dims,
-      styles,
-      colors,
-      photo,
-      label: spec.label || `${THIS_WEEK_CONFIG.styleLabel} ${roomType}`,
-    };
+
+    const isThisWeek = typeof source === 'string' && source.startsWith('this_week_');
+    const isCollection = source === 'collection_card';
+    const shouldPreselectRoom = !!roomType && (isThisWeek || (!isCollection && spec.roomType));
+
     trackEvent('use_template_clicked', {
       source: source || 'unknown',
       roomType,
       styleId,
       hasImage: !!spec.image,
       imageType: spec.imageType || (spec.image ? 'asset' : 'placeholder'),
+      preselectedRoom: shouldPreselectRoom
     });
-    if (typeof startFromTemplate === 'function') {
-      startFromTemplate(tpl);
+
+    // Pro template gate stays — Pro-only templates require subscription.
+    // (Inspiration cards from collections/this-week are NOT marked pro;
+    // this branch is defensive in case future cards carry t.pro = true.)
+    if (spec.pro && !isPro()) {
+      state._pendingProAction = { actionId: 'template_pro', templateId: spec.id };
+      save();
+      trackEvent('paywall_trigger', { from: 'template_pro', templateId: spec.id });
+      openPaywall('template_pro');
+      return;
     }
+
+    ensureGuestProfile();
+    // Set up draft to route through capture. Photo stays null — user must
+    // provide one. Type set only when preselect rule fires. Style/color
+    // overrides carry the template's intent into buildRoomFromDraft.
+    state.draft = {
+      photo: null,
+      type: shouldPreselectRoom ? roomType : null,
+      dims: { w: 12, l: 14, h: 9 },
+      keep: false,
+      styleOverride: styles,
+      colorOverride: colors,
+      fromTemplate: spec.id || null,
+      templateLabel: spec.label || null
+    };
+    save();
+    showScreen('capture');
+    prepareCapture();
   }
   // Public surface in case future code paths want to fire the same flow.
   window.FurnishUseTemplate = useTemplateFromCard;
@@ -4463,13 +4494,41 @@
     // [Save Home] Hide excluded rooms entirely from the grid. Counter +
     // progress bar reflect "X of [9 - excluded]". Per spec edge-case #2 +
     // #5 and the exclusion-aware Next up.
+    // [Hassan's call] Designed rooms now display the actual generated
+    // photo as the cell background. Look up the room object via
+    // activeHome.designedRooms[type].roomId → state.rooms.find(...).
+    // Falls back gracefully if the photo is missing (legacy rooms,
+    // template-without-photo) — icon + label still render.
     const cells = visibleRoomTypes.map(type => {
       const isDone = designed.has(type);
       const isNext = !isDone && type === nextRoomType;
       const cls = ['hp-cell'];
       if (isDone) cls.push('hp-done');
       if (isNext) cls.push('hp-next');
+      // Resolve the room photo for designed rooms.
+      let roomPhoto = null;
+      if (isDone) {
+        const designedEntry = ah.designedRooms[type];
+        const roomId = designedEntry && designedEntry.roomId;
+        if (roomId) {
+          const roomObj = (state.rooms || []).find(r => r.id === roomId);
+          if (roomObj && roomObj.photo) roomPhoto = roomObj.photo;
+        }
+        // Fallback: most-recent room of this type for the active profile.
+        if (!roomPhoto) {
+          const matched = (state.rooms || [])
+            .filter(r => r.profileId === profile.id && r.type === type && r.photo)
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+          if (matched) roomPhoto = matched.photo;
+        }
+        if (roomPhoto) cls.push('hp-has-photo');
+      }
+      // Escape ' to avoid breaking the inline url('') wrapper.
+      const photoStyle = roomPhoto
+        ? `style="background-image:url('${String(roomPhoto).replace(/'/g, "%27")}')"`
+        : '';
       return `<button class="${cls.join(' ')}" data-hp-room="${type}" type="button" aria-label="${ROOM_LABELS[type] || type} ${isDone ? 'designed' : 'not yet designed'}">
+        ${roomPhoto ? `<span class="hp-photo" aria-hidden="true" ${photoStyle}></span>` : ''}
         <span class="hp-icon" aria-hidden="true">${ROOM_SVG[type] || fallbackSvg}</span>
         <span class="hp-label">${ROOM_LABELS[type] || type}</span>
         ${isDone ? `<span class="hp-check" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg></span>` : ''}
