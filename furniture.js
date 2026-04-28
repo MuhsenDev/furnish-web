@@ -30,16 +30,10 @@ window.COLOR_MOODS = [
   { id:'ocean',      label:'Ocean coastal',      hex:'#6F8FA8' }
 ];
 
-// Budget is now a continuous slider value ($50 → $10,000+). This table stays
-// for legacy state migration (old enum IDs map to approximate numbers).
-window.BUDGETS_LEGACY = {
-  budget:  1000,
-  mid:     3000,
-  lux:     6000,
-  nolimit: Infinity
-};
-window.BUDGET_MIN = 50;
-window.BUDGET_MAX = 10000;
+// [BUDGET_RESET_PASS] Removed window.BUDGETS_LEGACY, BUDGET_MIN, BUDGET_MAX.
+// Budget is now a transient per-generation slider value, set fresh every
+// time on the capture screen. Range constants live inline at the slider's
+// definition site in app.js. No persistent budget state remains.
 
 // ==============================================================
 // Scene SVG generator — self-drawn illustrations, guaranteed to
@@ -364,80 +358,204 @@ window.COLLECTIONS = [
 
 // Starter room templates — design from zero, no photo needed.
 window.ROOM_TEMPLATES = [
+  // Free tier: 5 templates covering the most common rooms. Gets users to aha
+  // even if they skip the quiz (fallback path). Pro gates premium/specialty
+  // templates (per Reforge PNIP Pyramid — Pro unlocks depth + polish).
   { id:'t-cozy-reading',    label:'Cozy Reading Nook',   type:'living',   dims:{w:8,l:9,h:9},   styles:['minimalist','scandinavian'],   colors:['warm','neutral'],    icon:'📖', image: sceneSVG('living') },
-  { id:'t-master-retreat',  label:'Master Bedroom',      type:'bedroom',  dims:{w:14,l:16,h:9}, styles:['modern','minimalist'],         colors:['neutral','warm'],    icon:'🛏️', image: sceneSVG('bedroom') },
   { id:'t-farmhouse-kit',   label:'Farmhouse Kitchen',   type:'kitchen',  dims:{w:12,l:16,h:9}, styles:['farmhouse','rustic'],          colors:['warm','whites'],     icon:'🍳', image: sceneSVG('kitchen') },
   { id:'t-nursery-gentle',  label:'Gentle Nursery',      type:'nursery',  dims:{w:10,l:12,h:9}, styles:['scandinavian','minimalist'],   colors:['neutral','sage'],    icon:'👶', image: sceneSVG('nursery') },
   { id:'t-japandi-office',  label:'Japandi Home Office', type:'office',   dims:{w:9,l:11,h:9},  styles:['japanese-zen','minimalist'],   colors:['warm','neutral'],    icon:'🖥️', image: sceneSVG('office') },
   { id:'t-coastal-bath',    label:'Coastal Bathroom',    type:'bathroom', dims:{w:7,l:10,h:9},  styles:['coastal','modern'],            colors:['whites','ocean'],    icon:'🛁', image: sceneSVG('bathroom') },
-  { id:'t-midcentury-liv',  label:'Mid-Century Living',  type:'living',   dims:{w:14,l:18,h:9}, styles:['mid-century','modern'],        colors:['warm','jewel'],      icon:'🪑', image: sceneSVG('living') },
-  { id:'t-walk-closet',     label:'Walk-in Closet',      type:'closet',   dims:{w:8,l:10,h:9},  styles:['modern','minimalist'],         colors:['neutral','whites'],  icon:'👚', image: sceneSVG('closet') }
+  // Pro tier
+  { id:'t-master-retreat',  label:'Master Bedroom',      type:'bedroom',  dims:{w:14,l:16,h:9}, styles:['modern','minimalist'],         colors:['neutral','warm'],    icon:'🛏️', image: sceneSVG('bedroom'), pro:true },
+  { id:'t-midcentury-liv',  label:'Mid-Century Living',  type:'living',   dims:{w:14,l:18,h:9}, styles:['mid-century','modern'],        colors:['warm','jewel'],      icon:'🪑', image: sceneSVG('living'),  pro:true },
+  { id:'t-walk-closet',     label:'Walk-in Closet',      type:'closet',   dims:{w:8,l:10,h:9},  styles:['modern','minimalist'],         colors:['neutral','whites'],  icon:'👚', image: sceneSVG('closet'),  pro:true }
 ];
 
-// Style quiz — image-first. Each option shows a representative photo and a short label
-// so the viewer picks by vibe, not words.
-window.QUIZ = [
+// ============================================================
+// Onboarding questions — 10-question flow (replaces the 4-Q style quiz)
+// ============================================================
+// Each answer maps to a concrete AI generation parameter. Style is never
+// asked literally — it emerges from the combination of vibe + color +
+// materials. Per ONBOARDING_AUDIT.md (approved 2026-04-26):
+//   - Order is intentional: fun questions front-load momentum, practical
+//     questions land while the user is committed.
+//   - Q7 caps at 2 selections; Q9 caps at 3 with "nothing" as exclusive.
+//   - Q10 has a follow-up screen with text input (spatial-marking deferred
+//     per CONFLICT 4 → DEFERRED.md).
+//   - Image-first questions use IMAGE_HINT entries; the renderer falls
+//     back to a clean placeholder slot when image_path is null. Drop in
+//     real images by editing this config — no component changes required.
+//
+// Reforge framework citations:
+//   - User Psychology (Loewenstein information-gap): the front-loaded fun
+//     questions create curiosity that carries through the practical ones.
+//   - Progressive disclosure: each question reveals one decision; multi-
+//     select questions show the cap inline.
+//   - Loss aversion (Q9 negative prompts): users articulate what they
+//     DON'T want as a way to clarify what they DO want.
+// ============================================================
+window.ONBOARDING_QUESTIONS = [
   {
-    q: 'Which space feels most like home?',
-    kind: 'photo',
+    id: 'vibe',
+    type: 'single_select',
+    ai_param: 'emotional_anchor',
+    headline: 'Walking into this room, you want to feel...',
+    image_kind: 'mood',  // square mood images, atmospheric not literal
     options: [
-      { label:'Airy Loft',      image:'assets/quiz/q1/airy-loft.jpg',      styles:['minimalist','modern','contemporary','scandinavian'] },
-      { label:'Sunlit & Woven', image:'assets/quiz/q1/sunlit-woven.webp',  styles:['bohemian','coastal','scandinavian'] },
-      { label:'Brick & Brass',  image:'assets/quiz/q1/brick-brass.jpg',    styles:['industrial','mid-century'] },
-      { label:'Farmhouse Dusk', image:'assets/quiz/q1/farmhouse-dusk.jpg', styles:['farmhouse','rustic','traditional'] }
-    ]
+      { id:'calm_grounded',     label:'Calm and grounded',           image:null },
+      { id:'energized_creative',label:'Energized and creative',      image:null },
+      { id:'cozy_protected',    label:'Cozy and protected',          image:null },
+      { id:'elevated_hotel',    label:'Elevated, like a hotel',      image:null },
+      { id:'inspired_artist',   label:"Inspired, like an artist's space", image:null }
+    ],
+    default: 'calm_grounded'
   },
   {
-    q: 'Which palette pulls you in?',
-    kind: 'palette',
+    id: 'color_appetite',
+    type: 'single_select',
+    ai_param: 'color_palette_intensity',
+    headline: 'How bold do you want to go with color?',
+    image_kind: 'palette', // color-swatch images showing the actual palette feel
     options: [
-      { label:'Oak & Linen',   colors:['#C8985A','#EFE3CD'], styles:['scandinavian','japanese-zen','farmhouse'] },
-      { label:'Jewel & Brass', colors:['#1F3A5F','#C8A553'], styles:['art-deco','mid-century','eclectic'] },
-      { label:'White + Black', colors:['#F5F2EA','#1A1A1A'], styles:['modern','minimalist','contemporary'] },
-      { label:'Terracotta',    colors:['#B5603D','#E0A98F'], styles:['bohemian','rustic','traditional'] }
-    ]
+      { id:'neutrals_only',  label:'Neutrals only — warm whites, beiges, woods',         image:null },
+      { id:'mostly_neutral', label:'Mostly neutral with one or two color moments',       image:null },
+      { id:'confident_color',label:'Confident color — a few rich, intentional tones',    image:null },
+      { id:'bold',           label:'Go bold — saturated, expressive, unafraid',          image:null }
+    ],
+    default: 'mostly_neutral'
   },
   {
-    q: 'Your ideal weekend?',
-    kind: 'icon',
+    id: 'decor_density',
+    type: 'single_select',
+    ai_param: 'decor_amount',
+    headline: "How much 'stuff' do you want?",
+    image_kind: 'reference_room', // 4 reference rooms across the density spectrum
     options: [
-      { label:'Gallery & Coffee',   svg:'gallery-coffee',    styles:['modern','contemporary','art-deco'] },
-      { label:'Shopping & Cooking', svg:'shopping-cooking',  styles:['farmhouse','rustic','traditional'] },
-      { label:'Beach Sunset',       svg:'beach-sunset',      styles:['coastal','bohemian'] },
-      { label:'Tea & Garden',       svg:'tea-garden',        styles:['japanese-zen','minimalist','scandinavian'] }
-    ]
+      { id:'clean',                label:'A clean look — minimal decor, breathing room',     image:null },
+      { id:'a_little_personality', label:'A little personality — some accents, mostly clean',image:null },
+      { id:'lived_in_rich',        label:'Lived-in and rich — lots of decor, warm and layered',image:null },
+      { id:'maximalist',           label:'Maximalist — every surface tells a story',         image:null }
+    ],
+    default: 'a_little_personality'
   },
   {
-    q: 'Your dream material is…',
-    kind: 'photo',
+    id: 'scope',
+    type: 'single_select',
+    ai_param: 'ai_freedom_level',
+    headline: 'What are we redesigning?',
+    image_kind: 'icon',
     options: [
-      { label:'Solid Oak',       image: 'assets/quiz/q4/solid-oak.jpg',       styles:['scandinavian','farmhouse','japanese-zen','rustic'] },
-      { label:'Polished Walnut', image: 'assets/quiz/q4/polished-walnut.jpg', styles:['mid-century','traditional','art-deco'] },
-      { label:'Steel & Glass',   image: 'assets/quiz/q4/steel-glass.jpg',     styles:['industrial','modern','contemporary'] },
-      { label:'Woven Rattan',    image: 'assets/quiz/q4/woven-rattan.jpg',    styles:['bohemian','coastal','eclectic'] }
-    ]
+      { id:'just_furniture',  label:'Just furniture — keep my walls, floors, lighting', svg:'scope-furniture' },
+      { id:'furniture_decor', label:'Furniture + decor — accessories, art, plants',     svg:'scope-furniture-decor' },
+      { id:'whole_room',      label:'The whole room — lighting, rugs, paint, everything',svg:'scope-whole-room' },
+      { id:'surprise_me',     label:'Surprise me — go full transformation',             svg:'scope-surprise' }
+    ],
+    default: 'furniture_decor'
   },
   {
-    q: 'The feeling you want at home?',
-    kind: 'face',
+    id: 'natural_light',
+    type: 'single_select',
+    ai_param: 'lighting_strategy',
+    headline: "What's the natural light situation?",
+    image_kind: 'icon',
     options: [
-      { label:'Calm',     face:'calm',     styles:['minimalist','japanese-zen','scandinavian'] },
-      { label:'Lived-In', face:'lived-in', styles:['farmhouse','rustic','traditional','transitional'] },
-      { label:'Bold',     face:'bold',     styles:['eclectic','bohemian','art-deco'] },
-      { label:'Crisp',    face:'crisp',    styles:['modern','contemporary','mid-century'] }
-    ]
+      { id:'tons',           label:'Tons of natural light all day',                  svg:'light-tons' },
+      { id:'bright_morning', label:'Bright in the morning / dim later',              svg:'light-morning' },
+      { id:'dim',            label:'Dim or north-facing — needs help feeling bright',svg:'light-dim' },
+      { id:'unsure',         label:"I'm not sure / it varies",                       svg:'light-unsure' }
+    ],
+    default: 'unsure'
+  },
+  // [BUDGET_RESET_PASS] Q6 budget_tier removed. Budget is now a transient
+  // per-generation slider on the capture screen, not an onboarding question.
+  // Quiz is now 9 questions; renderer auto-derives "X of 9" from
+  // ONBOARDING_QUESTIONS.length. Tutorial coachmark trio replacement:
+  // vibe + materials + scope (was vibe + materials + budget) — see
+  // CHANGES_APPLIED.md for the rationale.
+  {
+    id: 'materials',
+    type: 'multi_select_max_2',
+    ai_param: 'material_palette',
+    headline: 'Which of these speaks to you most?',
+    subhead: 'Pick up to 2',
+    image_kind: 'texture', // 6 close-up texture images
+    max_selections: 2,
+    options: [
+      { id:'warm_woods',    label:'Warm woods and rattan',           image:null },
+      { id:'soft_fabrics',  label:'Soft fabrics and boucle',         image:null },
+      { id:'metal_glass',   label:'Smooth metal and glass',          image:null },
+      { id:'stone_ceramic', label:'Stone, ceramic, raw plaster',     image:null },
+      { id:'vintage_patina',label:'Vintage and patina',              image:null },
+      { id:'sleek_modern',  label:'Sleek and modern surfaces',       image:null }
+    ],
+    default: ['warm_woods', 'soft_fabrics']
   },
   {
-    q: 'How much decoration do you love?',
-    kind: 'icon',
+    id: 'room_use',
+    type: 'single_select',
+    ai_param: 'function_priority',
+    headline: 'How is this room actually used?',
+    image_kind: 'icon',
     options: [
-      { label:'Plain',                svg:'wall-plain',     styles:['minimalist','japanese-zen','scandinavian','contemporary'] },
-      { label:'A Few Decorations',    svg:'wall-few',       styles:['modern','transitional','scandinavian','mid-century'] },
-      { label:'Majority',             svg:'wall-majority',  styles:['traditional','farmhouse','eclectic','bohemian'] },
-      { label:'Fill The Wall Up!',    svg:'wall-full',      styles:['eclectic','bohemian','art-deco','traditional'] }
-    ]
+      { id:'slept_relaxed',     label:'Mostly slept/relaxed in',                         svg:'use-relax' },
+      { id:'lived_in_all_day',  label:'Lived in all day — work, hobbies, hanging out',   svg:'use-all-day' },
+      { id:'hosting',           label:'Hosting and entertaining',                        svg:'use-hosting' },
+      { id:'aspirational',      label:'Aspirational — I want it to look amazing more than be practical', svg:'use-aspirational' }
+    ],
+    default: 'lived_in_all_day'
+  },
+  {
+    id: 'avoid',
+    type: 'multi_select_max_3',
+    ai_param: 'negative_prompts',
+    headline: 'What do you NOT want in this room?',
+    subhead: 'Pick any that apply',
+    image_kind: 'icon',
+    max_selections: 3,
+    // 'nothing' must be exclusive — when picked, deselects others; others
+    // deselect 'nothing' when picked. Renderer enforces this.
+    exclusive_option_id: 'nothing',
+    options: [
+      { id:'too_modern',    label:'Anything too modern or sterile',          svg:'avoid-modern' },
+      { id:'too_rustic',    label:'Anything too rustic or "farmhouse"',      svg:'avoid-rustic' },
+      { id:'busy_prints',   label:'Bold patterns or busy prints',            svg:'avoid-prints' },
+      { id:'dark_heavy',    label:'Dark colors or heavy furniture',          svg:'avoid-dark' },
+      { id:'trendy',        label:"Trendy stuff that'll feel dated",         svg:'avoid-trendy' },
+      { id:'nothing',       label:'Nothing — show me anything',              svg:'avoid-nothing' }
+    ],
+    default: []
+  },
+  {
+    id: 'dealbreaker',
+    type: 'single_select_with_followup',
+    ai_param: 'preserve_element',
+    headline: 'Is there one thing in your room you want to keep no matter what?',
+    image_kind: 'icon',
+    options: [
+      { id:'furniture', label:'A specific piece of furniture',         svg:'keep-furniture' },
+      { id:'color',     label:'A color or paint job',                  svg:'keep-color' },
+      { id:'artwork',   label:'An artwork or sentimental item',        svg:'keep-artwork' },
+      { id:'nothing',   label:'Nothing — full creative freedom',       svg:'keep-nothing' }
+    ],
+    // Spatial-marking on the user's uploaded photo deferred per
+    // ONBOARDING_AUDIT §J + DEFERRED.md. Followup ships text-only.
+    followup: {
+      mode: 'text', // future: 'tap_to_mark' once capture-before-quiz lands
+      placeholder_by_kind: {
+        furniture: 'e.g. the walnut sideboard against the south wall',
+        color:     'e.g. the sage green paint, or the original hardwood',
+        artwork:   'e.g. the framed Hockney print over the bed'
+      },
+      max_chars: 120
+    },
+    default: { kind: 'nothing', text: '' }
   }
 ];
+
+// Backward-compat alias — any straggler reader of window.QUIZ still works
+// during the transition. Layer 10 sweep verifies no readers remain.
+window.QUIZ = window.ONBOARDING_QUESTIONS;
 
 // SVG library for quiz options — hand-drawn, recognizable.
 window.QUIZ_SVGS = {
@@ -475,13 +593,18 @@ window.QUIZ_SVGS = {
 // SVG icons for room types — replaces the previous emoji set on the Room Type chooser.
 window.ROOM_TYPE_SVGS = {
   living:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14V12a3 3 0 013-3h12a3 3 0 013 3v2"/><path d="M2 14h20v5H2z"/><path d="M5 19v2M19 19v2"/></svg>`,
-  bedroom:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12V5"/><path d="M22 19v-7H2v7"/><rect x="6" y="9" width="6" height="3" rx="1"/></svg>`,
-  kitchen:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="16" height="12" rx="1"/><line x1="4" y1="14" x2="20" y2="14"/><circle cx="9" cy="11.5" r="0.7" fill="currentColor"/><circle cx="15" cy="11.5" r="0.7" fill="currentColor"/><path d="M7 4v3M12 4v3M17 4v3"/></svg>`,
-  dining:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="6"/><line x1="3" y1="13" x2="6" y2="13"/><line x1="18" y1="13" x2="21" y2="13"/><line x1="12" y1="3" x2="12" y2="7"/></svg>`,
+  // Bedroom: proper bed with pillow, headboard, and clear frame
+  bedroom:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-5a2 2 0 012-2h14a2 2 0 012 2v5"/><path d="M2 18h20"/><path d="M3 18v2M21 18v2"/><rect x="6" y="8" width="6" height="3" rx="1"/><path d="M3 13V8"/></svg>`,
+  // Kitchen: stove + pot with steam — immediately reads as cooking
+  kitchen:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13h14l-1 7H6z"/><path d="M4 13h16"/><path d="M7 13v-2a5 5 0 0110 0v2"/><path d="M9 5c0 1-1 1.5-1 2.5M13 4c0 1-1 1.5-1 2.5M17 5c0 1-1 1.5-1 2.5"/></svg>`,
+  // Dining: round table (top-down view) with four chairs around it
+  dining:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><rect x="10" y="3" width="4" height="3" rx="0.6"/><rect x="10" y="18" width="4" height="3" rx="0.6"/><rect x="3" y="10" width="3" height="4" rx="0.6"/><rect x="18" y="10" width="3" height="4" rx="0.6"/></svg>`,
   bathroom: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18v3a3 3 0 01-3 3H6a3 3 0 01-3-3z"/><path d="M6 12V5a2 2 0 014 0"/><line x1="3" y1="20" x2="5" y2="22"/><line x1="21" y1="20" x2="19" y2="22"/></svg>`,
   office:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="11" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg>`,
-  nursery:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="1"/><line x1="7" y1="10" x2="7" y2="20"/><line x1="11" y1="10" x2="11" y2="20"/><line x1="15" y1="10" x2="15" y2="20"/><circle cx="12" cy="5" r="2"/></svg>`,
-  closet:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V8l7-4 7 4v13"/><line x1="5" y1="21" x2="19" y2="21"/><circle cx="14" cy="13" r="0.8" fill="currentColor"/></svg>`,
+  // Nursery: classic crib silhouette — vertical bars + rocker rails at the base
+  nursery:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v10"/><path d="M20 9v10"/><path d="M4 9h16"/><line x1="8"  y1="11" x2="8"  y2="17"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="16" y1="11" x2="16" y2="17"/><path d="M3 19q9 4 18 0"/></svg>`,
+  // Closet: coat hanger — universally read as wardrobe/closet
+  closet:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V6a2 2 0 114 0"/><path d="M4 18l8-6 8 6H4z"/><line x1="4" y1="18" x2="20" y2="18"/></svg>`,
   laundry:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="13" r="4"/><circle cx="8" cy="6.5" r="0.6" fill="currentColor"/><circle cx="11" cy="6.5" r="0.6" fill="currentColor"/></svg>`
 };
 

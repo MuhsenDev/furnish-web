@@ -583,10 +583,9 @@
         </div>
       </details>
 
-      <!-- [Budget per Room migration] Budget moved out of global preferences
-           into a per-room modal that opens on the capture-screen room picker.
-           The single profile.budget value is replaced by profile.roomBudgets
-           keyed by room type. Save & Continue stays. -->
+      <!-- [BUDGET_RESET_PASS] Budget removed from global preferences AND
+           from the per-room model. Now a transient slider on the capture
+           screen, set fresh per generation. Save & Continue stays. -->
 
       <div class="actions-row">
         <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
@@ -931,6 +930,21 @@
         <!-- Inline room type — was Step 2/4; now inline to collapse setup moment -->
         <h3 class="section-h compact">What room is this?</h3>
         <div class="rt-grid rt-grid-compact" id="roomTypeGrid"></div>
+
+        <!-- [BUDGET_RESET_PASS — Phase 2] Per-generation budget slider.
+             Lives next to the room-type selector since both are pre-
+             generation choices for THIS specific generation. Value reads
+             into state.draft.budget at slider change; consumed at the
+             moment of generation; resets to default on every fresh capture
+             screen entry. Not stored on profile or user. -->
+        <div class="capture-budget" id="captureBudget">
+          <div class="capture-budget-head">
+            <h3 class="section-h compact capture-budget-title">Budget for this room</h3>
+            <span class="capture-budget-amount" id="captureBudgetAmount">$3,000</span>
+          </div>
+          <input type="range" id="captureBudgetSlider" class="budget-range" min="0" max="1000" step="1" value="600" aria-label="Budget for this generation" />
+          <div class="capture-budget-ticks budget-ticks" aria-hidden="true"></div>
+        </div>
 
         <!-- Hidden dimension inputs kept so existing app.js writes succeed.
              Dimensions are auto-estimated; user can tweak post-aha on results. -->
@@ -1604,10 +1618,10 @@
   <!--
     [First-redesign tutorial overlay]
     Fires ONCE per user, immediately after their first AI-generated redesign,
-    auto-routing them to the preferences screen so they discover the budget
-    slider before sticker shock kicks in. See app.js:
+    auto-routing them to the preferences screen so they discover the
+    high-leverage answer cards before sticker shock kicks in. See app.js:
       - state.user.firstRedesignTutorialSeen (flag, never re-fires)
-      - TUTORIAL_STEPS (steps in order, BUDGET is the centerpiece)
+      - TUTORIAL_STEPS (steps in order: vibe, materials, scope)
       - startFirstRedesignTutorial() (entry point)
       - tutorial_started/_step_viewed/_completed/_skipped events
     Spotlight technique: a fixed div with massive outset box-shadow casts
@@ -1662,35 +1676,7 @@
        calls so the user sees the side-by-side WHAT GETS RESET / WHAT
        STAYS lists at a glance — auth-survives reassurance is the most
        important content. Per RESET_DIALOG_AUDIT.md decision policy. -->
-  <!-- [Budget per Room] Per-room budget modal — opens when user taps a room
-       tile on the capture screen. Slider scale matches the prior global
-       budget control ($50 / $500 / $2k / $5k / $10k+). Confirm sets the
-       budget for that specific room type and proceeds to photo capture. -->
-  <div class="modal room-budget-modal" id="roomBudgetModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="roomBudgetTitle">
-    <div class="modal-card room-budget-card">
-      <button class="modal-close" id="roomBudgetClose" type="button" aria-label="Cancel">×</button>
-      <h3 id="roomBudgetTitle" class="room-budget-title">Living Room</h3>
-      <p class="room-budget-sub muted small">Set the budget for this room. You can change it later.</p>
-      <div class="room-budget-display">
-        <span class="room-budget-label">Up to</span>
-        <span class="room-budget-amount" id="roomBudgetAmount">$3,000</span>
-      </div>
-      <input type="range" id="roomBudgetSlider" class="room-budget-range budget-range" min="0" max="1000" step="1" value="600" aria-label="Budget for this room" />
-      <div class="room-budget-ticks budget-ticks" aria-hidden="true">
-        <span>$50</span>
-        <span>$500</span>
-        <span>$2k</span>
-        <span>$5k</span>
-        <span>$10k+</span>
-      </div>
-      <div class="room-budget-actions">
-        <button class="btn btn-ghost" id="roomBudgetCancel" type="button">Cancel</button>
-        <button class="btn btn-primary" id="roomBudgetConfirm" type="button">Set Budget</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal reset-dialog" id="resetDialog" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="resetDialogTitle">
+<div class="modal reset-dialog" id="resetDialog" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="resetDialogTitle">
     <div class="modal-card reset-dialog-card">
       <button class="modal-close" id="resetDialogClose" type="button" aria-label="Cancel">×</button>
       <h3 id="resetDialogTitle">Reset your design profile?</h3>
@@ -1703,7 +1689,7 @@
               <span class="reset-mark" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
               </span>
-              <span class="reset-mark-text">Your 10 onboarding answers (vibe, color, decor density, scope, lighting, budget, materials, room use, what to avoid, dealbreaker piece)</span>
+              <span class="reset-mark-text">Your 9 onboarding answers (vibe, color, decor density, scope, lighting, materials, room use, what to avoid, dealbreaker piece)</span>
             </li>
             <li>
               <span class="reset-mark" aria-hidden="true">

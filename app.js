@@ -24,23 +24,12 @@
       const raw = localStorage.getItem('furnish.state');
       if (!raw) return structuredClone(DEFAULT_STATE);
       const st = { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) };
-      // Migrate legacy budget enum ('mid'/'lux'/etc.) → number
-      // [Budget per Room] Also migrate single profile.budget → roomBudgets
-      // object keyed by room type. Existing budget value is propagated to
-      // EVERY room so users with prior designs see no change in catalog
-      // picks for those rooms. Future per-room edits override individually.
+      // [BUDGET_RESET_PASS] Removed budget migration. Budget is now a
+      // transient per-generation slider value, not stored on the profile.
+      // Drop any stale fields so the new model doesn't read corrupted state.
       (st.profiles || []).forEach(p => {
-        if (typeof p.budget === 'string') {
-          p.budget = window.BUDGETS_LEGACY?.[p.budget] ?? 3000;
-        }
-        if (p.budget == null || (typeof p.budget !== 'number' && p.budget !== Infinity)) p.budget = 3000;
-        if (!p.roomBudgets || typeof p.roomBudgets !== 'object') {
-          // First migration — seed every room with the legacy value.
-          p.roomBudgets = {};
-          ['living','bedroom','kitchen','dining','bathroom','office','nursery','closet','laundry'].forEach(rt => {
-            p.roomBudgets[rt] = p.budget;
-          });
-        }
+        delete p.budget;
+        delete p.roomBudgets;
       });
       return st;
     } catch (e) {
@@ -185,12 +174,11 @@
       id,
       name: name || 'My Style',
       avatar: null,
-      // [10-Q model] Canonical onboarding state. Empty = "no answers yet";
-      // the renderer falls back to ONBOARDING_DEFAULTS() at AI-prompt time.
+      // [9-Q model — BUDGET_RESET_PASS] Canonical onboarding state. Empty
+      // = "no answers yet"; the renderer falls back to ONBOARDING_DEFAULTS()
+      // at AI-prompt time. Budget is now transient (set per generation on
+      // the capture-screen slider), no longer a profile field.
       answers: {},
-      // Budget slider stays as the catalog price filter — independent of
-      // budget_tier (which is an AI-prompt anchor). Both coexist.
-      budget: 1500,
       // Legacy fields — populated lazily for catalog-picker compat.
       // customColors preserved for future Pro feature per CONFLICT 1.
       styles: [],
@@ -1488,18 +1476,8 @@
   // confident, warm, calm. Mutates the shared ONBOARDING_QUESTIONS in place
   // at boot — idempotent guards so hot-reload doesn't clobber further edits.
   if (window.ONBOARDING_QUESTIONS) {
-    const _q6 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'budget_tier');
-    if (_q6 && _q6.headline.includes('budget vibe')) {
-      _q6.headline = 'How much do you want to spend?';
-      const _q6Labels = {
-        tight:       'Tight — keep it cheap',
-        smart:       'Smart — a mix of cheap and nice',
-        quality:     'Quality — mostly nice stuff',
-        investment:  'Top tier — only the best',
-        dream_first: 'Show me anything'
-      };
-      _q6.options.forEach(o => { if (_q6Labels[o.id]) o.label = _q6Labels[o.id]; });
-    }
+    // [BUDGET_RESET_PASS] Q6 budget_tier override block removed — Q6 itself
+    // no longer exists in ONBOARDING_QUESTIONS.
 
     const _q9 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'avoid');
     if (_q9 && _q9.headline.includes('NOT want')) {
@@ -1988,7 +1966,6 @@
       p.styles = [];
       p.colors = [];
       p.customColors = [];
-      p.budget = 3000;
       p.avatar = null;
       p.seenFinale = false;
       delete p._maxCompleteness;
@@ -2246,7 +2223,7 @@
       'Unlimited reshuffles on your existing redesign',
       'Unlimited item swaps',
       'Full shopping access — every item is yours to buy',
-      'Basic personalization (style, mood, budget)',
+      'Basic personalization (style, mood)',
       'Real-time price-drop alerts on saved items',
     ]),
     // [Batch 5 Part 2 — Dim 02 D02-3 modified] Cancellation-safety line.
@@ -2858,7 +2835,7 @@
     // descriptive copy, not visual categories — image/icon slots add noise
     // without value. Layout: stacked full-width pillars (qo-stack) instead
     // of the 2-col grid.
-    const TEXT_ONLY_QUESTIONS = ['budget_tier', 'avoid', 'dealbreaker'];
+    const TEXT_ONLY_QUESTIONS = ['avoid', 'dealbreaker'];
     const isTextOnly = TEXT_ONLY_QUESTIONS.includes(q.id);
     opts.classList.toggle('qo-stack', isTextOnly);
 
@@ -3359,7 +3336,8 @@
     if (answersEditorEl?.parentElement) {
       renderStyleProfileGauge(p, answersEditorEl.parentElement);
     }
-    setupBudgetSlider(p);
+    // [BUDGET_RESET_PASS] setupBudgetSlider call removed — budget moved out
+    // of preferences entirely.
 
     showScreen('preferences');
 
@@ -3475,33 +3453,58 @@
     m.onclick = e => { if (e.target.id === 'photoSourceModal') close(); };
   }
 
-  // ---------- Budget slider (log-scale $50 → $10,000+) ----------
+  // ============================================================
+  // [BUDGET_RESET_PASS — Phase 2 helpers]
+  // Per-generation budget slider. Range $500 → $20,000+. Variable step:
+  // $100 below $5k, $500 between $5k-$10k, $1000 above. Default $3,000.
+  // Value lives only in state.draft.budget until generation; never stored
+  // on profile/user.
+  // ============================================================
+  const SLIDER_BUDGET_MIN     = 500;
+  const SLIDER_BUDGET_MAX     = 20000;
+  const SLIDER_BUDGET_DEFAULT = 3000;
   function sliderToBudget(v) {
+    // v is 0-1000 (the input element's range).
     const t = Math.max(0, Math.min(1000, v)) / 1000;
-    // Reserve the final 0.5% of the slider for "no limit" / $10,000+
-    if (t >= 0.995) return Infinity;
+    if (t >= 0.995) return Infinity; // top-of-slider = "no cap"
     const scaled = t / 0.995;
-    const lo = Math.log(window.BUDGET_MIN);
-    const hi = Math.log(window.BUDGET_MAX);
+    const lo = Math.log(SLIDER_BUDGET_MIN);
+    const hi = Math.log(SLIDER_BUDGET_MAX);
     const raw = Math.exp(lo + (hi - lo) * scaled);
-    // Round to friendlier numbers based on magnitude.
-    if (raw < 200)  return Math.max(window.BUDGET_MIN, Math.round(raw / 10) * 10);
-    if (raw < 1000) return Math.round(raw / 25) * 25;
-    if (raw < 5000) return Math.round(raw / 100) * 100;
-    return Math.round(raw / 250) * 250;
+    // Variable step rounding.
+    if (raw < 5000)  return Math.max(SLIDER_BUDGET_MIN, Math.round(raw / 100) * 100);
+    if (raw < 10000) return Math.round(raw / 500) * 500;
+    return Math.round(raw / 1000) * 1000;
   }
   function budgetToSlider(amount) {
     if (!amount || amount === Infinity) return 1000;
-    const lo = Math.log(window.BUDGET_MIN);
-    const hi = Math.log(window.BUDGET_MAX);
-    const t = (Math.log(Math.max(window.BUDGET_MIN, amount)) - lo) / (hi - lo);
+    const lo = Math.log(SLIDER_BUDGET_MIN);
+    const hi = Math.log(SLIDER_BUDGET_MAX);
+    const t = (Math.log(Math.max(SLIDER_BUDGET_MIN, Math.min(SLIDER_BUDGET_MAX, amount))) - lo) / (hi - lo);
     return Math.round(Math.max(0, Math.min(1, t)) * 0.995 * 1000);
   }
   function formatBudget(amount) {
     if (amount == null) return '—';
-    if (amount === Infinity || amount >= window.BUDGET_MAX) return '$10,000+';
+    if (amount === Infinity || amount >= SLIDER_BUDGET_MAX) return '$' + SLIDER_BUDGET_MAX.toLocaleString() + '+';
     return '$' + amount.toLocaleString();
   }
+  // Get the current slider value at any moment. Falls back to default.
+  function getCurrentBudget() {
+    const v = state.draft && typeof state.draft.budget === 'number' ? state.draft.budget : SLIDER_BUDGET_DEFAULT;
+    return v;
+  }
+  // Build the budget-band copy for the AI prompt — Reforge prompt-engineering
+  // pattern: explicit budget framing produces more consistent results than
+  // implicit numeric values. Bands match the spec.
+  function budgetBandText(amount) {
+    if (amount == null) amount = SLIDER_BUDGET_DEFAULT;
+    if (amount === Infinity) return 'no budget cap — show the dream first; aspirational, statement pieces';
+    if (amount < 1500)        return 'a tight budget around $' + amount.toLocaleString() + ' — emphasize high-low mix and IKEA, Target tier alternatives';
+    if (amount < 5000)        return 'a smart mid-tier budget around $' + amount.toLocaleString() + ' — Wayfair, West Elm sale items, smart mix of high and low';
+    if (amount < 15000)       return 'a quality budget around $' + amount.toLocaleString() + ' — CB2, Crate & Barrel, real wood, durable construction';
+    return                           'an investment budget around $' + amount.toLocaleString() + ' — RH, Design Within Reach, statement furniture, designer pieces';
+  }
+  window.FurnishGetCurrentBudget = getCurrentBudget;
   // ============================================================
   // 10-Q answers editor — preferences-screen surface
   // ============================================================
@@ -3510,7 +3513,8 @@
   // quiz uses. Tap a different option → save immediately, fire
   // preferences_edited_post_redesign analytic, collapse the card.
   // The first-redesign tutorial coachmarks point at three specific cards
-  // (vibe, materials, budget) — see Layer 6.
+  // (vibe, materials, scope) — see Layer 6. (Was budget; Q6 removed in
+  // BUDGET_RESET_PASS, scope is the highest-leverage replacement.)
   // ============================================================
   function renderAnswersEditor(profile) {
     const root = document.getElementById('answersEditor');
@@ -3707,75 +3711,21 @@
   // Public surface for any future caller (post-redesign deep link, etc.)
   window.FurnishRenderAnswersEditor = renderAnswersEditor;
 
-  // [Budget per Room] The global #budgetSlider markup has been removed; the
-  // function survives as a safe no-op (defensive guard) since any straggler
-  // call site won't crash. New per-room budget setting lives in the room-
-  // budget-modal — see openRoomBudgetModal below.
-  function setupBudgetSlider(profile) {
-    const slider = $('#budgetSlider');
-    const display = $('#budgetAmount');
-    if (!slider || !display) return;
-    const initial = budgetToSlider(profile.budget);
-    slider.value = initial;
-    paintBudgetTicks();
-    const paint = () => {
-      const amount = sliderToBudget(+slider.value);
-      display.textContent = formatBudget(amount);
-      slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
-      profile.budget = amount;
-    };
-    paint();
-    slider.oninput = () => { paint(); };
-    slider.onchange = () => { save(); };
-  }
-
-  // [Budget per Room] Default budget per room type, keyed to window.ROOM_TYPES
-  // ids. Used as the slider's initial value when the user hasn't set a budget
-  // yet, and as a fallback inside pickItemsForRoom when roomBudgets[type] is
-  // null/undefined. Numbers chosen to reflect typical full-room totals at
-  // mid-range retailers — kitchens/dining are the priciest, closets/laundry
-  // are the cheapest.
-  const ROOM_BUDGET_DEFAULTS = Object.freeze({
-    living:   3000,
-    bedroom:  2000,
-    kitchen:  5000,
-    dining:   2500,
-    bathroom: 1500,
-    office:   1500,
-    nursery:  1500,
-    closet:    800,
-    laundry:   800
-  });
-  function getRoomBudget(profile, roomType) {
-    if (!profile) return ROOM_BUDGET_DEFAULTS[roomType] || 3000;
-    const fromProfile = profile.roomBudgets && profile.roomBudgets[roomType];
-    if (typeof fromProfile === 'number' && fromProfile > 0) return fromProfile;
-    return ROOM_BUDGET_DEFAULTS[roomType] || profile.budget || 3000;
-  }
-  function formatBudgetShort(amount) {
-    if (amount == null) return '—';
-    if (amount === Infinity || amount >= window.BUDGET_MAX) return '$10k+';
-    if (amount >= 1000) {
-      const k = amount / 1000;
-      return '$' + (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + 'k';
-    }
-    return '$' + amount.toLocaleString();
-  }
-  // Public surface — used by renderRoomTypeCards for the budget chip.
-  window.FurnishGetRoomBudget = getRoomBudget;
-  window.FurnishRoomBudgetDefaults = ROOM_BUDGET_DEFAULTS;
-
-  // Render tick labels positioned at their actual log-scale slider %.
+  // [BUDGET_RESET_PASS] All per-room budget infrastructure removed:
+  //   setupBudgetSlider, ROOM_BUDGET_DEFAULTS, getRoomBudget,
+  //   formatBudgetShort, paintBudgetTicks (modal version),
+  //   openRoomBudgetModal, closeRoomBudgetModal, modal IIFE wiring.
+  // The per-generation slider is wired in renderRoomTypeCards / Phase 2.
+  // Tick-label rendering for the new slider:
   function paintBudgetTicks(container) {
-    container = container || document.querySelector('.budget-ticks');
     if (!container) return;
     container.innerHTML = '';
     const points = [
-      { v: 50,       label: '$50' },
-      { v: 500,      label: '$500' },
-      { v: 2000,     label: '$2k' },
-      { v: 5000,     label: '$5k' },
-      { v: Infinity, label: '$10k+' }
+      { v: SLIDER_BUDGET_MIN, label: '$' + SLIDER_BUDGET_MIN },
+      { v: 2000,              label: '$2k' },
+      { v: 5000,              label: '$5k' },
+      { v: 10000,             label: '$10k' },
+      { v: Infinity,          label: '$' + (SLIDER_BUDGET_MAX / 1000) + 'k+' }
     ];
     points.forEach(p => {
       const span = document.createElement('span');
@@ -3785,133 +3735,6 @@
       container.appendChild(span);
     });
   }
-
-  // [Budget per Room] Modal controller. Opens when user taps a room tile on
-  // the capture screen. Slider pre-fills with the user's saved budget for
-  // that room (or the default if unset). Confirm saves to roomBudgets +
-  // sets state.draft.type + closes + advances the user to photo capture.
-  // Reforge Conversion Optimization: per-room budget = better catalog picks
-  // = higher save rate. Reforge User Psychology: tile-tap surfaces a
-  // single-decision prompt instead of forcing budget into the global flow.
-  let _pendingRoomType = null;
-  let _pendingOnConfirm = null;
-  let _pendingSource = null;
-  // [Budget per Room — generation-time] Open the modal before any AI
-  // generation event. opts.onConfirm runs after Confirm with the saved
-  // budget amount; opts.source is included in analytics so we can see
-  // which entry-point fired (analyze, reshuffle, keep_toggle, pivot,
-  // template). Cancel + backdrop dismiss abort generation cleanly —
-  // _pendingOnConfirm is cleared on close.
-  function openRoomBudgetModal(roomType, opts) {
-    const profile = getActiveProfile();
-    if (!profile) return;
-    opts = opts || {};
-    _pendingRoomType = roomType;
-    _pendingOnConfirm = typeof opts.onConfirm === 'function' ? opts.onConfirm : null;
-    _pendingSource = opts.source || 'tile_tap';
-    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
-    const modal = document.getElementById('roomBudgetModal');
-    if (!modal) return;
-    const title = document.getElementById('roomBudgetTitle');
-    const slider = document.getElementById('roomBudgetSlider');
-    const amountEl = document.getElementById('roomBudgetAmount');
-    const ticksHost = modal.querySelector('.room-budget-ticks');
-    const sub = modal.querySelector('.room-budget-sub');
-    if (title) title.textContent = ROOM_LABELS[roomType] || roomType;
-    if (sub) {
-      // Tone the sub copy to the entry source.
-      sub.textContent = _pendingSource === 'tile_tap'
-        ? 'Set the budget for this room. You can change it later.'
-        : 'Confirm or adjust the budget before we generate.';
-    }
-    const initialAmount = getRoomBudget(profile, roomType);
-    if (slider) slider.value = budgetToSlider(initialAmount);
-    if (amountEl) amountEl.textContent = formatBudget(initialAmount);
-    if (slider) slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
-    paintBudgetTicks(ticksHost);
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
-    trackEvent('room_budget_modal_opened', { room_type: roomType, source: _pendingSource });
-  }
-  function closeRoomBudgetModal() {
-    const modal = document.getElementById('roomBudgetModal');
-    if (!modal) return;
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden', 'true');
-    _pendingRoomType = null;
-    _pendingOnConfirm = null;
-    _pendingSource = null;
-  }
-  // Wire modal once on boot — events keep working through reopens.
-  (() => {
-    const modal = document.getElementById('roomBudgetModal');
-    if (!modal) return;
-    const slider = document.getElementById('roomBudgetSlider');
-    const amountEl = document.getElementById('roomBudgetAmount');
-    const confirmBtn = document.getElementById('roomBudgetConfirm');
-    const cancelBtn = document.getElementById('roomBudgetCancel');
-    const closeBtn = document.getElementById('roomBudgetClose');
-    if (slider) {
-      slider.addEventListener('input', () => {
-        const amount = sliderToBudget(+slider.value);
-        if (amountEl) amountEl.textContent = formatBudget(amount);
-        slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
-      });
-    }
-    const onCancel = () => closeRoomBudgetModal();
-    if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
-    if (closeBtn)  closeBtn.addEventListener('click', onCancel);
-    // Backdrop click closes
-    modal.addEventListener('click', (e) => { if (e.target === modal) onCancel(); });
-    // Confirm: save the amount, fire analytics, run the pending callback
-    // (if any) — then close. The callback path is what wires the modal
-    // into every generation entry point (analyze, reshuffle, keep, pivot,
-    // template). When no callback is set, the modal falls back to the
-    // tile-tap default flow (set draft.type + refresh tile chip).
-    if (confirmBtn) confirmBtn.addEventListener('click', () => {
-      const profile = getActiveProfile();
-      if (!profile || !_pendingRoomType) return closeRoomBudgetModal();
-      const amount = sliderToBudget(+slider.value);
-      profile.roomBudgets = profile.roomBudgets || {};
-      profile.roomBudgets[_pendingRoomType] = amount;
-      // Keep legacy profile.budget in sync with the most-recently-set room
-      // budget so any straggler reading profile.budget gets something sane.
-      profile.budget = amount;
-      save();
-      trackEvent('room_budget_set', {
-        room_type: _pendingRoomType,
-        budget_amount: amount === Infinity ? -1 : amount,
-        source: _pendingSource || 'modal_confirm'
-      });
-      // Refresh the room-tile chip indicator wherever it's rendered (capture
-      // screen). Always-safe — if the grid isn't on screen, querySelector
-      // returns nothing and the loop no-ops.
-      const grid = document.getElementById('roomTypeGrid');
-      if (grid) {
-        const tile = grid.querySelector('.rt-card[data-room-type="' + _pendingRoomType + '"]');
-        if (tile) {
-          const chipText = '· ' + formatBudgetShort(amount);
-          let chip = tile.querySelector('.rt-budget-chip');
-          if (chip) chip.textContent = chipText;
-          else {
-            chip = document.createElement('span');
-            chip.className = 'rt-budget-chip';
-            chip.textContent = chipText;
-            tile.querySelector('.rt-label')?.appendChild(chip);
-          }
-        }
-      }
-      // Snapshot before close (closeRoomBudgetModal clears these).
-      const cb = _pendingOnConfirm;
-      const roomType = _pendingRoomType;
-      closeRoomBudgetModal();
-      // Generation-mode: run the caller's callback with the confirmed amount.
-      // Tile-tap default-mode: closeRoomBudgetModal already happened — nothing
-      // more to do; the tile-tap click handler set draft.type + refreshed UI.
-      if (cb) cb(amount, roomType);
-    });
-  })();
-  window.FurnishOpenRoomBudgetModal = openRoomBudgetModal;
 
   function renderColorChips(p) {
     const el = $('#colorsGrid');
@@ -3969,12 +3792,13 @@
   $('#savePrefsBtn').addEventListener('click', () => {
     const p = getActiveProfile();
     if (!p) { showScreen('profile-select'); return; }
-    // [10-Q model] Validation: at minimum need vibe + materials + budget_tier
-    // (the three load-bearing fields for the AI prompt). Other fields use
-    // ONBOARDING_DEFAULTS() at build time.
+    // [9-Q model — BUDGET_RESET_PASS] Validation: at minimum need vibe +
+    // materials (load-bearing fields for the AI prompt). Other fields use
+    // ONBOARDING_DEFAULTS() at build time. Budget moved out of onboarding;
+    // it's now a transient slider on the capture screen.
     const a = p.answers || {};
-    if (!a.vibe || !a.materials || !a.materials.length || !a.budget_tier) {
-      toast('Pick a vibe, at least one material, and a budget tier');
+    if (!a.vibe || !a.materials || !a.materials.length) {
+      toast('Pick a vibe and at least one material');
       return;
     }
     // Re-derive legacy bridge fields after edits.
@@ -5507,7 +5331,7 @@
     const lifecycle = getLifecycleState();
     if (lifecycle === LIFECYCLE.NEW || lifecycle === LIFECYCLE.ACTIVE) return false;
     const answers = (profile && profile.answers) || {};
-    const populatedCount = ['vibe','materials','color_appetite','budget_tier','room_use','scope','avoid','dealbreaker','light','decor_density']
+    const populatedCount = ['vibe','materials','color_appetite','room_use','scope','avoid','dealbreaker','natural_light','decor_density']
       .filter(k => {
         const v = answers[k];
         if (v === undefined || v === null) return false;
@@ -5536,13 +5360,9 @@
     if (answers.color_appetite && colorLabels[answers.color_appetite]) {
       parts.push(colorLabels[answers.color_appetite]);
     }
-    const budgetLabels = {
-      tight: 'a tight budget', value: 'a value-conscious budget',
-      mid: 'a mid-range budget', dream_first: 'a dream-first budget'
-    };
-    if (answers.budget_tier && budgetLabels[answers.budget_tier]) {
-      parts.push(budgetLabels[answers.budget_tier]);
-    }
+    // [BUDGET_RESET_PASS] budget_tier removed from onboarding. Budget is now
+    // a transient slider on the capture screen; the past-quiz summary line
+    // intentionally omits dollar figures.
     const avoid = Array.isArray(answers.avoid) ? answers.avoid : [];
     const realAvoids = avoid.filter(x => x !== 'nothing');
     if (realAvoids.length) {
@@ -5611,7 +5431,9 @@
       answers.vibe,
       Array.isArray(answers.materials) && answers.materials.length > 0,
       answers.color_appetite,
-      answers.budget_tier,
+      // [BUDGET_RESET_PASS] budget_tier removed; replaced in the axes
+      // array with decor_density to keep the gauge at 8 dimensions.
+      answers.decor_density,
       answers.scope,
       answers.room_use,
       (state.wishlist || []).length >= 3,
@@ -6287,8 +6109,8 @@
   // [Polish] Reset Profile button on the Preferences screen.
   // Same shape as the profile-screen handler above, but scoped to
   // data-screen="preferences" and re-renders via openPreferences() so
-  // the user stays on the preferences page (the answers editor + budget
-  // slider + DNA gauge re-paint with cleared state). Per Reforge
+  // the user stays on the preferences page (the answers editor + DNA
+  // gauge re-paint with cleared state). Per Reforge
   // Monetization Pricing — this surface is the "Free Preview" of the
   // Pro reset entitlement: badge advertises Pro, behavior is accessible
   // to Free as a teaser (same pattern as the existing profile-screen
@@ -6604,13 +6426,9 @@
       openPaywall('template_pro');
       return;
     }
-    // [Budget per Room — generation gate] Confirm budget before template
-    // generation. Same modal flow as the photo path. On Confirm, proceed
-    // with the existing routing.
-    openRoomBudgetModal(t.type, {
-      source: 'template',
-      onConfirm: () => _runStartFromTemplate(t)
-    });
+    // [BUDGET_RESET_PASS] No budget gate here — the slider on the capture
+    // screen sets state.draft.budget; templates generate with that value.
+    _runStartFromTemplate(t);
   }
   function _runStartFromTemplate(t) {
     // [Compute-quality routing] Template-based redesign also routes through
@@ -6713,6 +6531,62 @@
 
     renderRoomTypeCards();
     refreshAnalyzeBtn();
+    // [BUDGET_RESET_PASS — Phase 2] Reset slider to default every time the
+    // user lands here. Per spec: "The slider value resets to its default
+    // ($3,000) every time the user lands on the photo upload screen for a
+    // new generation." state.draft.budget gets the new value on each
+    // slider input.
+    setupCaptureBudgetSlider();
+    // [BUDGET_RESET_PASS — Phase 2] One-time tutorial coachmark on first
+    // arrival at the capture screen, points at the slider, explains the
+    // per-generation model. Tracked separately from the answers-editor
+    // tutorial trio (state.user.budgetSliderTutorialSeen).
+    maybeFireBudgetSliderCoachmark();
+  }
+
+  function setupCaptureBudgetSlider() {
+    const slider = $('#captureBudgetSlider');
+    const amountEl = $('#captureBudgetAmount');
+    const ticksHost = document.querySelector('.capture-budget-ticks');
+    if (!slider || !amountEl) return;
+    // Reset to default — the spec is explicit: every arrival is a fresh
+    // budget choice. No carryover between generations.
+    state.draft.budget = SLIDER_BUDGET_DEFAULT;
+    slider.value = budgetToSlider(SLIDER_BUDGET_DEFAULT);
+    amountEl.textContent = formatBudget(SLIDER_BUDGET_DEFAULT);
+    slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
+    if (ticksHost) paintBudgetTicks(ticksHost);
+    // Debounce analytics — only fire after the user lands on a value, not
+    // on every micro-movement during the drag.
+    let debounceTimer = null;
+    slider.oninput = () => {
+      const amount = sliderToBudget(+slider.value);
+      state.draft.budget = amount;
+      amountEl.textContent = formatBudget(amount);
+      slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        trackEvent('generation_budget_set', {
+          budget_value: amount === Infinity ? -1 : amount,
+          room_type: state.draft?.type || null
+        });
+      }, 350);
+    };
+  }
+  function maybeFireBudgetSliderCoachmark() {
+    if (state.user?.budgetSliderTutorialSeen) return;
+    // Wait a beat for the screen to settle, then show a brief tip.
+    setTimeout(() => {
+      // Use the existing toast pattern as a lightweight coachmark — a
+      // dedicated overlay can be authored later if a richer treatment is
+      // wanted. The spec emphasizes the existence of the coachmark; the
+      // exact UI is at our discretion.
+      toast('Set your budget for this room. You can change it for every room.');
+      if (!state.user) state.user = {};
+      state.user.budgetSliderTutorialSeen = true;
+      save();
+      trackEvent('budget_slider_tutorial_seen');
+    }, 700);
   }
 
   function refreshAnalyzeBtn() {
@@ -6750,23 +6624,17 @@
       card.setAttribute('aria-pressed', state.draft?.type === rt.id ? 'true' : 'false');
       card.dataset.roomType = rt.id;
       const iconSvg = window.ROOM_TYPE_SVGS?.[rt.id] || '';
-      // [Budget per Room] If the user has explicitly set a budget for this
-      // room type, surface it as a small chip under the room name. Default-
-      // fallback budgets are NOT chipped (user hasn't expressed a choice
-      // yet). Reforge Trust & Credibility: visible state at-a-glance.
-      const hasExplicitBudget = profile && profile.roomBudgets && typeof profile.roomBudgets[rt.id] === 'number';
-      const chipHtml = hasExplicitBudget
-        ? `<span class="rt-budget-chip">· ${formatBudgetShort(profile.roomBudgets[rt.id])}</span>`
-        : '';
+      // [BUDGET_RESET_PASS] No budget chip on room tiles. Budget is a
+      // transient slider value set on this same screen, not a per-room
+      // saved property.
       card.innerHTML = `
         <span class="rt-icon">${iconSvg}</span>
-        <span class="rt-label">${rt.label}${chipHtml}</span>
+        <span class="rt-label">${rt.label}</span>
       `;
       card.addEventListener('click', () => {
-        // [Budget per Room — revised] Tile tap just selects the room. Budget
-        // modal fires at every GENERATION event instead (analyze, reshuffle,
-        // keep-toggle, different-style, template). User can see their saved
-        // budget via the .rt-budget-chip on the tile.
+        // Tile tap just selects the room. The budget slider lives on the
+        // same screen (rendered separately) and is the SAME slider for
+        // every room — its value is consumed at generation time.
         state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
         state.draft.type = rt.id;
         save();
@@ -6844,15 +6712,11 @@
   $('#analyzeBtn').addEventListener('click', async () => {
     if (!state.draft?.photo) return;
     if (!state.draft?.type) return;
-    // [Budget per Room — generation gate] Open the budget modal first; only
-    // proceed with generation on Confirm. Cancel/dismiss aborts cleanly.
-    // Per Hassan's spec: budget slider fires for EVERY generation event.
-    openRoomBudgetModal(state.draft.type, {
-      source: 'analyze',
-      onConfirm: () => _runAnalyze()
-    });
+    // [BUDGET_RESET_PASS] Budget already set on the slider on this screen;
+    // its value is read at generation time via getCurrentBudget() inside
+    // _runAnalyze. No modal gate, no callback chain.
+    _runAnalyze();
   });
-  // Extracted analyze flow — invoked from the budget modal Confirm callback.
   async function _runAnalyze() {
     if (!state.draft?.photo) return;
     // [Batch 6 — Dim 13 REC-13.3] Wrap the entire generation flow in a
@@ -6882,7 +6746,11 @@
         state._justGeneratedRoomId = room.id;
         save();
         trackEvent('analyze_completed', {
-          roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt
+          roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt,
+          // [BUDGET_RESET_PASS — Phase 2] Include the transient budget on
+          // every generation event for downstream funnel analysis.
+          budget: room.budget === Infinity ? -1 : (room.budget || null),
+          room_type: room.type
         });
         // D7 auth gate: guest's redesign is computed but locked behind signup.
         // The signin screen renders contextually — see prepareSignin() reading
@@ -7298,9 +7166,9 @@
   // First-redesign tutorial — multi-step coachmark on preferences
   // ============================================================
   // Fires ONCE per user, immediately after their first AI-generated redesign.
-  // Walks them through Styles → Color Moods → Budget. The Budget step is
-  // the centerpiece (per Reforge Activation: the Aha Moment isn't complete
-  // until the user knows how to dial prices to their actual budget).
+  // Walks them through three high-leverage answer cards. Per Reforge
+  // Activation: the Aha Moment is complete when the user understands the
+  // levers that shape their redesigns.
   //
   // Trigger surface: openRoom() detects "first redesign for this user" and
   // queues the tutorial; results-screen render schedules the auto-route
@@ -7318,12 +7186,11 @@
   // tutorial_skipped — all fired now even though we can't analyze them yet.
   // ============================================================
 
-  // [10-Q migration] Tutorial trio rewritten per CONFLICT 3: vibe +
-  // materials + budget. color_appetite was removed because the user
-  // already engaged with it pre-redesign in Q2 (no tutorial spotlight
-  // needed). Selectors point at `.answer-card[data-q-id="…"]` matching
-  // the new prefs editor markup. Budget step keeps `.budget-card` and
-  // remains the centerpiece (emphasized:true).
+  // [BUDGET_RESET_PASS] Tutorial trio: vibe + materials + scope.
+  // (Was vibe + materials + budget before Q6 was removed.) Scope chosen
+  // over decor_density per Reforge Activation: scope is a 4-way categorical
+  // that radically changes AI output; density is a fine-tune. Selectors
+  // point at `.answer-card[data-q-id="…"]` matching the prefs editor markup.
   const TUTORIAL_STEPS = [
     {
       id: 'vibe',
@@ -7342,11 +7209,16 @@
       cta: 'Next →',
     },
     {
-      id: 'budget',
-      selector: '.budget-card',
-      headerSelector: '.budget-card',
-      title: 'Drag this to match your real budget',
-      body: "This is the most important one. The prices on your redesign respect this slider — drag it down for affordable picks, up for premium. Try it now.",
+      // [BUDGET_RESET_PASS] Trio replacement: vibe + materials + scope.
+      // Was vibe + materials + budget, but Q6 budget_tier was removed.
+      // Per Reforge Activation framework, scope is the highest-leverage
+      // remaining decision (4-way categorical that radically changes AI
+      // output) vs decor_density (a fine-tune). See CHANGES_APPLIED.md.
+      id: 'scope',
+      selector: '.answer-card[data-q-id="scope"]',
+      headerSelector: '.answer-card[data-q-id="scope"]',
+      title: 'Your scope',
+      body: "This is the big lever. 'Just furniture' keeps your walls and floors; 'Whole room' redoes everything. Pick what you actually want changed.",
       cta: 'Got it — show me',
       emphasized: true,
     },
@@ -7638,7 +7510,7 @@
   // feeling+material prompts outperform style-name prompts on modern
   // image models.
   // ============================================================
-  function buildAIPrompt(answers, draft) {
+  function buildAIPrompt(answers, draft, budgetValue) {
     const a = answers || ONBOARDING_DEFAULTS();
     const VIBE_TXT = {
       calm_grounded:      'a calm, grounded',
@@ -7679,13 +7551,9 @@
       dim:            'optimize for a dim or north-facing room — make it feel warm and bright',
       unsure:         'assume mixed natural light'
     };
-    const BUDGET_TXT = {
-      tight:       'tight budget tier (IKEA, Target, secondhand)',
-      smart:       'smart budget tier (mix of high-low; Wayfair, West Elm sales)',
-      quality:     'quality budget tier (CB2, Crate & Barrel, real wood)',
-      investment:  'investment budget tier (RH, Design Within Reach, statement pieces)',
-      dream_first: 'aspirational quality — show the dream first; user will dial budget after'
-    };
+    // [BUDGET_RESET_PASS] BUDGET_TXT removed — budget is now a transient
+    // numeric value passed in at generation time. Band-mapped copy lives
+    // in budgetBandText() below and reads the slider value.
     const USE_TXT = {
       slept_relaxed:    'mostly slept and relaxed in',
       lived_in_all_day: 'lived in all day — work, hobbies, hanging out',
@@ -7706,7 +7574,8 @@
     const densityPart = DENSITY_TXT[a.decor_density] || DENSITY_TXT.a_little_personality;
     const scopePart   = SCOPE_TXT[a.scope] || SCOPE_TXT.furniture_decor;
     const lightPart   = LIGHT_TXT[a.natural_light] || LIGHT_TXT.unsure;
-    const budgetPart  = BUDGET_TXT[a.budget_tier] || BUDGET_TXT.smart;
+    // [BUDGET_RESET_PASS] budgetPart removed; Phase 2 will pass a transient
+    // budgetValue and build a budget-band clause from it.
     const usePart     = USE_TXT[a.room_use] || USE_TXT.lived_in_all_day;
     const avoidIds    = (a.avoid || []).filter(id => id !== 'nothing');
     const avoidPart   = avoidIds.map(id => AVOID_TXT[id]).filter(Boolean).join('; ');
@@ -7718,14 +7587,21 @@
       ? (window.ROOM_TYPES || []).find(r => r.id === draft.type)?.label || draft.type
       : 'room';
 
+    // [BUDGET_RESET_PASS] Budget band derived from the transient slider
+    // value passed in at generation time. Reforge prompt-engineering:
+    // explicit budget framing produces more consistent AI outputs than
+    // implicit numeric values.
+    const budgetClause = (typeof budgetValue === 'number' || budgetValue === Infinity)
+      ? ` Budget: ${budgetBandText(budgetValue)}.`
+      : '';
     let prompt =
       `Generate an interior redesign of a ${roomLabel} with ${vibePart} feeling, ` +
       `using ${colorPart} dominated by ${matsPart}. ` +
       `Decoration density: ${densityPart}. ` +
       `Redesign scope: ${scopePart}. ` +
       `Lighting: ${lightPart}. ` +
-      `Optimize for ${budgetPart}. ` +
-      `Room is primarily ${usePart}.`;
+      `Room is primarily ${usePart}.` +
+      budgetClause;
     if (avoidPart) prompt += ` AVOID: ${avoidPart}.`;
     // [Hassan's call] dealbreaker is now an array of {kind, text} entries
     // (one per Q10 selection). Backwards-compat: also handle the legacy
@@ -7760,7 +7636,7 @@
       decorDensity: a.decor_density,                 // controls extras-cap below
       scope:     a.scope,                            // mapped to keepMode below
       roomUse:   a.room_use,                         // future: function-priority bias
-      budgetTier: a.budget_tier,                     // future: price-quality bias
+      // [BUDGET_RESET_PASS] budgetTier removed — budget is transient now.
     };
   }
 
@@ -7802,16 +7678,16 @@
     // CONFLICT 2: scope === 'just_furniture' is the keepMode default; the
     // results-screen toggle (draft.keep) overrides if set.
     const keepMode = draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture');
-    // [Budget per Room] Use the per-room budget for the type being designed,
-    // not the legacy global profile.budget. Falls back to ROOM_BUDGET_DEFAULTS
-    // if the user hasn't explicitly set one.
-    const roomBudget = getRoomBudget(profile, draft.type);
-    const picked = pickItemsForRoom(draft, effective, roomBudget, { keepMode });
+    // [BUDGET_RESET_PASS] Read the transient budget from state.draft.budget
+    // (set by the slider on the capture screen). Falls back to
+    // SLIDER_BUDGET_DEFAULT if for some reason draft.budget isn't set.
+    const generationBudget = (draft && typeof draft.budget === 'number') ? draft.budget : SLIDER_BUDGET_DEFAULT;
+    const picked = pickItemsForRoom(draft, effective, generationBudget, { keepMode });
 
     // Build + log the AI prompt for this generation. Future backend will
     // POST this; for now it lives on the room snapshot for inspection.
     let promptStr = '';
-    try { promptStr = buildAIPrompt(effective, draft); } catch (err) {}
+    try { promptStr = buildAIPrompt(effective, draft, generationBudget); } catch (err) {}
 
     const room = {
       id: 'r'+Date.now(),
@@ -7821,7 +7697,13 @@
       dims: draft.dims,
       items: picked,
       keepMode,
-      // [10-Q model] Snapshot the answers used for THIS generation so
+      // [BUDGET_RESET_PASS] Snapshot the transient budget the user chose for
+      // this generation. Reshuffle/keep/different-style on the reveal screen
+      // read from room.budget so they stay coherent with the original pick.
+      // The slider on the capture screen always resets to default for the
+      // NEXT generation.
+      budget: generationBudget,
+      // [9-Q model] Snapshot the answers used for THIS generation so
       // reshuffle/rerun reproduces the same intent. Legacy `styles/colors`
       // fields populated for the catalog-picker bridge.
       answers: { ...effective },
@@ -8710,11 +8592,25 @@
       : { top: room.items, rest: [] };
     const itemsToRender = ranked.top;
 
+    // [BUDGET_RESET_PASS — Phase 2] Compute above-budget set for this room.
+    // Items above the user's chosen budget render with a subtle marker —
+    // not hidden, just visually de-emphasized. The user can still click.
+    const roomBudget = (typeof room.budget === 'number') ? room.budget : SLIDER_BUDGET_DEFAULT;
+    const aboveBudgetCount = itemsToRender.filter(i => !i.owned && i.price > roomBudget).length;
+    if (aboveBudgetCount > 0 && roomBudget !== Infinity) {
+      trackEvent('items_filtered_above_budget', {
+        count_filtered: aboveBudgetCount,
+        total_count: itemsToRender.length,
+        budget_value: roomBudget
+      });
+    }
+
     itemsToRender.forEach(item => {
       const fp = window.ITEM_FOOTPRINTS[item.type] || 0;
       const fits = usedFootprint <= roomArea * 0.45 || fp <= roomArea * 0.25;
+      const aboveBudget = !item.owned && item.price > roomBudget && roomBudget !== Infinity;
       const card = document.createElement('div');
-      card.className = 'item-card' + (item.owned ? ' owned' : '');
+      card.className = 'item-card' + (item.owned ? ' owned' : '') + (aboveBudget ? ' above-budget' : '');
       card.id = 'item-'+item.id;
       const onWishlist = state.wishlist.includes(item.id);
       const alertOn = state.priceAlerts[item.id];
@@ -8722,7 +8618,7 @@
       card.innerHTML = `
         <div class="item-thumb">${item.icon}</div>
         <div class="item-body">
-          <div class="name">${item.name}</div>
+          <div class="name">${item.name}${aboveBudget ? ' <span class="above-budget-badge">Above budget</span>' : ''}</div>
           <div class="desc">${item.description}</div>
           <div class="meta">
             ${item.owned ? '<span class="tag source">Owned</span>' : `<span class="tag source">${sourceLabel(item.source)}</span>`}
@@ -9087,27 +8983,24 @@
       if (!room) return;
       const profile = state.profiles.find(p => p.id === room.profileId);
       if (!profile) return;
-      // [Budget per Room — generation gate] Confirm budget before regen.
-      openRoomBudgetModal(room.type, {
-        source: 'keep_toggle',
-        onConfirm: () => {
-          room.keepMode = !room.keepMode;
-          keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
-          keepSwitch.classList.toggle('on', room.keepMode);
-          const fresh = pickItemsForRoom(
-            { type: room.type, dims: room.dims, photo: room.photo },
-            getEffectiveAnswers(profile),
-            getRoomBudget(profile, room.type),
-            { keepMode: room.keepMode }
-          );
-          room.items = fresh;
-          pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
-          save();
-          renderRoomPieces(room);
-          renderVersions(room);
-          toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
-        }
-      });
+      // [BUDGET_RESET_PASS] Reuse the budget that produced this room
+      // (room.budget). Reshuffle/keep happens on the reveal screen, not
+      // the photo upload screen, so we don't re-prompt the user.
+      room.keepMode = !room.keepMode;
+      keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
+      keepSwitch.classList.toggle('on', room.keepMode);
+      const fresh = pickItemsForRoom(
+        { type: room.type, dims: room.dims, photo: room.photo },
+        getEffectiveAnswers(profile),
+        room.budget || SLIDER_BUDGET_DEFAULT,
+        { keepMode: room.keepMode }
+      );
+      room.items = fresh;
+      pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
+      save();
+      renderRoomPieces(room);
+      renderVersions(room);
+      toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
     });
   }
 
@@ -9179,27 +9072,18 @@
     if (!room) return;
     const profile = state.profiles.find(p => p.id === room.profileId);
     if (!profile) return;
-    // [Budget per Room — generation gate] Confirm budget before reshuffle.
-    openRoomBudgetModal(room.type, {
-      source: 'reshuffle',
-      onConfirm: () => {
-        room.reshuffleCount = (room.reshuffleCount || 0) + 1;
-        const draftLike = { type: room.type, dims: room.dims };
-        const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), getRoomBudget(profile, room.type),
-          { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
-        room.items = fresh;
-        pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
-        save();
-        renderRoomPieces(room);
-        renderVersions(room);
-        // [Dim 14 Section C Fix 2 — reshuffle copy honesty. Was "Fresh picks
-        //  curated" — over-promised since picks are bounded by the same style
-        //  profile. New: name what Reshuffle actually does so users build
-        //  accurate mental models. Per Reforge User Insights: copy that
-        //  matches the actual mechanic increases retention.]
-        toast('Different items, same style.');
-      }
-    });
+    // [BUDGET_RESET_PASS] Reuse room.budget — same generation context.
+    room.reshuffleCount = (room.reshuffleCount || 0) + 1;
+    const draftLike = { type: room.type, dims: room.dims };
+    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), room.budget || SLIDER_BUDGET_DEFAULT,
+      { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
+    room.items = fresh;
+    pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
+    save();
+    renderRoomPieces(room);
+    renderVersions(room);
+    // [Dim 14 Section C Fix 2 — reshuffle copy honesty.]
+    toast('Different items, same style.');
   });
 
   // [Model A] "Shop the Whole Room" — restores the original affiliate semantics.
@@ -9912,7 +9796,7 @@
     { stars: 4.5, text: "The bookshelf-wealth aesthetic? Absolutely cooked.",                     author: "Noor S." },
     { stars: 4,   text: "Five-star furniture, four-star app — but it'll get there.",              author: "Casey R." },
     { stars: 5,   text: "Felt like having a designer friend on text.",                            author: "Imani O." },
-    { stars: 4.5, text: "Loved the budget slider — set $400, got an actual livable room.",        author: "Tate B." },
+    { stars: 4.5, text: "Set the budget myself, got an actual livable room.",                    author: "Tate B." },
     { stars: 5,   text: "Furnished my whole apartment from scratch in a single weekend.",         author: "Leah K." },
     { stars: 4,   text: "Wish I could swap fabrics, but the curation is unreal.",                 author: "Owen W." },
     { stars: 5,   text: "Profile-per-roommate ended every furniture argument we ever had.",       author: "Zara N." },
@@ -10122,15 +10006,11 @@
       btn.dataset.styleId = s.id;
       btn.innerHTML = `<span class="dsc-label">${s.label || s.id}</span>`;
       btn.addEventListener('click', () => {
-        // [Budget per Room — generation gate] Confirm budget before pivot.
-        // Close the different-style modal first so the budget modal is the
-        // only one open when the user lands on it.
+        // [BUDGET_RESET_PASS] No budget gate — pivotToStyle uses
+        // room.budget (the value chosen for the original generation).
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
-        openRoomBudgetModal(room.type, {
-          source: 'different_style',
-          onConfirm: () => pivotToStyle(room, s.id)
-        });
+        pivotToStyle(room, s.id);
       });
       grid.appendChild(btn);
     });
@@ -10157,7 +10037,7 @@
     profile.styles = [newStyleId];
     try {
       const draftLike = { type: room.type, dims: room.dims };
-      const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), getRoomBudget(profile, room.type),
+      const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), room.budget || SLIDER_BUDGET_DEFAULT,
         { excludeIds: [], anchorColor: null, keepMode: !!room.keepMode });
       room.items = fresh;
       pushVersion(room, `Pivoted to ${(window.STYLES || []).find(s => s.id === newStyleId)?.label || newStyleId}`);
