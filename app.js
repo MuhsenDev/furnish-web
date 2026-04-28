@@ -1486,7 +1486,7 @@
       _q7.headline = 'Which speaks to you?';
       _q7.options = _q7.options.filter(o => o.id !== 'metal_glass');
       const _q7Labels = {
-        warm_woods:    'Warm woods',
+        warm_woods:    'Warm woods and rattan',
         soft_fabrics:  'Soft fabrics',
         stone_ceramic: 'Stone & ceramic',
         vintage_patina:'Vintage patina',
@@ -1506,6 +1506,15 @@
         nothing:   'Nothing — full freedom'
       };
       _q10.options.forEach(o => { if (_q10Labels[o.id]) o.label = _q10Labels[o.id]; });
+      // [Hassan's call] Q10: switch to multi-select with per-option text
+      // followup. User can keep multiple things; each non-"nothing" pick
+      // gets its own text box on the followup screen. "Nothing" stays
+      // exclusive — picking it deselects others, picking another deselects
+      // it. Default empty array means "no preserve hints."
+      _q10.type = 'multi_select_with_followup';
+      _q10.subhead = 'Pick any that apply';
+      _q10.exclusive_option_id = 'nothing';
+      _q10.default = [];
     }
 
     // [Hassan dropped image assets] Wire up the "Find Your Style Images"
@@ -2691,36 +2700,64 @@
       answer_value: picks,
       time_to_answer_ms: t0 ? Date.now() - t0 : null
     });
+    // [Hassan's call] Q10 dealbreaker: route to per-option text followup
+    // when the user selected anything other than (or in addition to)
+    // "nothing." Otherwise finishQuiz directly.
+    // Note: state.quiz.answers.dealbreaker was just overwritten with picks
+    // (array of ids) above. Use prevValue to recover any prior text-bearing
+    // entries from before that overwrite — that's the correct source for
+    // back-nav pre-fill.
+    if (q.id === 'dealbreaker') {
+      const nonNothing = picks.filter(p => p !== 'nothing');
+      if (nonNothing.length === 0) {
+        state.quiz.answers.dealbreaker = [];
+        save();
+        finishQuiz();
+      } else {
+        const priorEntries = Array.isArray(prevValue) && prevValue.some(v => v && typeof v === 'object')
+          ? prevValue
+          : [];
+        state.quiz.answers.dealbreaker = nonNothing.map(kind => {
+          const prior = priorEntries.find(d => d && d.kind === kind);
+          return { kind, text: prior?.text || '' };
+        });
+        save();
+        openDealbreakerFollowup(nonNothing);
+      }
+      return;
+    }
     advanceQuiz();
   });
 
   // Q10 followup wiring.
   $('#dealbreakerBackBtn').addEventListener('click', () => {
-    // Back from followup → back to Q10 itself (still showing the kind picker).
+    // Back from followup → back to Q10 itself (the kind picker).
     showScreen('quiz');
     renderQuizStep();
   });
-  $('#dealbreakerInput').addEventListener('input', e => {
-    const v = e.target.value;
-    $('#dealbreakerCharCount').textContent = `${v.length} / 120`;
-  });
+  // [Hassan's call] Q10 multi-select followup. The Continue button collects
+  // text from EACH per-kind input block. The Skip button bypasses with no
+  // preserve hints (full creative freedom).
   $('#dealbreakerContinueBtn').addEventListener('click', () => {
     if (!state.quiz) return;
-    const text = ($('#dealbreakerInput').value || '').trim().slice(0, 120);
-    const kind = state.quiz.answers.dealbreaker?.kind || 'nothing';
-    state.quiz.answers.dealbreaker = { kind, text };
+    const inputs = document.querySelectorAll('#dealbreakerInputs .dealbreaker-input');
+    const entries = Array.from(inputs).map(inp => ({
+      kind: inp.dataset.kind,
+      text: (inp.value || '').trim().slice(0, 120)
+    }));
+    state.quiz.answers.dealbreaker = entries;
     save();
     const t0 = state.quiz.viewedAt.dealbreaker;
     trackEvent('onboarding_question_answered', {
       question_id: 'dealbreaker',
-      answer_value: { kind, text_len: text.length },
+      answer_value: entries.map(e => ({ kind: e.kind, text_len: e.text.length })),
       time_to_answer_ms: t0 ? Date.now() - t0 : null
     });
     finishQuiz();
   });
   $('#dealbreakerSkipBtn').addEventListener('click', () => {
     if (!state.quiz) return;
-    state.quiz.answers.dealbreaker = { kind: 'nothing', text: '' };
+    state.quiz.answers.dealbreaker = [];
     state.quiz.skippedAt.dealbreaker = true;
     save();
     trackEvent('onboarding_question_skipped', { question_id: 'dealbreaker' });
@@ -2774,7 +2811,7 @@
     opts.dataset.kind = kind;
     opts.dataset.qType = q.type;
 
-    const isMulti = q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3';
+    const isMulti = q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3' || q.type === 'multi_select_with_followup';
     const currentPicks = isMulti
       ? (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []).slice()
       : null;
@@ -2929,18 +2966,9 @@
       answer_value: opt.id,
       time_to_answer_ms: t0 ? Date.now() - t0 : null
     });
-    // Q10: route to followup if non-"nothing"; else finishQuiz directly.
-    if (q.id === 'dealbreaker') {
-      // Stash kind first; the followup will fill .text or skip.
-      state.quiz.answers.dealbreaker = { kind: opt.id, text: '' };
-      save();
-      if (opt.id === 'nothing') {
-        setTimeout(() => finishQuiz(), 240);
-      } else {
-        setTimeout(() => openDealbreakerFollowup(opt.id), 240);
-      }
-      return;
-    }
+    // Q10 dealbreaker is now multi_select_with_followup; routed through
+    // the multi-select Continue handler instead of single-select tap.
+    // No special-case needed here.
     setTimeout(() => advanceQuiz(), 240);
   }
 
@@ -3008,26 +3036,51 @@
     }
   }
 
-  function openDealbreakerFollowup(kind) {
+  // [Hassan's call] Q10 followup — render one text input block per kind
+  // the user picked on Q10. Each block has its own headline + textarea +
+  // char counter. The user can fill any subset; blank blocks save as
+  // empty text (still preserved in the array, just no preserve hint).
+  function openDealbreakerFollowup(kinds) {
     const q = window.ONBOARDING_QUESTIONS.find(x => x.id === 'dealbreaker');
     if (!q) return;
-    const placeholder = q.followup?.placeholder_by_kind?.[kind] || 'Describe what to keep…';
-    const hl = $('#dealbreakerHeadline');
-    if (hl) {
-      hl.textContent = kind === 'furniture' ? 'Which piece?' :
-                       kind === 'color'     ? 'Which color or paint?' :
-                       kind === 'artwork'   ? 'Which artwork or item?' :
-                                              'Tell us more';
+    const list = Array.isArray(kinds) ? kinds : [kinds];
+    const headlineByKind = {
+      furniture: 'Which piece of furniture?',
+      color:     'Which color or paint?',
+      artwork:   'Which artwork or item?'
+    };
+    const placeholderByKind = q.followup?.placeholder_by_kind || {};
+    const host = $('#dealbreakerInputs');
+    if (host) {
+      host.innerHTML = '';
+      // Pre-fill from any prior answer entries (back-nav restoration).
+      const priorEntries = Array.isArray(state.quiz.answers.dealbreaker)
+        ? state.quiz.answers.dealbreaker
+        : [];
+      list.forEach(kind => {
+        const priorText = priorEntries.find(e => e && e.kind === kind)?.text || '';
+        const block = document.createElement('div');
+        block.className = 'dealbreaker-block';
+        block.dataset.kind = kind;
+        block.innerHTML = `
+          <h4 class="dealbreaker-block-headline">${headlineByKind[kind] || 'Tell us more'}</h4>
+          <textarea class="dealbreaker-input" data-kind="${kind}" maxlength="120" rows="2" placeholder="${placeholderByKind[kind] || 'Describe what to keep…'}"></textarea>
+          <div class="dealbreaker-meta muted small">
+            <span class="dealbreaker-char-count">${priorText.length} / 120</span>
+          </div>
+        `;
+        const ta = block.querySelector('textarea');
+        ta.value = priorText;
+        const cc = block.querySelector('.dealbreaker-char-count');
+        ta.addEventListener('input', () => {
+          cc.textContent = `${ta.value.length} / 120`;
+        });
+        host.appendChild(block);
+      });
+      // Focus the first input so the user can type immediately.
+      const first = host.querySelector('textarea');
+      if (first) setTimeout(() => first.focus(), 80);
     }
-    const input = $('#dealbreakerInput');
-    if (input) {
-      // Pre-fill if user back-navigated to this screen.
-      input.value = state.quiz.answers.dealbreaker?.text || '';
-      input.placeholder = placeholder;
-      input.focus();
-    }
-    const cc = $('#dealbreakerCharCount');
-    if (cc) cc.textContent = `${(input?.value || '').length} / 120`;
     showScreen('quiz-dealbreaker');
   }
 
@@ -3513,7 +3566,7 @@
     const grid = document.createElement('div');
     grid.className = 'answer-options';
     grid.dataset.kind = q.image_kind || 'icon';
-    const isMulti = q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3';
+    const isMulti = q.type === 'multi_select_max_2' || q.type === 'multi_select_max_3' || q.type === 'multi_select_with_followup';
     const a = profile.answers || {};
     const currentSingle = a[q.id];
     const currentMulti = isMulti && Array.isArray(a[q.id]) ? a[q.id].slice() : [];
@@ -7439,7 +7492,9 @@
     const usePart     = USE_TXT[a.room_use] || USE_TXT.lived_in_all_day;
     const avoidIds    = (a.avoid || []).filter(id => id !== 'nothing');
     const avoidPart   = avoidIds.map(id => AVOID_TXT[id]).filter(Boolean).join('; ');
-    const dealbreaker = a.dealbreaker || { kind: 'nothing', text: '' };
+    // [Hassan's call] dealbreaker is now an array; legacy object shape
+    // is still tolerated by the consumer below.
+    const dealbreaker = a.dealbreaker || [];
 
     const roomLabel = draft && draft.type
       ? (window.ROOM_TYPES || []).find(r => r.id === draft.type)?.label || draft.type
@@ -7454,7 +7509,15 @@
       `Optimize for ${budgetPart}. ` +
       `Room is primarily ${usePart}.`;
     if (avoidPart) prompt += ` AVOID: ${avoidPart}.`;
-    if (dealbreaker.kind && dealbreaker.kind !== 'nothing' && dealbreaker.text) {
+    // [Hassan's call] dealbreaker is now an array of {kind, text} entries
+    // (one per Q10 selection). Backwards-compat: also handle the legacy
+    // {kind, text} object shape from existing user state.
+    if (Array.isArray(dealbreaker)) {
+      const parts = dealbreaker
+        .filter(d => d && d.kind && d.kind !== 'nothing' && d.text)
+        .map(d => `${d.kind} ("${d.text}")`);
+      if (parts.length) prompt += ` PRESERVE: ${parts.join(', ')}.`;
+    } else if (dealbreaker && dealbreaker.kind && dealbreaker.kind !== 'nothing' && dealbreaker.text) {
       prompt += ` PRESERVE: ${dealbreaker.kind} — "${dealbreaker.text}".`;
     }
     return prompt;

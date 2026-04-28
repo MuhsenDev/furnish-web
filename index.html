@@ -500,27 +500,18 @@
       </div>
     </section>
 
-    <!-- SCREEN: Q10 dealbreaker followup (text-only — spatial-marking deferred
-         per ONBOARDING_AUDIT §J + DEFERRED.md). Only shown when the user picks
-         a non-"nothing" option in Q10. -->
+    <!-- SCREEN: Q10 dealbreaker followup. One text input per kind the user
+         picked on Q10. Renderer (openDealbreakerFollowup) builds the per-kind
+         input blocks dynamically into #dealbreakerInputs based on the user's
+         selections. -->
     <section class="screen" data-screen="quiz-dealbreaker">
       <header class="topbar">
         <button class="btn-icon" id="dealbreakerBackBtn" aria-label="Back">‹</button>
-        <h2>Tell us more</h2>
+        <h2>Tell Us More</h2>
       </header>
       <div class="quiz-card">
-        <h3 id="dealbreakerHeadline">What should we keep?</h3>
-        <p class="quiz-subhead muted small" id="dealbreakerSubhead">A short description helps the AI preserve the right thing.</p>
-        <textarea
-          id="dealbreakerInput"
-          class="dealbreaker-input"
-          maxlength="120"
-          rows="3"
-          placeholder=""
-        ></textarea>
-        <div class="dealbreaker-meta muted small">
-          <span id="dealbreakerCharCount">0 / 120</span>
-        </div>
+        <p class="quiz-subhead muted small">A short description helps the AI preserve the right thing.</p>
+        <div id="dealbreakerInputs"></div>
         <div class="quiz-multi-actions">
           <button class="btn btn-primary" id="dealbreakerContinueBtn" type="button">Continue</button>
         </div>

@@ -7237,6 +7237,25 @@ html[data-theme="dark"].qoc-photo--placeholder {
   text-align: right;
   margin: 6px 2px 4px;
 }
+/* [Hassan's call] Q10 multi-select followup: one input block per kind
+   the user picked. Stacks vertically, each block has its own headline
+   + textarea + char counter. Spacing between blocks reads as separate
+   thoughts, not a single form. */
+.dealbreaker-block {
+  margin-bottom: 18px;
+}
+.dealbreaker-block:last-child {
+  margin-bottom: 8px;
+}
+.dealbreaker-block-headline {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--deep);
+}
+html[data-theme="dark"] .dealbreaker-block-headline {
+  color: var(--deep);
+}
 html[data-theme="dark"].dealbreaker-input {
   background: rgba(50, 36, 24, 0.5);
   border-color: rgba(120, 90, 60, 0.45);
