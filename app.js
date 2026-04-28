@@ -1446,12 +1446,10 @@
   // (Dim 10): visible craftsmanship — placeholders read as "incomplete."
   // Reforge Conversion Optimization (Dim 03): polish in onboarding flow
   // reduces drop-off.
-  // [Hassan's call — Q6 plain-language] Strip the brand-name jargon
-  // ("IKEA / Target / CB2 / RH / DWR") in favor of warm plain English so the
-  // budget question reads cleanly even to users who don't track those
-  // retailers. Voice rubric: concrete, confident, warm, calm. Mutates the
-  // shared ONBOARDING_QUESTIONS in place at boot — idempotent guard so a
-  // hot-reload doesn't clobber further edits.
+  // [Hassan's call — plain-language overrides] Strip jargon + tighten copy
+  // on Q6 (budget), Q9 (avoid), Q10 (dealbreaker). Voice rubric: concrete,
+  // confident, warm, calm. Mutates the shared ONBOARDING_QUESTIONS in place
+  // at boot — idempotent guards so hot-reload doesn't clobber further edits.
   if (window.ONBOARDING_QUESTIONS) {
     const _q6 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'budget_tier');
     if (_q6 && _q6.headline.includes('budget vibe')) {
@@ -1464,6 +1462,32 @@
         dream_first: 'Show me anything'
       };
       _q6.options.forEach(o => { if (_q6Labels[o.id]) o.label = _q6Labels[o.id]; });
+    }
+
+    const _q9 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'avoid');
+    if (_q9 && _q9.headline.includes('NOT want')) {
+      _q9.headline = 'What do you want to avoid?';
+      const _q9Labels = {
+        too_modern:  'Too modern or sterile',
+        too_rustic:  'Too rustic or "farmhouse"',
+        busy_prints: 'Bold patterns or busy prints',
+        dark_heavy:  'Dark or heavy furniture',
+        trendy:      'Trendy stuff that gets dated fast',
+        nothing:     'Nothing — show me anything'
+      };
+      _q9.options.forEach(o => { if (_q9Labels[o.id]) o.label = _q9Labels[o.id]; });
+    }
+
+    const _q10 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'dealbreaker');
+    if (_q10 && _q10.headline.includes('one thing in your room')) {
+      _q10.headline = 'Anything you want to keep?';
+      const _q10Labels = {
+        furniture: 'A piece of furniture',
+        color:     'A color or paint job',
+        artwork:   'Art or something special',
+        nothing:   'Nothing — full freedom'
+      };
+      _q10.options.forEach(o => { if (_q10Labels[o.id]) o.label = _q10Labels[o.id]; });
     }
   }
 
@@ -2685,11 +2709,13 @@
       ? (state.quiz.pendingMulti[q.id] || state.quiz.answers[q.id] || []).slice()
       : null;
 
-    // [Hassan's call] Q6 budget renders as text-only cards (no visual /
-    // placeholder). The 5 budget options are descriptive copy, not visual
-    // categories — image slots added cognitive noise without value.
-    // Layout: stacked full-width pillars (qo-stack) instead of the 2-col grid.
-    const isTextOnly = q.id === 'budget_tier';
+    // [Hassan's call] Text-only stacked-pillar layout for budget_tier (Q6)
+    // + avoid (Q9) + dealbreaker (Q10). Same shape as Q6, same rationale:
+    // descriptive copy, not visual categories — image/icon slots add noise
+    // without value. Layout: stacked full-width pillars (qo-stack) instead
+    // of the 2-col grid.
+    const TEXT_ONLY_QUESTIONS = ['budget_tier', 'avoid', 'dealbreaker'];
+    const isTextOnly = TEXT_ONLY_QUESTIONS.includes(q.id);
     opts.classList.toggle('qo-stack', isTextOnly);
 
     q.options.forEach((opt, idx) => {
