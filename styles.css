@@ -2675,13 +2675,20 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
 /* [Hassan's call] Text-only cards (currently used by Q6 budget). No visual
    area — the label fills the card. Drop the 4/5 aspect-ratio so the card
    sizes to its text, replace the dark gradient label band with a clean
-   surface treatment, and read body text in --ink (auto-inverts in dark). */
+   surface treatment, and read body text in --ink (auto-inverts in dark).
+   Layout: when the parent .quiz-options has .qo-stack, the cards stack
+   full-width as horizontal pillars (1-col grid) for fast vertical scan. */
+.quiz-options.qo-stack {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
 .quiz-option-card.q-text {
   aspect-ratio: auto;
-  min-height: 96px;
+  min-height: 56px;
+  width: 100%;
   display: flex;
   align-items: center;
-  padding: 16px 18px;
+  padding: 12px 18px;
   background: var(--surface);
 }
 .quiz-option-card.q-text .qoc-label {

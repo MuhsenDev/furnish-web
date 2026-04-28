@@ -1446,6 +1446,27 @@
   // (Dim 10): visible craftsmanship — placeholders read as "incomplete."
   // Reforge Conversion Optimization (Dim 03): polish in onboarding flow
   // reduces drop-off.
+  // [Hassan's call — Q6 plain-language] Strip the brand-name jargon
+  // ("IKEA / Target / CB2 / RH / DWR") in favor of warm plain English so the
+  // budget question reads cleanly even to users who don't track those
+  // retailers. Voice rubric: concrete, confident, warm, calm. Mutates the
+  // shared ONBOARDING_QUESTIONS in place at boot — idempotent guard so a
+  // hot-reload doesn't clobber further edits.
+  if (window.ONBOARDING_QUESTIONS) {
+    const _q6 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'budget_tier');
+    if (_q6 && _q6.headline.includes('budget vibe')) {
+      _q6.headline = 'How much do you want to spend?';
+      const _q6Labels = {
+        tight:       'Tight — keep it cheap',
+        smart:       'Smart — a mix of cheap and nice',
+        quality:     'Quality — mostly nice stuff',
+        investment:  'Top tier — only the best',
+        dream_first: 'Show me anything'
+      };
+      _q6.options.forEach(o => { if (_q6Labels[o.id]) o.label = _q6Labels[o.id]; });
+    }
+  }
+
   if (window.QUIZ_SVGS && !window.QUIZ_SVGS['scope-furniture']) {
     Object.assign(window.QUIZ_SVGS, {
       // Just furniture — single sofa in profile, line-art only. Communicates
@@ -2667,7 +2688,9 @@
     // [Hassan's call] Q6 budget renders as text-only cards (no visual /
     // placeholder). The 5 budget options are descriptive copy, not visual
     // categories — image slots added cognitive noise without value.
+    // Layout: stacked full-width pillars (qo-stack) instead of the 2-col grid.
     const isTextOnly = q.id === 'budget_tier';
+    opts.classList.toggle('qo-stack', isTextOnly);
 
     q.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
