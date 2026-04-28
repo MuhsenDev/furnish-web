@@ -25,11 +25,22 @@
       if (!raw) return structuredClone(DEFAULT_STATE);
       const st = { ...structuredClone(DEFAULT_STATE), ...JSON.parse(raw) };
       // Migrate legacy budget enum ('mid'/'lux'/etc.) → number
+      // [Budget per Room] Also migrate single profile.budget → roomBudgets
+      // object keyed by room type. Existing budget value is propagated to
+      // EVERY room so users with prior designs see no change in catalog
+      // picks for those rooms. Future per-room edits override individually.
       (st.profiles || []).forEach(p => {
         if (typeof p.budget === 'string') {
           p.budget = window.BUDGETS_LEGACY?.[p.budget] ?? 3000;
         }
         if (p.budget == null || (typeof p.budget !== 'number' && p.budget !== Infinity)) p.budget = 3000;
+        if (!p.roomBudgets || typeof p.roomBudgets !== 'object') {
+          // First migration — seed every room with the legacy value.
+          p.roomBudgets = {};
+          ['living','bedroom','kitchen','dining','bathroom','office','nursery','closet','laundry'].forEach(rt => {
+            p.roomBudgets[rt] = p.budget;
+          });
+        }
       });
       return st;
     } catch (e) {
@@ -3696,9 +3707,14 @@
   // Public surface for any future caller (post-redesign deep link, etc.)
   window.FurnishRenderAnswersEditor = renderAnswersEditor;
 
+  // [Budget per Room] The global #budgetSlider markup has been removed; the
+  // function survives as a safe no-op (defensive guard) since any straggler
+  // call site won't crash. New per-room budget setting lives in the room-
+  // budget-modal — see openRoomBudgetModal below.
   function setupBudgetSlider(profile) {
     const slider = $('#budgetSlider');
     const display = $('#budgetAmount');
+    if (!slider || !display) return;
     const initial = budgetToSlider(profile.budget);
     slider.value = initial;
     paintBudgetTicks();
@@ -3713,9 +3729,45 @@
     slider.onchange = () => { save(); };
   }
 
+  // [Budget per Room] Default budget per room type, keyed to window.ROOM_TYPES
+  // ids. Used as the slider's initial value when the user hasn't set a budget
+  // yet, and as a fallback inside pickItemsForRoom when roomBudgets[type] is
+  // null/undefined. Numbers chosen to reflect typical full-room totals at
+  // mid-range retailers — kitchens/dining are the priciest, closets/laundry
+  // are the cheapest.
+  const ROOM_BUDGET_DEFAULTS = Object.freeze({
+    living:   3000,
+    bedroom:  2000,
+    kitchen:  5000,
+    dining:   2500,
+    bathroom: 1500,
+    office:   1500,
+    nursery:  1500,
+    closet:    800,
+    laundry:   800
+  });
+  function getRoomBudget(profile, roomType) {
+    if (!profile) return ROOM_BUDGET_DEFAULTS[roomType] || 3000;
+    const fromProfile = profile.roomBudgets && profile.roomBudgets[roomType];
+    if (typeof fromProfile === 'number' && fromProfile > 0) return fromProfile;
+    return ROOM_BUDGET_DEFAULTS[roomType] || profile.budget || 3000;
+  }
+  function formatBudgetShort(amount) {
+    if (amount == null) return '—';
+    if (amount === Infinity || amount >= window.BUDGET_MAX) return '$10k+';
+    if (amount >= 1000) {
+      const k = amount / 1000;
+      return '$' + (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + 'k';
+    }
+    return '$' + amount.toLocaleString();
+  }
+  // Public surface — used by renderRoomTypeCards for the budget chip.
+  window.FurnishGetRoomBudget = getRoomBudget;
+  window.FurnishRoomBudgetDefaults = ROOM_BUDGET_DEFAULTS;
+
   // Render tick labels positioned at their actual log-scale slider %.
-  function paintBudgetTicks() {
-    const container = document.querySelector('.budget-ticks');
+  function paintBudgetTicks(container) {
+    container = container || document.querySelector('.budget-ticks');
     if (!container) return;
     container.innerHTML = '';
     const points = [
@@ -3733,6 +3785,109 @@
       container.appendChild(span);
     });
   }
+
+  // [Budget per Room] Modal controller. Opens when user taps a room tile on
+  // the capture screen. Slider pre-fills with the user's saved budget for
+  // that room (or the default if unset). Confirm saves to roomBudgets +
+  // sets state.draft.type + closes + advances the user to photo capture.
+  // Reforge Conversion Optimization: per-room budget = better catalog picks
+  // = higher save rate. Reforge User Psychology: tile-tap surfaces a
+  // single-decision prompt instead of forcing budget into the global flow.
+  let _pendingRoomType = null;
+  function openRoomBudgetModal(roomType) {
+    const profile = getActiveProfile();
+    if (!profile) return;
+    _pendingRoomType = roomType;
+    const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
+    const modal = document.getElementById('roomBudgetModal');
+    if (!modal) return;
+    const title = document.getElementById('roomBudgetTitle');
+    const slider = document.getElementById('roomBudgetSlider');
+    const amountEl = document.getElementById('roomBudgetAmount');
+    const ticksHost = modal.querySelector('.room-budget-ticks');
+    if (title) title.textContent = ROOM_LABELS[roomType] || roomType;
+    const initialAmount = getRoomBudget(profile, roomType);
+    if (slider) slider.value = budgetToSlider(initialAmount);
+    if (amountEl) amountEl.textContent = formatBudget(initialAmount);
+    if (slider) slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
+    paintBudgetTicks(ticksHost);
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    trackEvent('room_budget_modal_opened', { room_type: roomType });
+  }
+  function closeRoomBudgetModal() {
+    const modal = document.getElementById('roomBudgetModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+    _pendingRoomType = null;
+  }
+  // Wire modal once on boot — events keep working through reopens.
+  (() => {
+    const modal = document.getElementById('roomBudgetModal');
+    if (!modal) return;
+    const slider = document.getElementById('roomBudgetSlider');
+    const amountEl = document.getElementById('roomBudgetAmount');
+    const confirmBtn = document.getElementById('roomBudgetConfirm');
+    const cancelBtn = document.getElementById('roomBudgetCancel');
+    const closeBtn = document.getElementById('roomBudgetClose');
+    if (slider) {
+      slider.addEventListener('input', () => {
+        const amount = sliderToBudget(+slider.value);
+        if (amountEl) amountEl.textContent = formatBudget(amount);
+        slider.style.setProperty('--pct', ((slider.value / 1000) * 100).toFixed(1) + '%');
+      });
+    }
+    const onCancel = () => closeRoomBudgetModal();
+    if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
+    if (closeBtn)  closeBtn.addEventListener('click', onCancel);
+    // Backdrop click closes
+    modal.addEventListener('click', (e) => { if (e.target === modal) onCancel(); });
+    // Confirm: save + set draft.type + advance.
+    if (confirmBtn) confirmBtn.addEventListener('click', () => {
+      const profile = getActiveProfile();
+      if (!profile || !_pendingRoomType) return closeRoomBudgetModal();
+      const amount = sliderToBudget(+slider.value);
+      profile.roomBudgets = profile.roomBudgets || {};
+      profile.roomBudgets[_pendingRoomType] = amount;
+      // Also keep legacy profile.budget in sync with the most-recently-set
+      // room budget — any stragglers reading profile.budget see something
+      // sensible, not stale 3000. New code paths read via getRoomBudget().
+      profile.budget = amount;
+      state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
+      state.draft.type = _pendingRoomType;
+      save();
+      trackEvent('room_budget_set', {
+        room_type: _pendingRoomType,
+        budget_amount: amount === Infinity ? -1 : amount,
+        source: 'modal_confirm'
+      });
+      // Refresh the room-type tile selection state in-place + chip indicator.
+      const grid = document.getElementById('roomTypeGrid');
+      if (grid) {
+        grid.querySelectorAll('.rt-card').forEach(c => {
+          const isSelected = c.dataset.roomType === _pendingRoomType;
+          c.classList.toggle('selected', isSelected);
+          c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+          // Update or insert the chip with the latest amount
+          const existingChip = c.querySelector('.rt-budget-chip');
+          if (c.dataset.roomType === _pendingRoomType) {
+            const chipText = '· ' + formatBudgetShort(amount);
+            if (existingChip) existingChip.textContent = chipText;
+            else {
+              const chip = document.createElement('span');
+              chip.className = 'rt-budget-chip';
+              chip.textContent = chipText;
+              c.querySelector('.rt-label')?.appendChild(chip);
+            }
+          }
+        });
+      }
+      if (typeof refreshAnalyzeBtn === 'function') refreshAnalyzeBtn();
+      closeRoomBudgetModal();
+    });
+  })();
+  window.FurnishOpenRoomBudgetModal = openRoomBudgetModal;
 
   function renderColorChips(p) {
     const el = $('#colorsGrid');
@@ -6554,32 +6709,38 @@
   function renderRoomTypeCards() {
     const grid = $('#roomTypeGrid');
     grid.innerHTML = '';
+    const profile = getActiveProfile();
     window.ROOM_TYPES.forEach((rt, idx) => {
       const card = document.createElement('button');
       card.className = 'rt-card' + (state.draft?.type === rt.id ? ' selected' : '');
       card.style.setProperty('--stagger-i', idx);
       card.setAttribute('aria-pressed', state.draft?.type === rt.id ? 'true' : 'false');
+      card.dataset.roomType = rt.id;
       const iconSvg = window.ROOM_TYPE_SVGS?.[rt.id] || '';
+      // [Budget per Room] If the user has explicitly set a budget for this
+      // room type, surface it as a small chip under the room name. Default-
+      // fallback budgets are NOT chipped (user hasn't expressed a choice
+      // yet). Reforge Trust & Credibility: visible state at-a-glance.
+      const hasExplicitBudget = profile && profile.roomBudgets && typeof profile.roomBudgets[rt.id] === 'number';
+      const chipHtml = hasExplicitBudget
+        ? `<span class="rt-budget-chip">· ${formatBudgetShort(profile.roomBudgets[rt.id])}</span>`
+        : '';
       card.innerHTML = `
         <span class="rt-icon">${iconSvg}</span>
-        <span class="rt-label">${rt.label}</span>
+        <span class="rt-label">${rt.label}${chipHtml}</span>
       `;
       card.addEventListener('click', () => {
-        state.draft.type = rt.id;
-        save();
-        trackEvent(ACTIVATION.SETUP_ROOM_TYPE, { roomType: rt.id });
-        refreshAnalyzeBtn();
-        // Update selection state in-place — don't re-render the whole grid
-        // (that was retriggering the stagger animation on every click).
-        grid.querySelectorAll('.rt-card').forEach(c => {
-          const isSelected = c === card;
-          c.classList.toggle('selected', isSelected);
-          c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        });
-        // Subtle confirmation pulse on the just-selected tile only
+        // [Budget per Room] Tap opens the budget modal first. Selection +
+        // analytics fire from the modal's Confirm handler. Cancel leaves
+        // state.draft.type untouched. This replaces the prior behavior
+        // where a tile tap immediately set the room type.
+        trackEvent(ACTIVATION.SETUP_ROOM_TYPE, { roomType: rt.id, source: 'tile_tap' });
+        // Subtle pulse on the tapped tile so the user gets feedback even
+        // before the modal appears.
         card.classList.remove('rt-confirm');
-        void card.offsetWidth; // restart animation
+        void card.offsetWidth;
         card.classList.add('rt-confirm');
+        openRoomBudgetModal(rt.id);
       });
       grid.appendChild(card);
     });
@@ -7586,7 +7747,11 @@
     // CONFLICT 2: scope === 'just_furniture' is the keepMode default; the
     // results-screen toggle (draft.keep) overrides if set.
     const keepMode = draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture');
-    const picked = pickItemsForRoom(draft, effective, profile.budget, { keepMode });
+    // [Budget per Room] Use the per-room budget for the type being designed,
+    // not the legacy global profile.budget. Falls back to ROOM_BUDGET_DEFAULTS
+    // if the user hasn't explicitly set one.
+    const roomBudget = getRoomBudget(profile, draft.type);
+    const picked = pickItemsForRoom(draft, effective, roomBudget, { keepMode });
 
     // Build + log the AI prompt for this generation. Future backend will
     // POST this; for now it lives on the room snapshot for inspection.
@@ -8873,7 +9038,7 @@
       const fresh = pickItemsForRoom(
         { type: room.type, dims: room.dims, photo: room.photo },
         getEffectiveAnswers(profile),
-        profile.budget,
+        getRoomBudget(profile, room.type),
         { keepMode: room.keepMode }
       );
       room.items = fresh;
@@ -8955,7 +9120,7 @@
     if (!profile) return;
     room.reshuffleCount = (room.reshuffleCount || 0) + 1;
     const draftLike = { type: room.type, dims: room.dims };
-    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), profile.budget,
+    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), getRoomBudget(profile, room.type),
       { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
     room.items = fresh;
     pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
@@ -9915,7 +10080,7 @@
     profile.styles = [newStyleId];
     try {
       const draftLike = { type: room.type, dims: room.dims };
-      const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), profile.budget,
+      const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), getRoomBudget(profile, room.type),
         { excludeIds: [], anchorColor: null, keepMode: !!room.keepMode });
       room.items = fresh;
       pushVersion(room, `Pivoted to ${(window.STYLES || []).find(s => s.id === newStyleId)?.label || newStyleId}`);

@@ -583,21 +583,10 @@
         </div>
       </details>
 
-      <h3 class="section-h">Budget per Room</h3>
-      <div class="budget-card">
-        <div class="budget-display">
-          <span class="budget-label">Up to</span>
-          <span class="budget-amount" id="budgetAmount">$1,500</span>
-        </div>
-        <input type="range" id="budgetSlider" class="budget-range" min="0" max="1000" step="1" value="500" aria-label="Budget per room" />
-        <div class="budget-ticks" aria-hidden="true">
-          <span>$50</span>
-          <span>$500</span>
-          <span>$2k</span>
-          <span>$5k</span>
-          <span>$10k+</span>
-        </div>
-      </div>
+      <!-- [Budget per Room migration] Budget moved out of global preferences
+           into a per-room modal that opens on the capture-screen room picker.
+           The single profile.budget value is replaced by profile.roomBudgets
+           keyed by room type. Save & Continue stays. -->
 
       <div class="actions-row">
         <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
@@ -1686,6 +1675,34 @@
        calls so the user sees the side-by-side WHAT GETS RESET / WHAT
        STAYS lists at a glance — auth-survives reassurance is the most
        important content. Per RESET_DIALOG_AUDIT.md decision policy. -->
+  <!-- [Budget per Room] Per-room budget modal — opens when user taps a room
+       tile on the capture screen. Slider scale matches the prior global
+       budget control ($50 / $500 / $2k / $5k / $10k+). Confirm sets the
+       budget for that specific room type and proceeds to photo capture. -->
+  <div class="modal room-budget-modal" id="roomBudgetModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="roomBudgetTitle">
+    <div class="modal-card room-budget-card">
+      <button class="modal-close" id="roomBudgetClose" type="button" aria-label="Cancel">×</button>
+      <h3 id="roomBudgetTitle" class="room-budget-title">Living Room</h3>
+      <p class="room-budget-sub muted small">Set the budget for this room. You can change it later.</p>
+      <div class="room-budget-display">
+        <span class="room-budget-label">Up to</span>
+        <span class="room-budget-amount" id="roomBudgetAmount">$3,000</span>
+      </div>
+      <input type="range" id="roomBudgetSlider" class="room-budget-range budget-range" min="0" max="1000" step="1" value="600" aria-label="Budget for this room" />
+      <div class="room-budget-ticks budget-ticks" aria-hidden="true">
+        <span>$50</span>
+        <span>$500</span>
+        <span>$2k</span>
+        <span>$5k</span>
+        <span>$10k+</span>
+      </div>
+      <div class="room-budget-actions">
+        <button class="btn btn-ghost" id="roomBudgetCancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="roomBudgetConfirm" type="button">Set Budget</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal reset-dialog" id="resetDialog" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="resetDialogTitle">
     <div class="modal-card reset-dialog-card">
       <button class="modal-close" id="resetDialogClose" type="button" aria-label="Cancel">×</button>

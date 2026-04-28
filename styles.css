@@ -10301,3 +10301,81 @@ html[data-theme="dark"] .btn-primary:disabled {
   opacity: 1;
 }
 
+/* ============================================================
+   [Budget per Room] Per-room budget modal + tile chip indicator.
+   Modal opens when user taps a room-type tile on the capture screen.
+   Slider mechanics inherit from .budget-range (HTML carries both
+   .room-budget-range and .budget-range so the existing thumb +
+   gradient track styles apply unchanged).
+   ============================================================ */
+.room-budget-modal .room-budget-card {
+  width: min(440px, 92vw);
+  text-align: left;
+  padding: 24px 22px 18px;
+}
+.room-budget-modal .room-budget-title {
+  margin: 0 30px 4px 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--deep);
+}
+.room-budget-modal .room-budget-sub {
+  margin: 0 0 14px;
+}
+.room-budget-modal .room-budget-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+.room-budget-modal .room-budget-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.room-budget-modal .room-budget-amount {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--deep);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.room-budget-modal .room-budget-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.room-budget-modal .room-budget-actions .btn {
+  flex: 1 1 auto;
+}
+html[data-theme="dark"] .room-budget-modal .room-budget-title {
+  color: var(--deep);
+}
+html[data-theme="dark"] .room-budget-modal .room-budget-amount {
+  color: var(--deep);
+}
+html[data-theme="dark"] .room-budget-modal .room-budget-label {
+  color: var(--muted);
+}
+
+/* Room-tile budget chip — small "· $3k" indicator under the room name
+   when the user has explicitly set a budget for that room. Inline span
+   appended to .rt-label so it inherits typography + flow naturally. */
+.rt-card .rt-budget-chip {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--brown-2);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme="dark"] .rt-card .rt-budget-chip {
+  color: var(--brown-2);
+}
+
