@@ -1434,6 +1434,32 @@
   // Public surface for future callers (settings, voice debug, etc.)
   window.FurnishOKT = FURNISH_OKT;
 
+  // [Hassan's call] Single source of truth for room-type icons. Used by:
+  // - "YOUR HOME" home-progress grid (renderHomeProgress) — primary surface
+  // - "What room is this?" capture-screen picker (renderRoomTypeCards via
+  //   window.ROOM_TYPE_SVGS) — overridden at boot so both surfaces match.
+  // Source-of-truth `window.ROOM_TYPES[].icon` (emoji) retained for any
+  // non-grid surface (capture topbar, room-type confirmation toast).
+  const HOME_ROOM_SVGS = {
+    bedroom:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v-3a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v3"/><path d="M2 18h20v2H2z"/><path d="M5 12V8h7v4"/><path d="M2 20v1M22 20v1"/></svg>`,
+    living:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13v-3a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3"/><path d="M3 13h18v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/><path d="M6 19v2M18 19v2"/></svg>`,
+    kitchen:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5z"/><path d="M4 12h16"/><path d="M3 12l1 0M20 12l1 0"/><path d="M9 6c0 1.5 1 1.5 1 3M14 5c0 1.5 1 1.5 1 3"/></svg>`,
+    dining:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="8" ry="2"/><path d="M4 13v2a8 2 0 0 0 16 0v-2"/><path d="M8 11V7"/><path d="M16 11V7"/><path d="M6 17v3M18 17v3"/></svg>`,
+    bathroom: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3z"/><path d="M5 12V8a2 2 0 0 1 2-2h2"/><circle cx="9" cy="6" r="1"/><path d="M6 19v2M18 19v2"/></svg>`,
+    office:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg>`,
+    nursery:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19v-9h16v9"/><path d="M3 19h18v1H3z"/><path d="M7 10v9M11 10v9M15 10v9M19 10v9"/><path d="M10 7c0-1 1-2 2-2s2 1 2 2c0 1.5-2 2.5-2 2.5s-2-1-2-2.5z"/></svg>`,
+    closet:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 8v2"/><path d="M3 19l9-7 9 7H3z"/></svg>`,
+    laundry:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="8" cy="6.5" r="0.5" fill="currentColor"/><circle cx="12" cy="6.5" r="0.5" fill="currentColor"/></svg>`
+  };
+  // Override the furniture.js ROOM_TYPE_SVGS map at boot so the capture-
+  // screen room picker ("What room is this?") inherits the same icons as
+  // the home-progress grid. Idempotent — Object.assign overwrites by key.
+  if (window.ROOM_TYPE_SVGS) {
+    Object.assign(window.ROOM_TYPE_SVGS, HOME_ROOM_SVGS);
+  } else {
+    window.ROOM_TYPE_SVGS = { ...HOME_ROOM_SVGS };
+  }
+
   // [Onboarding Q4 icons] Custom inline SVGs for the "What are we redesigning?"
   // question. furniture.js references svg keys (scope-furniture, scope-
   // furniture-decor, scope-whole-room, scope-surprise) that weren't yet
@@ -4401,33 +4427,9 @@
     // "Next up" — first un-designed non-excluded room in canonical order. null when complete.
     const nextRoomType = nextHomeRoomSuggestionV2();
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
-    // [No-emoji rule per CLAUDE.md] Custom SVG icons replace the emoji-
-    // sourced ROOM_TYPES.icon for the home-progress grid. Line-style,
-    // 22px, currentColor strokes — matches the rest of the app's icon
-    // language (bottom-nav, settings rows, paywall bullets, hp-check).
-    // Source-of-truth `window.ROOM_TYPES[].icon` retains its emoji for
-    // any non-grid surface (capture topbar, room-type confirmation) where
-    // emoji are still in flight pending a future asset pass.
-    const ROOM_SVG = {
-      // [Icon redesign — clearer silhouettes per Hassan feedback]
-      // BED: low frame + clearly raised headboard + pillow rectangle on top.
-      bedroom:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v-3a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v3"/><path d="M2 18h20v2H2z"/><path d="M5 12V8h7v4"/><path d="M2 20v1M22 20v1"/></svg>`,
-      living:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13v-3a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3"/><path d="M3 13h18v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4z"/><path d="M6 19v2M18 19v2"/></svg>`,
-      // KITCHEN: stove top + pot with handles + steam wisps. Reads as cooking,
-      // not just a generic pot.
-      kitchen:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5z"/><path d="M4 12h16"/><path d="M3 12l1 0M20 12l1 0"/><path d="M9 6c0 1.5 1 1.5 1 3M14 5c0 1.5 1 1.5 1 3"/></svg>`,
-      // DINING: clear round table with two chair backs visible above/below.
-      dining:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="8" ry="2"/><path d="M4 13v2a8 2 0 0 0 16 0v-2"/><path d="M8 11V7"/><path d="M16 11V7"/><path d="M6 17v3M18 17v3"/></svg>`,
-      // BATHROOM: bathtub with feet + water tap. Clearer than the prior
-      // showerhead-with-drops version.
-      bathroom: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3z"/><path d="M5 12V8a2 2 0 0 1 2-2h2"/><circle cx="9" cy="6" r="1"/><path d="M6 19v2M18 19v2"/></svg>`,
-      office:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/></svg>`,
-      // NURSERY: clear crib silhouette — solid frame with vertical bars +
-      // a small mobile/heart on top to read as baby's room, not a fence.
-      nursery:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19v-9h16v9"/><path d="M3 19h18v1H3z"/><path d="M7 10v9M11 10v9M15 10v9M19 10v9"/><path d="M10 7c0-1 1-2 2-2s2 1 2 2c0 1.5-2 2.5-2 2.5s-2-1-2-2.5z"/></svg>`,
-      closet:   `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7a2 2 0 1 1 2-2"/><path d="M12 8v2"/><path d="M3 19l9-7 9 7H3z"/></svg>`,
-      laundry:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="8" cy="6.5" r="0.5" fill="currentColor"/><circle cx="12" cy="6.5" r="0.5" fill="currentColor"/></svg>`
-    };
+    // [Hassan's call] Reads from module-level HOME_ROOM_SVGS — single source
+    // of truth shared with the capture-screen "What room is this?" picker.
+    const ROOM_SVG = HOME_ROOM_SVGS;
     const fallbackSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9z"/></svg>`;
 
     // [Save Home] Hide excluded rooms entirely from the grid. Counter +
