@@ -2682,6 +2682,23 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
   grid-template-columns: 1fr;
   gap: 8px;
 }
+
+/* [Hassan's call] Q2 color_appetite — the palette PNGs are 2:1 horizontal
+   swatches. Single-column wide cards (aspect 2:1) match the image's
+   natural shape so all colors render left-to-right with no crop, no
+   letterbox, no rotation needed. The label overlays the bottom band
+   over a soft dark gradient (existing .qoc-label treatment). */
+.quiz-options.qo-palette {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.quiz-options.qo-palette .quiz-option-card {
+  aspect-ratio: 2 / 1;
+}
+.quiz-options.qo-palette .qoc-photo {
+  background-size: cover;
+  background-position: center;
+}
 .quiz-option-card.q-text {
   aspect-ratio: auto;
   min-height: 56px;

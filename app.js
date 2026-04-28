@@ -2768,6 +2768,13 @@
     const isTextOnly = TEXT_ONLY_QUESTIONS.includes(q.id);
     opts.classList.toggle('qo-stack', isTextOnly);
 
+    // [Hassan's call] Q2 color_appetite: the palette PNGs are 2:1 horizontal
+    // swatches. The default 4:5 card crops them, hiding most of the colors.
+    // qo-palette switches to single-column wide cards (aspect 2:1) so the
+    // full palette renders left-to-right with no crop.
+    const isPalette = q.id === 'color_appetite';
+    opts.classList.toggle('qo-palette', isPalette);
+
     q.options.forEach((opt, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';
