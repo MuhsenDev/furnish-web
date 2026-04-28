@@ -10379,3 +10379,18 @@ html[data-theme="dark"] .rt-card .rt-budget-chip {
   color: var(--brown-2);
 }
 
+/* [DM-FIX] Budget slider thumb visibility in dark mode. The slider
+   .budget-range::-webkit-slider-thumb (and ::-moz-range-thumb) baseline
+   sets background: var(--cream) — but in dark mode var(--cream) is
+   #1C1410 (near-black, the page bg). The thumb rendered invisible on
+   the modal's dark surface. Override to var(--surface) + tan border
+   so the thumb reads as a tappable handle. */
+html[data-theme="dark"] .budget-range::-webkit-slider-thumb {
+  background: var(--surface);
+  border-color: var(--tan);
+}
+html[data-theme="dark"] .budget-range::-moz-range-thumb {
+  background: var(--surface);
+  border-color: var(--tan);
+}
+
