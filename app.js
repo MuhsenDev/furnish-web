@@ -659,6 +659,7 @@
     // [Model A — D7] Reveal gate: AI generation already completed for a guest.
     // Account just created → unlock the room and route straight to results.
     if (pending && pending.intent === 'reveal' && pending.roomId) {
+      console.log(`[afterSigninRouting] reveal branch firing, routing to openRoom for room ${pending.roomId}`);
       ensureActiveProfile();
       trackEvent('reveal_gate_unlocked', { roomId: pending.roomId, source: pending.fromScreen });
       const room = state.rooms.find(r => r.id === pending.roomId);
@@ -1096,6 +1097,11 @@
       recordConsent(_consent);
       save();
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // [Bugs 11/E/F unified fix] Re-paint all auth-dependent UI surfaces
+      // (topbar pill + active screen) before afterSigninRouting navigates
+      // away. Without this, the topbar dropdown stays hidden post-signin
+      // and home/profile-select/profile show stale data on next visit.
+      renderAuthDependentSurfaces();
       // [Batch 6 — Dim 13 REC-13.2] PostHog identify on auth success.
       // Safe no-op pre-PostHog-cutover. Per Reforge *Instrumentation Best
       // Practices*: every authenticated session must identify so cohorts
@@ -1179,6 +1185,8 @@
         // [ToS consent block] Persist on mock-Amazon success.
         recordConsent(_socialConsent);
         save();
+        // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before route.
+        renderAuthDependentSurfaces();
         toast('Signed in with Amazon');
         afterSigninRouting();
         return;
@@ -1211,6 +1219,8 @@
       // [ToS consent block] Persist on mock-social signin success.
       recordConsent(_socialConsent);
       save();
+      // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before route.
+      renderAuthDependentSurfaces();
       toast(`Signed in with ${label}`);
       afterSigninRouting();
     });
@@ -1238,7 +1248,15 @@
         console.log('[auth.onChange] server-side signout detected, clearing local user');
         state.user = null;
         save();
-        if (typeof renderUserPill === 'function') renderUserPill();
+        // [Bugs 11/E/F unified fix] Replace lone renderUserPill call with
+        // the comprehensive helper — if the user is on home/profile-select/
+        // profile when this fires, those surfaces also need to repaint to
+        // reflect the now-signed-out state.
+        if (typeof renderAuthDependentSurfaces === 'function') {
+          renderAuthDependentSurfaces();
+        } else if (typeof renderUserPill === 'function') {
+          renderUserPill();
+        }
         toast('Signed out.');
       }
     });
@@ -1284,6 +1302,11 @@
       // grandfathered if they didn't have a tierGrantedAt before.
       grandfatherProUsers();
       save();
+      // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before the
+      // routing decision below. Especially important for OAuth callbacks
+      // where the page reloaded — every screen rendered from boot was
+      // painted with the pre-signin state and needs immediate refresh.
+      renderAuthDependentSurfaces();
       // [Auth flow Fix 4] OAuth callback routing.
       // Pre-fix this only routed via afterSigninRouting() when the active
       // screen was the HTML default 'welcome' AND the user wasn't already
@@ -1527,6 +1550,36 @@
     const av = $('#userPillAvatar');
     av.textContent = initial;
     av.style.background = avatarGradient(0); // use the lightest brown shade
+  }
+
+  // [Bugs 11/E/F unified fix] Single helper that re-paints every UI surface
+  // that depends on auth state. Called after every successful auth-state
+  // mutation (signin, signup, OAuth callback, signout, server-side session
+  // change). Replaces the pre-fix pattern of scattered `renderUserPill()`
+  // calls that left other auth-dependent surfaces stale.
+  //
+  // What it refreshes:
+  //   - Topbar `#userMenu` pill (always — sticks across screens)
+  //   - The currently-active screen's primary content, if it's auth-aware:
+  //       home → renderHome (active profile pill, lifecycle banner, etc.)
+  //       profile-select → renderProfiles (account name, profile grid)
+  //       profile → renderProfilePage (auth-aware buttons per Bug F)
+  //
+  // Pre-fix symptom: post-signin, the topbar dropdown stayed hidden (was
+  // hidden during guest session) and home showed the wrong profile until
+  // the user manually navigated, triggering renderHome via the data-go
+  // click handler. With this helper, every auth change repaints the
+  // visible surface immediately.
+  function renderAuthDependentSurfaces() {
+    if (typeof renderUserPill === 'function') renderUserPill();
+    const active = document.querySelector('.screen.active')?.dataset?.screen;
+    if (active === 'home' && typeof renderHome === 'function') {
+      renderHome();
+    } else if (active === 'profile-select' && typeof renderProfiles === 'function') {
+      renderProfiles();
+    } else if (active === 'profile' && typeof renderProfilePage === 'function') {
+      renderProfilePage();
+    }
   }
 
   $('#addProfileBtn').addEventListener('click', () => {
@@ -6790,7 +6843,9 @@
         state._justGeneratedRoomId = room.id;
         save();
         // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
-        if (isGuest()) {
+        // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
+        // returning users whose session was lost mid-flow don't get re-gated.
+        if (isFirstTimeOnboarding()) {
           state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'templates' };
           save();
           prepareSignin();
@@ -7072,7 +7127,10 @@
         // D7 auth gate: guest's redesign is computed but locked behind signup.
         // The signin screen renders contextually — see prepareSignin() reading
         // the 'reveal' pending intent.
-        if (isGuest()) {
+        // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
+        // returning users (e.g., session expired mid-flow) skip the gate
+        // and go straight to results — they've already converted once.
+        if (isFirstTimeOnboarding()) {
           state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'capture' };
           save();
           prepareSignin();
@@ -7132,6 +7190,28 @@
   }
   function isSignedInFree() {
     return !!state.user && state.user.provider && state.user.provider !== 'guest' && !state.user.isPro;
+  }
+
+  // [Bugs 11/23/24 unified fix] First-time onboarding predicate.
+  // True only when:
+  //   - User has no auth provider set (guest), AND
+  //   - Has zero rooms in state (never generated anything before)
+  //
+  // Replaces the old "isGuest() means first-time" assumption. A returning
+  // user whose Supabase session expired (auth.onChange clears state.user)
+  // is technically a guest, but they have prior rooms — they're NOT
+  // first-time. Likewise, a guest who has generated a redesign during
+  // this session and is sitting on the reveal gate is past the first-time
+  // gate already (the gate fired once when their first room was made).
+  //
+  // Used to gate:
+  //   - The reveal-gate trigger (only fires for first-timers)
+  //   - The capture-screen escape buttons (hidden for first-timers,
+  //     shown for returning users so they can bail to home mid-flow)
+  //   - Future onboarding-only behaviors that should not apply to
+  //     returning generations
+  function isFirstTimeOnboarding() {
+    return isGuest() && (state.rooms || []).length === 0;
   }
 
   // Returns 'premium' if Pro, else 'standard'. Single source of truth for the
@@ -10708,7 +10788,12 @@
     // 5. Persist to localStorage
     save();
     // 6. Sync UI surfaces that don't auto-rebuild on state change
-    if (typeof renderUserPill === 'function') {
+    // [Bugs 11/E/F unified fix] Use the comprehensive helper — performSignout
+    // wipes state at step 4, so any surface the user might happen to be
+    // on (home/profile-select/profile) needs to repaint immediately.
+    if (typeof renderAuthDependentSurfaces === 'function') {
+      renderAuthDependentSurfaces();
+    } else if (typeof renderUserPill === 'function') {
       renderUserPill();
     }
     // 7. User-facing confirmation + navigation
