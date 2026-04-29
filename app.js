@@ -7061,6 +7061,12 @@
         const transient = synthesizeAnswersFromTemplate(t);
         const room = buildRoomFromDraft(transient);
         room.modelTier = tier;
+        // [Routing-bug fix] Capture isFirstTimeOnboarding() BEFORE the
+        // state.rooms.push below — same timing bug as the own-photo path
+        // in _runAnalyze. The push inverts the predicate (rooms.length
+        // 0 → 1) mid-function for first-time guests, causing the reveal-
+        // gate branch to skip and route to results, which Layer A blocks.
+        const wasFirstTimeOnboarding = isFirstTimeOnboarding();
         state.rooms.push(room);
         state.draft = null;
         incrementGenerationCount();
@@ -7076,7 +7082,8 @@
         // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
         // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
         // returning users whose session was lost mid-flow don't get re-gated.
-        if (isFirstTimeOnboarding()) {
+        // [Routing-bug fix] Read the captured snapshot, not the live predicate.
+        if (wasFirstTimeOnboarding) {
           state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'templates' };
           save();
           prepareSignin();
@@ -7349,6 +7356,17 @@
         // surface a "premium-quality next time" CTA on standard-tier results.
         const room = buildRoomFromDraft();
         room.modelTier = tier;
+        // [Routing-bug fix] Capture isFirstTimeOnboarding() BEFORE the
+        // state.rooms.push below. The push transitions state.rooms.length
+        // from 0 → 1 for a first-time guest, which inverts the predicate
+        // (isGuest && rooms.length === 0) from true to false mid-function.
+        // Reading the live predicate at the routing check below would then
+        // skip the reveal-gate branch and route to results — which Layer A
+        // (guest-boundary guard) blocks, redirecting to welcome. Symptom:
+        // first-time guest finishes analyzing → ends up on welcome instead
+        // of the Almost there reveal gate. Snapshot the verdict at the
+        // moment the analyze fired, before any state mutations.
+        const wasFirstTimeOnboarding = isFirstTimeOnboarding();
         state.rooms.push(room);
         state.draft = null;
         incrementGenerationCount();
@@ -7373,7 +7391,9 @@
         // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
         // returning users (e.g., session expired mid-flow) skip the gate
         // and go straight to results — they've already converted once.
-        if (isFirstTimeOnboarding()) {
+        // [Routing-bug fix] Read the captured snapshot, not the live
+        // predicate (which is now stale post-push for first-time guests).
+        if (wasFirstTimeOnboarding) {
           state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'capture' };
           save();
           prepareSignin();
