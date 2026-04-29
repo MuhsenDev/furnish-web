@@ -200,8 +200,11 @@
       <div class="signin-card">
         <p class="subtle" id="signinSubtitle">Welcome back. Sign in to sync your profiles and saved rooms.</p>
 
-        <!-- [ToS consent block] Single instance gating ALL 5 auth paths
-             below (Google, Apple, Amazon, soft email-capture, email/password).
+        <!-- [ToS consent block] Single instance gating the auth paths
+             below (Google, Apple, email/password). Amazon signin removed
+             post-Stage-4 — affiliate links to amazon.com are unaffected.
+             Soft email-capture lane was deleted in Side Note 1 of an
+             earlier branch.
              Per AUDIT_TOS_CONSENT.md: real <input type="checkbox"> elements
              wrapped in <label> for native a11y. Both unchecked by default
              (Reforge User Psychology + GDPR/CCPA: marketing pre-check is
@@ -230,7 +233,7 @@
              Per Reforge Convert And Activate (Uber multi-payment example):
              reduce friction by making the lowest-friction option primary.
              Email/password = high physical negative psych on mobile;
-             Google = ~zero. Apple/Amazon stay ghost. -->
+             Google = ~zero. Apple stays ghost. -->
         <div class="signin-social">
           <button class="btn btn-primary big signin-social-btn signin-google-primary" data-provider="google">
             <span class="social-glyph" aria-hidden="true">G</span>
@@ -243,14 +246,6 @@
                   <path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                 </svg>
               </span> Apple
-            </button>
-            <button class="btn btn-ghost signin-social-btn" data-provider="amazon">
-              <span class="social-glyph" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 12 Q12 21 20 12"/>
-                  <path d="M16.5 9.5 L20 12 L17.5 15.5"/>
-                </svg>
-              </span> Amazon
             </button>
           </div>
         </div>

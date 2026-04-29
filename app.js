@@ -1256,38 +1256,11 @@
         toast('Apple sign-in coming soon');
         return;
       }
-      if (provider === 'amazon') {
-        // Login with Amazon would integrate via Supabase OAuth (Amazon provider)
-        // once enabled in the dashboard. For now, fall through to mock.
-        if (window.furnishBackend?.mode === 'supabase') {
-          toast('Enable Amazon provider in Supabase dashboard to wire this up');
-          return;
-        }
-        state.user = {
-          generationsUsed: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
-          redesignsUsed:   state.user?.redesignsUsed || state.user?.generationsUsed || 0,
-          isPro: !!state.user?.isPro,
-          firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen,
-          name: 'Amazon User',
-          email: 'amazon.user@furnish.app',
-          provider: 'amazon',
-          signedInAt: Date.now()
-        };
-        // [Identity Stage 2] Mirror mock-Amazon signin into Identity.
-        // Same id-less mock-fallback caveat as the email local-fallback
-        // path above — _fromUserBlob will return GUEST_RECORD because
-        // there's no Supabase id. Documented divergence; revisit in Stage 4.
-        if (typeof window.Identity !== 'undefined') {
-          window.Identity.replace(window.Identity._fromUserBlob(state.user));
-        }
-        // [ToS consent block] Persist on mock-Amazon success.
-        recordConsent(_socialConsent);
-        save();
-        // [Identity Stage 3] Render is bus-driven — see Identity.replace above.
-        toast('Signed in with Amazon');
-        afterSigninRouting();
-        return;
-      }
+      // [Bonus cleanup] Amazon signin path removed. Amazon affiliate
+      // links / shopping references in the catalog (FURNITURE_DB,
+      // AFFILIATE_TAGS, sourceLabel) are intentionally untouched —
+      // Amazon stays a shopping destination; just no longer a signin
+      // option. Apple stays as a "coming soon" placeholder.
 
       if (window.furnishBackend?.mode === 'supabase' && provider === 'google') {
         // [ToS consent block] Stash consent state before the OAuth
