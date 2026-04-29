@@ -546,6 +546,41 @@
       renderProfiles();
       return;
     }
+    // [Side Note 2] Resume the Almost there reveal gate if the user
+    // closed the tab mid-onboarding and came back within 24h. The room,
+    // pending intent, and 24h soft-expiry timer are all already in
+    // localStorage — we just need to route them BACK to the gate
+    // instead of letting the returning-guest fallback dump them on
+    // home. Without this, the user's redesign was effectively
+    // un-resumeable: the data persisted but no UI brought them back
+    // to it. Highest-priority check — fires before isReturningGuestWithProgress.
+    const pi = state._pendingIntent;
+    if (pi && pi.intent === 'reveal' && pi.roomId) {
+      const room = (state.rooms || []).find(r => r.id === pi.roomId);
+      const ts = (typeof room?.timestamp === 'number') ? room.timestamp : null;
+      const within24h = ts != null && (Date.now() - ts) < 24 * 60 * 60 * 1000;
+      if (room && within24h) {
+        console.log(`[welcomeStartBtn] resuming reveal gate for roomId=${pi.roomId}, generatedAt=${new Date(ts).toISOString()}`);
+        trackEvent('return_session_reveal_resumed', {
+          roomId: pi.roomId,
+          ageMs: Date.now() - ts,
+          fromScreen: pi.fromScreen
+        });
+        prepareSignin();
+        showScreen('signin');
+        return;
+      }
+      // Pending intent exists but the room is missing or expired —
+      // clear the stale intent so future clicks don't keep resuming.
+      // The redesign data stays (state.rooms preserved); user can
+      // browse it from home if it's still there, but they won't see
+      // the gate again.
+      if (!within24h) {
+        console.log(`[welcomeStartBtn] reveal intent expired (>24h old), clearing`);
+        state._pendingIntent = null;
+        save();
+      }
+    }
     // [Batch 3 — Dim 04 R3] Returning guest with progress — skip the
     // welcome onboarding flow, route to home with resume hero. Per
     // Reforge ICED Theory "Expanding Touchpoints": returning users must
