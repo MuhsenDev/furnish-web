@@ -77,7 +77,13 @@
       return data?.user || null;
     },
     onChange(cb) {
-      const { data } = sb.auth.onAuthStateChange((_evt, session) => cb(session?.user || null));
+      // [OAuth-visual-bug fix] Surface the Supabase event name to the
+      // caller so app.js can distinguish authoritative signout events
+      // (SIGNED_OUT, USER_DELETED) from transient null-session events
+      // (INITIAL_SESSION before OAuth-hash detection finishes,
+      // TOKEN_REFRESHED on a transient refresh failure). Without this,
+      // every null-session fire was indistinguishable from a real signout.
+      const { data } = sb.auth.onAuthStateChange((evt, session) => cb(session?.user || null, evt));
       return () => data?.subscription?.unsubscribe?.();
     }
   };

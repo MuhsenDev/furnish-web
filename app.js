@@ -1387,12 +1387,25 @@
     // wipe rooms/profiles/wishlist. It only nulls state.user to reflect
     // server reality. The deliberate-signout button-press path (Bug E
     // fix) is the one that nukes everything.
-    window.furnishBackend.auth.onChange((user) => {
+    window.furnishBackend.auth.onChange((user, evt) => {
       // [Identity Stage 4] Guard via Identity.isAuthenticated() (was a
       // direct read of the legacy state.user id field). Same semantic:
       // server says no user AND we think we're locally signed in → clear.
-      if (!user && window.Identity.isAuthenticated()) {
-        console.log('[auth.onChange] server-side signout detected, clearing local user');
+      //
+      // [OAuth-visual-bug fix] Only treat SIGNED_OUT / USER_DELETED as
+      // authoritative auth-loss. Supabase v2's onAuthStateChange also
+      // fires INITIAL_SESSION (on subscribe; null if OAuth-hash detection
+      // is still mid-flight) and TOKEN_REFRESHED (null if a transient
+      // refresh fails) — both can carry a null session even when the
+      // user is legitimately signed in. Pre-fix, those transient nulls
+      // triggered Identity.completeSignout(), which fires Layer B
+      // (app.js:1777), which routes a freshly-signed-in user back to
+      // welcome AFTER openRoom has already showScreen('results') —
+      // symptom: welcome painted on top of results immediately
+      // post-OAuth-callback.
+      const isAuthoritativeSignout = evt === 'SIGNED_OUT' || evt === 'USER_DELETED';
+      if (!user && isAuthoritativeSignout && window.Identity.isAuthenticated()) {
+        console.log(`[auth.onChange] ${evt} received, clearing local user`);
         state.user = null;
         // [Identity Stage 3] Identity.completeSignout fires the bus; the
         // render subscriber repaints all auth-aware surfaces (was the
