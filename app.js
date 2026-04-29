@@ -741,13 +741,27 @@
       $('#signinTitle').textContent = 'Almost there.';
       // Subhead leads with REWARD ("unlock"), trails with reassurance.
       $('#signinSubtitle').textContent = 'Unlock it in 10 seconds — free, no card needed.';
-      // Submit button gets a directional arrow — eye expects forward motion.
-      $('#signinSubmit').textContent = 'Reveal My Redesign →';
-      $('#signinToggleText').textContent = 'Already have an account?';
-      $('#signinToggleBtn').textContent = 'Sign in instead';
-      $('#nameField').style.display = '';
-      $('#signinName').required = true;
-      $('#signinPassword').setAttribute('autocomplete', 'new-password');
+      // [Bug 10] CTA + name field + toggle copy now switch on signinMode
+      // instead of being hardcoded to signup. Pre-fix this branch ALWAYS
+      // showed the name field, ALWAYS submitted as signup, and the toggle
+      // button was visually frozen — a user with an existing account
+      // could tap "Sign in instead" but the form still submitted as
+      // signup, returning "user already registered" and reading as broken.
+      if (isSignup) {
+        $('#signinSubmit').textContent = 'Reveal My Redesign →';
+        $('#signinToggleText').textContent = 'Already have an account?';
+        $('#signinToggleBtn').textContent = 'Sign in instead';
+        $('#nameField').style.display = '';
+        $('#signinName').required = true;
+        $('#signinPassword').setAttribute('autocomplete', 'new-password');
+      } else {
+        $('#signinSubmit').textContent = 'Sign in & reveal →';
+        $('#signinToggleText').textContent = 'New to Furnish?';
+        $('#signinToggleBtn').textContent = 'Create an account instead';
+        $('#nameField').style.display = 'none';
+        $('#signinName').required = false;
+        $('#signinPassword').setAttribute('autocomplete', 'current-password');
+      }
 
       // Populate the reveal hero with live data from the just-built room.
       // Falls back gracefully if the room can't be found (shouldn't happen
@@ -969,6 +983,16 @@
 
   $('#signinForm').addEventListener('submit', async e => {
     e.preventDefault();
+    // [Bug 10] Diagnostic log — proves the handler fires when the
+    // "Almost there" reveal-gate submit button is tapped. If this log
+    // never appears in DevTools when the user taps the button, the
+    // form binding itself is broken. If it appears but signin still
+    // fails, the error is downstream (Supabase rejection, validation,
+    // consent gate, etc.) — and the toast will tell us which.
+    const _pi = state._pendingIntent;
+    if (_pi?.intent === 'reveal') {
+      console.log(`[almost-there-signin] handler fired, intent=reveal, roomId=${_pi.roomId || 'n/a'}, mode=${signinMode}`);
+    }
     const email = $('#signinEmail').value.trim();
     const password = $('#signinPassword').value;
     const name = $('#signinName').value.trim();
