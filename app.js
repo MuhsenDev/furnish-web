@@ -411,7 +411,22 @@
   // analytics event so navigation paths can be cohort-analyzed.
   let _previousScreen = null;
   let _screenEnteredAt = null;
+  // [Boot splash] Tracks whether showScreen has been called yet so the
+  // splash hide is idempotent and the OAuth-callback fallback timer in
+  // boot() can no-op when the backend-ready handler beat it to the punch.
+  // One-way: false → true, never reset. performSignout's showScreen call
+  // and any other later showScreen calls just hide the splash (already
+  // hidden) and proceed normally.
+  let _firstScreenShown = false;
   function showScreen(name) {
+    // [Boot splash] First showScreen call hides the splash. Idempotent;
+    // covers every entry path (boot direct call, backend-ready routing,
+    // fallback timer, performSignout). Optional chaining means a missing
+    // #bootSplash element (HTML drift) is a silent no-op.
+    if (!_firstScreenShown) {
+      _firstScreenShown = true;
+      document.getElementById('bootSplash')?.classList.add('hidden');
+    }
     // [Guest boundary — Layer A] Hard auth gate at the single chokepoint
     // for all screen activations. If the caller (any source: data-go
     // click handler, imperative navigation, dev console) tries to
@@ -1483,13 +1498,34 @@
       // as the fallback for pre-reveal first-time signups.
       const active = document.querySelector('.screen.active')?.dataset?.screen;
       const hasPendingReveal = state._pendingIntent?.intent === 'reveal';
-      if (hasPendingReveal || (!wasSignedIn && active === 'welcome')) {
+      // [Boot splash] When the splash is still up (no active screen yet
+      // because boot deferred showScreen for an OAuth callback), treat
+      // that as if the user was on welcome — that's the screen they'd
+      // have been on pre-fix. Lets the !wasSignedIn signin-from-welcome
+      // path still route correctly during OAuth callbacks where boot()
+      // deliberately skipped the welcome paint.
+      const fromWelcomeOrSplash = active === 'welcome' || (!active && !_firstScreenShown);
+      if (hasPendingReveal || (!wasSignedIn && fromWelcomeOrSplash)) {
         afterSigninRouting();
       } else if (active === 'profile-select') {
         renderProfiles();
       }
+      // [Boot splash] If the routing logic above did not call any
+      // showScreen (e.g., wasSignedIn returning user with no pending
+      // intent + boot deferred for an OAuth marker that the backend
+      // didn't actually consume), explicitly default to welcome so the
+      // splash hides. No-op if a screen was already shown.
+      if (!_firstScreenShown) {
+        showScreen('welcome');
+      }
     } catch (err) {
       console.warn('[Furnish] auto-restore failed', err);
+      // [Boot splash] Auto-restore failed — fall through to welcome so
+      // the splash hides even on the error path. No-op if a screen was
+      // already shown.
+      if (!_firstScreenShown) {
+        showScreen('welcome');
+      }
     }
   });
 
@@ -12302,7 +12338,41 @@
     // fresh based on saves/verdicts since last open. Idempotent.
     (state.profiles || []).forEach(p => recomputeProfileStyleScores(p.id));
 
-    showScreen('welcome');
+    // [Boot splash + OAuth flash fix] Detect OAuth callback markers in
+    // the URL. If present, the user is post-Google-redirect and the
+    // backend-ready handler will route them (typically to results via
+    // afterSigninRouting's reveal branch). Defer showScreen so we never
+    // paint welcome before that route fires. The splash element covers
+    // the deferral window.
+    //
+    // Without OAuth markers, default to welcome immediately — guests,
+    // returning auth users, and local-mode users all land on welcome as
+    // their intended destination, so no deferral is needed.
+    //
+    // Markers checked: `#access_token=` (implicit OAuth flow) and
+    // `?code=` (PKCE flow). Mirrors what Supabase v2's detectSessionInUrl
+    // looks for.
+    const isOAuthCallback =
+      window.location.hash.includes('access_token=') ||
+      window.location.search.includes('code=');
+
+    if (!isOAuthCallback) {
+      showScreen('welcome');
+    } else {
+      console.log('[boot] OAuth callback detected — deferring initial screen until backend-ready resolves');
+      // Fallback safety net: if backend-ready never fires (SDK fetch
+      // failed, listener missed the event, mode='local' early-return) or
+      // never makes a routing decision, the user would otherwise be
+      // stuck on the splash indefinitely. After 5s, force welcome so the
+      // app doesn't appear hung. Gated on _firstScreenShown so this is a
+      // no-op when backend-ready already routed.
+      setTimeout(() => {
+        if (!_firstScreenShown) {
+          console.warn('[boot] OAuth-callback fallback firing — backend-ready did not resolve a screen within 5s');
+          showScreen('welcome');
+        }
+      }, 5000);
+    }
     startReviewsBar();
     wireCaptureFlow();
   }
