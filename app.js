@@ -1191,10 +1191,20 @@
       // grandfathered if they didn't have a tierGrantedAt before.
       grandfatherProUsers();
       save();
-      // Fresh OAuth arrival → route based on pending intent + history.
-      if (!wasSignedIn && document.querySelector('.screen.active')?.dataset?.screen === 'welcome') {
+      // [Auth flow Fix 4] OAuth callback routing.
+      // Pre-fix this only routed via afterSigninRouting() when the active
+      // screen was the HTML default 'welcome' AND the user wasn't already
+      // signed in. That misses the case where a guest with a pending
+      // reveal intent OAuth-signs-in and the post-reload active screen is
+      // anything else — the intent then sat in localStorage with nothing
+      // to consume it. Loosen: any pending reveal MUST fire afterSigninRouting
+      // regardless of which screen is active. The screen-name check stays
+      // as the fallback for pre-reveal first-time signups.
+      const active = document.querySelector('.screen.active')?.dataset?.screen;
+      const hasPendingReveal = state._pendingIntent?.intent === 'reveal';
+      if (hasPendingReveal || (!wasSignedIn && active === 'welcome')) {
         afterSigninRouting();
-      } else if (document.querySelector('.screen.active')?.dataset?.screen === 'profile-select') {
+      } else if (active === 'profile-select') {
         renderProfiles();
       }
     } catch (err) {
