@@ -1259,16 +1259,12 @@
           openSupportModal();
           break;
         case 'signout':
-          if (!confirm('Sign out? Your profiles stay on this device.')) return;
-          // [Dim 14 Section F] Snapshot state to per-user backup before clearing.
-          if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
-          if (window.furnishBackend?.mode === 'supabase') {
-            await window.furnishBackend.auth.signOut().catch(()=>{});
-          }
-          state.user = null;
-          save();
-          toast('Signed out.');
-          showScreen('welcome');
+          // [Bug E fix] Single-path signout via performSignout() — clears
+          // ALL local state, not just state.user. Confirm + Supabase
+          // signOut + analytics reset + state wipe + nav are all
+          // consolidated in the helper so the topbar dropdown + the
+          // Profile-page settings list never drift.
+          await performSignout();
           break;
       }
     });
@@ -6286,16 +6282,17 @@
       showScreen('signin');
       toast('Sign in to switch.');
     } else if (action === 'signout') {
-      if (!confirm('Sign out? Your profiles stay on this device.')) return;
-      // [Dim 14 Section F] Snapshot state before sign-out.
-      if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
-      if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
-      // [Batch 6 — Dim 13 REC-13.2] Reset PostHog identity on signout.
-      resetAnalyticsIdentity();
-      state.user = null;
-      save();
-      toast('Signed out.');
-      showScreen('welcome');
+      // [Bug E fix] Single-path signout via performSignout() — clears
+      // all local state. Replaces the prior bespoke handler that only
+      // nulled state.user and left rooms/profiles/bookmarks behind.
+      await performSignout();
+    } else if (action === 'open-signin') {
+      // [Bug F fix] Guest-mode entry point on the Profile page. The
+      // "Sign Out" button is dynamically relabelled to "Sign In or
+      // Create Account" by renderProfilePage when isGuest() is true.
+      // This branch routes the guest into the existing signin screen.
+      prepareSignin();
+      showScreen('signin');
     } else if (action === 'reset') {
       // [Reset Dialog] Replaces window.confirm() with the rich confirmation
       // dialog (lists + hold-to-confirm). The actual reset + toast + welcome
@@ -10525,6 +10522,83 @@
     trackEvent('share_native_unavailable');
     return false;
   };
+
+  // [Bug E fix] Clean signout — full local state reset.
+  // Single source of truth for the deliberate signout flow. Both signout
+  // entry points (topbar dropdown + Profile-page settings list) call this
+  // so behaviour stays identical and the clear list never drifts.
+  //
+  // Contract: returns true if the user confirmed and the signout
+  // completed; false if they cancelled. Caller should check the return
+  // value and skip any post-signout follow-up if false.
+  //
+  // What gets cleared: every property in DEFAULT_STATE (user, profiles,
+  // rooms, bookmarkedRooms, wishlist, priceAlerts, activeProfileId, draft,
+  // quiz) plus all session flags (`_pendingIntent`, `_tourShown`, etc.)
+  // PLUS `wishlistMeta` (runtime field, not in DEFAULT_STATE but worth
+  // resetting so wishlist + meta stay in sync). PRESERVED:
+  // `state.settings.theme` — device preference, not auth state.
+  //
+  // What does NOT get cleared: the per-user backup blob in localStorage
+  // (`furnish.state.backup.<uid>`) — written by FurnishSignoutSnapshot
+  // BEFORE the clear so a re-signin with the same account can offer
+  // "Restore your previous library?" via maybeOfferStateRestore.
+  async function performSignout() {
+    if (!confirm('Sign out? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)')) {
+      return false;
+    }
+    // 1. Snapshot per-user backup BEFORE clearing
+    if (typeof window.FurnishSignoutSnapshot === 'function') {
+      window.FurnishSignoutSnapshot();
+    }
+    // 2. Server-side: drop Supabase session
+    if (window.furnishBackend?.mode === 'supabase') {
+      await window.furnishBackend.auth.signOut().catch(() => {});
+    }
+    // 3. Analytics identity (was missing on the topbar dropdown path
+    //    pre-fix — now consistent across both entry points)
+    if (typeof resetAnalyticsIdentity === 'function') {
+      resetAnalyticsIdentity();
+    }
+    // 4. Clear all in-memory state to DEFAULT_STATE values, plus session
+    //    flags. Theme is preserved as a device preference.
+    const preservedTheme = state.settings?.theme || 'light';
+    state.user = null;
+    state.profiles = [];
+    state.activeProfileId = null;
+    state.rooms = [];
+    state.bookmarkedRooms = [];
+    state.wishlist = [];
+    state.wishlistMeta = {};
+    state.priceAlerts = {};
+    state.draft = null;
+    state.quiz = null;
+    state.settings = { theme: preservedTheme };
+    // Session flags — explicitly listed per spec. If new flags get
+    // added elsewhere in the codebase, they should be added here too.
+    state._pendingIntent = null;
+    state._showExploreWelcome = false;
+    state._tourShown = false;
+    state._habitFired = false;
+    state._ahaResultsFired = false;
+    state._tutorialQueued = false;
+    state._evolutionDismissedRooms = {};
+    state._templateTipShown = false;
+    state._lastAIPrompt = null;
+    state._premiumUpsellShownThisSession = false;
+    state._justGeneratedRoomId = null;
+    // 5. Persist to localStorage
+    save();
+    // 6. Sync UI surfaces that don't auto-rebuild on state change
+    if (typeof renderUserPill === 'function') {
+      renderUserPill();
+    }
+    // 7. User-facing confirmation + navigation
+    toast('Signed out. Your data has been cleared from this device.');
+    showScreen('welcome');
+    console.log('[signout] cleared all state, navigating to welcome');
+    return true;
+  }
 
   // [Dim 14 Section F — Sign-out wishlist data-loss prevention]
   // Snapshot state into per-user backup key before sign-out clears it.
