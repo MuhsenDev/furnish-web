@@ -37,11 +37,119 @@
     }
   }
   let _cloudSyncTimer = null;
+
+  // [Quota recovery helpers] When localStorage hits its cap (typically
+  // 5MB on Safari mobile, 10MB on Chrome/Edge/Firefox), state.rooms[].photo
+  // base64 blobs (~1-2MB each) are the dominant cost. Auto-prune oldest
+  // unprotected rooms on quota error and retry — without this, every save
+  // silently fails after the user's ~5th redesign, breaking subsequent
+  // signouts (snapshot fails) and OAuth signins (Supabase session token
+  // can't persist alongside an over-quota furnish.state blob).
+  function _isQuotaError(e) {
+    // Cross-browser quota detection. Chrome/Edge/Firefox throw
+    // DOMException with name 'QuotaExceededError'; older Firefox uses
+    // code 1014 (NS_ERROR_DOM_QUOTA_REACHED); ancient Safari uses code 22
+    // (QUOTA_EXCEEDED_ERR); some browsers only stamp the message. Match
+    // all of them.
+    return !!e && (
+      e.name === 'QuotaExceededError' ||
+      e.code === 22 ||
+      e.code === 1014 ||
+      /quota/i.test(e.message || '')
+    );
+  }
+
+  function _collectProtectedRoomIds() {
+    // Rooms referenced by any "user is currently using or has explicitly
+    // saved this" surface. Pruning these would break visible UI or lose
+    // explicitly-saved data. Categories:
+    //   1. currentRoomId — active room on results screen
+    //   2. _pendingIntent.roomId — reveal-gate target
+    //   3. _justGeneratedRoomId — post-generation save surface trigger
+    //   4. bookmarkedRooms — top-level bookmark set
+    //   5. activeHome.designedRooms[*].roomId — rooms assigned to home slots
+    //   6. user.savedRooms[*].roomId — explicitly saved standalones
+    const protect = new Set();
+    if (currentRoomId) protect.add(currentRoomId);
+    if (state._pendingIntent?.roomId) protect.add(state._pendingIntent.roomId);
+    if (state._justGeneratedRoomId) protect.add(state._justGeneratedRoomId);
+    (state.bookmarkedRooms || []).forEach(id => protect.add(id));
+    const ah = state.user?.activeHome?.designedRooms;
+    if (ah && typeof ah === 'object') {
+      Object.values(ah).forEach(slot => { if (slot?.roomId) protect.add(slot.roomId); });
+    }
+    (state.user?.savedRooms || []).forEach(s => { if (s?.roomId) protect.add(s.roomId); });
+    return protect;
+  }
+
+  function _pruneRoomsKeepingRecent(keepNUnprotected) {
+    // Keep all protected rooms PLUS the N most recent unprotected rooms
+    // (by createdAt desc). Returns the count of rooms removed.
+    const rooms = state.rooms || [];
+    if (rooms.length === 0) return 0;
+    const protect = _collectProtectedRoomIds();
+    const sorted = [...rooms].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const protectedRooms = sorted.filter(r => protect.has(r.id));
+    const recentUnprotected = sorted.filter(r => !protect.has(r.id)).slice(0, keepNUnprotected);
+    const keepIds = new Set([...protectedRooms, ...recentUnprotected].map(r => r.id));
+    const removed = rooms.length - keepIds.size;
+    if (removed > 0) state.rooms = rooms.filter(r => keepIds.has(r.id));
+    return removed;
+  }
+
   function save() {
-    try {
-      localStorage.setItem('furnish.state', JSON.stringify(state));
-    } catch (e) {
-      console.warn('localStorage save failed', e);
+    // [Quota recovery] Try the normal save first. On quota error, prune
+    // progressively (3 unprotected rooms → 1 unprotected) and retry. Two
+    // prune levels cover Chrome 10MB and Safari 5MB typical caps. After
+    // both fail, surface to the user; in-memory state continues to work
+    // but disk persistence is gone for this mutation.
+    //
+    // pushAll uses upsert (not delete), so cloud-synced rooms are NEVER
+    // removed by local pruning — pruning is a cache eviction for the
+    // local-storage tier only. For guests (no cloud), pruning IS data
+    // loss; the toast tells them to sign in.
+    const KEEP_LEVELS = [3, 1];
+    let totalPruned = 0;
+    for (let attempt = 0; attempt <= KEEP_LEVELS.length; attempt++) {
+      try {
+        localStorage.setItem('furnish.state', JSON.stringify(state));
+        if (totalPruned > 0) {
+          const isAuthed = !!window.Identity?.userId();
+          toast(isAuthed
+            ? "Older designs cleared from this device — they're still in your cloud library."
+            : "Storage full — older designs cleared from this device. Sign in to back up your work.");
+          trackEvent('storage_pruned', {
+            totalPruned,
+            keptCount: state.rooms.length,
+            attempt,
+            authed: isAuthed
+          });
+        }
+        break;
+      } catch (e) {
+        if (!_isQuotaError(e)) {
+          console.warn('localStorage save failed (non-quota)', e);
+          break;
+        }
+        if (attempt >= KEEP_LEVELS.length) {
+          console.error('localStorage quota exhausted after prune', e);
+          toast("Storage limit reached. Some changes won't be saved on this device.");
+          trackEvent('storage_quota_exhausted', { roomsRemaining: state.rooms.length });
+          break;
+        }
+        const removed = _pruneRoomsKeepingRecent(KEEP_LEVELS[attempt]);
+        totalPruned += removed;
+        if (removed === 0) {
+          // All remaining rooms are protected — can't shrink further.
+          console.error('localStorage quota hit; remaining rooms all protected', e);
+          toast("Storage limit reached. Some changes won't be saved on this device.");
+          trackEvent('storage_quota_exhausted', {
+            roomsRemaining: state.rooms.length,
+            allProtected: true
+          });
+          break;
+        }
+      }
     }
     // Debounced background sync to Supabase when configured + signed in.
     // [Identity Stage 4] Gate now reads through Identity.userId() instead
@@ -11199,6 +11307,20 @@
       trackEvent('signout_state_snapshotted', { uid: String(uid).slice(0, 8) });
     } catch (e) {
       console.warn('signout snapshot failed', e);
+      // [Quota recovery] At quota — backup blob (which duplicates rooms +
+      // profiles) won't fit on top of an already-large furnish.state.
+      // Don't block signout. For authenticated users, cloud sync via
+      // pushAll upsert is the canonical store and the backup blob is
+      // just an offline-recovery convenience. For guests, there is no
+      // offline-recovery option at quota anyway — surface that fact so
+      // they understand why.
+      if (_isQuotaError(e)) {
+        const isAuthed = !!window.Identity?.userId();
+        toast(isAuthed
+          ? "Couldn't save offline backup — your designs are still in the cloud."
+          : "Couldn't save offline backup — sign in next time to keep your designs.");
+        trackEvent('signout_snapshot_quota_skipped', { authed: isAuthed });
+      }
     }
   }
   window.FurnishSignoutSnapshot = snapshotStateOnSignout;
