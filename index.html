@@ -1837,6 +1837,13 @@
   <script src="supabase-config.js"></script>
   <script src="supabase-client.js"></script>
   <script src="furniture.js"></script>
+  <!-- [Identity rewrite Stage 1] Identity must load BEFORE app.js so
+       window.Identity is available to the app's IIFE. Hydrates its
+       initial record from localStorage's furnish.state blob (parallel
+       read path; same source of truth app.js reads). Stages 2/3/4
+       wire write sites, render orchestration, and predicate consumers
+       respectively. -->
+  <script src="identity.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
