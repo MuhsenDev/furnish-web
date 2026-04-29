@@ -150,8 +150,61 @@
       sb.from('user_settings').select('*').eq('user_id', user.id).maybeSingle()
     ]);
 
-    if (profiles?.length) state.profiles = profiles.map(rowToProfile);
-    if (rooms?.length)    state.rooms    = rooms.map(rowToRoom);
+    // [Auth flow Fix 1] Reveal-aware merge.
+    // When a guest's redesign has just been generated and they're at the
+    // signin gate (state._pendingIntent.intent === 'reveal'), the local
+    // state.rooms holds a freshly-generated room that has NOT yet been
+    // pushed to the server. A naive overwrite would erase it the moment
+    // the user signs into an account that already has prior rooms on the
+    // server, breaking afterSigninRouting → openRoom and stranding the
+    // user. Preserve the pending room (and its profile) through the pull.
+    const pendingReveal = state._pendingIntent?.intent === 'reveal'
+      ? state._pendingIntent
+      : null;
+
+    if (profiles?.length) {
+      const pulledProfiles = profiles.map(rowToProfile);
+      if (pendingReveal) {
+        // The room's profileId points at the local guest profile. If the
+        // server doesn't know that profile yet (typical guest → existing-
+        // account signin), keep the local one alongside the pulled set so
+        // openRoom's profile lookup still resolves.
+        const pendingRoom = (state.rooms || []).find(r => r.id === pendingReveal.roomId);
+        const pendingProfileId = pendingRoom?.profileId;
+        const localProfile = pendingProfileId
+          ? (state.profiles || []).find(p => p.id === pendingProfileId)
+          : null;
+        if (localProfile && !pulledProfiles.some(p => p.id === pendingProfileId)) {
+          pulledProfiles.push(localProfile);
+        }
+      }
+      state.profiles = pulledProfiles;
+    }
+
+    if (rooms?.length) {
+      const pulledRooms = rooms.map(rowToRoom);
+      if (pendingReveal) {
+        const localPending = (state.rooms || []).find(r => r.id === pendingReveal.roomId);
+        if (localPending && !pulledRooms.some(r => r.id === pendingReveal.roomId)) {
+          pulledRooms.push(localPending);
+          console.log('[pullAll] reveal-aware merge: preserved roomId=' + pendingReveal.roomId);
+        } else {
+          // Pending intent existed but either local room is missing or the
+          // server already has it (rare — implies a prior partial push).
+          // Either way, the standard overwrite is safe.
+          console.log('[pullAll] standard overwrite (no pending reveal)');
+        }
+      } else {
+        console.log('[pullAll] standard overwrite (no pending reveal)');
+      }
+      state.rooms = pulledRooms;
+    } else if (pendingReveal) {
+      // Server has zero rooms but we have a pending reveal — preserve
+      // the local set unchanged. (Without this branch, the empty-server
+      // path leaves state.rooms as-is anyway, but the explicit log helps
+      // debugging and documents the intent.)
+      console.log('[pullAll] reveal-aware merge: preserved roomId=' + pendingReveal.roomId);
+    }
 
     state.wishlist = (wishlist || []).map(w => w.item_id);
     state.priceAlerts = {};
