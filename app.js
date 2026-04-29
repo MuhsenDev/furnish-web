@@ -1433,8 +1433,57 @@
     });
 
     try {
-      const user = await window.furnishBackend.auth.getUser();
-      if (!user) return;
+      let user = await window.furnishBackend.auth.getUser();
+      if (!user) {
+        // [OAuth race fix] getUser() can return null transiently during an
+        // OAuth callback when Supabase's detectSessionInUrl is still
+        // mid-flight processing the URL hash → session exchange. Same-
+        // account signin is the consistent repro because Google redirects
+        // back instantly (no consent screen), letting backend-ready beat
+        // hash processing to the punch. Wait briefly for the SIGNED_IN
+        // event (or INITIAL_SESSION with a session) before falling through.
+        //
+        // Pre-fix: handler returned silently here and the splash hung
+        // until the boot 5s fallback fired showScreen('welcome'), losing
+        // the user's reveal-pending route to results entirely.
+        const isOAuthCallback =
+          window.location.hash.includes('access_token=') ||
+          window.location.search.includes('code=');
+        if (isOAuthCallback) {
+          console.log('[backend-ready] getUser returned null but OAuth callback in progress — waiting for SIGNED_IN');
+          user = await new Promise((resolve) => {
+            let unsub = null;
+            const timer = setTimeout(() => {
+              console.warn('[backend-ready] timed out waiting for OAuth SIGNED_IN event after 3s');
+              unsub?.();
+              resolve(null);
+            }, 3000);
+            // Listen for SIGNED_IN OR INITIAL_SESSION carrying a user.
+            // INITIAL_SESSION fires synchronously on subscribe with the
+            // current session — covers the microtask-race case where the
+            // hash exchange completed between our getUser call and this
+            // listener registration. SIGNED_IN fires later if the exchange
+            // is still in flight when we subscribe.
+            unsub = window.furnishBackend.auth.onChange((u, evt) => {
+              if (u && (evt === 'SIGNED_IN' || evt === 'INITIAL_SESSION')) {
+                clearTimeout(timer);
+                unsub?.();
+                resolve(u);
+              }
+            });
+          });
+        }
+        if (!user) {
+          // No user resolved (no session at all, or OAuth race timed
+          // out). [Boot splash] Fall through to welcome so the splash
+          // hides immediately rather than hanging until the boot 5s
+          // fallback. No-op if a screen was already shown.
+          if (!_firstScreenShown) {
+            showScreen('welcome');
+          }
+          return;
+        }
+      }
       // Already signed in (e.g. returning from OAuth or cached session)
       // [Identity Stage 4] wasSignedIn now reads through Identity.
       const wasSignedIn = window.Identity.isAuthenticated();
