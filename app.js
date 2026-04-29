@@ -369,11 +369,81 @@
   // can refine their style any time without going through the quiz flow.
   const MAIN_SCREENS = new Set(['home', 'saved', 'preferences', 'profile']);
 
+  // [Guest boundary] Screens accessible to unauthenticated users.
+  //
+  // Per Hassan's spec: a guest can ONLY reach welcome → onboarding flow
+  // → reveal gate. Every other screen requires authentication. Anything
+  // outside this set, when a guest attempts navigation, gets redirected
+  // to welcome by the Layer A guard inside showScreen() and the Layer B
+  // Identity bus subscriber registered later.
+  //
+  // Members:
+  //   welcome           — landing screen, the only legitimate guest entry
+  //   capture           — photo upload step (Last Step)
+  //   quiz-intro        — quiz entry / "find your style" intro
+  //   quiz              — the 9-question quiz
+  //   quiz-dealbreaker  — Q10 free-text follow-up
+  //   analyzing         — loading screen during AI generation
+  //   signin            — dual-purpose: reveal gate (post-onboarding) AND
+  //                       general signin (Switch Account, Sign In CTA on
+  //                       Profile, requireSignin gates). Always allowed
+  //                       since guests need it for the conversion path.
+  //   terms / privacy   — legal docs reachable from the consent block on
+  //                       signin. Must remain accessible to guests so
+  //                       they can read terms before agreeing.
+  //
+  // NOT in the set (forbidden for guests): home, profile, profile-select,
+  // preferences, saved, saved-home-detail, results, templates, this-week,
+  // styles-index, wishlist, home-gallery.
+  const GUEST_ALLOWED_SCREENS = new Set([
+    'welcome',
+    'capture',
+    'quiz-intro',
+    'quiz',
+    'quiz-dealbreaker',
+    'analyzing',
+    'signin',
+    'terms',
+    'privacy',
+  ]);
+
   // [Batch 6 — Dim 13 REC-13.3] Track previous screen for the screen_viewed
   // analytics event so navigation paths can be cohort-analyzed.
   let _previousScreen = null;
   let _screenEnteredAt = null;
   function showScreen(name) {
+    // [Guest boundary — Layer A] Hard auth gate at the single chokepoint
+    // for all screen activations. If the caller (any source: data-go
+    // click handler, imperative navigation, dev console) tries to
+    // route a guest to a forbidden screen, redirect to welcome instead.
+    //
+    // Redirect-by-reassignment, NOT recursion — we mutate the local
+    // `name` variable and let the rest of the function body run with the
+    // new target. Single pass; no stack growth; no risk of infinite loop.
+    //
+    // The guard is defensive against:
+    //   - Direct showScreen('home') calls anywhere in app.js
+    //   - data-go="profile"/"saved"/"preferences" taps via the bottom
+    //     nav (which becomes visible only for MAIN_SCREENS — the guard
+    //     is the safety net if a leak puts the nav onscreen anyway)
+    //   - Internal helpers (openRoom, openPreferences, renderHome, etc.)
+    //     that themselves invoke showScreen
+    //   - Dev-console debugging
+    //
+    // Layer B (an Identity bus subscriber registered later in this file)
+    // handles the related case: an authenticated user whose session
+    // expires WHILE on a forbidden screen — Layer A wouldn't fire
+    // because no navigation was attempted; Layer B catches the auth
+    // transition and routes them to welcome.
+    if (window.Identity && window.Identity.isGuest() && !GUEST_ALLOWED_SCREENS.has(name)) {
+      console.warn(`[guest-boundary] blocked navigation to "${name}" — guest not allowed; redirecting to welcome`);
+      trackEvent('guest_boundary_blocked', {
+        attemptedScreen: name,
+        from: _previousScreen,
+        layer: 'A',
+      });
+      name = 'welcome';
+    }
     // [Reset Dialog] Edge-case per spec: if user navigates away mid-dialog
     // (browser back, deep link, etc.), close the dialog cleanly so no
     // stale reset state lingers. closeResetDialog is a no-op when the
@@ -593,29 +663,29 @@
         save();
       }
     }
-    // [Batch 3 — Dim 04 R3] Returning guest with progress — skip the
-    // welcome onboarding flow, route to home with resume hero. Per
-    // Reforge ICED Theory "Expanding Touchpoints": returning users must
-    // get a different experience from cold-start, or product fades from
-    // memory. A guest with a saved room or in-progress draft has already
-    // invested — don't punish them by re-onboarding.
-    if (typeof isReturningGuestWithProgress === 'function' && isReturningGuestWithProgress()) {
-      trackEvent('return_session_resumed', {
-        rooms: state.rooms?.length || 0,
-        hasDraft: !!(state.draft && state.draft.photo)
-      });
-      showScreen('home');
-      return;
-    }
+    // [Guest boundary] The pre-fix `isReturningGuestWithProgress()` shortcut
+    // routed returning guests with prior rooms/drafts directly to home,
+    // bypassing onboarding entirely. That violated the new boundary spec
+    // (guests cannot reach home). Removed: every guest now restarts
+    // onboarding from the quiz when tapping Redesign My Room. Side Note 2's
+    // reveal-resume above still handles the "closed tab mid-flow within
+    // 24h" recovery case by routing to signin (allowed for guests).
+    //
+    // The `isReturningGuestWithProgress` predicate itself stays in the
+    // codebase as dead code for now — it's a one-line helper with no
+    // other callers but removing it would be invasive cleanup; if a
+    // future reason to consult "guest with progress" appears, the
+    // predicate is ready. (Defense-in-depth principle Hassan named.)
     if (!state.user) {
       state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
       // [Identity Stage 2] Mirror welcomeStartBtn's guest init.
       if (typeof window.Identity !== 'undefined') window.Identity.beginGuest();
     }
     ensureGuestProfile();
-    // [Hassan's call] New users must go through the quiz — they can't skip
-    // onboarding. Existing returning guests with progress are caught above
-    // by isReturningGuestWithProgress() and routed straight to home.
+    // [Hassan's call + guest-boundary] New users AND returning guests
+    // both go through the quiz now. The pre-boundary "skip onboarding for
+    // returning guests" shortcut was removed — guests must always either
+    // complete onboarding or sign in via Side Note 2's reveal-resume.
     openQuizIntro(state.activeProfileId);
   });
 
@@ -1656,19 +1726,27 @@
   // (Stage 2), which fires the bus, which triggers this subscriber to
   // re-paint the relevant surfaces.
   //
-  // Two subscribers, registered in order:
+  // Three subscribers, registered in order:
   //   1. claim-guest-room — fires on guest→authenticated transition only.
   //      Re-anchors state.activeProfileId from the local guest profile to
   //      the server profile (Bug 11). Runs FIRST so the render below sees
   //      the correct activeProfileId.
-  //   2. render-auth-dependent-surfaces — fires on every identity change.
+  //   2. guest-boundary (Layer B) — fires on authenticated→guest transition
+  //      only. If the user just lost their session (token expiry, multi-tab
+  //      signout, programmatic clear) WHILE on a forbidden screen, force-
+  //      route them to welcome. Runs BEFORE the render subscriber so the
+  //      render fires after navigation has settled. Pairs with Layer A
+  //      (the showScreen guard) — A handles attempted nav by guests; B
+  //      handles guests-by-transition who weren't navigating at all.
+  //   3. render-auth-dependent-surfaces — fires on every identity change.
   //      Repaints topbar pill + active screen's auth-aware content.
   //
-  // Both subscribers receive the initial fire (cb(null, current)) when
+  // All subscribers receive the initial fire (cb(null, current)) when
   // they attach. The render subscriber's initial fire is harmless (the
   // surfaces aren't painted yet — the screens themselves haven't been
   // shown). The claim subscriber's initial fire is also harmless (no
-  // prev → no transition detected).
+  // prev → no transition detected). Layer B's initial fire is also a
+  // no-op: prev is null, so no transition is detected.
   Identity.subscribe((prev, next) => {
     // Detect guest → authenticated transition specifically. Ignore:
     //   - initial fire (prev is null)
@@ -1678,6 +1756,35 @@
     if (typeof claimGuestRoomForUser === 'function') {
       claimGuestRoomForUser();
     }
+  });
+
+  // [Guest boundary — Layer B] Auth-loss boundary check.
+  // Fires when an authenticated user becomes a guest mid-session (token
+  // expiry caught by auth.onChange, multi-tab signout, programmatic clear,
+  // performSignout — though performSignout already routes to welcome
+  // explicitly, this subscriber is harmlessly redundant in that case).
+  //
+  // If the user is currently on a forbidden screen at the moment of the
+  // auth-loss transition, force-route to welcome. Runs BEFORE the render
+  // subscriber below so navigation settles first; then render paints the
+  // post-navigation state (welcome) consistently.
+  //
+  // Skips:
+  //   - Initial fire (prev is null) — boot-time, no transition.
+  //   - guest→authenticated and same-state transitions — not auth-loss.
+  //   - auth-loss WHILE on a guest-allowed screen — they're already
+  //     somewhere they're allowed to be; no forced navigation needed.
+  Identity.subscribe((prev, next) => {
+    if (!prev || prev.kind !== 'authenticated' || next.kind !== 'guest') return;
+    const active = document.querySelector('.screen.active')?.dataset?.screen;
+    if (!active || GUEST_ALLOWED_SCREENS.has(active)) return;
+    console.log(`[guest-boundary] auth lost on forbidden screen "${active}", routing to welcome`);
+    trackEvent('guest_boundary_blocked', {
+      attemptedScreen: active,
+      from: active,
+      layer: 'B',
+    });
+    showScreen('welcome');
   });
 
   Identity.subscribe((prev, next) => {
