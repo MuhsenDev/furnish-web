@@ -872,14 +872,19 @@
     </section>
 
     <!-- SCREEN: Capture (single-screen flow — Reforge Setup Moment: only MUST-HAVE info) -->
-    <!-- [Bug 8 + Bug 9] Both Home and Back buttons removed: they were
-         escape hatches that bypassed the signin gate by routing back
-         to home mid-flow. The bottom nav is hidden on capture (it's in
-         DESIGN_SCREENS) so no other UI element exits the flow. The only
-         forward path is photo upload + room type + Design My Room. The
-         only out is browser back or closing the tab. -->
+    <!-- [Bug 23 reconciliation of Bug 8 + Bug 9] Capture is a dual-use
+         screen: (a) first-time onboarding's photo step, and (b) the
+         entry point for every subsequent generation by a returning user.
+         Bug 8/9 removed the back/home buttons entirely, which fixed the
+         onboarding-escape problem but stranded returning users with no
+         way out. Restored here, conditionally hidden via JS during
+         first-time onboarding (see togglecaptureEscapeButtons in app.js).
+         The bottom nav stays hidden on capture (DESIGN_SCREENS). -->
     <section class="screen" data-screen="capture" data-flow-prev="home">
       <header class="topbar">
+        <div class="topbar-left" id="captureTopbarLeft">
+          <button class="btn-icon" data-go="home" aria-label="Back to home" id="captureBackBtn">‹</button>
+        </div>
         <h2>Last Step — Your Room Photo</h2>
       </header>
 

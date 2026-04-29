@@ -6881,6 +6881,18 @@
     // Auto-ensure a profile exists — guest flow must reach here without a detour.
     ensureGuestProfile();
     const p = getActiveProfile();
+    // [Bug 23] Capture is dual-use:
+    //   First-time onboarding → no escape (Bug 9 spec — user must commit
+    //     forward through the funnel)
+    //   Returning generation → back button visible so user can bail to
+    //     home if they change their mind mid-flow
+    // The escape state is recomputed on every prepareCapture entry so a
+    // user who signs in mid-session sees the button reappear next time
+    // they hit capture.
+    const captureTopbarLeft = document.getElementById('captureTopbarLeft');
+    if (captureTopbarLeft) {
+      captureTopbarLeft.style.display = isFirstTimeOnboarding() ? 'none' : '';
+    }
     // type defaults to null so the user must pick one (enables the analyze btn).
     // keep defaults to false (fresh start) — user can flip post-aha on results.
     state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
