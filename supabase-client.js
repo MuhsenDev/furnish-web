@@ -21,6 +21,9 @@
     !cfg.anonKey.includes('YOUR-ANON');
 
   if (!configured) {
+    // [Phase 3] Top-level boot verdict — high-visibility line so it's easy
+    // to spot in DevTools without scrolling through other startup noise.
+    console.log('Furnish: local-only mode (placeholder credentials detected)');
     console.info('[Furnish] Supabase not configured — running in local-only mode.');
     window.furnishBackend = { mode: 'local' };
     emit();
@@ -31,6 +34,10 @@
   try {
     ({ createClient } = await import('https://esm.sh/@supabase/supabase-js@2'));
   } catch (err) {
+    // [Phase 3] CDN fetch failed — config IS valid, but we can't load the
+    // SDK. Log it as the local-only branch so the user sees clearly which
+    // mode is actually running, plus the original error for debugging.
+    console.log('Furnish: local-only mode (placeholder credentials detected)');
     console.error('[Furnish] Could not load supabase-js — falling back to local mode.', err);
     window.furnishBackend = { mode: 'local' };
     emit();
@@ -222,5 +229,9 @@
 
   window.furnishBackend = { mode: 'supabase', sb, auth, pullAll, pushAll, clearRemote };
   emit();
+  // [Phase 3] Top-level boot verdict — paired with the local-mode log
+  // above. One line per app boot, no scrolling needed to verify which
+  // mode is running.
+  console.log('Furnish: cloud mode active');
   console.info('[Furnish] Supabase backend ready.');
 })();
