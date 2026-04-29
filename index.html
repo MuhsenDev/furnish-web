@@ -133,7 +133,12 @@
     <!-- SCREEN: Sign in -->
     <section class="screen" data-screen="signin">
       <header class="topbar">
-        <button class="btn-icon" data-go="welcome" aria-label="Back">‹</button>
+        <!-- [Bug 9] Back button is dual-use: visible for general signin
+             entry points (Switch Account, requireSignin, Profile-page
+             "Sign In" CTA), hidden when state._pendingIntent.intent ===
+             'reveal' (the Almost there reveal gate is onboarding and
+             must not allow escape). Toggled by applySigninMode in app.js. -->
+        <button class="btn-icon" id="signinBackBtn" data-go="welcome" aria-label="Back">‹</button>
         <h2 id="signinTitle">Sign In</h2>
       </header>
       <!--
@@ -454,8 +459,12 @@
 
     <!-- SCREEN: Onboarding intro (10-Q flow gate) -->
     <section class="screen" data-screen="quiz-intro">
+      <!-- [Bug 9] Back button removed: it routed to profile-select which
+           is an escape hatch back to welcome. quiz-intro is the entry
+           point of the 9-question quiz; users continue forward via Start
+           or Use Defaults. The quiz's own back button (#quizBackBtn)
+           still allows navigating back to quiz-intro from question 1. -->
       <header class="topbar">
-        <button class="btn-icon" data-go="profile-select" aria-label="Back">‹</button>
         <h2 id="quizIntroTitle">Find Your Style</h2>
       </header>
       <div class="quiz-intro-card">
@@ -871,16 +880,14 @@
     </section>
 
     <!-- SCREEN: Capture (single-screen flow — Reforge Setup Moment: only MUST-HAVE info) -->
-    <!-- [Bug 8] Home button removed: it was an escape hatch that bypassed
-         the signin gate by routing the user back to home mid-flow. The
-         remaining Back arrow is removed in Bug 9. No keyboard shortcut
-         or other UI element on this screen routes home — the bottom nav
-         is hidden because capture is in DESIGN_SCREENS. -->
+    <!-- [Bug 8 + Bug 9] Both Home and Back buttons removed: they were
+         escape hatches that bypassed the signin gate by routing back
+         to home mid-flow. The bottom nav is hidden on capture (it's in
+         DESIGN_SCREENS) so no other UI element exits the flow. The only
+         forward path is photo upload + room type + Design My Room. The
+         only out is browser back or closing the tab. -->
     <section class="screen" data-screen="capture" data-flow-prev="home">
       <header class="topbar">
-        <div class="topbar-left">
-          <button class="btn-icon" data-go-back aria-label="Back">‹</button>
-        </div>
         <h2>Last Step — Your Room Photo</h2>
       </header>
 

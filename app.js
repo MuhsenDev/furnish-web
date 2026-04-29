@@ -725,6 +725,15 @@
     const isRevealGate = state._pendingIntent?.intent === 'reveal';
     const hero = $('#signinRevealHero');
 
+    // [Bug 9] Hide the topbar Back button during reveal-gate (it's an
+    // escape hatch out of onboarding). For all other signin entries
+    // (Switch Account, requireSignin gates, Profile-page Sign In CTA),
+    // the Back button stays visible so users can exit signin.
+    const backBtn = document.getElementById('signinBackBtn');
+    if (backBtn) {
+      backBtn.style.display = isRevealGate ? 'none' : '';
+    }
+
     if (isRevealGate) {
       // [D7 reveal-gate copy — Reforge curiosity gap + endowment + loss aversion]
       // Topbar becomes a step marker ("Almost there.") so the screen feels like
