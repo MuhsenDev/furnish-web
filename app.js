@@ -8121,7 +8121,38 @@
   function openRoom(roomId) {
     syncFreeModeClass();
     const room = state.rooms.find(r => r.id === roomId);
-    if (!room) return;
+    if (!room) {
+      // [Auth flow Fix 3] Reveal-intent miss = surface a clear error and
+      // hold the user on signin. Without this, the previous silent return
+      // dropped the user into a UX black hole: signin succeeded, the room
+      // was missing (typically because pullAll overwrote state.rooms before
+      // Fix 1 landed), openRoom returned with no toast, and the user
+      // eventually navigated to home thinking the redesign was lost.
+      //
+      // Fix 3 contract: when the missing-room call originates from an
+      // active reveal intent, log + toast + leave _pendingIntent SET so
+      // a retry has the breadcrumb (per Fix 2). For any other source
+      // (manual openRoom, deep-link, internal nav with stale id) keep
+      // the historical silent-return — those paths are best-effort and
+      // a toast would be noisy.
+      const pending = state._pendingIntent;
+      if (pending && pending.intent === 'reveal' && pending.roomId === roomId) {
+        console.error('[openRoom] reveal-miss', {
+          source: 'openRoom-reveal-miss',
+          roomId,
+          rooms_length: (state.rooms || []).length,
+          pendingFromScreen: pending.fromScreen
+        });
+        toast("Couldn't load your redesign. Try signing in again.");
+        showScreen('signin');
+        // Re-render the signin screen in reveal-gate mode so the user
+        // sees the same gate copy they came from. prepareSignin reads
+        // state._pendingIntent (still set per the Fix 2 contract).
+        if (typeof prepareSignin === 'function') prepareSignin();
+        return;
+      }
+      return;
+    }
     currentRoomId = roomId;
     const profile = state.profiles.find(p => p.id === room.profileId);
 
