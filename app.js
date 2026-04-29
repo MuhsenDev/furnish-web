@@ -709,14 +709,12 @@
     // path; the clear there is moved to right before each branch fires.
     const pending = state._pendingIntent;
     syncFreeModeClass();
-    // [Bug 11] Re-anchor active identity from local guest → server profile
-    // BEFORE any branch renders. Covers all signin entry points (reveal
-    // gate, Switch Account, Profile-page Sign In, requireSignin gates).
-    // No-op if there's nothing to swap (already on a server profile, or
-    // brand-new account with no server profiles to swap to). Without this,
-    // post-signin navigation from results to home paints the guest
-    // profile's empty context instead of the user's real account.
-    claimGuestRoomForUser();
+    // [Identity Stage 3] claimGuestRoomForUser is now invoked by the
+    // Identity bus subscriber on guest→authenticated transitions. The
+    // manual call here was removed because Stage 2 wired Identity.replace
+    // into every signin site, and the subscriber registered above fires
+    // before this function reads its branches. Net: same call ordering,
+    // single source of truth.
 
     // [Model A — D7] Reveal gate: AI generation already completed for a guest.
     // Account just created → unlock the room and route straight to results.
@@ -1161,16 +1159,14 @@
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
       // [Identity Stage 2] Mirror email signin/signup success into Identity.
       // _fromUserBlob converts the just-mutated state.user blob into a
-      // properly-typed authenticated IdentityRecord. Stage 3 will replace
-      // the manual renderAuthDependentSurfaces below with a bus subscriber.
+      // properly-typed authenticated IdentityRecord. The bus subscriber
+      // (registered at app boot) handles the post-mutation render.
       if (typeof window.Identity !== 'undefined') {
         window.Identity.replace(window.Identity._fromUserBlob(state.user));
       }
-      // [Bugs 11/E/F unified fix] Re-paint all auth-dependent UI surfaces
-      // (topbar pill + active screen) before afterSigninRouting navigates
-      // away. Without this, the topbar dropdown stays hidden post-signin
-      // and home/profile-select/profile show stale data on next visit.
-      renderAuthDependentSurfaces();
+      // [Identity Stage 3] Render orchestration is now bus-driven.
+      // Identity.replace above fired the bus; the render subscriber
+      // repainted topbar pill + active screen automatically.
       // [Batch 6 — Dim 13 REC-13.2] PostHog identify on auth success.
       // Safe no-op pre-PostHog-cutover. Per Reforge *Instrumentation Best
       // Practices*: every authenticated session must identify so cohorts
@@ -1272,8 +1268,7 @@
         // [ToS consent block] Persist on mock-Amazon success.
         recordConsent(_socialConsent);
         save();
-        // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before route.
-        renderAuthDependentSurfaces();
+        // [Identity Stage 3] Render is bus-driven — see Identity.replace above.
         toast('Signed in with Amazon');
         afterSigninRouting();
         return;
@@ -1311,8 +1306,7 @@
       // [ToS consent block] Persist on mock-social signin success.
       recordConsent(_socialConsent);
       save();
-      // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before route.
-      renderAuthDependentSurfaces();
+      // [Identity Stage 3] Render is bus-driven — see Identity.replace above.
       toast(`Signed in with ${label}`);
       afterSigninRouting();
     });
@@ -1339,20 +1333,12 @@
       if (!user && state.user?.id) {
         console.log('[auth.onChange] server-side signout detected, clearing local user');
         state.user = null;
-        // [Identity Stage 2] Mirror the state.user clear into Identity.
-        // Stage 3 will replace the manual renderAuthDependentSurfaces
-        // call below with a bus-driven subscriber.
+        // [Identity Stage 3] Identity.completeSignout fires the bus; the
+        // render subscriber repaints all auth-aware surfaces (was the
+        // lone renderUserPill / renderAuthDependentSurfaces call here
+        // before the bus existed).
         if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
         save();
-        // [Bugs 11/E/F unified fix] Replace lone renderUserPill call with
-        // the comprehensive helper — if the user is on home/profile-select/
-        // profile when this fires, those surfaces also need to repaint to
-        // reflect the now-signed-out state.
-        if (typeof renderAuthDependentSurfaces === 'function') {
-          renderAuthDependentSurfaces();
-        } else if (typeof renderUserPill === 'function') {
-          renderUserPill();
-        }
         toast('Signed out.');
       }
     });
@@ -1405,11 +1391,12 @@
       // grandfathered if they didn't have a tierGrantedAt before.
       grandfatherProUsers();
       save();
-      // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before the
-      // routing decision below. Especially important for OAuth callbacks
-      // where the page reloaded — every screen rendered from boot was
-      // painted with the pre-signin state and needs immediate refresh.
-      renderAuthDependentSurfaces();
+      // [Identity Stage 3] Render is bus-driven — the Identity.replace
+      // earlier in this handler fired the subscriber that repainted the
+      // topbar pill + active screen. Especially important for OAuth
+      // callbacks where the page reloaded — the bus + initial-fire
+      // contract guarantees subscribers attached during app boot see
+      // the post-pull identity state.
       // [Auth flow Fix 4] OAuth callback routing.
       // Pre-fix this only routed via afterSigninRouting() when the active
       // screen was the HTML default 'welcome' AND the user wasn't already
@@ -1657,26 +1644,52 @@
     av.style.background = avatarGradient(0); // use the lightest brown shade
   }
 
-  // [Bugs 11/E/F unified fix] Single helper that re-paints every UI surface
-  // that depends on auth state. Called after every successful auth-state
-  // mutation (signin, signup, OAuth callback, signout, server-side session
-  // change). Replaces the pre-fix pattern of scattered `renderUserPill()`
-  // calls that left other auth-dependent surfaces stale.
+  // [Identity Stage 3] Render orchestration via Identity bus.
+  // Replaces the pre-Stage-3 renderAuthDependentSurfaces helper + its 6
+  // manual call sites with a single subscriber to the Identity bus. Every
+  // auth-state transition (signin, signup, signout, OAuth callback, token
+  // expiry, multi-tab signout) fires Identity.replace() at the write site
+  // (Stage 2), which fires the bus, which triggers this subscriber to
+  // re-paint the relevant surfaces.
   //
-  // What it refreshes:
-  //   - Topbar `#userMenu` pill (always — sticks across screens)
-  //   - The currently-active screen's primary content, if it's auth-aware:
-  //       home → renderHome (active profile pill, lifecycle banner, etc.)
-  //       profile-select → renderProfiles (account name, profile grid)
-  //       profile → renderProfilePage (auth-aware buttons per Bug F)
+  // Two subscribers, registered in order:
+  //   1. claim-guest-room — fires on guest→authenticated transition only.
+  //      Re-anchors state.activeProfileId from the local guest profile to
+  //      the server profile (Bug 11). Runs FIRST so the render below sees
+  //      the correct activeProfileId.
+  //   2. render-auth-dependent-surfaces — fires on every identity change.
+  //      Repaints topbar pill + active screen's auth-aware content.
   //
-  // Pre-fix symptom: post-signin, the topbar dropdown stayed hidden (was
-  // hidden during guest session) and home showed the wrong profile until
-  // the user manually navigated, triggering renderHome via the data-go
-  // click handler. With this helper, every auth change repaints the
-  // visible surface immediately.
-  function renderAuthDependentSurfaces() {
+  // Both subscribers receive the initial fire (cb(null, current)) when
+  // they attach. The render subscriber's initial fire is harmless (the
+  // surfaces aren't painted yet — the screens themselves haven't been
+  // shown). The claim subscriber's initial fire is also harmless (no
+  // prev → no transition detected).
+  Identity.subscribe((prev, next) => {
+    // Detect guest → authenticated transition specifically. Ignore:
+    //   - initial fire (prev is null)
+    //   - no-op fires where kind didn't change (e.g., same-record replace)
+    //   - authenticated → guest (signout — nothing to claim)
+    if (!prev || prev.kind !== 'guest' || next.kind !== 'authenticated') return;
+    if (typeof claimGuestRoomForUser === 'function') {
+      claimGuestRoomForUser();
+    }
+  });
+
+  Identity.subscribe((prev, next) => {
+    // Skip initial fire (prev is null) — the boot-time identity record
+    // doesn't represent a transition; it represents the starting state.
+    // Initial paint will happen via screen-show renderers anyway.
+    if (!prev) return;
+    // Skip no-op transitions (same kind AND same userId). This dedupes
+    // scenarios like beginGuest() being called when already a guest.
+    if (prev.kind === next.kind && prev.supabaseUserId === next.supabaseUserId) return;
+    // Always repaint the topbar pill — it's a global affordance present
+    // across multiple screens and the user can see it anywhere.
     if (typeof renderUserPill === 'function') renderUserPill();
+    // Repaint the currently-active screen if it's auth-aware. The screen
+    // renderers are idempotent — re-running them on a screen the user
+    // is already on just refreshes content with new data.
     const active = document.querySelector('.screen.active')?.dataset?.screen;
     if (active === 'home' && typeof renderHome === 'function') {
       renderHome();
@@ -1685,7 +1698,7 @@
     } else if (active === 'profile' && typeof renderProfilePage === 'function') {
       renderProfilePage();
     }
-  }
+  });
 
   $('#addProfileBtn').addEventListener('click', () => {
     // Adding extra profiles is gated behind Pro.
@@ -10914,15 +10927,9 @@
     state._justGeneratedRoomId = null;
     // 5. Persist to localStorage
     save();
-    // 6. Sync UI surfaces that don't auto-rebuild on state change
-    // [Bugs 11/E/F unified fix] Use the comprehensive helper — performSignout
-    // wipes state at step 4, so any surface the user might happen to be
-    // on (home/profile-select/profile) needs to repaint immediately.
-    if (typeof renderAuthDependentSurfaces === 'function') {
-      renderAuthDependentSurfaces();
-    } else if (typeof renderUserPill === 'function') {
-      renderUserPill();
-    }
+    // 6. Sync UI surfaces — bus-driven via Identity.completeSignout
+    // (called inside the state wipe block above). The render subscriber
+    // repaints any auth-aware surface the user happens to be on.
     // 7. User-facing confirmation + navigation
     toast('Signed out. Your data has been cleared from this device.');
     showScreen('welcome');
