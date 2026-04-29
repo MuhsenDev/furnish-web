@@ -1150,6 +1150,30 @@
   // ---------- Backend ready: auto-restore Supabase session ----------
   window.addEventListener('furnish:backend-ready', async () => {
     if (window.furnishBackend?.mode !== 'supabase') return;
+
+    // [Fix 3 — companion to Bugs E & F] auth.onChange listener.
+    // Registered at the TOP of the backend-ready handler (before the
+    // early-return for guest sessions) so the callback survives even
+    // when there's no session at boot. Catches:
+    //   - signin events that happen AFTER boot (the user wouldn't be
+    //     covered by the session-restoration code below in that case)
+    //   - token expiry on the Supabase side (server invalidated session)
+    //   - multi-tab signout (signing out in tab A → tab B receives event)
+    //
+    // Distinct contract from performSignout() — this listener does NOT
+    // wipe rooms/profiles/wishlist. It only nulls state.user to reflect
+    // server reality. The deliberate-signout button-press path (Bug E
+    // fix) is the one that nukes everything.
+    window.furnishBackend.auth.onChange((user) => {
+      if (!user && state.user?.id) {
+        console.log('[auth.onChange] server-side signout detected, clearing local user');
+        state.user = null;
+        save();
+        if (typeof renderUserPill === 'function') renderUserPill();
+        toast('Signed out.');
+      }
+    });
+
     try {
       const user = await window.furnishBackend.auth.getUser();
       if (!user) return;
