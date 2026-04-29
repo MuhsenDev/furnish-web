@@ -44,7 +44,12 @@
       console.warn('localStorage save failed', e);
     }
     // Debounced background sync to Supabase when configured + signed in.
-    if (window.furnishBackend?.mode === 'supabase' && state.user?.id) {
+    // [Identity Stage 4] Gate now reads through Identity.userId() instead
+    // of the legacy direct-from-state.user read. Same semantics: only push
+    // when there's a real Supabase auth identity (Identity.userId() returns
+    // null for guests and local-fallback mock users — neither should sync
+    // to the cloud).
+    if (window.furnishBackend?.mode === 'supabase' && window.Identity?.userId()) {
       clearTimeout(_cloudSyncTimer);
       _cloudSyncTimer = setTimeout(() => {
         window.furnishBackend.pushAll(state).catch(err => console.warn('[Furnish] cloud sync failed', err));
@@ -545,7 +550,9 @@
   // Signin is requested later, gated at value moments (save/share/more rooms).
   document.getElementById('welcomeStartBtn').addEventListener('click', () => {
     trackEvent(ACTIVATION.SIGNUP_STARTED);
-    if (state.user && state.user.provider !== 'guest' && state.profiles.length) {
+    // [Identity Stage 4] Auth check via Identity.isAuthenticated() (was
+    // `state.user && state.user.provider !== 'guest'`). Same semantics.
+    if (window.Identity.isAuthenticated() && state.profiles.length) {
       // Returning signed-in user with profiles — send to picker.
       showScreen('profile-select');
       renderProfiles();
@@ -636,7 +643,8 @@
   // they tried to take, not dump them on profile-select. (Fixes the
   // "sign in → pick profile → re-do quiz → re-take photo" dead-end.)
   function requireSignin(intent) {
-    if (state.user && state.user.provider !== 'guest') return true;
+    // [Identity Stage 4] Auth check via Identity.isAuthenticated().
+    if (window.Identity.isAuthenticated()) return true;
     state._pendingIntent = {
       intent,
       roomId: currentRoomId,
@@ -1171,16 +1179,19 @@
       // Safe no-op pre-PostHog-cutover. Per Reforge *Instrumentation Best
       // Practices*: every authenticated session must identify so cohorts
       // are queryable. ID is the Supabase auth UUID (NOT email — PII).
-      identifyUserForAnalytics(state.user.id || state.user.email, {
-        provider: state.user.provider,
+      // [Identity Stage 4] Migrated from direct state.user reads.
+      identifyUserForAnalytics(window.Identity.userId() || window.Identity.email() || state.user?.email, {
+        provider: window.Identity.provider() || state.user?.provider,
         tier: state.user.isPro ? 'pro' : 'free'
       });
       trackEvent('signin_completed', {
-        provider: state.user.provider,
+        // [Identity Stage 4]
+        provider: window.Identity.provider() || state.user?.provider,
         durationMs: Date.now() - (state._timing?.signinAttemptedAt || Date.now())
       });
       // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
-      toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
+      // [Identity Stage 4] name read via Identity + state.user fallback.
+      toast(signinMode === 'signup' ? `Welcome, ${window.Identity.name() || state.user?.name || ''}.` : 'Signed in.');
       afterSigninRouting();
       return;
     }
@@ -1213,16 +1224,20 @@
     submitBtn.disabled = false;
     submitBtn.textContent = signinMode === 'signup' ? 'Create account' : 'Sign in';
     // [Batch 6 — Dim 13 REC-13.2] PostHog identify on local-fallback signin.
-    identifyUserForAnalytics(state.user.email, {
+    // [Identity Stage 4] Identity returns null for local-fallback users
+    // (no real Supabase id) — fall back to state.user.email so analytics
+    // identify still fires with a stable identifier.
+    identifyUserForAnalytics(window.Identity.email() || state.user?.email, {
       provider: 'email',
-      tier: state.user.isPro ? 'pro' : 'free'
+      tier: state.user?.isPro ? 'pro' : 'free'
     });
     trackEvent('signin_completed', {
       provider: 'email',
       durationMs: Date.now() - (state._timing?.signinAttemptedAt || Date.now())
     });
     // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
-    toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
+    // [Identity Stage 4] name read via Identity + state.user fallback.
+    toast(signinMode === 'signup' ? `Welcome, ${window.Identity.name() || state.user?.name || ''}.` : 'Signed in.');
     afterSigninRouting();
   });
 
@@ -1330,7 +1345,10 @@
     // server reality. The deliberate-signout button-press path (Bug E
     // fix) is the one that nukes everything.
     window.furnishBackend.auth.onChange((user) => {
-      if (!user && state.user?.id) {
+      // [Identity Stage 4] Guard via Identity.isAuthenticated() (was a
+      // direct read of the legacy state.user id field). Same semantic:
+      // server says no user AND we think we're locally signed in → clear.
+      if (!user && window.Identity.isAuthenticated()) {
         console.log('[auth.onChange] server-side signout detected, clearing local user');
         state.user = null;
         // [Identity Stage 3] Identity.completeSignout fires the bus; the
@@ -1347,7 +1365,8 @@
       const user = await window.furnishBackend.auth.getUser();
       if (!user) return;
       // Already signed in (e.g. returning from OAuth or cached session)
-      const wasSignedIn = !!state.user?.id;
+      // [Identity Stage 4] wasSignedIn now reads through Identity.
+      const wasSignedIn = window.Identity.isAuthenticated();
       // [Model A — STEP 5 §16 row 4] Snapshot the cached tier+quota BEFORE we
       // pullAll(), so we can detect drift between offline-cached and server-
       // canonical. If the user paid (or canceled) on another device while this
@@ -1632,13 +1651,25 @@
   function renderUserPill() {
     const menu = $('#userMenu');
     if (!menu) return;
-    if (!state.user) { menu.style.display = 'none'; return; }
+    // [Identity Stage 4] Visibility check via Identity.isAuthenticated()
+    // (was a falsy state.user check). Pill hides for guests + local-fallback
+    // mock users; visible for real Supabase-authenticated users only.
+    // Slight semantic tightening from pre-Stage-4: pre-fix the pill was
+    // visible for any non-null state.user including local-fallback mocks.
+    // For Hassan's cloud-mode setup this is identical behavior; local-
+    // fallback users (dev-only) now see no pill until Stage 5 fixes
+    // their id synthesis.
+    if (!window.Identity.isAuthenticated()) { menu.style.display = 'none'; return; }
     menu.style.display = '';
-    const name = state.user.name || (state.user.email || '').split('@')[0];
+    // [Identity Stage 4] Identity reads with state.user fallback for
+    // robustness (local-fallback case as documented above).
+    const idName = window.Identity.name() || state.user?.name || '';
+    const idEmail = window.Identity.email() || state.user?.email || '';
+    const name = idName || idEmail.split('@')[0];
     const initial = (name[0] || '?').toUpperCase();
     $('#userPillName').textContent = name;
     $('#userDropdownName').textContent = name;
-    $('#userDropdownEmail').textContent = state.user.email || '';
+    $('#userDropdownEmail').textContent = idEmail;
     const av = $('#userPillAvatar');
     av.textContent = initial;
     av.style.background = avatarGradient(0); // use the lightest brown shade
@@ -7315,13 +7346,20 @@
   // explicitly 'guest'. touchLastVisit() at boot initializes state.user = {}
   // (no provider), and the welcomeStartBtn flow sets provider:'guest' only
   // for a brand-new state.user. This handles the empty-object case.
+  // [Identity Stage 4] Predicate body migrated to delegate to Identity.
+  // Pre-Stage-4 body: read state.user, check provider against 'guest'.
+  // The legacy logic is preserved exactly in Identity.isGuest() (which
+  // also handles the 30+ defensive `state.user = {}` empty-object case
+  // — Identity._fromUserBlob returns GUEST_RECORD for any blob lacking
+  // a real provider+id pair, so isGuest() returns true for those).
   function isGuest() {
-    if (!state.user) return true;
-    const p = state.user.provider;
-    return !p || p === 'guest';
+    return window.Identity.isGuest();
   }
+  // [Identity Stage 4] Auth half migrates to Identity.isAuthenticated().
+  // The isPro check still reads state.user.isPro directly — that field
+  // moves to state.tier in Stage 5; out of scope here.
   function isSignedInFree() {
-    return !!state.user && state.user.provider && state.user.provider !== 'guest' && !state.user.isPro;
+    return window.Identity.isAuthenticated() && !state.user?.isPro;
   }
 
   // [Bugs 11/23/24 unified fix] First-time onboarding predicate.
@@ -10080,7 +10118,11 @@
   // Referral link — stub now, wire real attribution backend later.
   // ?ref=<userId>&room=<roomId> lets you credit inviter on signup.
   function buildInviteLink() {
-    const uid = state.user?.id || state.user?.email || 'guest';
+    // [Identity Stage 4] uid composite: prefer Identity.userId(); fall
+    // back to state.user.email for the local-fallback signin case (where
+    // Identity is guest but state.user has a mock email). Stage 5 will
+    // synthesize an id for local-fallback users so this can simplify.
+    const uid = (window.Identity?.userId()) || state.user?.email || 'guest';
     const code = btoa(uid).replace(/=+$/,'').slice(0, 10);
     return `https://furnish.app/?ref=${code}&room=${encodeURIComponent(currentRoomId || '')}`;
   }
@@ -10943,7 +10985,8 @@
   // your previous library." Per Reforge Resurrecting Involuntary Dormant
   // Users → Category One: Product Issue.
   function snapshotStateOnSignout() {
-    const uid = state.user?.id || state.user?.email;
+    // [Identity Stage 4] uid composite via Identity + email fallback.
+    const uid = (window.Identity?.userId()) || state.user?.email;
     if (!uid) return;
     try {
       localStorage.setItem(`furnish.state.backup.${uid}`, JSON.stringify({
@@ -10963,7 +11006,8 @@
   window.FurnishSignoutSnapshot = snapshotStateOnSignout;
 
   function maybeOfferStateRestore() {
-    const uid = state.user?.id || state.user?.email;
+    // [Identity Stage 4] uid composite via Identity + email fallback.
+    const uid = (window.Identity?.userId()) || state.user?.email;
     if (!uid) return;
     let backup;
     try {
@@ -12123,7 +12167,8 @@
     // [Batch 1 additions]
     gcOrphanedWishlist();           // Dim 14 — prune orphan wishlist IDs
     renderPhotoTip();                // Dim 14 — mount photo tip card on capture
-    if (state.user?.id || state.user?.email) {
+    // [Identity Stage 4] Has-some-identity check via Identity + email fallback.
+    if ((window.Identity?.userId()) || state.user?.email) {
       maybeOfferStateRestore();      // Dim 14 — offer previous-session restore
     }
 
