@@ -1,0 +1,13 @@
+{
+  "name": "furnish-spike",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Furnish — Gemini 2.5 Flash Image redesign spike (one-off, not the production app)",
+  "scripts": {
+    "spike": "node spike.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.50.1"
+  }
+}

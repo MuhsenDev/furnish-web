@@ -1612,3 +1612,87 @@ All 4 fixes shipped + verified live. 3 new analytics events scaffolded for PostH
 **Files changed:** `app.js` only (~30 lines added — extension block right after `window.FurnishOKT` exposure).
 
 **Status:** ✅ COMPLETE
+---
+
+## Budget Slider — Low-Floor Expansion (2026-04-28)
+
+**Spec:** Lower the slider floor from \$500 → \$50 to support accessory-tier shopping. Maximum stays \$20,000+. Default stays \$3,000. Step granularity tuned per band; AI prompt builder gets a new sub-\$250 tier; items list gets an empty-state for very-low-budget rooms.
+
+### Reforge frameworks applied
+
+- **Personalization (Dim 07):** Granular control at low budgets matches actual user intent. A \$80 accessory shopper and a \$15,000 investment shopper use the same slider, but the steps and prompt language meet each one where they actually are.
+- **Conversion Optimization (Dim 03):** Honest empty-state at the low end ("No items in your budget for this room yet") protects affiliate-conversion trust. Bait-and-switch ("here's a redesign in your budget!" with all-above-budget items) is the highest-cost lie at the moment of purchase intent.
+- **User Psychology (Dim 02):** Step values reflect how humans actually think about money in different ranges. \$10 increments below \$500 (where \$60 vs \$80 is a real decision); \$1,000 increments above \$10,000 (where \$15,200 vs \$15,500 is noise). The slider's logarithmic mapping was kept; only the rounding-bucket sizes changed per band.
+
+### Slider constants — `app.js`
+
+```diff
+- const SLIDER_BUDGET_MIN     = 500;
++ const SLIDER_BUDGET_MIN     = 50;
+```
+
+### Step value tiers — `sliderToBudget`
+
+| Range | Old | New |
+|---|---|---|
+| \$50 – \$500 | (didn't exist) | \$10 increments |
+| \$500 – \$1,500 | \$100 increments | **\$50 increments** |
+| \$1,500 – \$5,000 | \$100 increments | \$100 increments (unchanged) |
+| \$5,000 – \$10,000 | \$500 increments | \$500 increments (unchanged) |
+| \$10,000 – \$20,000+ | \$1,000 increments | \$1,000 increments (unchanged) |
+
+### AI prompt builder — `budgetBandText`
+
+New tier added at the bottom of the cascade, plus the existing low-tier threshold dropped \$500 → \$250 since \$50–\$250 is now its own band:
+
+| Range | Tier copy framing |
+|---|---|
+| < \$250 | **NEW** — accessory-tier: cushions, art, plants, single decor pieces; explicitly tells the model **not** to attempt a full furniture redesign |
+| \$250 – \$1,500 | high-low mix, IKEA / Target tier (was \$500 floor; now \$250 floor) |
+| \$1,500 – \$5,000 | smart mid-tier — Wayfair, West Elm sale items (unchanged) |
+| \$5,000 – \$15,000 | quality — CB2, Crate & Barrel, real wood (unchanged) |
+| \$15,000+ | investment — RH, Design Within Reach, statement (unchanged) |
+| Infinity (no cap) | aspirational, statement pieces (unchanged) |
+
+### Visible slider labels
+
+- Low-end tick: `$500` → `$50`
+- Added a `$500` mid-tick to give the user a visual sense of where the accessory band ends before the variable-step jump
+- High-end tick: `$20,000+` (unchanged)
+- Active value display: currency-formatted with comma separators, no decimals (unchanged)
+
+### Items list empty-state — `renderItemsList`
+
+When the room has shoppable items AND every shoppable item exceeds the user's budget, prepend a banner to `#itemsList`:
+
+> **No items in your budget for this room yet.** Increase your budget or browse the full results below — items above your budget show with a marker.
+
+All items still render below the banner with the existing `.above-budget` marker — the banner is additive, not a replacement. New CSS at end of `styles.css`: `.items-budget-empty` (with light + dark variants). New telemetry event: `items_budget_empty_state_shown`.
+
+### Verification
+
+- ✅ Single slider instance confirmed: only `#captureBudgetSlider` exists in `index.html` (line 948). Prior BUDGET_RESET_PASS teardown was thorough — no orphans.
+- ✅ `SLIDER_BUDGET_MIN` referenced through the constant at all 6 read sites (no hardcoded `500` remaining at the floor).
+- ✅ Defensive grep for `$500` across `*.{js,html,css}` returns only intentional mentions (tier comments, the mid-tick label).
+
+### Files changed
+
+- `app.js` — `SLIDER_BUDGET_MIN`, `sliderToBudget`, `budgetBandText`, `paintBudgetTicks`, `renderItemsList`
+- `styles.css` — appended `.items-budget-empty` block + dark-mode variants
+- `IMPLEMENTATION_PROGRESS.md` — this entry
+- `index.html` — **unchanged** (slider input uses 0–1000 position scale; dollar mapping is JS-side)
+- `furniture.js` — **unchanged**
+
+### Manual verification checklist
+
+- [ ] Drag slider to minimum → confirm `$50`
+- [ ] Drag through low range → expect `$60, $70, $80, …, $150, $200, $250, …, $500`
+- [ ] Drag through \$500–\$1,500 → expect `$50` increments (`$550, $600, $650, …`)
+- [ ] Drag through \$1,500–\$5,000 → expect `$100` increments
+- [ ] Drag to maximum → confirm `$20,000+`
+- [ ] Generate at \$80 → confirm AI prompt contains "accessory-tier budget" + "do not attempt a full furniture redesign"
+- [ ] Generate at \$300 → confirm prompt contains "tight budget" + "high-low mix"
+- [ ] Generate at \$15,000 → confirm prompt contains "investment budget"
+- [ ] Pick a room where all items exceed \$50 → confirm empty-state banner renders + items still appear below with `Above budget` markers
+
+**Status:** ✅ COMPLETE

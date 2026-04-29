@@ -359,8 +359,10 @@
   const DESIGN_SCREENS = new Set([
     'preferences', 'capture', 'analyzing', 'results', 'templates'
   ]);
-  // Bottom-nav surfaces (Home / Saved / Profile) per PDR §13.
-  const MAIN_SCREENS = new Set(['home', 'saved', 'profile']);
+  // Bottom-nav surfaces (Home / Saved / Preferences / Profile).
+  // [Hassan's call] Preferences promoted to a bottom-nav surface so users
+  // can refine their style any time without going through the quiz flow.
+  const MAIN_SCREENS = new Set(['home', 'saved', 'preferences', 'profile']);
 
   // [Batch 6 — Dim 13 REC-13.3] Track previous screen for the screen_viewed
   // analytics event so navigation paths can be cohort-analyzed.
@@ -465,6 +467,22 @@
     if (!target) return;
     const dest = target.dataset.go;
     if (dest === 'home') ensureActiveProfile();
+    // [Hassan's call] Preferences is now a bottom-nav tab. Reroute through
+    // openPreferences() so the answers editor + name field + profile gauge
+    // load against the active profile instead of showing a stale screen.
+    // ensureGuestProfile guarantees a profile exists for users who deep-link
+    // here without going through welcome → continue first.
+    if (dest === 'preferences') {
+      if (!state.user) {
+        state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
+      }
+      ensureGuestProfile();
+      const pid = state.activeProfileId;
+      if (pid && typeof openPreferences === 'function') {
+        openPreferences(pid);  // calls showScreen('preferences') internally
+        return;
+      }
+    }
     showScreen(dest);
     if (dest === 'profile-select') renderProfiles();
     if (dest === 'home') renderHome();
@@ -546,6 +564,9 @@
       state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
     }
     ensureGuestProfile();
+    // [Hassan's call] New users must go through the quiz — they can't skip
+    // onboarding. Existing returning guests with progress are caught above
+    // by isReturningGuestWithProgress() and routed straight to home.
     openQuizIntro(state.activeProfileId);
   });
 
@@ -1346,10 +1367,17 @@
         }
         state.activeProfileId = p.id;
         save();
+        // [Hassan's call] If the profile has NEVER done the quiz
+        // (no styles derived yet) → run them through the quiz. New users
+        // can't skip the onboarding step. Existing users with a built
+        // profile go straight to home, bypassing the legacy openPreferences
+        // detour. Preferences are now reachable any time via the bottom-
+        // nav Preferences tab.
         if (p.styles.length === 0) {
           openQuizIntro(p.id);
         } else {
-          openPreferences(p.id);
+          showScreen('home');
+          renderHome();
         }
       });
       grid.appendChild(card);
@@ -3480,12 +3508,22 @@
 
   // ============================================================
   // [BUDGET_RESET_PASS — Phase 2 helpers]
-  // Per-generation budget slider. Range $500 → $20,000+. Variable step:
-  // $100 below $5k, $500 between $5k-$10k, $1000 above. Default $3,000.
-  // Value lives only in state.draft.budget until generation; never stored
-  // on profile/user.
+  // [Hassan's call — low-floor expansion]
+  // Per-generation budget slider. Range $50 → $20,000+. Variable step:
+  //   $50–$500       → $10 increments  (accessory-tier shopping)
+  //   $500–$1,500    → $50 increments
+  //   $1,500–$5,000  → $100 increments
+  //   $5,000–$10,000 → $500 increments
+  //   $10,000+       → $1,000 increments
+  // Default $3,000. Value lives only in state.draft.budget until generation;
+  // never stored on profile/user.
+  //
+  // Reforge: Personalization (Dim 07) — granular control at the low end
+  // matches user intent (real $50 accessory shoppers exist); User Psychology
+  // (Dim 02) — step granularity reflects how humans think about money in
+  // each band ($20 differences matter at $80, not at $15,200).
   // ============================================================
-  const SLIDER_BUDGET_MIN     = 500;
+  const SLIDER_BUDGET_MIN     = 50;
   const SLIDER_BUDGET_MAX     = 20000;
   const SLIDER_BUDGET_DEFAULT = 3000;
   function sliderToBudget(v) {
@@ -3496,8 +3534,11 @@
     const lo = Math.log(SLIDER_BUDGET_MIN);
     const hi = Math.log(SLIDER_BUDGET_MAX);
     const raw = Math.exp(lo + (hi - lo) * scaled);
-    // Variable step rounding.
-    if (raw < 5000)  return Math.max(SLIDER_BUDGET_MIN, Math.round(raw / 100) * 100);
+    // Variable step rounding — finer at the low end where small dollar
+    // differences are meaningful, coarser at the top where they aren't.
+    if (raw < 500)   return Math.max(SLIDER_BUDGET_MIN, Math.round(raw / 10) * 10);
+    if (raw < 1500)  return Math.round(raw / 50) * 50;
+    if (raw < 5000)  return Math.round(raw / 100) * 100;
     if (raw < 10000) return Math.round(raw / 500) * 500;
     return Math.round(raw / 1000) * 1000;
   }
@@ -3521,9 +3562,16 @@
   // Build the budget-band copy for the AI prompt — Reforge prompt-engineering
   // pattern: explicit budget framing produces more consistent results than
   // implicit numeric values. Bands match the spec.
+  // [Hassan's call — low-floor expansion] Added the sub-$250 accessory tier.
+  // At $50–$250 the user is genuinely shopping for accessories or a single
+  // small item, not redesigning a room — the prompt should respond to that
+  // honestly rather than half-hearting a full redesign with cheap furniture.
+  // Per Reforge Conversion Optimization (Dim 03): meeting users where they
+  // actually are increases relevance and affiliate conversion at the low end.
   function budgetBandText(amount) {
     if (amount == null) amount = SLIDER_BUDGET_DEFAULT;
     if (amount === Infinity) return 'no budget cap — show the dream first; aspirational, statement pieces';
+    if (amount < 250)         return 'an accessory-tier budget around $' + amount.toLocaleString() + ' — focus on small impactful additions like cushions, art, plants, or a single decor piece. Do not attempt a full furniture redesign at this budget; surface a curated accessory-only refresh (thrift, Facebook Marketplace, single-item swaps)';
     if (amount < 1500)        return 'a tight budget around $' + amount.toLocaleString() + ' — emphasize high-low mix and IKEA, Target tier alternatives';
     if (amount < 5000)        return 'a smart mid-tier budget around $' + amount.toLocaleString() + ' — Wayfair, West Elm sale items, smart mix of high and low';
     if (amount < 15000)       return 'a quality budget around $' + amount.toLocaleString() + ' — CB2, Crate & Barrel, real wood, durable construction';
@@ -3745,11 +3793,16 @@
   function paintBudgetTicks(container) {
     if (!container) return;
     container.innerHTML = '';
+    // [Hassan's call] Even-as-possible spacing across the log scale. The $10k
+    // tick was dropped — at log positions $10k sat 88% across and $20k+ sat
+    // 100%, smushing the labels into 12% of width. With $10k removed, the
+    // last gap opens up to ~24%. Remaining ticks ($50, $500, $2k, $5k,
+    // $20k+) anchor the natural budget bands without overlap.
     const points = [
       { v: SLIDER_BUDGET_MIN, label: '$' + SLIDER_BUDGET_MIN },
+      { v: 500,               label: '$500' },
       { v: 2000,              label: '$2k' },
       { v: 5000,              label: '$5k' },
-      { v: 10000,             label: '$10k' },
       { v: Infinity,          label: '$' + (SLIDER_BUDGET_MAX / 1000) + 'k+' }
     ];
     points.forEach(p => {
@@ -3979,24 +4032,33 @@
   const THIS_WEEK_CONFIG = {
     styleId: 'mid-century',                    // window.STYLES id
     styleLabel: 'Mid-Century Modern',          // display string
-    styleAnchorImage: 'assets/styles/mid-century.jpg',  // fallback for placeholders
+    styleAnchorImage: 'Weekly/Mid-Century%20Modern%20Bedroom.jpg',  // fallback for placeholders
     styleColors: ['warm', 'jewel'],            // window.COLOR_MOODS ids that pair
     sub: '9 rooms · refreshed every Monday',
     // [Dedicated /this-week page] Hero one-liner. Three concrete sensory
     // anchors per Reforge User Psychology (concrete-sensory > abstract).
     // Rewrite this when rotating styles — keeps hero in sync with the row.
     tagline: 'Clean lines. Warm woods. Iconic forms across every room.',
-    // Cards in the exact order Hassan specified (bedroom anchor first).
+    // [Hassan's call] All 9 rooms now have curated photos in /Weekly/. File
+    // names contain spaces → URL-encode (%20) so file:// and http:// paths
+    // both resolve. When rotating styles, drop a matching set of 9 jpegs
+    // into /Weekly/ named "[Style] [Room Label].jpg" and update the paths.
     rooms: [
-      { roomType: 'bedroom',  image: 'assets/styles/mid-century.jpg', imageType: 'asset',       isNew: true  },
-      { roomType: 'living',   image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'kitchen',  image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'dining',   image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'bathroom', image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'office',   image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'nursery',  image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'closet',   image: null,                            imageType: 'placeholder', isNew: false },
-      { roomType: 'laundry',  image: null,                            imageType: 'placeholder', isNew: false },
+      // [Hassan's call] bedroom + living room photos are tall portraits with
+      // the bed/couch in the upper-middle of the frame. `center 15%` slides
+      // the visible window UP as far as the subject allows — for a 2:3
+      // portrait in a 4:3 landscape frame this shows image rows ~7.5%–57.5%,
+      // capturing the full bed/couch without clipping their bottoms. Going
+      // below ~15% starts cropping the subject's lower half.
+      { roomType: 'bedroom',  image: 'Weekly/Mid-Century%20Modern%20Bedroom.jpg',     imagePosition: 'center 15%', imageType: 'asset', isNew: true  },
+      { roomType: 'living',   image: 'Weekly/Mid-Century%20Modern%20Living%20Room.jpg', imagePosition: 'center 15%', imageType: 'asset', isNew: false },
+      { roomType: 'kitchen',  image: 'Weekly/Mid-Century%20Modern%20Kitchen.jpg',     imageType: 'asset', isNew: false },
+      { roomType: 'dining',   image: 'Weekly/Mid-Century%20Modern%20Dining%20Room.jpg', imageType: 'asset', isNew: false },
+      { roomType: 'bathroom', image: 'Weekly/Mid-Century%20Modern%20Bathroom.jpg',    imageType: 'asset', isNew: false },
+      { roomType: 'office',   image: 'Weekly/Mid-Century%20Modern%20Home%20Office.jpg', imageType: 'asset', isNew: false },
+      { roomType: 'nursery',  image: 'Weekly/Mid-Century%20Modern%20Nursery.jpg',     imageType: 'asset', isNew: false },
+      { roomType: 'closet',   image: 'Weekly/Mid-Century%20Modern%20Closet.jpg',      imageType: 'asset', isNew: false },
+      { roomType: 'laundry',  image: 'Weekly/Mid-Century%20Modern%20Laundry%20Room.jpg', imageType: 'asset', isNew: false },
     ],
   };
 
@@ -4125,6 +4187,11 @@
       `;
     } else if (spec.image) {
       photo.style.backgroundImage = `url('${spec.image}')`;
+      // [Hassan's call] Per-card background-position override. Default is
+      // 'center' (CSS rule), but specific photos (bedroom + living room in
+      // /Weekly/) need to slide DOWN so the bed/couch sits in frame instead
+      // of being cropped at the bottom. Driven by spec.imagePosition.
+      if (spec.imagePosition) photo.style.backgroundPosition = spec.imagePosition;
     }
 
     // Top-left room-type label (always shown when roomType is present).
@@ -4143,13 +4210,10 @@
       photo.appendChild(newBadge);
     }
 
-    // Body — main label + sublabel.
-    const body = document.createElement('div');
-    body.className = 'imgcard-body';
-    body.innerHTML = `
-      <span class="imgcard-label">${spec.label || roomLabel}</span>
-      ${spec.sublabel ? `<span class="imgcard-sub">${spec.sublabel}</span>` : ''}
-    `;
+    // [Hassan's call] Removed `.imgcard-body` (room label + Wk stamp) — it
+    // duplicated the top-left `.imgcard-roomtype-label` badge already on the
+    // photo, and the "Wk 18" sublabel was metadata clutter. Photo now butts
+    // directly against the CTA for a cleaner two-region card.
 
     // The CTA — single source of truth for "Use Template" behavior. Every
     // inspiration surface using renderImageCard ships this button.
@@ -4169,7 +4233,6 @@
     });
 
     card.appendChild(photo);
-    card.appendChild(body);
     card.appendChild(cta);
     return card;
   }
@@ -4240,6 +4303,7 @@
         id: `pulse-${cfg.styleId}-${room.roomType}-${idx}`,
         roomType: room.roomType,
         image: room.image,
+        imagePosition: room.imagePosition,
         imageType: room.imageType,
         isNew: !!room.isNew,
         label: roomLabel,
@@ -4308,6 +4372,7 @@
         id: `tw-${cfg.styleId}-${room.roomType}-${idx}`,
         roomType: room.roomType,
         image: room.image,
+        imagePosition: room.imagePosition,
         imageType: room.imageType,
         isNew: !!room.isNew,
         label: roomLabel,
@@ -5876,16 +5941,25 @@
   // [Save Home] Three-pane refactor: Saved Homes (new) + Saved Rooms
   // (existing bookmarked + new state.user.savedRooms entries from
   // overwrite/exclude paths) + Saved Items (existing wishlist).
+  // [Save Home] Single source of truth for the Saved Rooms list. UNION of
+  // legacy state.bookmarkedRooms[] (room IDs) + state.user.savedRooms[]
+  // (entries with roomId pointing back to state.rooms[i].id). Deduped by
+  // room ID, scoped to the active profile, filtered to rooms that still
+  // exist. Both the tab count badge and the grid renderer call this so
+  // they can never disagree.
+  function getSavedRoomsForActiveProfile() {
+    const bookmarkedIds = new Set(state.bookmarkedRooms || []);
+    getSavedRoomsList().forEach(s => { if (s && s.roomId) bookmarkedIds.add(s.roomId); });
+    return state.rooms.filter(r =>
+      r.profileId === state.activeProfileId && bookmarkedIds.has(r.id)
+    );
+  }
+
   function renderSaved() {
     // Counts
     const homes = getSavedHomes();
     // Saved Rooms = bookmarked rooms (legacy) UNION state.user.savedRooms (new)
-    const bookmarkedRooms = state.rooms.filter(r =>
-      r.profileId === state.activeProfileId &&
-      (state.bookmarkedRooms || []).includes(r.id)
-    );
-    const newSavedRooms = getSavedRoomsList();
-    const totalRooms = bookmarkedRooms.length + newSavedRooms.length;
+    const totalRooms = getSavedRoomsForActiveProfile().length;
     const items = state.wishlist || [];
     const homesCountEl = document.getElementById('stHomesCount');
     if (homesCountEl) homesCountEl.textContent = homes.length;
@@ -5915,16 +5989,16 @@
   function renderSavedRooms() {
     const grid = $('#savedRoomsGrid');
     grid.innerHTML = '';
-    // Only show rooms the user explicitly bookmarked (tapped the save icon).
-    const rooms = state.rooms.filter(r =>
-      r.profileId === state.activeProfileId &&
-      state.bookmarkedRooms.includes(r.id)
-    );
+    // [Save Home] Pull from the same UNION the count badge reads — legacy
+    // bookmarks + state.user.savedRooms (overwrite/exclude/explicit save).
+    // Without this, count says "1" but grid renders empty when a room lives
+    // only in state.user.savedRooms[].
+    const rooms = getSavedRoomsForActiveProfile();
     if (rooms.length === 0) {
       grid.innerHTML = emptyStateHTML({
         icon: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z"/></svg>',
         title: 'No Saved Rooms',
-        body: 'Design a room, then tap the bookmark icon to save it here.',
+        body: 'Redesign a room, then save it here from the post-generation screen or by tapping the bookmark.',
         cta: 'Design A Room',
         ctaTarget: 'capture'
       });
@@ -8686,11 +8760,46 @@
     // not hidden, just visually de-emphasized. The user can still click.
     const roomBudget = (typeof room.budget === 'number') ? room.budget : SLIDER_BUDGET_DEFAULT;
     const aboveBudgetCount = itemsToRender.filter(i => !i.owned && i.price > roomBudget).length;
+    const shoppableCount = itemsToRender.filter(i => !i.owned).length;
     if (aboveBudgetCount > 0 && roomBudget !== Infinity) {
       trackEvent('items_filtered_above_budget', {
         count_filtered: aboveBudgetCount,
         total_count: itemsToRender.length,
         budget_value: roomBudget
+      });
+    }
+    // [Hassan's call — low-floor expansion] When the user picks a very low
+    // budget ($50–$200) the catalog may have zero items below it. Surface
+    // an honest empty-state at the top of the list — voice rubric says
+    // concrete + warm + no failure-framing. All items still render below
+    // with the existing "Above budget" marker; this is a header, not a
+    // replacement of the list. Reforge Conversion Optimization (Dim 03):
+    // an honest tell-the-truth empty-state preserves trust at the low end
+    // where the bait-and-switch cost would be highest.
+    if (
+      roomBudget !== Infinity &&
+      shoppableCount > 0 &&
+      aboveBudgetCount === shoppableCount
+    ) {
+      const banner = document.createElement('div');
+      banner.className = 'items-budget-empty';
+      banner.innerHTML = `
+        <div class="ibe-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M9 9l6 6M15 9l-6 6"/>
+          </svg>
+        </div>
+        <div class="ibe-body">
+          <strong>No items in your budget for this room yet.</strong>
+          <span>Increase your budget or browse the full results below — items above your budget show with a marker.</span>
+        </div>
+      `;
+      list.appendChild(banner);
+      trackEvent('items_budget_empty_state_shown', {
+        budget_value: roomBudget,
+        room_type: room.type,
+        total_items: shoppableCount
       });
     }
 

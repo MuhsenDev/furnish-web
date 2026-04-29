@@ -304,7 +304,7 @@ window.ROOM_TYPES = [
   { id:'bathroom', label:'Bathroom',     icon:'🛁', image: sceneSVG('bathroom') },
   { id:'office',   label:'Home office',  icon:'🖥️', image: sceneSVG('office') },
   { id:'nursery',  label:'Nursery',      icon:'👶', image: sceneSVG('nursery') },
-  { id:'closet',   label:'Closet',       icon:'👚', image: sceneSVG('closet') },
+  { id:'closet',   label:'Walk-In Closet', icon:'👚', image: sceneSVG('closet') },
   { id:'laundry',  label:'Laundry room', icon:'🧺', image: sceneSVG('laundry') }
 ];
 
@@ -369,7 +369,7 @@ window.ROOM_TEMPLATES = [
   // Pro tier
   { id:'t-master-retreat',  label:'Master Bedroom',      type:'bedroom',  dims:{w:14,l:16,h:9}, styles:['modern','minimalist'],         colors:['neutral','warm'],    icon:'🛏️', image: sceneSVG('bedroom'), pro:true },
   { id:'t-midcentury-liv',  label:'Mid-Century Living',  type:'living',   dims:{w:14,l:18,h:9}, styles:['mid-century','modern'],        colors:['warm','jewel'],      icon:'🪑', image: sceneSVG('living'),  pro:true },
-  { id:'t-walk-closet',     label:'Walk-in Closet',      type:'closet',   dims:{w:8,l:10,h:9},  styles:['modern','minimalist'],         colors:['neutral','whites'],  icon:'👚', image: sceneSVG('closet'),  pro:true }
+  { id:'t-walk-closet',     label:'Walk-In Closet',      type:'closet',   dims:{w:8,l:10,h:9},  styles:['modern','minimalist'],         colors:['neutral','whites'],  icon:'👚', image: sceneSVG('closet'),  pro:true }
 ];
 
 // ============================================================

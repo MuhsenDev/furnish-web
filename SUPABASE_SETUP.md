@@ -65,14 +65,27 @@ create table public.wishlist_items (
   unique (user_id, item_id)
 );
 
--- User-level settings (theme, bookmarked rooms, pro status)
+-- User-level settings (theme, bookmarked rooms, pro status, analytics counter)
+-- [Compute-quality routing model — supersedes the prior 2-lifetime quota.]
+-- `is_pro` is canonical for tier. The future Replicate-backed backend reads
+-- it to route AI generation requests to either the standard model
+-- (Free → Flux Schnell, ~$0.005-0.01/run) or the premium model
+-- (Pro → Flux Kontext Pro / Flux Depth Pro, ~$0.05/run).
+-- `generations_used` is now an ANALYTICS COUNTER ONLY — no quota uses it,
+-- but we keep it for the activation funnel + LTV modeling + premium-quality
+-- upsell pacing logic.
+-- See FURNISH/MONETIZATION_PROPAGATION_AUDIT.md for the migration spec.
 create table public.user_settings (
   user_id          uuid primary key references auth.users(id) on delete cascade,
   theme            text default 'light',
   bookmarked_rooms jsonb default '[]'::jsonb,
   is_pro           boolean default false,
+  generations_used integer default 0,  -- analytics counter; no quota uses it
   updated_at       timestamptz default now()
 );
+
+-- For existing tables predating compute-quality routing, run:
+-- alter table public.user_settings add column if not exists generations_used integer default 0;
 
 -- Row-level security: every user sees only their own data
 alter table public.profiles       enable row level security;

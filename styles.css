@@ -4309,6 +4309,92 @@ html[data-theme="dark"] .paywall-social-text {
 .bn-tab { position: relative; }
 html[data-nav="show"] #app { padding-bottom: 104px !important; }
 
+/* ================================================================
+   Center camera FAB on the bottom nav.
+   [Hassan's call] Shiny gold, elevated above the nav line, halo-glowing.
+   Triggers the same flow as the home screen's "Redesign a Room" CTA. The
+   FAB participates in the flex row (takes 60px of width) but uses
+   position: relative + negative top to lift half above the nav line.
+   This means the 4 tabs (Home, Saved, Preferences, Profile) cleanly
+   share the remaining width without their labels colliding with the FAB.
+   ================================================================ */
+.bn-fab {
+  /* [Hassan's call] FAB sits at the same vertical level as the nav tabs —
+     no lift above the nav line. Diameter shrunk so it fits inside the nav
+     content area cleanly without overflowing the safe-area padding. The
+     shiny gold styling + halo glow are preserved. */
+  flex: 0 0 50px;
+  position: relative;
+  width: 50px; height: 50px;
+  align-self: center;
+  border-radius: 50%;
+  border: 2px solid rgba(250, 243, 231, 0.96);
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 38%),
+    linear-gradient(135deg, #F2D89C 0%, #D4A574 38%, #A47C4D 70%, #5C4128 100%);
+  color: #FAF3E7;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 65;
+  box-shadow:
+    0 6px 16px rgba(139, 111, 71, 0.38),
+    0 2px 4px rgba(0, 0, 0, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -2px 5px rgba(74, 51, 32, 0.30);
+  transition: transform 240ms var(--ease-spring), box-shadow 220ms ease;
+  font-family: inherit;
+  padding: 0;
+}
+.bn-fab:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 10px 24px rgba(139, 111, 71, 0.50),
+    0 3px 6px rgba(0, 0, 0, 0.22),
+    inset 0 2px 0 rgba(255, 255, 255, 0.50),
+    inset 0 -2px 5px rgba(74, 51, 32, 0.32);
+}
+.bn-fab:active {
+  transform: scale(0.96);
+}
+.bn-fab-icon {
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 1px 1px rgba(74, 51, 32, 0.35));
+}
+/* Pulsing halo behind the FAB — communicates "primary action, tap me".
+   Inset tightened to -4px so the halo stays inside the nav vertical bounds
+   now that the FAB sits inline with the tabs (no longer lifted). */
+.bn-fab-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(235, 199, 147, 0.45) 0%, rgba(235, 199, 147, 0) 70%);
+  z-index: -1;
+  pointer-events: none;
+  animation: bnFabHalo 2.6s ease-in-out infinite;
+}
+@keyframes bnFabHalo {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.10); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bn-fab-glow { animation: none; opacity: 0.6; }
+  .bn-fab:hover { transform: translateX(-50%); }
+}
+html[data-theme="dark"] .bn-fab {
+  border-color: rgba(36, 26, 20, 0.94);  /* matches dark nav bg */
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.58),
+    0 2px 6px rgba(0, 0, 0, 0.42),
+    inset 0 2px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.42);
+}
+html[data-theme="dark"] .bn-fab-glow {
+  background: radial-gradient(circle, rgba(235, 199, 147, 0.32) 0%, rgba(235, 199, 147, 0) 70%);
+}
+
 /* --- Dark mode: saved room card legibility fix --- */
 html[data-theme="dark"] .room-card {
   background: var(--surface) !important;
@@ -10454,3 +10540,45 @@ html[data-theme="dark"] .item-card.above-budget .above-budget-badge {
   background: rgba(217, 106, 90, 0.14);
   color: var(--danger);
 }
+
+
+/* [Hassan's call — low-floor budget expansion]
+   Empty-state banner appended to #itemsList when ALL shoppable items in
+   the room exceed the user's chosen budget. Sits at the top of the list,
+   above the (still-rendered, marker-flagged) items. Voice: concrete,
+   warm, no failure-framing — at $50 accessory shopping is the realistic
+   intent and the user knows it. */
+.items-budget-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  background: rgba(212, 165, 116, 0.10);
+  border: 1px solid rgba(139, 111, 71, 0.22);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.items-budget-empty .ibe-icon {
+  flex: 0 0 auto;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--brown);
+}
+.items-budget-empty .ibe-body { display: flex; flex-direction: column; gap: 3px; }
+.items-budget-empty .ibe-body strong { font-weight: 700; color: var(--deep); }
+.items-budget-empty .ibe-body span { color: var(--muted); }
+html[data-theme="dark"] .items-budget-empty {
+  background: rgba(212, 165, 116, 0.08);
+  border-color: rgba(212, 165, 116, 0.22);
+}
+html[data-theme="dark"] .items-budget-empty .ibe-icon {
+  background: rgba(235, 199, 147, 0.14);
+  color: var(--tan);
+}
+html[data-theme="dark"] .items-budget-empty .ibe-body strong { color: #F5E9D7; }
+html[data-theme="dark"] .items-budget-empty .ibe-body span { color: #C7B493; }

@@ -9,3 +9,12 @@ supabase-config.local.js
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Spike test artifacts (keep on disk for local dev, not in git history)
+node_modules/
+output.jpg
+test-room.jpg
+
+# Supabase CLI cache — auto-generated, machine-specific
+supabase/.temp/
+supabase/.branches/

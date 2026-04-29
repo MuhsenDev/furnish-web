@@ -153,7 +153,17 @@
     if (settings) {
       state.settings = { theme: settings.theme || 'light' };
       state.bookmarkedRooms = settings.bookmarked_rooms || [];
-      if (state.user) state.user.isPro = !!settings.is_pro;
+      if (state.user) {
+        // [Compute-quality migration] Server is canonical for `is_pro` only.
+        // `generations_used` is now an analytics counter (no quota), but we
+        // still hydrate it so client-side reporting + the premium-quality
+        // upsell pacing logic see the right number.
+        state.user.isPro = !!settings.is_pro;
+        if (typeof settings.generations_used === 'number') {
+          state.user.generationsUsed = settings.generations_used;
+          state.user.redesignsUsed = settings.generations_used; // legacy mirror
+        }
+      }
     }
   }
 
@@ -173,12 +183,17 @@
       await sb.from('rooms').upsert(rows, { onConflict: 'id' });
     }
 
-    // Settings
+    // Settings (compute-quality model: `is_pro` is canonical for tier; the
+    // future Replicate-backed backend reads it to route to standard vs
+    // premium model. `generations_used` is analytics-only — no quota uses
+    // it — but we keep syncing it so analytics aggregations stay accurate
+    // across devices.)
     await sb.from('user_settings').upsert({
       user_id: user.id,
       theme: state.settings?.theme || 'light',
       bookmarked_rooms: state.bookmarkedRooms || [],
       is_pro: !!state.user?.isPro,
+      generations_used: Number(state.user?.generationsUsed || state.user?.redesignsUsed || 0),
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
 
