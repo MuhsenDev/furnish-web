@@ -817,7 +817,11 @@
                analytics events stay intact in app.js — only the profile-
                settings UI affordance is gone. -->
 
-          <button class="pp-setting" data-action="switch">
+          <!-- [Bug F fix] IDs added so renderProfilePage() can swap auth-
+               aware label + action when isGuest() is true. Switch Account
+               is hidden for guests; Sign Out becomes "Sign In or Create
+               Account" with data-action="open-signin". -->
+          <button class="pp-setting" id="ppSwitchAccountBtn" data-action="switch">
             <span class="pps-icon">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -837,13 +841,13 @@
             <span class="pps-label">Reset Profile</span>
             <span class="pps-badge-pro">PRO · Free Preview</span>
           </button>
-          <button class="pp-setting pp-danger" data-action="signout">
+          <button class="pp-setting pp-danger" id="ppAuthBtn" data-action="signout">
             <span class="pps-icon">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
               </svg>
             </span>
-            <span class="pps-label">Sign Out</span>
+            <span class="pps-label" id="ppAuthLabel">Sign Out</span>
             <span class="pps-arrow">›</span>
           </button>
         </div>

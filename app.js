@@ -6197,6 +6197,31 @@
 
     // C14 — Style timeline
     renderStyleTimeline(activeProfile);
+
+    // [Bug F fix] Auth-aware Profile actions.
+    // A guest shouldn't see "Sign Out" (they're not signed in) or
+    // "Switch Account" (nothing to switch from). Show "Sign In or
+    // Create Account" instead, routed via the open-signin action.
+    // Reset Profile stays visible for everyone — guests can build up
+    // draft state worth resetting.
+    const guest = isGuest();
+    const authBtn = document.getElementById('ppAuthBtn');
+    const switchBtn = document.getElementById('ppSwitchAccountBtn');
+    const authLabel = document.getElementById('ppAuthLabel');
+    if (authBtn && authLabel) {
+      if (guest) {
+        authBtn.dataset.action = 'open-signin';
+        authBtn.classList.remove('pp-danger');
+        authLabel.textContent = 'Sign In or Create Account';
+      } else {
+        authBtn.dataset.action = 'signout';
+        authBtn.classList.add('pp-danger');
+        authLabel.textContent = 'Sign Out';
+      }
+    }
+    if (switchBtn) {
+      switchBtn.style.display = guest ? 'none' : '';
+    }
   }
 
   // C14 — Render the user's design history as a vertical timeline. Reforge
