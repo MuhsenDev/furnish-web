@@ -475,6 +475,11 @@
     if (dest === 'preferences') {
       if (!state.user) {
         state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
+        // [Identity Stage 2] Mirror guest-init from preferences deep-link.
+        // beginGuest() fires the bus with GUEST_RECORD even though
+        // hydration already produced one — same-record bus fires are
+        // safe (Stage 3 subscribers will dedupe via prev/next compare).
+        if (typeof window.Identity !== 'undefined') window.Identity.beginGuest();
       }
       ensureGuestProfile();
       const pid = state.activeProfileId;
@@ -597,6 +602,8 @@
     }
     if (!state.user) {
       state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
+      // [Identity Stage 2] Mirror welcomeStartBtn's guest init.
+      if (typeof window.Identity !== 'undefined') window.Identity.beginGuest();
     }
     ensureGuestProfile();
     // [Hassan's call] New users must go through the quiz — they can't skip
@@ -1152,6 +1159,13 @@
       recordConsent(_consent);
       save();
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // [Identity Stage 2] Mirror email signin/signup success into Identity.
+      // _fromUserBlob converts the just-mutated state.user blob into a
+      // properly-typed authenticated IdentityRecord. Stage 3 will replace
+      // the manual renderAuthDependentSurfaces below with a bus subscriber.
+      if (typeof window.Identity !== 'undefined') {
+        window.Identity.replace(window.Identity._fromUserBlob(state.user));
+      }
       // [Bugs 11/E/F unified fix] Re-paint all auth-dependent UI surfaces
       // (topbar pill + active screen) before afterSigninRouting navigates
       // away. Without this, the topbar dropdown stays hidden post-signin
@@ -1186,6 +1200,17 @@
       provider: 'email',
       signedInAt: Date.now()
     };
+    // [Identity Stage 2] Mirror local-only-fallback email signin into
+    // Identity. Note: this path's state.user has no `id` (local mock).
+    // _fromUserBlob's auth-detection requires id — so this falls into
+    // its guest branch and produces GUEST_RECORD. That's a known quirk
+    // of the local fallback (no real auth happens). Stage 4's predicate
+    // migration will surface this as still-guest, matching pre-fix
+    // behavior since isGuest() also returns false here (provider==='email'
+    // is truthy non-guest). Watch for divergence in Stage 4 testing.
+    if (typeof window.Identity !== 'undefined') {
+      window.Identity.replace(window.Identity._fromUserBlob(state.user));
+    }
     // [ToS consent block] Persist tos + marketing consent on local-fallback success.
     recordConsent(_consent);
     save();
@@ -1237,6 +1262,13 @@
           provider: 'amazon',
           signedInAt: Date.now()
         };
+        // [Identity Stage 2] Mirror mock-Amazon signin into Identity.
+        // Same id-less mock-fallback caveat as the email local-fallback
+        // path above — _fromUserBlob will return GUEST_RECORD because
+        // there's no Supabase id. Documented divergence; revisit in Stage 4.
+        if (typeof window.Identity !== 'undefined') {
+          window.Identity.replace(window.Identity._fromUserBlob(state.user));
+        }
         // [ToS consent block] Persist on mock-Amazon success.
         recordConsent(_socialConsent);
         save();
@@ -1271,6 +1303,11 @@
         provider,
         signedInAt: Date.now()
       };
+      // [Identity Stage 2] Mirror mock-social local-fallback signin.
+      // Same id-less mock caveat — _fromUserBlob produces GUEST_RECORD.
+      if (typeof window.Identity !== 'undefined') {
+        window.Identity.replace(window.Identity._fromUserBlob(state.user));
+      }
       // [ToS consent block] Persist on mock-social signin success.
       recordConsent(_socialConsent);
       save();
@@ -1302,6 +1339,10 @@
       if (!user && state.user?.id) {
         console.log('[auth.onChange] server-side signout detected, clearing local user');
         state.user = null;
+        // [Identity Stage 2] Mirror the state.user clear into Identity.
+        // Stage 3 will replace the manual renderAuthDependentSurfaces
+        // call below with a bus-driven subscriber.
+        if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
         save();
         // [Bugs 11/E/F unified fix] Replace lone renderUserPill call with
         // the comprehensive helper — if the user is on home/profile-select/
@@ -1344,6 +1385,13 @@
         firstRedesignTutorialSeen: cachedTier.firstRedesignTutorialSeen
       };
       try { await window.furnishBackend.pullAll(state); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // [Identity Stage 2] Mirror OAuth callback signin into Identity.
+      // state.user was reassigned a few lines above with the real Supabase
+      // user.id, so _fromUserBlob produces a proper authenticated record.
+      // Fires bus → Stage 3 subscribers will repaint + claim guest room.
+      if (typeof window.Identity !== 'undefined') {
+        window.Identity.replace(window.Identity._fromUserBlob(state.user));
+      }
       // [ToS consent block] If consent was stashed pre-OAuth-redirect,
       // persist it now that the session is back.
       if (state._pendingConsent) {
@@ -1418,6 +1466,8 @@
             await window.furnishBackend.auth.signOut().catch(()=>{});
           }
           state.user = null;
+          // [Identity Stage 2] Mirror Switch Account's state.user clear.
+          if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
           save();
           prepareSignin();
           showScreen('signin');
@@ -6503,6 +6553,8 @@
       // session is unattributed until a new identify() call.
       resetAnalyticsIdentity();
       state.user = null;
+      // [Identity Stage 2] Mirror profile-page Switch Account's state.user clear.
+      if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
       save();
       prepareSignin();
       showScreen('signin');
@@ -10829,6 +10881,14 @@
     //    flags. Theme is preserved as a device preference.
     const preservedTheme = state.settings?.theme || 'light';
     state.user = null;
+    // [Identity Stage 2] Mirror performSignout's state.user clear into
+    // Identity. Note: Identity.completeSignout fires the bus immediately,
+    // BEFORE the rest of the state wipe completes. Subscribers (Stage 3)
+    // that read state.profiles/rooms etc. will see them mid-clear. The
+    // render subscriber added in Stage 3 reads no auth-coupled state, so
+    // this ordering is safe; if a future subscriber needs the full clean,
+    // move this call to after the wipe.
+    if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
     state.profiles = [];
     state.activeProfileId = null;
     state.rooms = [];
