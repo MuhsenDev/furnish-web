@@ -609,6 +609,12 @@
   function ensureGuestProfile() {
     if (!state.profiles.length) {
       const p = createProfile('My Style');
+      // [Bug 11] Mark this profile explicitly as the local guest profile so
+      // claimGuestRoomForUser() can find it post-signin and swap it out for
+      // the user's real account profile. Cleared in claimGuestRoomForUser
+      // when the swap completes (or by inheritance — server-pulled profiles
+      // never have this flag).
+      p._localGuest = true;
       state.profiles.push(p);
       state.activeProfileId = p.id;
       save();
@@ -642,6 +648,47 @@
     return false;
   }
 
+  // [Bug 11] Re-anchor the active identity post-signin when a returning
+  // user's pulled state contains both the local guest profile (created
+  // during the just-completed guest flow) AND server profiles from their
+  // existing account. Pre-fix, state.activeProfileId continued to point
+  // at the local guest profile, so when the user later navigated from
+  // results to home, renderHome painted the guest profile's name + empty
+  // styles instead of the user's real account context — reading as
+  // "blank/broken home."
+  //
+  // Behavior:
+  //   - If the active profile is flagged ._localGuest AND server profiles
+  //     exist, switch state.activeProfileId to the first non-guest server
+  //     profile (the user's "main" identity).
+  //   - The local guest profile stays in state.profiles for now — it's
+  //     still referenced by the just-generated room's profileId, so its
+  //     answers/styles are needed to render that room correctly. Future
+  //     pushAll cycles can prune it once the room's design context is
+  //     promoted to a server profile (out of scope here).
+  //   - No-op if (a) no server profiles to swap to, or (b) the active
+  //     profile is already a non-guest server profile (already correct).
+  function claimGuestRoomForUser() {
+    const active = (state.profiles || []).find(p => p.id === state.activeProfileId);
+    if (!active || !active._localGuest) {
+      // Already on a non-guest profile (or no active profile at all) — nothing to do.
+      return;
+    }
+    const serverProfile = (state.profiles || []).find(p => !p._localGuest);
+    if (!serverProfile) {
+      // Brand-new account with zero server profiles. Promote the local
+      // guest to a "real" profile by clearing the flag so future signins
+      // don't re-trigger the swap. The room remains attached to it.
+      delete active._localGuest;
+      console.log('[claimGuestRoomForUser] no server profile to swap to — promoting local guest profile in place');
+      save();
+      return;
+    }
+    console.log(`[claimGuestRoomForUser] switching activeProfileId from local guest ${active.id} to server profile ${serverProfile.id}`);
+    state.activeProfileId = serverProfile.id;
+    save();
+  }
+
   // Single post-signin router. Replaces every previous
   // `showScreen('profile-select'); renderProfiles();` tail in signin handlers.
   // Respects pending intent + existing guest-profile history so users aren't
@@ -655,6 +702,14 @@
     // path; the clear there is moved to right before each branch fires.
     const pending = state._pendingIntent;
     syncFreeModeClass();
+    // [Bug 11] Re-anchor active identity from local guest → server profile
+    // BEFORE any branch renders. Covers all signin entry points (reveal
+    // gate, Switch Account, Profile-page Sign In, requireSignin gates).
+    // No-op if there's nothing to swap (already on a server profile, or
+    // brand-new account with no server profiles to swap to). Without this,
+    // post-signin navigation from results to home paints the guest
+    // profile's empty context instead of the user's real account.
+    claimGuestRoomForUser();
 
     // [Model A — D7] Reveal gate: AI generation already completed for a guest.
     // Account just created → unlock the room and route straight to results.
