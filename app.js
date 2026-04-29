@@ -612,23 +612,44 @@
   // Respects pending intent + existing guest-profile history so users aren't
   // yanked back to a profile picker they don't need.
   function afterSigninRouting() {
+    // [Auth flow Fix 2] Read pending intent but DO NOT clear yet. The clear
+    // moves to inside each successful branch — if openRoom (Fix 3) fails to
+    // find the room and surfaces the recovery toast, we want the intent to
+    // survive so a retry can reference it. Falling-through to the home/
+    // capture/profile-select branches at the bottom counts as a non-reveal
+    // path; the clear there is moved to right before each branch fires.
     const pending = state._pendingIntent;
-    state._pendingIntent = null;
     syncFreeModeClass();
 
     // [Model A — D7] Reveal gate: AI generation already completed for a guest.
     // Account just created → unlock the room and route straight to results.
     if (pending && pending.intent === 'reveal' && pending.roomId) {
-      save();
       ensureActiveProfile();
       trackEvent('reveal_gate_unlocked', { roomId: pending.roomId, source: pending.fromScreen });
-      openRoom(pending.roomId);
+      const room = state.rooms.find(r => r.id === pending.roomId);
+      if (room) {
+        // Reveal succeeded — clear intent only AFTER the room is found.
+        // openRoom itself will showScreen('results') and complete the route.
+        state._pendingIntent = null;
+        save();
+        openRoom(pending.roomId);
+      } else {
+        // Reveal-target room is missing (e.g. pullAll wiped it before Fix 1
+        // landed, or the user manually mutated state). Hand off to openRoom
+        // anyway — Fix 3's reveal-miss handler in openRoom toasts + holds
+        // the user on signin and intentionally leaves _pendingIntent set so
+        // a retry has the breadcrumb. Do NOT save() here — that would
+        // persist the open intent unnecessarily; openRoom's miss handler
+        // does its own logging.
+        openRoom(pending.roomId);
+      }
       return;
     }
 
     // Feedback intent (legacy from prior pass) — kept for any in-flight states
     // but not produced by Model A flows. Routes to home.
     if (pending && pending.intent === 'feedback') {
+      state._pendingIntent = null;
       state._showExploreWelcome = true;
       save();
       ensureActiveProfile();
@@ -636,12 +657,13 @@
       renderHome();
       return;
     }
-    save();
 
     // Save/share/second-room → back to that room and auto-execute the action.
     if (pending && pending.roomId) {
       const room = state.rooms.find(r => r.id === pending.roomId);
       if (room) {
+        state._pendingIntent = null;
+        save();
         openRoom(room.id);
         setTimeout(() => {
           if (pending.intent === 'save')   $('#bookmarkRoomBtn')?.click();
@@ -652,6 +674,13 @@
         return;
       }
     }
+    // No matching branch consumed the pending intent. Drop it so the
+    // fallthrough below runs cleanly. (If pending was null to begin with,
+    // this is a no-op.)
+    if (state._pendingIntent) {
+      state._pendingIntent = null;
+    }
+    save();
 
     // No pending intent. If the user already has a profile + room history
     // (typical guest → signed-in upgrade), send them home with Explore.
