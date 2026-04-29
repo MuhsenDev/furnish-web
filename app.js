@@ -892,10 +892,11 @@
     if (!tosBox || !mktBox) return;
 
     // Selector for every gated auth control on the signin screen.
+    // [Side Note 1] Removed #signinSoftForm submit selector — the soft-
+    // capture lane has been deleted from the markup.
     const gatedSelector = [
       '[data-screen="signin"] .signin-social-btn',
-      '[data-screen="signin"] #signinSubmit',
-      '[data-screen="signin"] #signinSoftForm button[type="submit"]'
+      '[data-screen="signin"] #signinSubmit'
     ].join(', ');
 
     function refreshGate() {
@@ -11004,53 +11005,14 @@
   }
   window.FurnishLogHabitAction = logHabitAction;
 
-  // [Batch 3 — A4 / Conflict 5 / Dim 03 R-Account2]
-  // Soft email capture before D7 reveal gate.
-  // Recovers ~30-50% of bailers as email leads. Email send itself is
-  // deferred (DEFERRED.md item 6); client-side stash is purely state.
-  // Backend cutover wires `state.user.recoveryEmail` into the email service.
-  function softEmailCapture(email) {
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return false;
-    if (!state.user) state.user = {};
-    state.user.recoveryEmail = email.trim().toLowerCase();
-    state.user._softCaptureAt = Date.now();
-    state.emailIntent = state.emailIntent || {};
-    state.emailIntent[state.user.recoveryEmail] = state.user._softCaptureAt;
-    save();
-    trackEvent('soft_email_captured', { source: 'd7_pre_gate' });
-    return true;
-  }
-  window.FurnishSoftEmailCapture = softEmailCapture;
-
-  // Wire the soft-capture form on the signin screen.
-  function wireSoftEmailCaptureForm() {
-    const form = document.getElementById('signinSoftForm');
-    const emailInput = document.getElementById('signinSoftEmail');
-    if (!form || !emailInput) return;
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      // [ToS consent block] Gate soft-capture too — we're storing an
-      // email, ToS applies even though no full account is created.
-      if (authConsentBlocked('soft_email_capture')) return;
-      const email = emailInput.value;
-      if (!softEmailCapture(email)) {
-        toast('Enter a valid email so we can send your design.');
-        return;
-      }
-      // [ToS consent block] Persist on soft-capture success.
-      recordConsent(readConsentInputs());
-      // User chose to skip signin — stash the design link, return to welcome
-      // with a confirmation toast. The actual email send is deferred to
-      // backend cutover (DEFERRED.md item 6).
-      toast("We'll email you your design link.");
-      // Clear the pending reveal intent (the user is opting out of the gate).
-      if (state._pendingIntent?.intent === 'reveal') {
-        state._pendingIntent = null;
-        save();
-      }
-      showScreen('welcome');
-    });
-  }
+  // [Side Note 1] Soft email capture removed entirely. The "Save & Skip
+  // Signin" lane on the reveal gate let users keep their generated image
+  // without committing to signin — undermining the whole gate. Removing
+  // both the form (in index.html) and these helpers (softEmailCapture,
+  // wireSoftEmailCaptureForm, FurnishSoftEmailCapture global) so no
+  // dead code lingers. Users now must sign in to keep the redesign,
+  // OR close the tab (the existing 24h soft expiry still applies via
+  // room.timestamp + the resume-on-return flow added in Side Note 2).
 
   // [Batch 3 — Dim 04 R8] Promise-Fit micro-survey after Love-tap.
   // Single-tap survey to capture WHICH dimension of Promise Fit landed:
@@ -11919,7 +11881,8 @@
     maybeIncrementSessionCount();   // Dim 04 — session-count for tutorial gate
     wireStickyShopAllCTA();         // Dim 03 R-Bottom2 — sticky shop-all
     maybeFireSessionTwoTutorial();  // Dim 04 R5 / Conflict 7 — defer tutorial
-    wireSoftEmailCaptureForm();     // Dim 03 R-Account2 / Conflict 5 — soft email lane
+    // [Side Note 1] wireSoftEmailCaptureForm() call site removed — see
+    // softEmailCapture deletion comment at the original definition site.
 
     // [Batch 4 additions]
     logSessionTimeAggregate();      // Dim 07 D5 — push-timing aggregates

@@ -8365,45 +8365,8 @@ html[data-theme="dark"] .hts-chip {
   justify-content: center;
 }
 
-/* [B3 / A4 / Conflict 5] Soft email-capture lane on signin.
-   Adjacent to the form, lower visual weight. Per VOICE.md: Calm. */
-.signin-soft-capture {
-  margin: 14px 0 18px;
-  padding: 14px 16px;
-  background: var(--beige);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-.signin-soft-capture .ssc-hint {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: var(--brown-2);
-  font-weight: 500;
-}
-.signin-soft-capture .ssc-form {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.signin-soft-capture input[type="email"] {
-  flex: 1 1 auto;
-  min-width: 200px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 14px;
-  font-family: var(--font-body);
-}
-.signin-soft-capture .btn { white-space: nowrap; }
-html[data-theme="dark"] .signin-soft-capture {
-  background: var(--surface);
-  border-color: rgba(216, 176, 126, 0.22);
-}
-html[data-theme="dark"] .signin-soft-capture input[type="email"] {
-  background: var(--beige);
-}
+/* [Side Note 1] Soft email-capture CSS removed — the lane was deleted
+   from the markup and JS. No orphan rules remain to apply. */
 
 /* [B3 / Dim 03 R-Mid3] Capture screen progress bar.
    Per Reforge User Psychology — Motivational Boosts (Completion). */

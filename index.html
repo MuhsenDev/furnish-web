@@ -255,20 +255,12 @@
           </div>
         </div>
 
-        <!-- [Batch 3 — A4 / Conflict 5 lock] Soft email-capture lane.
-             D7 hard gate stays. This adjacent lane recovers the ~30-50%
-             of users who would otherwise bail at signin. Captures email
-             only (no password). On submit: stash in state.user.recoveryEmail
-             + state.emailIntent, then close the gate with a "We'll email
-             your design when it's ready" toast. Backend send wired at
-             email-cutover (DEFERRED.md item 6). -->
-        <div class="signin-soft-capture" id="signinSoftCapture">
-          <p class="ssc-hint">Not ready to sign up?</p>
-          <form id="signinSoftForm" class="ssc-form" novalidate>
-            <input type="email" id="signinSoftEmail" autocomplete="email" placeholder="Email — we'll save your design" />
-            <button class="btn btn-ghost small" type="submit">Save & Skip Signin</button>
-          </form>
-        </div>
+        <!-- [Side Note 1] Soft email-capture lane removed per user
+             direction. The lane previously offered a "Save & Skip Signin"
+             escape that bypassed the reveal gate — users could keep their
+             generated image without committing. Removing it forces the
+             user to either sign in (preserving the redesign) or close the
+             tab (24h soft expiry still applies via room.timestamp). -->
 
         <div class="signin-divider"><span>or sign up with email</span></div>
 
