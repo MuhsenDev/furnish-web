@@ -155,6 +155,15 @@
           <span class="wp-dot">·</span>
           <span class="wp-claim">Indie-built</span>
         </div>
+        <!-- [Sign In affordance for returning users] Subtle secondary path
+             to signin so users with an existing account don't have to walk
+             quiz → photo → reveal-gate again to reach signin. Click handler
+             at app.js short-circuits to home if Identity is already
+             authenticated (defensive against signed-in users somehow
+             landing on welcome). -->
+        <button class="welcome-signin-link" id="welcomeSigninLink" type="button">
+          Already have an account? <span class="wsl-emph">Sign in</span>
+        </button>
       </div>
     </section>
 
@@ -392,88 +401,7 @@
     </section>
 
     <!-- SCREEN: Profile select -->
-    <section class="screen" data-screen="profile-select">
-      <header class="topbar">
-        <button class="btn-icon" data-go="welcome" aria-label="Back">‹</button>
-        <h2>Choose a Profile</h2>
-        <div class="topbar-right">
-          <div class="user-menu" id="userMenu">
-            <button class="user-pill-btn" id="userPillBtn" aria-haspopup="menu" aria-expanded="false">
-              <span class="user-pill-avatar" id="userPillAvatar"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg></span>
-              <span class="user-pill-name" id="userPillName">User</span>
-              <span class="user-pill-chevron" aria-hidden="true">▾</span>
-            </button>
-            <div class="user-dropdown" id="userDropdown" role="menu">
-              <div class="user-dropdown-header">
-                <div class="udh-name" id="userDropdownName"></div>
-                <div class="udh-email" id="userDropdownEmail"></div>
-              </div>
-              <button class="user-dropdown-item" data-action="switch" role="menuitem">
-                <span class="udi-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--spin" fill="none">
-                    <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2.5" stroke-dasharray="40 14" stroke-linecap="round" opacity="0.7"/>
-                    <path d="M19 6 L19 11 L14 11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="udi-text">Switch Account</span>
-              </button>
-              <button class="user-dropdown-item" data-action="furnish-pro" role="menuitem">
-                <span class="udi-icon udi-icon--filled" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--gleam">
-                    <defs>
-                      <linearGradient id="udiFpMark" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%"   stop-color="#EBC793"/>
-                        <stop offset="55%"  stop-color="#A47C4D"/>
-                        <stop offset="100%" stop-color="#5C4128"/>
-                      </linearGradient>
-                    </defs>
-                    <rect width="24" height="24" rx="5" fill="url(#udiFpMark)"/>
-                    <rect width="24" height="11" rx="5" fill="#FFFFFF" opacity="0.12"/>
-                    <rect x="8" y="6"  width="3" height="13" rx="0.7" fill="#FAF3E7"/>
-                    <rect x="8" y="6"  width="9" height="3"  rx="0.7" fill="#FAF3E7"/>
-                    <rect x="8" y="11" width="6" height="2.5" rx="0.7" fill="#FAF3E7"/>
-                  </svg>
-                </span>
-                <span class="udi-text">Furnish Pro</span>
-              </button>
-              <button class="user-dropdown-item" data-action="support" role="menuitem">
-                <span class="udi-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--bubble">
-                    <path d="M5 5 H19 a2 2 0 0 1 2 2 v8 a2 2 0 0 1 -2 2 h-7 l-4 3.4 v-3.4 h-3 a2 2 0 0 1 -2 -2 v-8 a2 2 0 0 1 2 -2 z"
-                          fill="#E5D4B8" stroke="#6B5235" stroke-width="1.5" stroke-linejoin="round"/>
-                    <circle cx="9"  cy="11" r="1.2" fill="#6B5235"/>
-                    <circle cx="12" cy="11" r="1.2" fill="#6B5235"/>
-                    <circle cx="15" cy="11" r="1.2" fill="#6B5235"/>
-                  </svg>
-                </span>
-                <span class="udi-text">Support</span>
-              </button>
-              <div class="user-dropdown-divider"></div>
-              <button class="user-dropdown-item user-dropdown-item-danger" data-action="signout" role="menuitem">
-                <span class="udi-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" class="udi-svg udi-svg--door" fill="none">
-                    <path d="M10 4 H6 a2 2 0 0 0 -2 2 v12 a2 2 0 0 0 2 2 h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M9 12 H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M17 8 L21 12 L17 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="udi-text">Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-      <p class="subtle">Profiles save your style so every room you design matches your taste.</p>
-      <!-- [Profile limits] Counter populated by renderProfiles. Free: "X of 4". Pro: "X of 10". -->
-      <p class="subtle small" id="profileCount" aria-live="polite"></p>
-      <div class="profile-grid" id="profileGrid"></div>
-      <button class="btn btn-ghost add-profile-btn" id="addProfileBtn">
-        <span class="apb-label">+ Add profile</span>
-        <!-- [Profile limits] Removed .pro-lock PRO badge — Free users
-             can now add up to 4 profiles, so the gate is per-action
-             (toast on limit-hit) rather than per-button. -->
-      </button>
-    </section>
+    <!-- [feat-remove-profile-screen] data-screen="profile-select" removed entirely. -->
 
     <!-- SCREEN: Onboarding intro (10-Q flow gate) -->
     <section class="screen" data-screen="quiz-intro">

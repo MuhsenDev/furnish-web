@@ -81,7 +81,7 @@ html[data-theme="dark"] {
 html[data-theme="dark"] body { background: var(--cream); color: var(--ink); }
 html[data-theme="dark"] #app { background: var(--cream); }
 html[data-theme="dark"] .btn-primary { box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
-html[data-theme="dark"] .profile-card,
+/* [feat-remove-profile-screen] .profile-card removed from selector list. */
 html[data-theme="dark"] .room-card,
 html[data-theme="dark"] .template-card,
 html[data-theme="dark"] .capture-card,
@@ -120,7 +120,7 @@ html[data-theme="dark"] .totals-card .total-value,
 html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3 { color: var(--deep); }
 html[data-theme="dark"] .price-tag { background: var(--surface); color: var(--ink); border-color: var(--brown); }
 html[data-theme="dark"] .price-tag::after { border-top-color: var(--brown); }
-html[data-theme="dark"] .profile-card.selected { background: var(--beige); }
+/* [feat-remove-profile-screen] .profile-card.selected dark rule removed. */
 html[data-theme="dark"] .toast { background: var(--beige-2); color: var(--ink); }
 
 * { box-sizing: border-box; }
@@ -353,6 +353,50 @@ html[data-theme="dark"] .btn-destructive-pill {
 }
 .welcome-theme-toggle:hover { background: var(--beige); }
 
+/* [feat-remove-profile-screen] Subtle Sign In link on welcome screen.
+   Secondary affordance for returning users — primary CTA stays the
+   "Redesign My Room" button above. Text-link style: no border, no
+   background, low visual weight. The "Sign in" emphasis word gets a
+   subtle underline + brown color so the click target is discoverable
+   without competing with the primary button. */
+.welcome-signin-link {
+  display: block;
+  margin: 18px auto 0;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 200ms ease, background 200ms ease;
+}
+.welcome-signin-link:hover {
+  color: var(--brown);
+  background: rgba(139, 111, 71, 0.04);
+}
+.welcome-signin-link .wsl-emph {
+  color: var(--brown);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.welcome-signin-link:focus-visible {
+  outline: 2px solid var(--brown);
+  outline-offset: 2px;
+}
+html[data-theme="dark"] .welcome-signin-link {
+  color: var(--brown-2);
+}
+html[data-theme="dark"] .welcome-signin-link:hover {
+  color: var(--tan);
+  background: rgba(216, 176, 126, 0.06);
+}
+html[data-theme="dark"] .welcome-signin-link .wsl-emph {
+  color: var(--tan);
+}
+
 /* Dark-mode contrast pop for the hero objects — brighter cream/tan tones
    against the darker hero-art background. */
 html[data-theme="dark"] .hero-art {
@@ -381,28 +425,11 @@ html[data-theme="dark"] @keyframes heroLampGlow {
 }
 .hero .btn-primary { min-width: 220px; }
 
-/* ---------- Profile select ---------- */
-.profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.profile-card {
-  background: white; border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px; cursor: pointer; text-align: left;
-  transition: transform 120ms ease, box-shadow 160ms ease, border-color 160ms ease;
-  box-shadow: var(--shadow);
-}
-.profile-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--tan); }
-.profile-card.selected { border-color: var(--brown); background: var(--beige); }
-
-/* [Profile limits] .profile-card.pro-locked + .profile-lock badge rules
-   removed — JS no longer applies these classes (gate is now Free=4 /
-   Pro=10 at creation time, not per-card paywall). */
-.profile-avatar {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  color: var(--cream); display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 18px; margin-bottom: 10px;
-}
-.profile-card .title { font-weight: 600; color: var(--deep); margin-bottom: 4px; }
-.profile-card .styles-line { font-size: 12px; color: var(--muted); }
+/* [feat-remove-profile-screen] Profile-select CSS removed — entire
+   .profile-grid / .profile-card / .profile-avatar / .profile-card .title
+   / .profile-card .styles-line ruleset gone. Screen + JS renderer all
+   deleted in the same commit; nothing in HTML or JS still consumes
+   these selectors. */
 
 /* ---------- Chips ---------- */
 .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
@@ -1585,7 +1612,8 @@ html[data-theme="dark"] .item-card.is-highlighted {
 
 @media (max-width: 380px) {
   h1 { font-size: 36px; }
-  .profile-grid, .rooms-grid, .templates-grid { grid-template-columns: 1fr; }
+  /* [feat-remove-profile-screen] .profile-grid removed from selector list. */
+  .rooms-grid, .templates-grid { grid-template-columns: 1fr; }
   .home-ctas { flex-direction: column; }
 }
 
@@ -1633,7 +1661,7 @@ html[data-theme="dark"] .item-card.is-highlighted {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ---------- Account menu (profile-select topbar) ---------- */
+/* ---------- Account menu (topbar dropdown — used across multiple screens) ---------- */
 .user-menu { position: relative; z-index: 70; isolation: isolate; }
 .user-pill-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1822,7 +1850,7 @@ html[data-theme="dark"] .user-dropdown-divider { background: var(--brown-2); }
 .support-row .sr-arrow { color: var(--muted); font-size: 18px; transition: transform 200ms var(--ease-premium); }
 .support-row:hover .sr-arrow { transform: translateX(3px); color: var(--brown); }
 
-/* ---------- Account menu (profile-select topbar) ---------- */
+/* ---------- Account menu (topbar dropdown — used across multiple screens) ---------- */
 .user-menu { position: relative; z-index: 70; isolation: isolate; }
 .user-pill-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2011,71 +2039,10 @@ html[data-theme="dark"] .user-dropdown-divider { background: var(--brown-2); }
 .support-row .sr-arrow { color: var(--muted); font-size: 18px; transition: transform 200ms var(--ease-premium); }
 .support-row:hover .sr-arrow { transform: translateX(3px); color: var(--brown); }
 
-/* ---------- Profile rename ---------- */
-.profile-card { position: relative; }
-.profile-edit-btn {
-  position: absolute; top: 10px; right: 10px;
-  width: 28px; height: 28px; border-radius: 50%;
-  border: 1px solid var(--line); background: var(--surface);
-  color: var(--muted); font-size: 13px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 120ms ease;
-}
-.profile-edit-btn:hover { color: var(--brown); border-color: var(--tan); }
-.profile-name-input {
-  width: calc(100% - 4px);
-  padding: 4px 8px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--deep);
-  background: var(--cream);
-  border: 1.5px solid var(--tan);
-  border-radius: 6px;
-  outline: none;
-  margin-bottom: 4px;
-}
-.profile-name-input:focus { border-color: var(--brown); box-shadow: 0 0 0 3px rgba(139,111,71,0.15); }
-html[data-theme="dark"] .profile-name-input {
-  background: var(--beige-2);
-  color: var(--ink);
-  border-color: var(--tan);
-}
-.profile-name-input {
-  width: calc(100% - 4px);
-  padding: 4px 8px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--deep);
-  background: var(--cream);
-  border: 1.5px solid var(--tan);
-  border-radius: 6px;
-  outline: none;
-  margin-bottom: 4px;
-}
-.profile-name-input:focus { border-color: var(--brown); box-shadow: 0 0 0 3px rgba(139,111,71,0.15); }
-html[data-theme="dark"] .profile-name-input {
-  background: var(--beige-2);
-  color: var(--ink);
-  border-color: var(--tan);
-}
-.profile-name-input {
-  width: calc(100% - 4px);
-  padding: 4px 8px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--deep);
-  background: var(--cream);
-  border: 1.5px solid var(--tan);
-  border-radius: 6px;
-  outline: none;
-  margin-bottom: 4px;
-}
-.profile-name-input:focus { border-color: var(--brown); box-shadow: 0 0 0 3px rgba(139,111,71,0.15); }
-html[data-theme="dark"] .profile-name-input {
-  background: var(--beige-2);
-  color: var(--ink);
-  border-color: var(--tan);
-}
+/* [feat-remove-profile-screen] Profile rename CSS removed — .profile-card,
+   .profile-edit-btn, and .profile-name-input (which existed as a triple-
+   duplicate reconstruction artifact) are all orphan now. The inline
+   rename UX lived inside renderProfiles which is gone. */
 
 /* ---------- Image cards ---------- */
 .template-card {
@@ -2246,7 +2213,7 @@ html[data-theme="dark"] .theme-toggle-btn .icon-sun { display: inline-block; }
 .pp-actions .btn { padding: 7px 12px; font-size: 12px; }
 
 /* Avatar carries a photo where it's shown */
-.profile-avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
+/* [feat-remove-profile-screen] .profile-avatar.has-photo orphan rule removed. */
 /* [Bug 25] .profile-pill .dot.has-photo rule removed — pill no longer in DOM. */
 
 /* ================================================================
@@ -2331,7 +2298,7 @@ html[data-theme="dark"] .theme-toggle-btn .icon-sun { display: inline-block; }
 .pp-actions .btn { padding: 7px 12px; font-size: 12px; }
 
 /* Avatar carries a photo where it's shown */
-.profile-avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
+/* [feat-remove-profile-screen] .profile-avatar.has-photo orphan rule removed. */
 /* [Bug 25] .profile-pill .dot.has-photo (duplicate rule) removed — pill no longer in DOM. */
 
 /* ================================================================
@@ -2483,10 +2450,7 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
 @keyframes tiltIn      { from { opacity: 0; transform: translateY(14px) rotate(2deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
 
 /* Per-surface entrance assignment — each card type gets a distinct motion */
-.profile-card {
-  animation: slideInLeft 520ms var(--ease-premium) both;
-  animation-delay: calc(var(--stagger-i, 0) * 70ms);
-}
+/* [feat-remove-profile-screen] .profile-card animation rule removed (orphan). */
 .template-card {
   animation: popIn 520ms var(--ease-spring) both;
   animation-delay: calc(var(--stagger-i, 0) * 65ms);
@@ -2529,7 +2493,7 @@ html[data-theme="dark"] .review-stars { color: var(--tan); }
 /* Unified smooth transitions — override earlier defaults with premium easing */
 .btn, .btn-icon, .chip, .chip-sm,
 .item-action-btn, .link,
-.profile-card, .room-card, .template-card,
+.room-card, .template-card,
 .collection-card, .rt-card, .quiz-option-card,
 .version-pill, .palette-swatch, .price-tag,
 .modal-card, .modal-close {
@@ -2865,21 +2829,8 @@ html[data-theme="dark"] .qoc-face {
 /* ================================================================
    Add-profile lock + paywall
    ================================================================ */
-.add-profile-btn {
-  width: 100%;
-  display: flex; justify-content: center; align-items: center; gap: 10px;
-  position: relative;
-}
-.add-profile-btn .pro-lock {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  color: #FFFFFF;
-  padding: 3px 10px; border-radius: 999px;
-  box-shadow: 0 3px 12px rgba(139,111,71,0.38);
-}
-html[data-theme="dark"] .add-profile-btn .pro-lock { color: var(--cream); }
-
-.paywall-card {
+/* [feat-remove-profile-screen] .add-profile-btn rule removed (orphan). */
+html[data-theme="dark"] .paywall-card {
   text-align: center; padding: 28px 22px 20px;
   max-width: 380px;
   position: relative; overflow: hidden;
@@ -3362,10 +3313,7 @@ html[data-theme="dark"] .yesno-btn[aria-selected="true"] .yesno-emoji { backgrou
 @keyframes tiltIn      { from { opacity: 0; transform: translateY(14px) rotate(2deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
 
 /* Per-surface entrance assignment — each card type gets a distinct motion */
-.profile-card {
-  animation: slideInLeft 520ms var(--ease-premium) both;
-  animation-delay: calc(var(--stagger-i, 0) * 70ms);
-}
+/* [feat-remove-profile-screen] .profile-card animation rule removed (orphan). */
 .template-card {
   animation: popIn 520ms var(--ease-spring) both;
   animation-delay: calc(var(--stagger-i, 0) * 65ms);
@@ -3408,7 +3356,7 @@ html[data-theme="dark"] .yesno-btn[aria-selected="true"] .yesno-emoji { backgrou
 /* Unified smooth transitions — override earlier defaults with premium easing */
 .btn, .btn-icon, .chip, .chip-sm,
 .item-action-btn, .link,
-.profile-card, .room-card, .template-card,
+.room-card, .template-card,
 .collection-card, .rt-card, .quiz-option-card,
 .version-pill, .palette-swatch, .price-tag,
 .modal-card, .modal-close {
@@ -3566,21 +3514,8 @@ html[data-theme="dark"] .yesno-btn[aria-selected="true"] .yesno-emoji { backgrou
 /* ================================================================
    Add-profile lock + paywall
    ================================================================ */
-.add-profile-btn {
-  width: 100%;
-  display: flex; justify-content: center; align-items: center; gap: 10px;
-  position: relative;
-}
-.add-profile-btn .pro-lock {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  color: #FFFFFF;
-  padding: 3px 10px; border-radius: 999px;
-  box-shadow: 0 3px 12px rgba(139,111,71,0.38);
-}
-html[data-theme="dark"] .add-profile-btn .pro-lock { color: var(--cream); }
-
-.paywall-card {
+/* [feat-remove-profile-screen] .add-profile-btn rule removed (orphan). */
+html[data-theme="dark"] .paywall-card {
   text-align: center; padding: 28px 22px 20px;
   max-width: 380px;
   position: relative; overflow: hidden;
@@ -3672,10 +3607,7 @@ html[data-theme="dark"] .add-profile-btn .pro-lock { color: var(--cream); }
 @keyframes tiltIn      { from { opacity: 0; transform: translateY(14px) rotate(2deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
 
 /* Per-surface entrance assignment — each card type gets a distinct motion */
-.profile-card {
-  animation: slideInLeft 520ms var(--ease-premium) both;
-  animation-delay: calc(var(--stagger-i, 0) * 70ms);
-}
+/* [feat-remove-profile-screen] .profile-card animation rule removed (orphan). */
 .template-card {
   animation: popIn 520ms var(--ease-spring) both;
   animation-delay: calc(var(--stagger-i, 0) * 65ms);
@@ -3718,7 +3650,7 @@ html[data-theme="dark"] .add-profile-btn .pro-lock { color: var(--cream); }
 /* Unified smooth transitions — override earlier defaults with premium easing */
 .btn, .btn-icon, .chip, .chip-sm,
 .item-action-btn, .link,
-.profile-card, .room-card, .template-card,
+.room-card, .template-card,
 .collection-card, .rt-card, .quiz-option-card,
 .version-pill, .palette-swatch, .price-tag,
 .modal-card, .modal-close {
@@ -3876,21 +3808,8 @@ html[data-theme="dark"] .add-profile-btn .pro-lock { color: var(--cream); }
 /* ================================================================
    Add-profile lock + paywall
    ================================================================ */
-.add-profile-btn {
-  width: 100%;
-  display: flex; justify-content: center; align-items: center; gap: 10px;
-  position: relative;
-}
-.add-profile-btn .pro-lock {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.14em;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  color: #FFFFFF;
-  padding: 3px 10px; border-radius: 999px;
-  box-shadow: 0 3px 12px rgba(139,111,71,0.38);
-}
-html[data-theme="dark"] .add-profile-btn .pro-lock { color: var(--cream); }
-
-.paywall-card {
+/* [feat-remove-profile-screen] .add-profile-btn rule removed (orphan). */
+html[data-theme="dark"] .paywall-card {
   text-align: center; padding: 28px 22px 20px;
   max-width: 380px;
   position: relative; overflow: hidden;
@@ -4058,17 +3977,7 @@ html[data-theme="dark"] .paywall-social-text {
 }
 
 /* ---------- Profile rename ---------- */
-.profile-card { position: relative; }
-.profile-edit-btn {
-  position: absolute; top: 10px; right: 10px;
-  width: 28px; height: 28px; border-radius: 50%;
-  border: 1px solid var(--line); background: var(--surface);
-  color: var(--muted); font-size: 13px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 120ms ease;
-}
-.profile-edit-btn:hover { color: var(--brown); border-color: var(--tan); }
-
+/* [feat-remove-profile-screen] .profile-card + .profile-edit-btn duplicate block removed (orphan). */
 /* ---------- Image cards ---------- */
 .template-card {
   position: relative; overflow: hidden; padding: 0;
@@ -4173,17 +4082,7 @@ html[data-theme="dark"] .paywall-social-text {
 }
 
 /* ---------- Profile rename ---------- */
-.profile-card { position: relative; }
-.profile-edit-btn {
-  position: absolute; top: 10px; right: 10px;
-  width: 28px; height: 28px; border-radius: 50%;
-  border: 1px solid var(--line); background: var(--surface);
-  color: var(--muted); font-size: 13px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 120ms ease;
-}
-.profile-edit-btn:hover { color: var(--brown); border-color: var(--tan); }
-
+/* [feat-remove-profile-screen] .profile-card + .profile-edit-btn duplicate block removed (orphan). */
 /* ---------- Image cards ---------- */
 .template-card {
   position: relative; overflow: hidden; padding: 0;
@@ -7883,7 +7782,7 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
    Per Reforge Brand Marketing Lesson 3 (form & shape as brand asset).
    Cards lift on hover via shadow tier escalation (1 → 2). */
 .item-card,
-.profile-card,
+
 .template-card,
 .room-card,
 .capture-card,
@@ -7893,7 +7792,7 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
   transition: box-shadow 280ms var(--ease-premium), transform 220ms var(--ease-premium);
 }
 .item-card:hover,
-.profile-card:hover,
+
 .template-card:hover,
 .room-card:hover {
   box-shadow: var(--shadow-2);
