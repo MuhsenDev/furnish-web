@@ -4316,6 +4316,13 @@
     // .dot avatar styling — both elements deleted with the profile-pill
     // removal. Active-profile context still surfaces via the topbar
     // dropdown name and the profile-select screen.
+    //
+    // [Bug 25 follow-up] `const p = getActiveProfile()` retained — it was
+    // declared in the deleted pill block but consumed BELOW by
+    // renderResumeHero(p), renderHomeProgress(p), and renderStylePulse(p).
+    // Removing it crashed renderHome with ReferenceError on first call
+    // post-signin. ensureActiveProfile() above guarantees p is non-null.
+    const p = getActiveProfile();
 
     renderExploreWelcome();
     // [Batch 5 Part 2 — Dim 02 D02-11] Welcome-back commitment card fires
