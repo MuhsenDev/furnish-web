@@ -1657,6 +1657,43 @@
         afterSigninRouting();
       } else if (active === 'profile-select') {
         renderProfiles();
+      } else if (wasSignedIn && fromWelcomeOrSplash) {
+        // [Bug 2 fix — refresh routing] Signed-in user landed on
+        // welcome with no pending intent — typical refresh scenario,
+        // or any cold-start of a returning signed-in user. Pre-fix
+        // the routing block had no branch for this: the user got
+        // stuck on welcome until they manually clicked the CTA, which
+        // would then short-circuit at welcomeStartBtn:625 to
+        // profile-select. This branch does the routing automatically
+        // on boot, with the same hasHistory cascade afterSigninRouting
+        // uses for post-signin landings.
+        //
+        // NOT calling afterSigninRouting() directly because that
+        // helper sets state._showExploreWelcome = true, a post-signin
+        // one-shot flag that surfaces an Explore coachmark on home.
+        // Firing it on every page refresh would re-show the coachmark
+        // every time, which is wrong — coachmarks are once-after-
+        // signin behavior, not once-per-load.
+        //
+        // Scope limit (acknowledged): this routes to home for the
+        // typical case, NOT to the user's last-viewed screen (e.g.,
+        // refresh-from-results doesn't restore results). Persisting
+        // last-screen would require a state._lastScreen field updated
+        // on every showScreen call — separate ticket if Hassan wants
+        // it. Refresh-to-home is acceptable because the user can
+        // re-enter their room from Saved or Home Recent in two taps.
+        if (state.profiles?.length > 0 && state.rooms?.length > 0) {
+          ensureActiveProfile();
+          showScreen('home');
+          renderHome();
+        } else if (state.profiles?.length > 0) {
+          ensureActiveProfile();
+          showScreen('capture');
+          prepareCapture();
+        } else {
+          showScreen('profile-select');
+          renderProfiles();
+        }
       }
       // [Boot splash] If the routing logic above did not call any
       // showScreen (e.g., wasSignedIn returning user with no pending
