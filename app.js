@@ -429,7 +429,10 @@
   //   - COMPACT on home/wishlist (subtle background)
   //   - HIDDEN  on capture/analyzing/results/templates (out of the way for design work)
   const ONBOARDING_SCREENS = new Set([
-    'welcome', 'signin', 'profile-select', 'quiz-intro', 'quiz'
+    // [feat-remove-profile-screen] 'profile-select' removed from set —
+    // the screen no longer exists. Reviews-bar mode stays correct
+    // because no code can ever set active to that name now.
+    'welcome', 'signin', 'quiz-intro', 'quiz'
   ]);
   const DESIGN_SCREENS = new Set([
     'preferences', 'capture', 'analyzing', 'results', 'templates'
@@ -462,9 +465,10 @@
   //                       signin. Must remain accessible to guests so
   //                       they can read terms before agreeing.
   //
-  // NOT in the set (forbidden for guests): home, profile, profile-select,
-  // preferences, saved, saved-home-detail, results, templates, this-week,
+  // NOT in the set (forbidden for guests): home, profile, preferences,
+  // saved, saved-home-detail, results, templates, this-week,
   // styles-index, wishlist, home-gallery.
+  // (profile-select removed in feat-remove-profile-screen.)
   const GUEST_ALLOWED_SCREENS = new Set([
     'welcome',
     'capture',
@@ -645,7 +649,7 @@
       }
     }
     showScreen(dest);
-    if (dest === 'profile-select') renderProfiles();
+    // [feat-remove-profile-screen] dest === 'profile-select' branch removed.
     if (dest === 'home') renderHome();
     if (dest === 'capture') prepareCapture();
     if (dest === 'templates') renderTemplates();
@@ -704,9 +708,13 @@
     // [Identity Stage 4] Auth check via Identity.isAuthenticated() (was
     // `state.user && state.user.provider !== 'guest'`). Same semantics.
     if (window.Identity.isAuthenticated() && state.profiles.length) {
-      // Returning signed-in user with profiles — send to picker.
-      showScreen('profile-select');
-      renderProfiles();
+      // [feat-remove-profile-screen] Returning signed-in user with
+      // profiles → route directly to home (was: profile-select picker,
+      // which is now removed). ensureActiveProfile keeps the active
+      // profile resolved; renderHome reads from it.
+      ensureActiveProfile();
+      showScreen('home');
+      renderHome();
       return;
     }
     // [Side Note 2] Resume the Almost there reveal gate if the user
@@ -768,6 +776,27 @@
     // returning guests" shortcut was removed — guests must always either
     // complete onboarding or sign in via Side Note 2's reveal-resume.
     openQuizIntro(state.activeProfileId);
+  });
+
+  // [feat-remove-profile-screen] Subtle Sign In affordance on welcome.
+  // Returning users with an existing account shouldn't have to walk
+  // quiz → photo → reveal-gate just to reach signin. This link gives
+  // them a direct path. Defensive Identity check short-circuits to
+  // home if the user is somehow already authenticated when they tap
+  // (rare — boot-defer fix at app.js:12555 should already route signed-
+  // in users away from welcome, but cheap to guard against).
+  document.getElementById('welcomeSigninLink').addEventListener('click', () => {
+    if (window.Identity?.isAuthenticated?.()) {
+      ensureActiveProfile();
+      showScreen('home');
+      renderHome();
+      return;
+    }
+    trackEvent('welcome_signin_link_clicked', {
+      hasProfiles: !!(state.profiles && state.profiles.length)
+    });
+    if (typeof prepareSignin === 'function') prepareSignin();
+    showScreen('signin');
   });
 
   // First-run guest profile — no signin required to reach aha.
@@ -951,8 +980,15 @@
       showScreen('capture');
       prepareCapture();
     } else {
-      showScreen('profile-select');
-      renderProfiles();
+      // [feat-remove-profile-screen] No-profiles fallback used to route
+      // to profile-select (now removed). ensureGuestProfile seeds a
+      // default profile when state.profiles is empty (ensureActiveProfile
+      // alone is insufficient here — it only assigns activeProfileId when
+      // profiles already exist, doesn't create one). Then route to capture
+      // so the user starts designing immediately.
+      ensureGuestProfile();
+      showScreen('capture');
+      prepareCapture();
     }
   }
 
@@ -1651,8 +1687,9 @@
       const fromWelcomeOrSplash = active === 'welcome' || (!active && !_firstScreenShown);
       if (hasPendingReveal || (!wasSignedIn && fromWelcomeOrSplash)) {
         afterSigninRouting();
-      } else if (active === 'profile-select') {
-        renderProfiles();
+      // [feat-remove-profile-screen] active === 'profile-select' branch
+      // removed — that screen no longer exists, so the condition is
+      // unreachable.
       } else if (wasSignedIn && fromWelcomeOrSplash) {
         // [Bug 2 fix — refresh routing] Signed-in user landed on
         // welcome with no pending intent — typical refresh scenario,
@@ -1687,8 +1724,12 @@
           showScreen('capture');
           prepareCapture();
         } else {
-          showScreen('profile-select');
-          renderProfiles();
+          // [feat-remove-profile-screen] No-profiles fallback used to
+          // route to profile-select (removed). Seed via ensureGuestProfile
+          // and route to capture so the user lands on a usable surface.
+          ensureGuestProfile();
+          showScreen('capture');
+          prepareCapture();
         }
       }
       // [Boot splash] If the routing logic above did not call any
@@ -1814,102 +1855,13 @@
   });
 
   // ---------- Profiles ----------
-  function renderProfiles() {
-    const grid = $('#profileGrid');
-    grid.innerHTML = '';
-
-    // [Profile limits] Free=4 / Pro=10. The seed-on-empty fallback below
-    // ensures the user always has at least one profile to land on.
-    if (state.profiles.length === 0) {
-      state.profiles.push(createProfile('Profile 1', { id: 'p1' }));
-      save();
-    }
-
-    // [Profile limits] Per-card lock REMOVED. Pre-fix the renderer
-    // marked profile #2+ as pro-locked for Free users and routed
-    // taps to the paywall. New gate is limit-based at creation time
-    // (Free=4, Pro=10) — see addProfileBtn handler below. Once a
-    // profile exists, it's tappable.
-    const userIsPro = !!state.user?.isPro;
-    const profileLimit = userIsPro ? 10 : 4;
-    const countEl = document.getElementById('profileCount');
-    if (countEl) countEl.textContent = `${state.profiles.length} of ${profileLimit}`;
-    state.profiles.forEach((p, idx) => {
-      const card = document.createElement('div');
-      card.className = 'profile-card'
-        + (state.activeProfileId === p.id ? ' selected' : '');
-      card.style.setProperty('--stagger-i', idx);
-      const initials = p.name.match(/\d+|\S/)?.[0] || p.name[0];
-      const stylesLine = p.styles.length
-        ? p.styles.map(styleLabel).join(' · ')
-        : 'Tap to take style quiz';
-      const avatarStyle = p.avatar
-        ? `style="background-image:url('${p.avatar}')"`
-        : `style="background:${avatarGradient(idx)}"`;
-      const avatarClass = p.avatar ? 'profile-avatar has-photo' : 'profile-avatar';
-      const avatarBody = p.avatar ? '' : initials;
-      card.innerHTML = `
-        <button class="profile-edit-btn" aria-label="Rename" title="Rename">✎</button>
-        <div class="${avatarClass}" ${avatarStyle}>${avatarBody}</div>
-        <div class="title">${p.name}</div>
-        <div class="styles-line">${stylesLine}</div>
-      `;
-      card.querySelector('.profile-edit-btn').addEventListener('click', e => {
-        e.stopPropagation();
-        const titleEl = card.querySelector('.title');
-        if (!titleEl || titleEl.tagName === 'INPUT') return;
-        const old = p.name;
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'profile-name-input';
-        input.value = old;
-        input.maxLength = 40;
-        titleEl.replaceWith(input);
-        input.focus();
-        input.select();
-        input.addEventListener('click', ev => ev.stopPropagation());
-        let committed = false;
-        const commit = () => {
-          if (committed) return;
-          committed = true;
-          const next = (input.value || '').trim();
-          if (next && next !== old) {
-            p.name = next.slice(0, 40);
-            save();
-            toast('Profile renamed');
-          }
-          renderProfiles();
-        };
-        input.addEventListener('keydown', ev => {
-          ev.stopPropagation();
-          if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
-          if (ev.key === 'Escape') { input.value = old; commit(); }
-        });
-        input.addEventListener('blur', commit);
-      });
-      card.addEventListener('click', () => {
-        // [Profile limits] Per-card paywall click removed — locks no
-        // longer apply (limit gate is at creation, not selection).
-        state.activeProfileId = p.id;
-        save();
-        // [Hassan's call] If the profile has NEVER done the quiz
-        // (no styles derived yet) → run them through the quiz. New users
-        // can't skip the onboarding step. Existing users with a built
-        // profile go straight to home, bypassing the legacy openPreferences
-        // detour. Preferences are now reachable any time via the bottom-
-        // nav Preferences tab.
-        if (p.styles.length === 0) {
-          openQuizIntro(p.id);
-        } else {
-          showScreen('home');
-          renderHome();
-        }
-      });
-      grid.appendChild(card);
-    });
-
-    renderUserPill();
-  }
+  // [feat-remove-profile-screen] function renderProfiles() removed
+  // entirely. profile-select screen + profile grid no longer exist.
+  // The function rendered cards into #profileGrid, wired per-card click +
+  // edit handlers, fired profile_limit_hit / profile_created analytics,
+  // and called renderUserPill at end. renderUserPill is still called from
+  // renderProfilePage (account/settings tab) + the Identity bus subscriber,
+  // so that helper is preserved.
 
   function renderUserPill() {
     const menu = $('#userMenu');
@@ -2024,44 +1976,19 @@
     const active = document.querySelector('.screen.active')?.dataset?.screen;
     if (active === 'home' && typeof renderHome === 'function') {
       renderHome();
-    } else if (active === 'profile-select' && typeof renderProfiles === 'function') {
-      renderProfiles();
+    // [feat-remove-profile-screen] active === 'profile-select' branch
+    // removed (screen + renderProfiles function both gone).
     } else if (active === 'profile' && typeof renderProfilePage === 'function') {
       renderProfilePage();
     }
   });
 
-  $('#addProfileBtn').addEventListener('click', () => {
-    // [Profile limits] Tier-based limit (Free=4 / Pro=10). When the user
-    // is at-cap, fire a friendly toast instead of the paywall — Free
-    // users have already enjoyed the freedom of 4 profiles, so the
-    // upgrade hint reads as "more capacity available" rather than "you
-    // can't have this." Pro users hitting the cap is rare; the toast
-    // just informs.
-    const userIsPro = !!state.user?.isPro;
-    const limit = userIsPro ? 10 : 4;
-    if (state.profiles.length >= limit) {
-      toast(userIsPro
-        ? "You've reached the Pro limit of 10 profiles."
-        : 'Free users get 4 style profiles. Upgrade to Pro for up to 10.');
-      trackEvent('profile_limit_hit', {
-        tier: userIsPro ? 'pro' : 'free',
-        currentCount: state.profiles.length,
-        limit
-      });
-      return;
-    }
-    const n = state.profiles.length + 1;
-    const p = createProfile('Profile ' + n);
-    state.profiles.push(p);
-    save();
-    renderProfiles();
-    trackEvent('profile_created', {
-      tier: userIsPro ? 'pro' : 'free',
-      newCount: state.profiles.length,
-      limit
-    });
-  });
+  // [feat-remove-profile-screen] #addProfileBtn handler removed (button
+  // + the entire profile-select screen are gone). The Free=4 / Pro=10
+  // limit gate, profile_limit_hit analytics event, and profile_created
+  // analytics event all go with it. The internal createProfile()
+  // factory is preserved (still used by ensureGuestProfile + other
+  // first-profile seeding paths).
 
   // ---------- Paywall ----------
   // [Model A] Paywall contexts shrink to only the actions Model A actually
@@ -3011,7 +2938,10 @@
 
   function openQuizIntro(profileId) {
     const p = state.profiles.find(x => x.id === profileId);
-    if (!p) { showScreen('profile-select'); return; }
+    // [feat-remove-profile-screen] Defensive fallback used to route to
+    // profile-select (removed). Route to home instead — Layer A guard
+    // sends guests to welcome if needed.
+    if (!p) { showScreen('home'); renderHome(); return; }
     $('#quizIntroTitle').textContent = `${p.name} — let's find your style`;
     state.quiz = {
       profileId,
@@ -3074,7 +3004,11 @@
   // The pre-select wiring at renderQuizStep:2620-2622 already handles
   // showing the user's prior answer when they re-enter a question.
   $('#quizBackBtn').addEventListener('click', () => {
-    if (!state.quiz) { showScreen('profile-select'); return; }
+    // [feat-remove-profile-screen] Defensive fallback used to route to
+    // profile-select (removed). Route to welcome — quiz mid-progress
+    // with no quiz state is a corrupted-state fallback, welcome is the
+    // safe restart.
+    if (!state.quiz) { showScreen('welcome'); return; }
     if (state.quiz.step === 0) { showScreen('quiz-intro'); return; }
     const fromIdx = state.quiz.step;
     state.quiz.step--;
@@ -4238,7 +4172,10 @@
 
   $('#savePrefsBtn').addEventListener('click', () => {
     const p = getActiveProfile();
-    if (!p) { showScreen('profile-select'); return; }
+    // [feat-remove-profile-screen] Defensive fallback used to route to
+    // profile-select (removed). Route to home — preferences with no
+    // active profile is a corrupted-state edge case.
+    if (!p) { showScreen('home'); renderHome(); return; }
     // [9-Q model — BUDGET_RESET_PASS] Validation: at minimum need vibe +
     // materials (load-bearing fields for the AI prompt). Other fields use
     // ONBOARDING_DEFAULTS() at build time. Budget moved out of onboarding;
@@ -6500,7 +6437,11 @@
     }
     $('#profileProBtn').onclick = () => openPaywall('generic');
 
-    // Active design profile
+    // Active design profile (display only — multi-profile UI surface
+    // removed in feat-remove-profile-screen, so the prior "Switch"
+    // button + its profile-select route are gone). Avatar + name +
+    // styles still surface here as the user's identity context on
+    // the account/settings tab.
     const ap = $('#profileActiveRow');
     if (activeProfile) {
       const idx = getProfileIdx(activeProfile.id);
@@ -6512,12 +6453,7 @@
           <div class="pp-active-name">${activeProfile.name}</div>
           <div class="pp-active-styles">${stylesTxt}</div>
         </div>
-        <button class="pp-active-switch" id="ppSwitchProfileBtn">Switch</button>
       `;
-      ap.querySelector('#ppSwitchProfileBtn').onclick = () => {
-        showScreen('profile-select');
-        renderProfiles();
-      };
     } else {
       ap.innerHTML = '<div class="muted small" style="padding:8px">No active profile</div>';
     }
@@ -6791,7 +6727,10 @@
     p.colors = deriveColorsFromAnswers(p.answers);
     save();
     toast(`Applied "${c.label}" to ${p.name}`);
-    renderProfiles();
+    // [feat-remove-profile-screen] renderProfiles() call removed — the
+    // profile-select grid no longer exists. The active profile's data
+    // is updated; whichever surface the user navigates to next will
+    // render fresh from state.
   }
 
   function renderRoomsGrid() {
