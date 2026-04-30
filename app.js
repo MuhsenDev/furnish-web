@@ -2624,20 +2624,21 @@
   //   Layout A — Quality (premium_quality, hd_export, template_pro)
   //   Layout B — Power   (profile)  -- multi_room_batch + advanced_personalization
   //                                    were retired in Batch 1 Conflict 3 lock
-  //   Layout C — Save    (advanced_price_filters)
+  //   [Item 8] Layout C — Save (advanced_price_filters) RETIRED — the
+  //   feature ("set thresholds + retailer prefs") was never built.
+  //   Bullet removed from paywall card, all context references purged.
   // generic stays as a Layout-A fallback. Existing call sites unchanged —
   // each context still maps to copy, but the underlying layout is shared.
   const PAYWALL_LAYOUTS = Object.freeze({
     A_quality: { layout: 'A', leadBullet: 'Premium AI model — sharper results, no watermark.' },
     B_power:   { layout: 'B', leadBullet: 'Designed for households and frequent users.' },
-    C_save:    { layout: 'C', leadBullet: 'Set price-drop thresholds and never overpay.' }
+    // [Item 8] C_save layout retired with advanced_price_filters context.
   });
   const PAYWALL_CONTEXT_LAYOUT = Object.freeze({
     premium_quality:        'A_quality',
     hd_export:              'A_quality',
     template_pro:           'A_quality',
     profile:                'B_power',
-    advanced_price_filters: 'C_save',
     rearrange:              'A_quality',
     generic:                'A_quality',
   });
@@ -2655,10 +2656,7 @@
       title: 'Your redesigns, photo-real.',
       sub: 'Same room, sharper light, accurate fabrics — no more blocky textures or fake reflections. Pro routes you to the premium AI model.',
     },
-    advanced_price_filters: {
-      title: 'Filter your price-drop alerts',
-      sub: 'Pro lets you set thresholds (only alert me on drops ≥20%) and retailer preferences. Free alerts already cover everything saved — Pro is for power users.',
-    },
+    // [Item 8] advanced_price_filters PAYWALL_COPY entry removed.
     template_pro: {
       title: 'Premium templates',
       sub: 'Pro templates include curated rooms across every style and space — designer-quality starts with the right shape.',
@@ -2730,7 +2728,7 @@
     // pure vitamin → need motivational boosts (urgency / scarcity) to
     // clear the decision hill. `data-scarcity` toggles the visibility
     // of `.paywall-urgency` (founding-member 1,000-spot copy).
-    const scarcityOnContexts = ['hd_export','profile','advanced_price_filters','template_pro','generic'];
+    const scarcityOnContexts = ['hd_export','profile','template_pro','generic'];
     m.dataset.scarcity = scarcityOnContexts.includes(context) ? 'on' : 'off';
     trackEvent('paywall_shown', { context, layout: layoutKey });
   }
@@ -2756,9 +2754,9 @@
       // dismissed context (per the contextMap in maybeFireValueMomentPaywall).
       const trigForContext = {
         hd_export:              ['hd_export_attempt', 'affiliate_click_2plus_items', 'share_attempt'],
-        advanced_price_filters: ['wishlist_3rd_save'],
         profile:                ['second_room_intent'],
         premium_quality:        ['love_dwell_5min', 'same_room_3rd_redesign'],
+        // [Item 8] advanced_price_filters → wishlist_3rd_save mapping removed.
       };
       (trigForContext[context] || []).forEach(t => suppressValueMomentTrigger(t));
     }
@@ -9339,10 +9337,9 @@
       if (room0) fireAhaMomentIfFresh(room0, 'wishlist_save');
       // [Batch 3 — Dim 04 R6] Wishlist save is a habit action.
       logHabitAction('wishlist_save');
-      // [Batch 3 — Dim 03 R-Paywall1] Value-moment paywall: 3rd save crossed.
-      if (state.wishlist.length === 3 && !isPro()) {
-        setTimeout(() => maybeFireValueMomentPaywall('wishlist_3rd_save', { count: state.wishlist.length }), 1200);
-      }
+      // [Item 8] wishlist_3rd_save value-moment trigger removed — its only
+      // mapping was to advanced_price_filters, which was retired with
+      // the bullet (the feature was never built).
       // First save triggers the push pre-prompt
       setTimeout(() => maybeAskForPushPermission(), 800);
     }
@@ -11295,7 +11292,7 @@
     // Map triggerKind → paywall context (post 8→3 consolidation, see R-Paywall2)
     const contextMap = {
       hd_export_attempt:           'hd_export',
-      wishlist_3rd_save:           'advanced_price_filters',
+      // [Item 8] wishlist_3rd_save → advanced_price_filters mapping removed.
       second_room_intent:          'profile',
       love_dwell_5min:             'premium_quality',
       // [Batch 5 — Dim 06 Section D] new value-moment hooks

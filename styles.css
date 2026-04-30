@@ -8461,10 +8461,9 @@ html[data-theme="dark"] .promise-fit-survey .pfs-btn { background: var(--beige);
   /* Power layout: deeper brown — household/multi-profile feel */
   color: var(--brown) !important;
 }
-#paywallModal.layout-C_save .paywall-badge {
-  /* Save layout: green — savings/bargain feel */
-  color: var(--ok) !important;
-}
+/* [Item 8] #paywallModal.layout-C_save .paywall-badge rule removed —
+   layout-C_save class no longer applied (advanced_price_filters context
+   retired). */
 
 /* [B3 / A3 / Dim 12 E3] Demote quiz-intro Skip button to text link.
    Per Reforge Setup Moment Experience: setup phase should be slightly
