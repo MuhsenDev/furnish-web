@@ -44,11 +44,86 @@
       console.warn('localStorage save failed', e);
     }
     // Debounced background sync to Supabase when configured + signed in.
-    if (window.furnishBackend?.mode === 'supabase' && state.user?.id) {
+    // [Identity Stage 4] Gate now reads through Identity.userId() instead
+    // of the legacy direct-from-state.user read. Same semantics: only push
+    // when there's a real Supabase auth identity (Identity.userId() returns
+    // null for guests and local-fallback mock users — neither should sync
+    // to the cloud).
+    if (window.furnishBackend?.mode === 'supabase' && window.Identity?.userId()) {
       clearTimeout(_cloudSyncTimer);
       _cloudSyncTimer = setTimeout(() => {
         window.furnishBackend.pushAll(state).catch(err => console.warn('[Furnish] cloud sync failed', err));
       }, 1500);
+    }
+  }
+
+  // [Photo storage] Upload base64 dataURL photos to source-photos bucket
+  // and replace room.photo with the URL — keeps localStorage small (URLs
+  // are ~100 bytes vs ~1-2MB base64) so the quota class of bugs stops at
+  // the source. Idempotent: short-circuits for non-base64 photos and for
+  // unauthenticated callers (guests keep base64 in localStorage until
+  // they sign in; the backend-ready handler runs the migration pass at
+  // signin via _uploadAllPendingRoomPhotos below).
+  //
+  // On upload failure the room.photo stays as base64 so the UI keeps
+  // rendering, _uploadPending is flagged for future retry, and a
+  // photo_upload_failed analytics event fires with a reason string.
+  async function _uploadRoomPhotoIfBase64(room) {
+    if (!room || typeof room.photo !== 'string') return false;
+    if (!room.photo.startsWith('data:image/')) return false; // already a URL or empty
+    const userId = window.Identity?.userId();
+    if (!userId) return false;
+    if (typeof window.furnishBackend?.uploadSourcePhoto !== 'function') return false;
+    const sizeBytes = room.photo.length;
+    const startedAt = Date.now();
+    try {
+      const url = await window.furnishBackend.uploadSourcePhoto(userId, room.id, room.photo);
+      room.photo = url;
+      delete room._uploadPending;
+      trackEvent('photo_uploaded', {
+        roomId: room.id,
+        sizeBytes,
+        durationMs: Date.now() - startedAt
+      });
+      return true;
+    } catch (err) {
+      console.warn('[photo upload] failed for room', room.id, err);
+      room._uploadPending = true;
+      trackEvent('photo_upload_failed', {
+        roomId: room.id,
+        reason: String((err && err.message) || err || '').slice(0, 200)
+      });
+      return false;
+    }
+  }
+
+  // [Photo storage] Migration pass — uploads every state.rooms[] photo
+  // still held as a base64 dataURL. Catches BOTH (a) the just-generated
+  // guest room about to be revealed in the post-signin reveal branch,
+  // and (b) legacy rooms accumulated before this migration landed
+  // (Hassan's dev environment in particular). Called from the backend-
+  // ready handler after Identity.replace + pullAll resolve, so by this
+  // point Identity.userId() is the canonical signed-in user.
+  //
+  // Sequential (not parallel) to be polite to the user's data plan;
+  // typical case is 1-3 rooms so the wall-clock cost is bounded.
+  async function _uploadAllPendingRoomPhotos() {
+    if (!Array.isArray(state.rooms) || state.rooms.length === 0) return;
+    if (!window.Identity?.userId()) return;
+    const pending = state.rooms.filter(r =>
+      typeof r?.photo === 'string' && r.photo.startsWith('data:image/')
+    );
+    if (pending.length === 0) return;
+    toast(pending.length === 1
+      ? 'Saving your photo to your library…'
+      : `Saving ${pending.length} photos to your library…`);
+    let uploaded = 0;
+    for (const room of pending) {
+      const ok = await _uploadRoomPhotoIfBase64(room);
+      if (ok) uploaded++;
+    }
+    if (uploaded > 0) {
+      save();  // localStorage now holds URL-only photos for the uploaded set
     }
   }
 
@@ -364,11 +439,96 @@
   // can refine their style any time without going through the quiz flow.
   const MAIN_SCREENS = new Set(['home', 'saved', 'preferences', 'profile']);
 
+  // [Guest boundary] Screens accessible to unauthenticated users.
+  //
+  // Per Hassan's spec: a guest can ONLY reach welcome → onboarding flow
+  // → reveal gate. Every other screen requires authentication. Anything
+  // outside this set, when a guest attempts navigation, gets redirected
+  // to welcome by the Layer A guard inside showScreen() and the Layer B
+  // Identity bus subscriber registered later.
+  //
+  // Members:
+  //   welcome           — landing screen, the only legitimate guest entry
+  //   capture           — photo upload step (Last Step)
+  //   quiz-intro        — quiz entry / "find your style" intro
+  //   quiz              — the 9-question quiz
+  //   quiz-dealbreaker  — Q10 free-text follow-up
+  //   analyzing         — loading screen during AI generation
+  //   signin            — dual-purpose: reveal gate (post-onboarding) AND
+  //                       general signin (Switch Account, Sign In CTA on
+  //                       Profile, requireSignin gates). Always allowed
+  //                       since guests need it for the conversion path.
+  //   terms / privacy   — legal docs reachable from the consent block on
+  //                       signin. Must remain accessible to guests so
+  //                       they can read terms before agreeing.
+  //
+  // NOT in the set (forbidden for guests): home, profile, profile-select,
+  // preferences, saved, saved-home-detail, results, templates, this-week,
+  // styles-index, wishlist, home-gallery.
+  const GUEST_ALLOWED_SCREENS = new Set([
+    'welcome',
+    'capture',
+    'quiz-intro',
+    'quiz',
+    'quiz-dealbreaker',
+    'analyzing',
+    'signin',
+    'terms',
+    'privacy',
+  ]);
+
   // [Batch 6 — Dim 13 REC-13.3] Track previous screen for the screen_viewed
   // analytics event so navigation paths can be cohort-analyzed.
   let _previousScreen = null;
   let _screenEnteredAt = null;
+  // [Boot splash] Tracks whether showScreen has been called yet so the
+  // splash hide is idempotent and the OAuth-callback fallback timer in
+  // boot() can no-op when the backend-ready handler beat it to the punch.
+  // One-way: false → true, never reset. performSignout's showScreen call
+  // and any other later showScreen calls just hide the splash (already
+  // hidden) and proceed normally.
+  let _firstScreenShown = false;
   function showScreen(name) {
+    // [Boot splash] First showScreen call hides the splash. Idempotent;
+    // covers every entry path (boot direct call, backend-ready routing,
+    // fallback timer, performSignout). Optional chaining means a missing
+    // #bootSplash element (HTML drift) is a silent no-op.
+    if (!_firstScreenShown) {
+      _firstScreenShown = true;
+      document.getElementById('bootSplash')?.classList.add('hidden');
+    }
+    // [Guest boundary — Layer A] Hard auth gate at the single chokepoint
+    // for all screen activations. If the caller (any source: data-go
+    // click handler, imperative navigation, dev console) tries to
+    // route a guest to a forbidden screen, redirect to welcome instead.
+    //
+    // Redirect-by-reassignment, NOT recursion — we mutate the local
+    // `name` variable and let the rest of the function body run with the
+    // new target. Single pass; no stack growth; no risk of infinite loop.
+    //
+    // The guard is defensive against:
+    //   - Direct showScreen('home') calls anywhere in app.js
+    //   - data-go="profile"/"saved"/"preferences" taps via the bottom
+    //     nav (which becomes visible only for MAIN_SCREENS — the guard
+    //     is the safety net if a leak puts the nav onscreen anyway)
+    //   - Internal helpers (openRoom, openPreferences, renderHome, etc.)
+    //     that themselves invoke showScreen
+    //   - Dev-console debugging
+    //
+    // Layer B (an Identity bus subscriber registered later in this file)
+    // handles the related case: an authenticated user whose session
+    // expires WHILE on a forbidden screen — Layer A wouldn't fire
+    // because no navigation was attempted; Layer B catches the auth
+    // transition and routes them to welcome.
+    if (window.Identity && window.Identity.isGuest() && !GUEST_ALLOWED_SCREENS.has(name)) {
+      console.warn(`[guest-boundary] blocked navigation to "${name}" — guest not allowed; redirecting to welcome`);
+      trackEvent('guest_boundary_blocked', {
+        attemptedScreen: name,
+        from: _previousScreen,
+        layer: 'A',
+      });
+      name = 'welcome';
+    }
     // [Reset Dialog] Edge-case per spec: if user navigates away mid-dialog
     // (browser back, deep link, etc.), close the dialog cleanly so no
     // stale reset state lingers. closeResetDialog is a no-op when the
@@ -475,6 +635,11 @@
     if (dest === 'preferences') {
       if (!state.user) {
         state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
+        // [Identity Stage 2] Mirror guest-init from preferences deep-link.
+        // beginGuest() fires the bus with GUEST_RECORD even though
+        // hydration already produced one — same-record bus fires are
+        // safe (Stage 3 subscribers will dedupe via prev/next compare).
+        if (typeof window.Identity !== 'undefined') window.Identity.beginGuest();
       }
       ensureGuestProfile();
       const pid = state.activeProfileId;
@@ -540,7 +705,9 @@
   // Signin is requested later, gated at value moments (save/share/more rooms).
   document.getElementById('welcomeStartBtn').addEventListener('click', () => {
     trackEvent(ACTIVATION.SIGNUP_STARTED);
-    if (state.user && state.user.provider !== 'guest' && state.profiles.length) {
+    // [Identity Stage 4] Auth check via Identity.isAuthenticated() (was
+    // `state.user && state.user.provider !== 'guest'`). Same semantics.
+    if (window.Identity.isAuthenticated() && state.profiles.length) {
       // Returning signed-in user with profiles — send to picker.
       showScreen('profile-select');
       renderProfiles();
@@ -581,27 +748,29 @@
         save();
       }
     }
-    // [Batch 3 — Dim 04 R3] Returning guest with progress — skip the
-    // welcome onboarding flow, route to home with resume hero. Per
-    // Reforge ICED Theory "Expanding Touchpoints": returning users must
-    // get a different experience from cold-start, or product fades from
-    // memory. A guest with a saved room or in-progress draft has already
-    // invested — don't punish them by re-onboarding.
-    if (typeof isReturningGuestWithProgress === 'function' && isReturningGuestWithProgress()) {
-      trackEvent('return_session_resumed', {
-        rooms: state.rooms?.length || 0,
-        hasDraft: !!(state.draft && state.draft.photo)
-      });
-      showScreen('home');
-      return;
-    }
+    // [Guest boundary] The pre-fix `isReturningGuestWithProgress()` shortcut
+    // routed returning guests with prior rooms/drafts directly to home,
+    // bypassing onboarding entirely. That violated the new boundary spec
+    // (guests cannot reach home). Removed: every guest now restarts
+    // onboarding from the quiz when tapping Redesign My Room. Side Note 2's
+    // reveal-resume above still handles the "closed tab mid-flow within
+    // 24h" recovery case by routing to signin (allowed for guests).
+    //
+    // The `isReturningGuestWithProgress` predicate itself stays in the
+    // codebase as dead code for now — it's a one-line helper with no
+    // other callers but removing it would be invasive cleanup; if a
+    // future reason to consult "guest with progress" appears, the
+    // predicate is ready. (Defense-in-depth principle Hassan named.)
     if (!state.user) {
       state.user = { name: 'Guest', email: '', provider: 'guest', signedInAt: Date.now() };
+      // [Identity Stage 2] Mirror welcomeStartBtn's guest init.
+      if (typeof window.Identity !== 'undefined') window.Identity.beginGuest();
     }
     ensureGuestProfile();
-    // [Hassan's call] New users must go through the quiz — they can't skip
-    // onboarding. Existing returning guests with progress are caught above
-    // by isReturningGuestWithProgress() and routed straight to home.
+    // [Hassan's call + guest-boundary] New users AND returning guests
+    // both go through the quiz now. The pre-boundary "skip onboarding for
+    // returning guests" shortcut was removed — guests must always either
+    // complete onboarding or sign in via Side Note 2's reveal-resume.
     openQuizIntro(state.activeProfileId);
   });
 
@@ -629,7 +798,8 @@
   // they tried to take, not dump them on profile-select. (Fixes the
   // "sign in → pick profile → re-do quiz → re-take photo" dead-end.)
   function requireSignin(intent) {
-    if (state.user && state.user.provider !== 'guest') return true;
+    // [Identity Stage 4] Auth check via Identity.isAuthenticated().
+    if (window.Identity.isAuthenticated()) return true;
     state._pendingIntent = {
       intent,
       roomId: currentRoomId,
@@ -702,14 +872,12 @@
     // path; the clear there is moved to right before each branch fires.
     const pending = state._pendingIntent;
     syncFreeModeClass();
-    // [Bug 11] Re-anchor active identity from local guest → server profile
-    // BEFORE any branch renders. Covers all signin entry points (reveal
-    // gate, Switch Account, Profile-page Sign In, requireSignin gates).
-    // No-op if there's nothing to swap (already on a server profile, or
-    // brand-new account with no server profiles to swap to). Without this,
-    // post-signin navigation from results to home paints the guest
-    // profile's empty context instead of the user's real account.
-    claimGuestRoomForUser();
+    // [Identity Stage 3] claimGuestRoomForUser is now invoked by the
+    // Identity bus subscriber on guest→authenticated transitions. The
+    // manual call here was removed because Stage 2 wired Identity.replace
+    // into every signin site, and the subscriber registered above fires
+    // before this function reads its branches. Net: same call ordering,
+    // single source of truth.
 
     // [Model A — D7] Reveal gate: AI generation already completed for a guest.
     // Account just created → unlock the room and route straight to results.
@@ -1152,25 +1320,33 @@
       recordConsent(_consent);
       save();
       try { await window.furnishBackend.pullAll(state); save(); } catch (err) { console.warn('[Furnish] pull failed', err); }
-      // [Bugs 11/E/F unified fix] Re-paint all auth-dependent UI surfaces
-      // (topbar pill + active screen) before afterSigninRouting navigates
-      // away. Without this, the topbar dropdown stays hidden post-signin
-      // and home/profile-select/profile show stale data on next visit.
-      renderAuthDependentSurfaces();
+      // [Identity Stage 2] Mirror email signin/signup success into Identity.
+      // _fromUserBlob converts the just-mutated state.user blob into a
+      // properly-typed authenticated IdentityRecord. The bus subscriber
+      // (registered at app boot) handles the post-mutation render.
+      if (typeof window.Identity !== 'undefined') {
+        window.Identity.replace(window.Identity._fromUserBlob(state.user));
+      }
+      // [Identity Stage 3] Render orchestration is now bus-driven.
+      // Identity.replace above fired the bus; the render subscriber
+      // repainted topbar pill + active screen automatically.
       // [Batch 6 — Dim 13 REC-13.2] PostHog identify on auth success.
       // Safe no-op pre-PostHog-cutover. Per Reforge *Instrumentation Best
       // Practices*: every authenticated session must identify so cohorts
       // are queryable. ID is the Supabase auth UUID (NOT email — PII).
-      identifyUserForAnalytics(state.user.id || state.user.email, {
-        provider: state.user.provider,
+      // [Identity Stage 4] Migrated from direct state.user reads.
+      identifyUserForAnalytics(window.Identity.userId() || window.Identity.email() || state.user?.email, {
+        provider: window.Identity.provider() || state.user?.provider,
         tier: state.user.isPro ? 'pro' : 'free'
       });
       trackEvent('signin_completed', {
-        provider: state.user.provider,
+        // [Identity Stage 4]
+        provider: window.Identity.provider() || state.user?.provider,
         durationMs: Date.now() - (state._timing?.signinAttemptedAt || Date.now())
       });
       // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
-      toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
+      // [Identity Stage 4] name read via Identity + state.user fallback.
+      toast(signinMode === 'signup' ? `Welcome, ${window.Identity.name() || state.user?.name || ''}.` : 'Signed in.');
       afterSigninRouting();
       return;
     }
@@ -1186,22 +1362,37 @@
       provider: 'email',
       signedInAt: Date.now()
     };
+    // [Identity Stage 2] Mirror local-only-fallback email signin into
+    // Identity. Note: this path's state.user has no `id` (local mock).
+    // _fromUserBlob's auth-detection requires id — so this falls into
+    // its guest branch and produces GUEST_RECORD. That's a known quirk
+    // of the local fallback (no real auth happens). Stage 4's predicate
+    // migration will surface this as still-guest, matching pre-fix
+    // behavior since isGuest() also returns false here (provider==='email'
+    // is truthy non-guest). Watch for divergence in Stage 4 testing.
+    if (typeof window.Identity !== 'undefined') {
+      window.Identity.replace(window.Identity._fromUserBlob(state.user));
+    }
     // [ToS consent block] Persist tos + marketing consent on local-fallback success.
     recordConsent(_consent);
     save();
     submitBtn.disabled = false;
     submitBtn.textContent = signinMode === 'signup' ? 'Create account' : 'Sign in';
     // [Batch 6 — Dim 13 REC-13.2] PostHog identify on local-fallback signin.
-    identifyUserForAnalytics(state.user.email, {
+    // [Identity Stage 4] Identity returns null for local-fallback users
+    // (no real Supabase id) — fall back to state.user.email so analytics
+    // identify still fires with a stable identifier.
+    identifyUserForAnalytics(window.Identity.email() || state.user?.email, {
       provider: 'email',
-      tier: state.user.isPro ? 'pro' : 'free'
+      tier: state.user?.isPro ? 'pro' : 'free'
     });
     trackEvent('signin_completed', {
       provider: 'email',
       durationMs: Date.now() - (state._timing?.signinAttemptedAt || Date.now())
     });
     // [Dim 09 D10 — exclamation removed per Warmth-6 attitudinal range.]
-    toast(signinMode === 'signup' ? `Welcome, ${state.user.name}.` : 'Signed in.');
+    // [Identity Stage 4] name read via Identity + state.user fallback.
+    toast(signinMode === 'signup' ? `Welcome, ${window.Identity.name() || state.user?.name || ''}.` : 'Signed in.');
     afterSigninRouting();
   });
 
@@ -1220,32 +1411,11 @@
         toast('Apple sign-in coming soon');
         return;
       }
-      if (provider === 'amazon') {
-        // Login with Amazon would integrate via Supabase OAuth (Amazon provider)
-        // once enabled in the dashboard. For now, fall through to mock.
-        if (window.furnishBackend?.mode === 'supabase') {
-          toast('Enable Amazon provider in Supabase dashboard to wire this up');
-          return;
-        }
-        state.user = {
-          generationsUsed: state.user?.generationsUsed || state.user?.redesignsUsed || 0,
-          redesignsUsed:   state.user?.redesignsUsed || state.user?.generationsUsed || 0,
-          isPro: !!state.user?.isPro,
-          firstRedesignTutorialSeen: !!state.user?.firstRedesignTutorialSeen,
-          name: 'Amazon User',
-          email: 'amazon.user@furnish.app',
-          provider: 'amazon',
-          signedInAt: Date.now()
-        };
-        // [ToS consent block] Persist on mock-Amazon success.
-        recordConsent(_socialConsent);
-        save();
-        // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before route.
-        renderAuthDependentSurfaces();
-        toast('Signed in with Amazon');
-        afterSigninRouting();
-        return;
-      }
+      // [Bonus cleanup] Amazon signin path removed. Amazon affiliate
+      // links / shopping references in the catalog (FURNITURE_DB,
+      // AFFILIATE_TAGS, sourceLabel) are intentionally untouched —
+      // Amazon stays a shopping destination; just no longer a signin
+      // option. Apple stays as a "coming soon" placeholder.
 
       if (window.furnishBackend?.mode === 'supabase' && provider === 'google') {
         // [ToS consent block] Stash consent state before the OAuth
@@ -1271,11 +1441,15 @@
         provider,
         signedInAt: Date.now()
       };
+      // [Identity Stage 2] Mirror mock-social local-fallback signin.
+      // Same id-less mock caveat — _fromUserBlob produces GUEST_RECORD.
+      if (typeof window.Identity !== 'undefined') {
+        window.Identity.replace(window.Identity._fromUserBlob(state.user));
+      }
       // [ToS consent block] Persist on mock-social signin success.
       recordConsent(_socialConsent);
       save();
-      // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before route.
-      renderAuthDependentSurfaces();
+      // [Identity Stage 3] Render is bus-driven — see Identity.replace above.
       toast(`Signed in with ${label}`);
       afterSigninRouting();
     });
@@ -1298,29 +1472,91 @@
     // wipe rooms/profiles/wishlist. It only nulls state.user to reflect
     // server reality. The deliberate-signout button-press path (Bug E
     // fix) is the one that nukes everything.
-    window.furnishBackend.auth.onChange((user) => {
-      if (!user && state.user?.id) {
-        console.log('[auth.onChange] server-side signout detected, clearing local user');
+    window.furnishBackend.auth.onChange((user, evt) => {
+      // [Identity Stage 4] Guard via Identity.isAuthenticated() (was a
+      // direct read of the legacy state.user id field). Same semantic:
+      // server says no user AND we think we're locally signed in → clear.
+      //
+      // [OAuth-visual-bug fix] Only treat SIGNED_OUT / USER_DELETED as
+      // authoritative auth-loss. Supabase v2's onAuthStateChange also
+      // fires INITIAL_SESSION (on subscribe; null if OAuth-hash detection
+      // is still mid-flight) and TOKEN_REFRESHED (null if a transient
+      // refresh fails) — both can carry a null session even when the
+      // user is legitimately signed in. Pre-fix, those transient nulls
+      // triggered Identity.completeSignout(), which fires Layer B
+      // (app.js:1777), which routes a freshly-signed-in user back to
+      // welcome AFTER openRoom has already showScreen('results') —
+      // symptom: welcome painted on top of results immediately
+      // post-OAuth-callback.
+      const isAuthoritativeSignout = evt === 'SIGNED_OUT' || evt === 'USER_DELETED';
+      if (!user && isAuthoritativeSignout && window.Identity.isAuthenticated()) {
+        console.log(`[auth.onChange] ${evt} received, clearing local user`);
         state.user = null;
+        // [Identity Stage 3] Identity.completeSignout fires the bus; the
+        // render subscriber repaints all auth-aware surfaces (was the
+        // lone renderUserPill / renderAuthDependentSurfaces call here
+        // before the bus existed).
+        if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
         save();
-        // [Bugs 11/E/F unified fix] Replace lone renderUserPill call with
-        // the comprehensive helper — if the user is on home/profile-select/
-        // profile when this fires, those surfaces also need to repaint to
-        // reflect the now-signed-out state.
-        if (typeof renderAuthDependentSurfaces === 'function') {
-          renderAuthDependentSurfaces();
-        } else if (typeof renderUserPill === 'function') {
-          renderUserPill();
-        }
         toast('Signed out.');
       }
     });
 
     try {
-      const user = await window.furnishBackend.auth.getUser();
-      if (!user) return;
+      let user = await window.furnishBackend.auth.getUser();
+      if (!user) {
+        // [OAuth race fix] getUser() can return null transiently during an
+        // OAuth callback when Supabase's detectSessionInUrl is still
+        // mid-flight processing the URL hash → session exchange. Same-
+        // account signin is the consistent repro because Google redirects
+        // back instantly (no consent screen), letting backend-ready beat
+        // hash processing to the punch. Wait briefly for the SIGNED_IN
+        // event (or INITIAL_SESSION with a session) before falling through.
+        //
+        // Pre-fix: handler returned silently here and the splash hung
+        // until the boot 5s fallback fired showScreen('welcome'), losing
+        // the user's reveal-pending route to results entirely.
+        const isOAuthCallback =
+          window.location.hash.includes('access_token=') ||
+          window.location.search.includes('code=');
+        if (isOAuthCallback) {
+          console.log('[backend-ready] getUser returned null but OAuth callback in progress — waiting for SIGNED_IN');
+          user = await new Promise((resolve) => {
+            let unsub = null;
+            const timer = setTimeout(() => {
+              console.warn('[backend-ready] timed out waiting for OAuth SIGNED_IN event after 3s');
+              unsub?.();
+              resolve(null);
+            }, 3000);
+            // Listen for SIGNED_IN OR INITIAL_SESSION carrying a user.
+            // INITIAL_SESSION fires synchronously on subscribe with the
+            // current session — covers the microtask-race case where the
+            // hash exchange completed between our getUser call and this
+            // listener registration. SIGNED_IN fires later if the exchange
+            // is still in flight when we subscribe.
+            unsub = window.furnishBackend.auth.onChange((u, evt) => {
+              if (u && (evt === 'SIGNED_IN' || evt === 'INITIAL_SESSION')) {
+                clearTimeout(timer);
+                unsub?.();
+                resolve(u);
+              }
+            });
+          });
+        }
+        if (!user) {
+          // No user resolved (no session at all, or OAuth race timed
+          // out). [Boot splash] Fall through to welcome so the splash
+          // hides immediately rather than hanging until the boot 5s
+          // fallback. No-op if a screen was already shown.
+          if (!_firstScreenShown) {
+            showScreen('welcome');
+          }
+          return;
+        }
+      }
       // Already signed in (e.g. returning from OAuth or cached session)
-      const wasSignedIn = !!state.user?.id;
+      // [Identity Stage 4] wasSignedIn now reads through Identity.
+      const wasSignedIn = window.Identity.isAuthenticated();
       // [Model A — STEP 5 §16 row 4] Snapshot the cached tier+quota BEFORE we
       // pullAll(), so we can detect drift between offline-cached and server-
       // canonical. If the user paid (or canceled) on another device while this
@@ -1344,6 +1580,13 @@
         firstRedesignTutorialSeen: cachedTier.firstRedesignTutorialSeen
       };
       try { await window.furnishBackend.pullAll(state); } catch (err) { console.warn('[Furnish] pull failed', err); }
+      // [Identity Stage 2] Mirror OAuth callback signin into Identity.
+      // state.user was reassigned a few lines above with the real Supabase
+      // user.id, so _fromUserBlob produces a proper authenticated record.
+      // Fires bus → Stage 3 subscribers will repaint + claim guest room.
+      if (typeof window.Identity !== 'undefined') {
+        window.Identity.replace(window.Identity._fromUserBlob(state.user));
+      }
       // [ToS consent block] If consent was stashed pre-OAuth-redirect,
       // persist it now that the session is back.
       if (state._pendingConsent) {
@@ -1357,11 +1600,41 @@
       // grandfathered if they didn't have a tierGrantedAt before.
       grandfatherProUsers();
       save();
-      // [Bugs 11/E/F unified fix] Re-paint auth-dependent UI before the
-      // routing decision below. Especially important for OAuth callbacks
-      // where the page reloaded — every screen rendered from boot was
-      // painted with the pre-signin state and needs immediate refresh.
-      renderAuthDependentSurfaces();
+      // [Photo storage] Migration pass — upload every room.photo still
+      // held as a base64 dataURL to source-photos and replace with the
+      // URL. Catches BOTH the just-generated guest room about to be
+      // revealed below AND legacy rooms from before this migration
+      // landed. Fire-and-forget: routing proceeds immediately; render
+      // reads base64 until the URL replaces it (img.src works on both,
+      // no visual difference). _uploadAllPendingRoomPhotos calls save()
+      // once uploads finish, so the next localStorage write is URL-only.
+      _uploadAllPendingRoomPhotos().catch(err => console.warn('[photo migration]', err));
+      // [Bug 1 fix — OAuth artifact cleanup] After successful OAuth,
+      // Supabase v2's detectSessionInUrl extracts tokens from the URL
+      // but leaves a bare '#' behind (or sometimes the full
+      // token-bearing hash if extraction races). Subsequent code that
+      // reads window.location.href or window.location.hash gets a
+      // "dirty" URL. This cleans it once auth is fully resolved.
+      //
+      // Defense in depth on top of afa33fa: that commit fixed the
+      // redirectTo payload so OAuth never produces '##'; this cleans
+      // the URL bar itself so the bare '#' doesn't leak into other
+      // code paths and so the URL the user sees / bookmarks / shares
+      // is just the canonical pathname.
+      //
+      // Safe because the app doesn't use hash routing or query-string
+      // state (verified: zero popstate routing logic, zero search-param
+      // state). Anything in hash/search at this moment is an OAuth
+      // artifact and can be wiped without losing app state.
+      if (window.location.hash || window.location.search) {
+        history.replaceState(null, '', window.location.pathname);
+      }
+      // [Identity Stage 3] Render is bus-driven — the Identity.replace
+      // earlier in this handler fired the subscriber that repainted the
+      // topbar pill + active screen. Especially important for OAuth
+      // callbacks where the page reloaded — the bus + initial-fire
+      // contract guarantees subscribers attached during app boot see
+      // the post-pull identity state.
       // [Auth flow Fix 4] OAuth callback routing.
       // Pre-fix this only routed via afterSigninRouting() when the active
       // screen was the HTML default 'welcome' AND the user wasn't already
@@ -1373,13 +1646,71 @@
       // as the fallback for pre-reveal first-time signups.
       const active = document.querySelector('.screen.active')?.dataset?.screen;
       const hasPendingReveal = state._pendingIntent?.intent === 'reveal';
-      if (hasPendingReveal || (!wasSignedIn && active === 'welcome')) {
+      // [Boot splash] When the splash is still up (no active screen yet
+      // because boot deferred showScreen for an OAuth callback), treat
+      // that as if the user was on welcome — that's the screen they'd
+      // have been on pre-fix. Lets the !wasSignedIn signin-from-welcome
+      // path still route correctly during OAuth callbacks where boot()
+      // deliberately skipped the welcome paint.
+      const fromWelcomeOrSplash = active === 'welcome' || (!active && !_firstScreenShown);
+      if (hasPendingReveal || (!wasSignedIn && fromWelcomeOrSplash)) {
         afterSigninRouting();
       } else if (active === 'profile-select') {
         renderProfiles();
+      } else if (wasSignedIn && fromWelcomeOrSplash) {
+        // [Bug 2 fix — refresh routing] Signed-in user landed on
+        // welcome with no pending intent — typical refresh scenario,
+        // or any cold-start of a returning signed-in user. Pre-fix
+        // the routing block had no branch for this: the user got
+        // stuck on welcome until they manually clicked the CTA, which
+        // would then short-circuit at welcomeStartBtn:625 to
+        // profile-select. This branch does the routing automatically
+        // on boot, with the same hasHistory cascade afterSigninRouting
+        // uses for post-signin landings.
+        //
+        // NOT calling afterSigninRouting() directly because that
+        // helper sets state._showExploreWelcome = true, a post-signin
+        // one-shot flag that surfaces an Explore coachmark on home.
+        // Firing it on every page refresh would re-show the coachmark
+        // every time, which is wrong — coachmarks are once-after-
+        // signin behavior, not once-per-load.
+        //
+        // Scope limit (acknowledged): this routes to home for the
+        // typical case, NOT to the user's last-viewed screen (e.g.,
+        // refresh-from-results doesn't restore results). Persisting
+        // last-screen would require a state._lastScreen field updated
+        // on every showScreen call — separate ticket if Hassan wants
+        // it. Refresh-to-home is acceptable because the user can
+        // re-enter their room from Saved or Home Recent in two taps.
+        if (state.profiles?.length > 0 && state.rooms?.length > 0) {
+          ensureActiveProfile();
+          showScreen('home');
+          renderHome();
+        } else if (state.profiles?.length > 0) {
+          ensureActiveProfile();
+          showScreen('capture');
+          prepareCapture();
+        } else {
+          showScreen('profile-select');
+          renderProfiles();
+        }
+      }
+      // [Boot splash] If the routing logic above did not call any
+      // showScreen (e.g., wasSignedIn returning user with no pending
+      // intent + boot deferred for an OAuth marker that the backend
+      // didn't actually consume), explicitly default to welcome so the
+      // splash hides. No-op if a screen was already shown.
+      if (!_firstScreenShown) {
+        showScreen('welcome');
       }
     } catch (err) {
       console.warn('[Furnish] auto-restore failed', err);
+      // [Boot splash] Auto-restore failed — fall through to welcome so
+      // the splash hides even on the error path. No-op if a screen was
+      // already shown.
+      if (!_firstScreenShown) {
+        showScreen('welcome');
+      }
     }
   });
 
@@ -1418,6 +1749,8 @@
             await window.furnishBackend.auth.signOut().catch(()=>{});
           }
           state.user = null;
+          // [Identity Stage 2] Mirror Switch Account's state.user clear.
+          if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
           save();
           prepareSignin();
           showScreen('signin');
@@ -1595,38 +1928,113 @@
   function renderUserPill() {
     const menu = $('#userMenu');
     if (!menu) return;
-    if (!state.user) { menu.style.display = 'none'; return; }
+    // [Identity Stage 4] Visibility check via Identity.isAuthenticated()
+    // (was a falsy state.user check). Pill hides for guests + local-fallback
+    // mock users; visible for real Supabase-authenticated users only.
+    // Slight semantic tightening from pre-Stage-4: pre-fix the pill was
+    // visible for any non-null state.user including local-fallback mocks.
+    // For Hassan's cloud-mode setup this is identical behavior; local-
+    // fallback users (dev-only) now see no pill until Stage 5 fixes
+    // their id synthesis.
+    if (!window.Identity.isAuthenticated()) { menu.style.display = 'none'; return; }
     menu.style.display = '';
-    const name = state.user.name || (state.user.email || '').split('@')[0];
+    // [Identity Stage 4] Identity reads with state.user fallback for
+    // robustness (local-fallback case as documented above).
+    const idName = window.Identity.name() || state.user?.name || '';
+    const idEmail = window.Identity.email() || state.user?.email || '';
+    const name = idName || idEmail.split('@')[0];
     const initial = (name[0] || '?').toUpperCase();
     $('#userPillName').textContent = name;
     $('#userDropdownName').textContent = name;
-    $('#userDropdownEmail').textContent = state.user.email || '';
+    $('#userDropdownEmail').textContent = idEmail;
     const av = $('#userPillAvatar');
     av.textContent = initial;
     av.style.background = avatarGradient(0); // use the lightest brown shade
   }
 
-  // [Bugs 11/E/F unified fix] Single helper that re-paints every UI surface
-  // that depends on auth state. Called after every successful auth-state
-  // mutation (signin, signup, OAuth callback, signout, server-side session
-  // change). Replaces the pre-fix pattern of scattered `renderUserPill()`
-  // calls that left other auth-dependent surfaces stale.
+  // [Identity Stage 3] Render orchestration via Identity bus.
+  // Replaces the pre-Stage-3 renderAuthDependentSurfaces helper + its 6
+  // manual call sites with a single subscriber to the Identity bus. Every
+  // auth-state transition (signin, signup, signout, OAuth callback, token
+  // expiry, multi-tab signout) fires Identity.replace() at the write site
+  // (Stage 2), which fires the bus, which triggers this subscriber to
+  // re-paint the relevant surfaces.
   //
-  // What it refreshes:
-  //   - Topbar `#userMenu` pill (always — sticks across screens)
-  //   - The currently-active screen's primary content, if it's auth-aware:
-  //       home → renderHome (active profile pill, lifecycle banner, etc.)
-  //       profile-select → renderProfiles (account name, profile grid)
-  //       profile → renderProfilePage (auth-aware buttons per Bug F)
+  // Three subscribers, registered in order:
+  //   1. claim-guest-room — fires on guest→authenticated transition only.
+  //      Re-anchors state.activeProfileId from the local guest profile to
+  //      the server profile (Bug 11). Runs FIRST so the render below sees
+  //      the correct activeProfileId.
+  //   2. guest-boundary (Layer B) — fires on authenticated→guest transition
+  //      only. If the user just lost their session (token expiry, multi-tab
+  //      signout, programmatic clear) WHILE on a forbidden screen, force-
+  //      route them to welcome. Runs BEFORE the render subscriber so the
+  //      render fires after navigation has settled. Pairs with Layer A
+  //      (the showScreen guard) — A handles attempted nav by guests; B
+  //      handles guests-by-transition who weren't navigating at all.
+  //   3. render-auth-dependent-surfaces — fires on every identity change.
+  //      Repaints topbar pill + active screen's auth-aware content.
   //
-  // Pre-fix symptom: post-signin, the topbar dropdown stayed hidden (was
-  // hidden during guest session) and home showed the wrong profile until
-  // the user manually navigated, triggering renderHome via the data-go
-  // click handler. With this helper, every auth change repaints the
-  // visible surface immediately.
-  function renderAuthDependentSurfaces() {
+  // All subscribers receive the initial fire (cb(null, current)) when
+  // they attach. The render subscriber's initial fire is harmless (the
+  // surfaces aren't painted yet — the screens themselves haven't been
+  // shown). The claim subscriber's initial fire is also harmless (no
+  // prev → no transition detected). Layer B's initial fire is also a
+  // no-op: prev is null, so no transition is detected.
+  Identity.subscribe((prev, next) => {
+    // Detect guest → authenticated transition specifically. Ignore:
+    //   - initial fire (prev is null)
+    //   - no-op fires where kind didn't change (e.g., same-record replace)
+    //   - authenticated → guest (signout — nothing to claim)
+    if (!prev || prev.kind !== 'guest' || next.kind !== 'authenticated') return;
+    if (typeof claimGuestRoomForUser === 'function') {
+      claimGuestRoomForUser();
+    }
+  });
+
+  // [Guest boundary — Layer B] Auth-loss boundary check.
+  // Fires when an authenticated user becomes a guest mid-session (token
+  // expiry caught by auth.onChange, multi-tab signout, programmatic clear,
+  // performSignout — though performSignout already routes to welcome
+  // explicitly, this subscriber is harmlessly redundant in that case).
+  //
+  // If the user is currently on a forbidden screen at the moment of the
+  // auth-loss transition, force-route to welcome. Runs BEFORE the render
+  // subscriber below so navigation settles first; then render paints the
+  // post-navigation state (welcome) consistently.
+  //
+  // Skips:
+  //   - Initial fire (prev is null) — boot-time, no transition.
+  //   - guest→authenticated and same-state transitions — not auth-loss.
+  //   - auth-loss WHILE on a guest-allowed screen — they're already
+  //     somewhere they're allowed to be; no forced navigation needed.
+  Identity.subscribe((prev, next) => {
+    if (!prev || prev.kind !== 'authenticated' || next.kind !== 'guest') return;
+    const active = document.querySelector('.screen.active')?.dataset?.screen;
+    if (!active || GUEST_ALLOWED_SCREENS.has(active)) return;
+    console.log(`[guest-boundary] auth lost on forbidden screen "${active}", routing to welcome`);
+    trackEvent('guest_boundary_blocked', {
+      attemptedScreen: active,
+      from: active,
+      layer: 'B',
+    });
+    showScreen('welcome');
+  });
+
+  Identity.subscribe((prev, next) => {
+    // Skip initial fire (prev is null) — the boot-time identity record
+    // doesn't represent a transition; it represents the starting state.
+    // Initial paint will happen via screen-show renderers anyway.
+    if (!prev) return;
+    // Skip no-op transitions (same kind AND same userId). This dedupes
+    // scenarios like beginGuest() being called when already a guest.
+    if (prev.kind === next.kind && prev.supabaseUserId === next.supabaseUserId) return;
+    // Always repaint the topbar pill — it's a global affordance present
+    // across multiple screens and the user can see it anywhere.
     if (typeof renderUserPill === 'function') renderUserPill();
+    // Repaint the currently-active screen if it's auth-aware. The screen
+    // renderers are idempotent — re-running them on a screen the user
+    // is already on just refreshes content with new data.
     const active = document.querySelector('.screen.active')?.dataset?.screen;
     if (active === 'home' && typeof renderHome === 'function') {
       renderHome();
@@ -1635,7 +2043,7 @@
     } else if (active === 'profile' && typeof renderProfilePage === 'function') {
       renderProfilePage();
     }
-  }
+  });
 
   $('#addProfileBtn').addEventListener('click', () => {
     // Adding extra profiles is gated behind Pro.
@@ -6503,6 +6911,8 @@
       // session is unattributed until a new identify() call.
       resetAnalyticsIdentity();
       state.user = null;
+      // [Identity Stage 2] Mirror profile-page Switch Account's state.user clear.
+      if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
       save();
       prepareSignin();
       showScreen('signin');
@@ -6885,6 +7295,12 @@
         const transient = synthesizeAnswersFromTemplate(t);
         const room = buildRoomFromDraft(transient);
         room.modelTier = tier;
+        // [Routing-bug fix] Capture isFirstTimeOnboarding() BEFORE the
+        // state.rooms.push below — same timing bug as the own-photo path
+        // in _runAnalyze. The push inverts the predicate (rooms.length
+        // 0 → 1) mid-function for first-time guests, causing the reveal-
+        // gate branch to skip and route to results, which Layer A blocks.
+        const wasFirstTimeOnboarding = isFirstTimeOnboarding();
         state.rooms.push(room);
         state.draft = null;
         incrementGenerationCount();
@@ -6897,10 +7313,18 @@
         // generation save surface fires once when openRoom runs.
         state._justGeneratedRoomId = room.id;
         save();
+        // [Photo storage] Post-signin: kick off background upload to
+        // source-photos (template-generation path mirrors _runAnalyze).
+        // For guest templates the upload defers to the backend-ready
+        // migration pass on signin.
+        if (window.Identity?.isAuthenticated()) {
+          _uploadRoomPhotoIfBase64(room).then(ok => { if (ok) save(); });
+        }
         // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
         // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
         // returning users whose session was lost mid-flow don't get re-gated.
-        if (isFirstTimeOnboarding()) {
+        // [Routing-bug fix] Read the captured snapshot, not the live predicate.
+        if (wasFirstTimeOnboarding) {
           state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'templates' };
           save();
           prepareSignin();
@@ -7173,6 +7597,17 @@
         // surface a "premium-quality next time" CTA on standard-tier results.
         const room = buildRoomFromDraft();
         room.modelTier = tier;
+        // [Routing-bug fix] Capture isFirstTimeOnboarding() BEFORE the
+        // state.rooms.push below. The push transitions state.rooms.length
+        // from 0 → 1 for a first-time guest, which inverts the predicate
+        // (isGuest && rooms.length === 0) from true to false mid-function.
+        // Reading the live predicate at the routing check below would then
+        // skip the reveal-gate branch and route to results — which Layer A
+        // (guest-boundary guard) blocks, redirecting to welcome. Symptom:
+        // first-time guest finishes analyzing → ends up on welcome instead
+        // of the Almost there reveal gate. Snapshot the verdict at the
+        // moment the analyze fired, before any state mutations.
+        const wasFirstTimeOnboarding = isFirstTimeOnboarding();
         state.rooms.push(room);
         state.draft = null;
         incrementGenerationCount();
@@ -7184,6 +7619,14 @@
         recordHomeProgressRoom(room.type, 'own_photo', { roomId: room.id, generatedAt: Date.now() });
         state._justGeneratedRoomId = room.id;
         save();
+        // [Photo storage] Post-signin: kick off background upload to
+        // source-photos. URL replaces base64 in room.photo when upload
+        // completes; save() persists the URL value. For guests this is
+        // a no-op — the backend-ready handler runs the migration pass
+        // on the next signin via _uploadAllPendingRoomPhotos.
+        if (window.Identity?.isAuthenticated()) {
+          _uploadRoomPhotoIfBase64(room).then(ok => { if (ok) save(); });
+        }
         trackEvent('analyze_completed', {
           roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt,
           // [BUDGET_RESET_PASS — Phase 2] Include the transient budget on
@@ -7197,7 +7640,9 @@
         // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
         // returning users (e.g., session expired mid-flow) skip the gate
         // and go straight to results — they've already converted once.
-        if (isFirstTimeOnboarding()) {
+        // [Routing-bug fix] Read the captured snapshot, not the live
+        // predicate (which is now stale post-push for first-time guests).
+        if (wasFirstTimeOnboarding) {
           state._pendingIntent = { intent: 'reveal', roomId: room.id, fromScreen: 'capture' };
           save();
           prepareSignin();
@@ -7250,13 +7695,20 @@
   // explicitly 'guest'. touchLastVisit() at boot initializes state.user = {}
   // (no provider), and the welcomeStartBtn flow sets provider:'guest' only
   // for a brand-new state.user. This handles the empty-object case.
+  // [Identity Stage 4] Predicate body migrated to delegate to Identity.
+  // Pre-Stage-4 body: read state.user, check provider against 'guest'.
+  // The legacy logic is preserved exactly in Identity.isGuest() (which
+  // also handles the 30+ defensive `state.user = {}` empty-object case
+  // — Identity._fromUserBlob returns GUEST_RECORD for any blob lacking
+  // a real provider+id pair, so isGuest() returns true for those).
   function isGuest() {
-    if (!state.user) return true;
-    const p = state.user.provider;
-    return !p || p === 'guest';
+    return window.Identity.isGuest();
   }
+  // [Identity Stage 4] Auth half migrates to Identity.isAuthenticated().
+  // The isPro check still reads state.user.isPro directly — that field
+  // moves to state.tier in Stage 5; out of scope here.
   function isSignedInFree() {
-    return !!state.user && state.user.provider && state.user.provider !== 'guest' && !state.user.isPro;
+    return window.Identity.isAuthenticated() && !state.user?.isPro;
   }
 
   // [Bugs 11/23/24 unified fix] First-time onboarding predicate.
@@ -10015,7 +10467,11 @@
   // Referral link — stub now, wire real attribution backend later.
   // ?ref=<userId>&room=<roomId> lets you credit inviter on signup.
   function buildInviteLink() {
-    const uid = state.user?.id || state.user?.email || 'guest';
+    // [Identity Stage 4] uid composite: prefer Identity.userId(); fall
+    // back to state.user.email for the local-fallback signin case (where
+    // Identity is guest but state.user has a mock email). Stage 5 will
+    // synthesize an id for local-fallback users so this can simplify.
+    const uid = (window.Identity?.userId()) || state.user?.email || 'guest';
     const code = btoa(uid).replace(/=+$/,'').slice(0, 10);
     return `https://furnish.app/?ref=${code}&room=${encodeURIComponent(currentRoomId || '')}`;
   }
@@ -10829,6 +11285,14 @@
     //    flags. Theme is preserved as a device preference.
     const preservedTheme = state.settings?.theme || 'light';
     state.user = null;
+    // [Identity Stage 2] Mirror performSignout's state.user clear into
+    // Identity. Note: Identity.completeSignout fires the bus immediately,
+    // BEFORE the rest of the state wipe completes. Subscribers (Stage 3)
+    // that read state.profiles/rooms etc. will see them mid-clear. The
+    // render subscriber added in Stage 3 reads no auth-coupled state, so
+    // this ordering is safe; if a future subscriber needs the full clean,
+    // move this call to after the wipe.
+    if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
     state.profiles = [];
     state.activeProfileId = null;
     state.rooms = [];
@@ -10854,15 +11318,9 @@
     state._justGeneratedRoomId = null;
     // 5. Persist to localStorage
     save();
-    // 6. Sync UI surfaces that don't auto-rebuild on state change
-    // [Bugs 11/E/F unified fix] Use the comprehensive helper — performSignout
-    // wipes state at step 4, so any surface the user might happen to be
-    // on (home/profile-select/profile) needs to repaint immediately.
-    if (typeof renderAuthDependentSurfaces === 'function') {
-      renderAuthDependentSurfaces();
-    } else if (typeof renderUserPill === 'function') {
-      renderUserPill();
-    }
+    // 6. Sync UI surfaces — bus-driven via Identity.completeSignout
+    // (called inside the state wipe block above). The render subscriber
+    // repaints any auth-aware surface the user happens to be on.
     // 7. User-facing confirmation + navigation
     toast('Signed out. Your data has been cleared from this device.');
     showScreen('welcome');
@@ -10876,7 +11334,8 @@
   // your previous library." Per Reforge Resurrecting Involuntary Dormant
   // Users → Category One: Product Issue.
   function snapshotStateOnSignout() {
-    const uid = state.user?.id || state.user?.email;
+    // [Identity Stage 4] uid composite via Identity + email fallback.
+    const uid = (window.Identity?.userId()) || state.user?.email;
     if (!uid) return;
     try {
       localStorage.setItem(`furnish.state.backup.${uid}`, JSON.stringify({
@@ -10896,7 +11355,8 @@
   window.FurnishSignoutSnapshot = snapshotStateOnSignout;
 
   function maybeOfferStateRestore() {
-    const uid = state.user?.id || state.user?.email;
+    // [Identity Stage 4] uid composite via Identity + email fallback.
+    const uid = (window.Identity?.userId()) || state.user?.email;
     if (!uid) return;
     let backup;
     try {
@@ -12056,7 +12516,8 @@
     // [Batch 1 additions]
     gcOrphanedWishlist();           // Dim 14 — prune orphan wishlist IDs
     renderPhotoTip();                // Dim 14 — mount photo tip card on capture
-    if (state.user?.id || state.user?.email) {
+    // [Identity Stage 4] Has-some-identity check via Identity + email fallback.
+    if ((window.Identity?.userId()) || state.user?.email) {
       maybeOfferStateRestore();      // Dim 14 — offer previous-session restore
     }
 
@@ -12077,7 +12538,53 @@
     // fresh based on saves/verdicts since last open. Idempotent.
     (state.profiles || []).forEach(p => recomputeProfileStyleScores(p.id));
 
-    showScreen('welcome');
+    // [Boot splash + OAuth flash fix] Detect OAuth callback markers in
+    // the URL. If present, the user is post-Google-redirect and the
+    // backend-ready handler will route them (typically to results via
+    // afterSigninRouting's reveal branch). Defer showScreen so we never
+    // paint welcome before that route fires. The splash element covers
+    // the deferral window.
+    //
+    // [Refresh-flash fix] Also defer when Identity hydrates as
+    // authenticated at boot. A signed-in user refreshing on any surface
+    // (results, home, etc.) would otherwise see boot paint welcome for
+    // ~200-500ms before Bug 2's routing branch in the backend-ready
+    // handler resolves and switches to home. Identity is hydrated
+    // synchronously from localStorage by identity.js before app.js
+    // loads, so isAuthenticated() is reliable at boot. Bug 2's branch
+    // (wasSignedIn && fromWelcomeOrSplash) handles routing the splash
+    // → home/capture/profile-select cascade once backend-ready fires.
+    //
+    // For guests with no OAuth markers (typical first-visit), default
+    // to welcome immediately — that IS their intended destination, so
+    // no deferral is needed.
+    //
+    // Markers checked: `#access_token=` (implicit OAuth flow) and
+    // `?code=` (PKCE flow). Mirrors what Supabase v2's detectSessionInUrl
+    // looks for.
+    const isOAuthCallback =
+      window.location.hash.includes('access_token=') ||
+      window.location.search.includes('code=');
+    const isSignedInOnBoot = window.Identity?.isAuthenticated?.() === true;
+
+    if (!isOAuthCallback && !isSignedInOnBoot) {
+      showScreen('welcome');
+    } else {
+      console.log(`[boot] deferring initial screen — ${isOAuthCallback ? 'OAuth callback' : 'signed-in user'} (backend-ready will route)`);
+      // Fallback safety net: if backend-ready never fires (SDK fetch
+      // failed, listener missed the event, mode='local' early-return) or
+      // never makes a routing decision, the user would otherwise be
+      // stuck on the splash indefinitely. After 5s, force welcome so the
+      // app doesn't appear hung. Gated on _firstScreenShown so this is a
+      // no-op when backend-ready already routed. Covers BOTH the OAuth-
+      // callback and signed-in-on-boot deferrals.
+      setTimeout(() => {
+        if (!_firstScreenShown) {
+          console.warn('[boot] deferral fallback firing — backend-ready did not resolve a screen within 5s');
+          showScreen('welcome');
+        }
+      }, 5000);
+    }
     startReviewsBar();
     wireCaptureFlow();
   }

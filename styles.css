@@ -148,6 +148,36 @@ html[data-reviews="hidden"]  #app { padding-bottom: 24px; }
 html[data-reviews="hidden"]  #app { padding-bottom: 24px; }
 .reviews-bar.hidden { display: none; }
 
+/* [Boot splash] Pre-JS / async-boot cover. Visible by default; hidden
+   by showScreen() on the first call OR by the boot fallback timer at
+   5s (see app.js bootSplash references). z-index above .modal (200)
+   and below page-level fixed overlays so a late-firing showScreen
+   still cleanly takes over. */
+#bootSplash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cream);
+  z-index: 1000;
+}
+#bootSplash.hidden { display: none; }
+#bootSplash .boot-splash-mark {
+  display: block;
+  width: 72px;
+  height: 72px;
+  animation: bootSplashPulse 1500ms ease-in-out infinite;
+}
+#bootSplash .boot-splash-mark svg { width: 100%; height: 100%; display: block; }
+@keyframes bootSplashPulse {
+  0%, 100% { opacity: 0.72; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #bootSplash .boot-splash-mark { animation: none; opacity: 1; }
+}
+
 .screen { display: none; padding: 20px 20px 24px; }
 .screen.active { display: block; animation: fadeIn 260ms ease; }
 @keyframes fadeIn {
