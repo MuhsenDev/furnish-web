@@ -1609,6 +1609,26 @@
       // no visual difference). _uploadAllPendingRoomPhotos calls save()
       // once uploads finish, so the next localStorage write is URL-only.
       _uploadAllPendingRoomPhotos().catch(err => console.warn('[photo migration]', err));
+      // [Bug 1 fix — OAuth artifact cleanup] After successful OAuth,
+      // Supabase v2's detectSessionInUrl extracts tokens from the URL
+      // but leaves a bare '#' behind (or sometimes the full
+      // token-bearing hash if extraction races). Subsequent code that
+      // reads window.location.href or window.location.hash gets a
+      // "dirty" URL. This cleans it once auth is fully resolved.
+      //
+      // Defense in depth on top of afa33fa: that commit fixed the
+      // redirectTo payload so OAuth never produces '##'; this cleans
+      // the URL bar itself so the bare '#' doesn't leak into other
+      // code paths and so the URL the user sees / bookmarks / shares
+      // is just the canonical pathname.
+      //
+      // Safe because the app doesn't use hash routing or query-string
+      // state (verified: zero popstate routing logic, zero search-param
+      // state). Anything in hash/search at this moment is an OAuth
+      // artifact and can be wiped without losing app state.
+      if (window.location.hash || window.location.search) {
+        history.replaceState(null, '', window.location.pathname);
+      }
       // [Identity Stage 3] Render is bus-driven — the Identity.replace
       // earlier in this handler fired the subscriber that repainted the
       // topbar pill + active screen. Especially important for OAuth
