@@ -286,7 +286,51 @@
     ]);
   }
 
-  window.furnishBackend = { mode: 'supabase', sb, auth, pullAll, pushAll, clearRemote };
+  // [Photo storage] Upload a base64 dataURL or Blob to the source-photos
+  // bucket and return a public URL. Path: {userId}/{roomId}.jpg with
+  // upsert:true so re-uploads from the same room (e.g. retry after a
+  // failed first attempt, or boot-time migration re-runs) are idempotent.
+  //
+  // PREREQUISITE: source-photos bucket must be PUBLIC and have an INSERT
+  // RLS policy scoping authenticated writes to {auth.uid()}/* — see the
+  // commit body for the exact SQL.
+  //
+  // Returns the public URL on success, throws on upload failure.
+  async function uploadSourcePhoto(userId, roomId, dataUrlOrBlob) {
+    if (!userId || !roomId) {
+      throw new Error('uploadSourcePhoto requires userId and roomId');
+    }
+    let blob;
+    if (typeof dataUrlOrBlob === 'string') {
+      // base64 dataURL: data:image/jpeg;base64,XXXX
+      const m = /^data:([^;]+);base64,(.*)$/.exec(dataUrlOrBlob);
+      if (!m) throw new Error('uploadSourcePhoto: input is not a base64 dataURL');
+      const contentType = m[1];
+      const bin = atob(m[2]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      blob = new Blob([bytes], { type: contentType });
+    } else if (dataUrlOrBlob instanceof Blob) {
+      blob = dataUrlOrBlob;
+    } else {
+      throw new Error('uploadSourcePhoto: input must be a base64 dataURL or Blob');
+    }
+    const path = `${userId}/${roomId}.jpg`;
+    const { error: uploadErr } = await sb.storage
+      .from('source-photos')
+      .upload(path, blob, {
+        upsert: true,
+        contentType: blob.type || 'image/jpeg'
+      });
+    if (uploadErr) throw uploadErr;
+    const { data } = sb.storage.from('source-photos').getPublicUrl(path);
+    if (!data?.publicUrl) {
+      throw new Error('uploadSourcePhoto: getPublicUrl returned empty');
+    }
+    return data.publicUrl;
+  }
+
+  window.furnishBackend = { mode: 'supabase', sb, auth, pullAll, pushAll, clearRemote, uploadSourcePhoto };
   emit();
   // [Phase 3] Top-level boot verdict — paired with the local-mode log
   // above. One line per app boot, no scrolling needed to verify which

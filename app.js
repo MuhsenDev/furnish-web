@@ -57,6 +57,76 @@
     }
   }
 
+  // [Photo storage] Upload base64 dataURL photos to source-photos bucket
+  // and replace room.photo with the URL — keeps localStorage small (URLs
+  // are ~100 bytes vs ~1-2MB base64) so the quota class of bugs stops at
+  // the source. Idempotent: short-circuits for non-base64 photos and for
+  // unauthenticated callers (guests keep base64 in localStorage until
+  // they sign in; the backend-ready handler runs the migration pass at
+  // signin via _uploadAllPendingRoomPhotos below).
+  //
+  // On upload failure the room.photo stays as base64 so the UI keeps
+  // rendering, _uploadPending is flagged for future retry, and a
+  // photo_upload_failed analytics event fires with a reason string.
+  async function _uploadRoomPhotoIfBase64(room) {
+    if (!room || typeof room.photo !== 'string') return false;
+    if (!room.photo.startsWith('data:image/')) return false; // already a URL or empty
+    const userId = window.Identity?.userId();
+    if (!userId) return false;
+    if (typeof window.furnishBackend?.uploadSourcePhoto !== 'function') return false;
+    const sizeBytes = room.photo.length;
+    const startedAt = Date.now();
+    try {
+      const url = await window.furnishBackend.uploadSourcePhoto(userId, room.id, room.photo);
+      room.photo = url;
+      delete room._uploadPending;
+      trackEvent('photo_uploaded', {
+        roomId: room.id,
+        sizeBytes,
+        durationMs: Date.now() - startedAt
+      });
+      return true;
+    } catch (err) {
+      console.warn('[photo upload] failed for room', room.id, err);
+      room._uploadPending = true;
+      trackEvent('photo_upload_failed', {
+        roomId: room.id,
+        reason: String((err && err.message) || err || '').slice(0, 200)
+      });
+      return false;
+    }
+  }
+
+  // [Photo storage] Migration pass — uploads every state.rooms[] photo
+  // still held as a base64 dataURL. Catches BOTH (a) the just-generated
+  // guest room about to be revealed in the post-signin reveal branch,
+  // and (b) legacy rooms accumulated before this migration landed
+  // (Hassan's dev environment in particular). Called from the backend-
+  // ready handler after Identity.replace + pullAll resolve, so by this
+  // point Identity.userId() is the canonical signed-in user.
+  //
+  // Sequential (not parallel) to be polite to the user's data plan;
+  // typical case is 1-3 rooms so the wall-clock cost is bounded.
+  async function _uploadAllPendingRoomPhotos() {
+    if (!Array.isArray(state.rooms) || state.rooms.length === 0) return;
+    if (!window.Identity?.userId()) return;
+    const pending = state.rooms.filter(r =>
+      typeof r?.photo === 'string' && r.photo.startsWith('data:image/')
+    );
+    if (pending.length === 0) return;
+    toast(pending.length === 1
+      ? 'Saving your photo to your library…'
+      : `Saving ${pending.length} photos to your library…`);
+    let uploaded = 0;
+    for (const room of pending) {
+      const ok = await _uploadRoomPhotoIfBase64(room);
+      if (ok) uploaded++;
+    }
+    if (uploaded > 0) {
+      save();  // localStorage now holds URL-only photos for the uploaded set
+    }
+  }
+
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1530,6 +1600,15 @@
       // grandfathered if they didn't have a tierGrantedAt before.
       grandfatherProUsers();
       save();
+      // [Photo storage] Migration pass — upload every room.photo still
+      // held as a base64 dataURL to source-photos and replace with the
+      // URL. Catches BOTH the just-generated guest room about to be
+      // revealed below AND legacy rooms from before this migration
+      // landed. Fire-and-forget: routing proceeds immediately; render
+      // reads base64 until the URL replaces it (img.src works on both,
+      // no visual difference). _uploadAllPendingRoomPhotos calls save()
+      // once uploads finish, so the next localStorage write is URL-only.
+      _uploadAllPendingRoomPhotos().catch(err => console.warn('[photo migration]', err));
       // [Identity Stage 3] Render is bus-driven — the Identity.replace
       // earlier in this handler fired the subscriber that repainted the
       // topbar pill + active screen. Especially important for OAuth
@@ -7177,6 +7256,13 @@
         // generation save surface fires once when openRoom runs.
         state._justGeneratedRoomId = room.id;
         save();
+        // [Photo storage] Post-signin: kick off background upload to
+        // source-photos (template-generation path mirrors _runAnalyze).
+        // For guest templates the upload defers to the backend-ready
+        // migration pass on signin.
+        if (window.Identity?.isAuthenticated()) {
+          _uploadRoomPhotoIfBase64(room).then(ok => { if (ok) save(); });
+        }
         // D7 auth gate: same as fresh-redesign path — guests sign up before reveal.
         // [Bug 24] Tightened from isGuest() to isFirstTimeOnboarding() so
         // returning users whose session was lost mid-flow don't get re-gated.
@@ -7476,6 +7562,14 @@
         recordHomeProgressRoom(room.type, 'own_photo', { roomId: room.id, generatedAt: Date.now() });
         state._justGeneratedRoomId = room.id;
         save();
+        // [Photo storage] Post-signin: kick off background upload to
+        // source-photos. URL replaces base64 in room.photo when upload
+        // completes; save() persists the URL value. For guests this is
+        // a no-op — the backend-ready handler runs the migration pass
+        // on the next signin via _uploadAllPendingRoomPhotos.
+        if (window.Identity?.isAuthenticated()) {
+          _uploadRoomPhotoIfBase64(room).then(ok => { if (ok) save(); });
+        }
         trackEvent('analyze_completed', {
           roomId: room.id, tier, durationMs: Date.now() - analyzeStartedAt,
           // [BUDGET_RESET_PASS — Phase 2] Include the transient budget on
