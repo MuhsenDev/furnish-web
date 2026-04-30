@@ -4587,20 +4587,10 @@
     syncFreeModeClass();
     syncVisitBandClass();
     ensureActiveProfile();
-    const p = getActiveProfile();
-    $('#activeProfileName').textContent = p ? p.name : 'No profile';
-
-    // Pill avatar — uses profile photo if set, otherwise the tan dot.
-    const dot = document.querySelector('#activeProfilePill .dot');
-    if (dot) {
-      if (p?.avatar) {
-        dot.classList.add('has-photo');
-        dot.style.backgroundImage = `url('${p.avatar}')`;
-      } else {
-        dot.classList.remove('has-photo');
-        dot.style.backgroundImage = '';
-      }
-    }
+    // [Bug 25] Removed #activeProfileName text update + #activeProfilePill
+    // .dot avatar styling — both elements deleted with the profile-pill
+    // removal. Active-profile context still surfaces via the topbar
+    // dropdown name and the profile-select screen.
 
     renderExploreWelcome();
     // [Batch 5 Part 2 — Dim 02 D02-11] Welcome-back commitment card fires
@@ -7163,10 +7153,9 @@
     });
   }
 
-  $('#switchProfileBtn').addEventListener('click', () => {
-    showScreen('profile-select');
-    renderProfiles();
-  });
+  // [Bug 25] #switchProfileBtn handler removed — button deleted with the
+  // profile-pill. Profile switching remains accessible via the topbar
+  // dropdown's Switch Account or via the profile-select screen.
 
   $('#wishlistBtn').addEventListener('click', () => {
     renderWishlist();
