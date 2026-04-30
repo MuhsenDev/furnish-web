@@ -184,13 +184,12 @@
         <div class="srh-bg" id="srhBg" aria-hidden="true"></div>
         <div class="srh-veil" aria-hidden="true"></div>
         <div class="srh-panel">
-          <!-- [Conflict 4 lock — replaced the fictitious "2,400+ designs
-               unlocked this week" with a real trust-policy claim. The cancel-
-               policy framing is true, defensible, and lands at exactly the
-               anxiety moment per Reforge Pain Point-Based archetype. -->
-          <div class="srh-trust">
-            <span class="srh-trust-text"><strong>Cancel before day 7</strong> · No charge if it's not for you</span>
-          </div>
+          <!-- [Bug 14] Removed leftover paywall trust line ("Cancel before
+               day 7 · No charge if it's not for you") — signin has no
+               trial, no charge, signin is just signin. Was misleading
+               on a screen with no monetization context. The .srh-trust
+               CSS rule in styles.css is left as an orphan; no other
+               surface uses it. -->
           <h1 class="srh-headline">Your room, reimagined.</h1>
           <!-- [Reframe] Dollar value redacted on the pre-signup reveal because
                budget hasn't been collected yet at this point in the flow.
