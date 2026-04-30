@@ -464,10 +464,14 @@
         </div>
       </header>
       <p class="subtle">Profiles save your style so every room you design matches your taste.</p>
+      <!-- [Profile limits] Counter populated by renderProfiles. Free: "X of 4". Pro: "X of 10". -->
+      <p class="subtle small" id="profileCount" aria-live="polite"></p>
       <div class="profile-grid" id="profileGrid"></div>
       <button class="btn btn-ghost add-profile-btn" id="addProfileBtn">
         <span class="apb-label">+ Add profile</span>
-        <span class="pro-lock"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>PRO</span>
+        <!-- [Profile limits] Removed .pro-lock PRO badge — Free users
+             can now add up to 4 profiles, so the gate is per-action
+             (toast on limit-hit) rather than per-button. -->
       </button>
     </section>
 

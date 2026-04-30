@@ -360,37 +360,9 @@ html[data-theme="dark"] @keyframes heroLampGlow {
 .profile-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--tan); }
 .profile-card.selected { border-color: var(--brown); background: var(--beige); }
 
-/* Pro-locked profile cards — greyed out, lock badge, shows paywall on tap */
-.profile-card.pro-locked {
-  opacity: 0.62;
-  filter: saturate(0.5);
-  position: relative;
-}
-.profile-card.pro-locked .profile-avatar,
-.profile-card.pro-locked .title,
-.profile-card.pro-locked .styles-line {
-  filter: blur(0.3px);
-}
-.profile-card.pro-locked::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(139,111,71,0.04), rgba(92,65,40,0.10));
-  border-radius: inherit;
-  pointer-events: none;
-}
-.profile-card .profile-lock {
-  position: absolute;
-  top: 10px; right: 10px;
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
-  color: #FAF3E7;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  padding: 4px 9px 4px 7px;
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(92, 65, 40, 0.28);
-  z-index: 2;
-}
-.profile-card.pro-locked .profile-edit-btn { display: none; }
+/* [Profile limits] .profile-card.pro-locked + .profile-lock badge rules
+   removed — JS no longer applies these classes (gate is now Free=4 /
+   Pro=10 at creation time, not per-card paywall). */
 .profile-avatar {
   width: 44px; height: 44px; border-radius: 50%;
   background: linear-gradient(135deg, var(--tan), var(--brown));

@@ -1824,22 +1824,26 @@
     const grid = $('#profileGrid');
     grid.innerHTML = '';
 
-    // Free tier = 1 profile only. Extra profiles are a Pro feature.
+    // [Profile limits] Free=4 / Pro=10. The seed-on-empty fallback below
+    // ensures the user always has at least one profile to land on.
     if (state.profiles.length === 0) {
       state.profiles.push(createProfile('Profile 1', { id: 'p1' }));
       save();
     }
 
-    // Profiles beyond the first are locked unless user is Pro.
-    // (Existing users who had 4 profiles from the previous seed keep their
-    // data, but profile #2+ shows a lock and opens the paywall on tap.)
-    const isPro = !!state.user?.isPro;
+    // [Profile limits] Per-card lock REMOVED. Pre-fix the renderer
+    // marked profile #2+ as pro-locked for Free users and routed
+    // taps to the paywall. New gate is limit-based at creation time
+    // (Free=4, Pro=10) — see addProfileBtn handler below. Once a
+    // profile exists, it's tappable.
+    const userIsPro = !!state.user?.isPro;
+    const profileLimit = userIsPro ? 10 : 4;
+    const countEl = document.getElementById('profileCount');
+    if (countEl) countEl.textContent = `${state.profiles.length} of ${profileLimit}`;
     state.profiles.forEach((p, idx) => {
-      const locked = idx > 0 && !isPro;
       const card = document.createElement('div');
       card.className = 'profile-card'
-        + (state.activeProfileId === p.id ? ' selected' : '')
-        + (locked ? ' pro-locked' : '');
+        + (state.activeProfileId === p.id ? ' selected' : '');
       card.style.setProperty('--stagger-i', idx);
       const initials = p.name.match(/\d+|\S/)?.[0] || p.name[0];
       const stylesLine = p.styles.length
@@ -1850,18 +1854,8 @@
         : `style="background:${avatarGradient(idx)}"`;
       const avatarClass = p.avatar ? 'profile-avatar has-photo' : 'profile-avatar';
       const avatarBody = p.avatar ? '' : initials;
-      const lockHTML = locked
-        ? `<div class="profile-lock" aria-label="Pro only">
-             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-               <rect x="5" y="11" width="14" height="9" rx="2"/>
-               <path d="M8 11V8a4 4 0 018 0v3"/>
-             </svg>
-             PRO
-           </div>`
-        : '';
       card.innerHTML = `
         <button class="profile-edit-btn" aria-label="Rename" title="Rename">✎</button>
-        ${lockHTML}
         <div class="${avatarClass}" ${avatarStyle}>${avatarBody}</div>
         <div class="title">${p.name}</div>
         <div class="styles-line">${stylesLine}</div>
@@ -1900,10 +1894,8 @@
         input.addEventListener('blur', commit);
       });
       card.addEventListener('click', () => {
-        if (locked) {
-          openPaywall('profile');
-          return;
-        }
+        // [Profile limits] Per-card paywall click removed — locks no
+        // longer apply (limit gate is at creation, not selection).
         state.activeProfileId = p.id;
         save();
         // [Hassan's call] If the profile has NEVER done the quiz
@@ -2046,9 +2038,23 @@
   });
 
   $('#addProfileBtn').addEventListener('click', () => {
-    // Adding extra profiles is gated behind Pro.
-    if (!state.user?.isPro) {
-      openPaywall('profile');
+    // [Profile limits] Tier-based limit (Free=4 / Pro=10). When the user
+    // is at-cap, fire a friendly toast instead of the paywall — Free
+    // users have already enjoyed the freedom of 4 profiles, so the
+    // upgrade hint reads as "more capacity available" rather than "you
+    // can't have this." Pro users hitting the cap is rare; the toast
+    // just informs.
+    const userIsPro = !!state.user?.isPro;
+    const limit = userIsPro ? 10 : 4;
+    if (state.profiles.length >= limit) {
+      toast(userIsPro
+        ? "You've reached the Pro limit of 10 profiles."
+        : 'Free users get 4 style profiles. Upgrade to Pro for up to 10.');
+      trackEvent('profile_limit_hit', {
+        tier: userIsPro ? 'pro' : 'free',
+        currentCount: state.profiles.length,
+        limit
+      });
       return;
     }
     const n = state.profiles.length + 1;
@@ -2056,6 +2062,11 @@
     state.profiles.push(p);
     save();
     renderProfiles();
+    trackEvent('profile_created', {
+      tier: userIsPro ? 'pro' : 'free',
+      newCount: state.profiles.length,
+      limit
+    });
   });
 
   // ---------- Paywall ----------
