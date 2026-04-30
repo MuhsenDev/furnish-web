@@ -49,11 +49,28 @@
   });
 
   // ---------- Auth ----------
+  // [OAuth ## bug — DO NOT "fix" these back to window.location.href]
+  // redirectTo / emailRedirectTo MUST be a clean URL: origin + pathname
+  // only, NO hash, NO query string.
+  //
+  // Using window.location.href compounds a stray '#' on every signin
+  // attempt after the first OAuth: Supabase v2's detectSessionInUrl
+  // strips access_token=... from the URL but leaves a bare '#' behind.
+  // window.location.href on the next signin therefore is e.g.
+  // 'http://localhost:PORT/#'. Passed as redirectTo, Google appends its
+  // own fragment producing 'http://localhost:PORT/##access_token=...'.
+  // The double-hash breaks Supabase's URLSearchParams parsing, no
+  // SIGNED_IN event fires, the app's 3s OAuth-race wait times out,
+  // user lands on welcome thinking signin failed.
+  //
+  // origin + pathname is structurally hash-free by definition, so this
+  // form cannot regress regardless of what state window.location is in
+  // when the user clicks signin. See commit log for full diagnosis.
   const auth = {
     async signUp(email, password, name) {
       const { data, error } = await sb.auth.signUp({
         email, password,
-        options: { data: { name }, emailRedirectTo: window.location.href }
+        options: { data: { name }, emailRedirectTo: `${window.location.origin}${window.location.pathname}` }
       });
       return { user: data?.user, session: data?.session, error };
     },
@@ -64,7 +81,7 @@
     async signInWithGoogle() {
       const { data, error } = await sb.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.href }
+        options: { redirectTo: `${window.location.origin}${window.location.pathname}` }
       });
       return { error, data };
     },
