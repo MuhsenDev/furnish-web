@@ -529,13 +529,9 @@
       });
       name = 'welcome';
     }
-    // [Reset Dialog] Edge-case per spec: if user navigates away mid-dialog
-    // (browser back, deep link, etc.), close the dialog cleanly so no
-    // stale reset state lingers. closeResetDialog is a no-op when the
-    // dialog isn't open.
-    if (typeof _resetDialogState !== 'undefined' && _resetDialogState) {
-      closeResetDialog('navigation');
-    }
+    // [Bug 26] Reset Profile feature removed entirely; the
+    // closeResetDialog('navigation') guard previously here is no
+    // longer needed (dialog symbol no longer exists).
     const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
     window.scrollTo({ top: 0 });
@@ -1742,19 +1738,17 @@
       close();
       switch (action) {
         case 'switch':
-          if (!confirm('Switch account? Your profiles stay on this device.')) return;
-          // [Dim 14 Section F] Snapshot state to per-user backup before clearing.
-          if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
-          if (window.furnishBackend?.mode === 'supabase') {
-            await window.furnishBackend.auth.signOut().catch(()=>{});
-          }
-          state.user = null;
-          // [Identity Stage 2] Mirror Switch Account's state.user clear.
-          if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
-          save();
-          prepareSignin();
-          showScreen('signin');
-          toast('Sign in to switch.');
+          // [Bug 15] Switch Account = full signout wipe + route to
+          // signin. Replaces the prior partial wipe (which left
+          // profiles/rooms/wishlist on device) with the same total
+          // wipe performSignout does for signout. Per-account snapshot
+          // still runs first so the same-account-resign restore offer
+          // works via maybeOfferStateRestore.
+          await performSignout({
+            destination: 'signin',
+            confirmCopy: 'Switch account? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)',
+            toastCopy: 'Sign in to switch.'
+          });
           break;
         case 'furnish-pro':
           openPaywall('generic');
@@ -1824,22 +1818,26 @@
     const grid = $('#profileGrid');
     grid.innerHTML = '';
 
-    // Free tier = 1 profile only. Extra profiles are a Pro feature.
+    // [Profile limits] Free=4 / Pro=10. The seed-on-empty fallback below
+    // ensures the user always has at least one profile to land on.
     if (state.profiles.length === 0) {
       state.profiles.push(createProfile('Profile 1', { id: 'p1' }));
       save();
     }
 
-    // Profiles beyond the first are locked unless user is Pro.
-    // (Existing users who had 4 profiles from the previous seed keep their
-    // data, but profile #2+ shows a lock and opens the paywall on tap.)
-    const isPro = !!state.user?.isPro;
+    // [Profile limits] Per-card lock REMOVED. Pre-fix the renderer
+    // marked profile #2+ as pro-locked for Free users and routed
+    // taps to the paywall. New gate is limit-based at creation time
+    // (Free=4, Pro=10) — see addProfileBtn handler below. Once a
+    // profile exists, it's tappable.
+    const userIsPro = !!state.user?.isPro;
+    const profileLimit = userIsPro ? 10 : 4;
+    const countEl = document.getElementById('profileCount');
+    if (countEl) countEl.textContent = `${state.profiles.length} of ${profileLimit}`;
     state.profiles.forEach((p, idx) => {
-      const locked = idx > 0 && !isPro;
       const card = document.createElement('div');
       card.className = 'profile-card'
-        + (state.activeProfileId === p.id ? ' selected' : '')
-        + (locked ? ' pro-locked' : '');
+        + (state.activeProfileId === p.id ? ' selected' : '');
       card.style.setProperty('--stagger-i', idx);
       const initials = p.name.match(/\d+|\S/)?.[0] || p.name[0];
       const stylesLine = p.styles.length
@@ -1850,18 +1848,8 @@
         : `style="background:${avatarGradient(idx)}"`;
       const avatarClass = p.avatar ? 'profile-avatar has-photo' : 'profile-avatar';
       const avatarBody = p.avatar ? '' : initials;
-      const lockHTML = locked
-        ? `<div class="profile-lock" aria-label="Pro only">
-             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-               <rect x="5" y="11" width="14" height="9" rx="2"/>
-               <path d="M8 11V8a4 4 0 018 0v3"/>
-             </svg>
-             PRO
-           </div>`
-        : '';
       card.innerHTML = `
         <button class="profile-edit-btn" aria-label="Rename" title="Rename">✎</button>
-        ${lockHTML}
         <div class="${avatarClass}" ${avatarStyle}>${avatarBody}</div>
         <div class="title">${p.name}</div>
         <div class="styles-line">${stylesLine}</div>
@@ -1900,10 +1888,8 @@
         input.addEventListener('blur', commit);
       });
       card.addEventListener('click', () => {
-        if (locked) {
-          openPaywall('profile');
-          return;
-        }
+        // [Profile limits] Per-card paywall click removed — locks no
+        // longer apply (limit gate is at creation, not selection).
         state.activeProfileId = p.id;
         save();
         // [Hassan's call] If the profile has NEVER done the quiz
@@ -2046,9 +2032,23 @@
   });
 
   $('#addProfileBtn').addEventListener('click', () => {
-    // Adding extra profiles is gated behind Pro.
-    if (!state.user?.isPro) {
-      openPaywall('profile');
+    // [Profile limits] Tier-based limit (Free=4 / Pro=10). When the user
+    // is at-cap, fire a friendly toast instead of the paywall — Free
+    // users have already enjoyed the freedom of 4 profiles, so the
+    // upgrade hint reads as "more capacity available" rather than "you
+    // can't have this." Pro users hitting the cap is rare; the toast
+    // just informs.
+    const userIsPro = !!state.user?.isPro;
+    const limit = userIsPro ? 10 : 4;
+    if (state.profiles.length >= limit) {
+      toast(userIsPro
+        ? "You've reached the Pro limit of 10 profiles."
+        : 'Free users get 4 style profiles. Upgrade to Pro for up to 10.');
+      trackEvent('profile_limit_hit', {
+        tier: userIsPro ? 'pro' : 'free',
+        currentCount: state.profiles.length,
+        limit
+      });
       return;
     }
     const n = state.profiles.length + 1;
@@ -2056,6 +2056,11 @@
     state.profiles.push(p);
     save();
     renderProfiles();
+    trackEvent('profile_created', {
+      tier: userIsPro ? 'pro' : 'free',
+      newCount: state.profiles.length,
+      limit
+    });
   });
 
   // ---------- Paywall ----------
@@ -2327,8 +2332,8 @@
   //    success branch of routeGenerationByModelTier)
   // 2. Pro multi-room batch can append per-room as each completes
   // 3. The 9/9 celebration has a clear one-shot flag (`celebrated`)
-  // 4. Reset wipes via the allow-list pattern (homeProgress is NOT
-  //    in RESET_PRESERVED_USER_FIELDS so it auto-wipes)
+  // 4. (Reset wipe item removed with the Reset Profile feature in
+  //    Bug 26; homeProgress lifecycle now follows performSignout.)
   // Per STYLE_ROOM_PICKER_AUDIT.md.
   const HOME_ROOM_ORDER = Object.freeze([
     'bedroom', 'living', 'kitchen', 'dining', 'bathroom',
@@ -2623,294 +2628,14 @@
 
   window.FurnishHomeProgress = { getHomeProgress, recordHomeProgressRoom, nextHomeRoomSuggestion };
 
-  // ==========================================================
-  // [Reset Profile] resetUserDesignProfile()
-  // ==========================================================
-  // Clears the user's design profile + history. PRESERVES auth +
-  // consent + tier + session metadata. Per Hassan's spec: "A reset
-  // should clear what the user is asking to reset (their design
-  // profile and history), not punish them for it. Forcing re-login
-  // adds friction proportional to 'I deleted your account' when the
-  // user only intended 'start my preferences over.'"
-  //
-  // Uses an explicit allow-list of user fields that survive — safer
-  // than a deny-list because future design-state fields automatically
-  // get wiped without us remembering to add them.
-  const RESET_PRESERVED_USER_FIELDS = new Set([
-    // Identity (auth survives)
-    'id', 'email', 'name', 'provider', 'signedInAt',
-    // Tier / subscription state (Pro doesn't disappear on reset)
-    'isPro', 'grandfathered', 'tier', 'tierGrantedAt',
-    // Consent (already agreed; no need to re-consent)
-    'tosAcceptedAt', 'tosVersion', 'marketingOptIn', 'marketingOptInAt',
-    // Email-recovery-lane stash (independent of design state)
-    'recoveryEmail',
-    // Session metadata that's not tied to design content
-    'lastVisitedAt', 'visitCount', 'sessionCount',
-    '_sessionsByHour', '_sessionsByDow', '_lastSessionStart'
-  ]);
-
-  function resetUserDesignProfile() {
-    if (!state.user) state.user = {};
-
-    // 1. Clear the active profile's design fields. Other profiles
-    //    (multi-profile Pro users) keep their data — the reset is
-    //    scoped to the active profile, not the household.
-    const p = getActiveProfile();
-    const activeId = state.activeProfileId || p?.id;
-    if (p) {
-      p.answers = {};
-      p.styles = [];
-      p.colors = [];
-      p.customColors = [];
-      p.avatar = null;
-      p.seenFinale = false;
-      delete p._maxCompleteness;
-      delete p.styleScores;
-      delete p.ahaHistory;
-      delete p.keepExisting;
-    }
-
-    // 2. Wipe rooms tied to the active profile (preserve other
-    //    profiles' rooms).
-    if (Array.isArray(state.rooms)) {
-      state.rooms = state.rooms.filter(r => r.profileId !== activeId);
-    }
-
-    // 3. Wipe shared design state. Wishlist + bookmarks + price-alerts
-    //    are top-level but the user explicitly asked for "saved rooms"
-    //    to be wiped, and these are part of the saved-design context.
-    state.draft = null;
-    state.quiz = null;
-    state.wishlist = [];
-    state.bookmarkedRooms = [];
-    state.priceAlerts = {};
-    state.wishlistMeta = {};
-    state.affiliateClicks = [];
-
-    // 4. Reset state-level activation flags + event buffer.
-    state._events = [];
-    state._timing = {};
-    state._setupCompleteAt = null;
-    state._tourShown = false;
-    state._habitFired = false;
-    state._ahaResultsFired = false;
-    state._templateTipShown = false;
-    state._evolutionDismissedRooms = {};
-    state._lastAIPrompt = null;
-    state._showExploreWelcome = false;
-    state._premiumUpsellShownThisSession = false;
-    state._pendingIntent = null;
-    state._pendingProAction = null;
-    state._pendingConsent = null;
-    state._tosBackTo = null;
-
-    // 5. Reset state.user via allow-list. Anything not in the
-    //    PRESERVED set gets dropped. Counter fields then re-seeded
-    //    to sensible defaults so downstream code that reads them
-    //    doesn't NPE.
-    const u = state.user;
-    Object.keys(u).forEach(k => {
-      if (!RESET_PRESERVED_USER_FIELDS.has(k)) delete u[k];
-    });
-    u.generationsUsed = 0;
-    u.redesignsUsed = 0;
-    u.firstRedesignTutorialSeen = false;
-    u.habitFormed = false;
-    u._habitActions = [];
-    u._gen30dWindow = [];
-    u._clicks30dWindow = [];
-    u._valueMomentSeen = {};
-    u._valueMomentDismissed = {};
-
-    save();
-
-    // 6. Analytics.
-    trackEvent('profile_reset_design_only', {
-      profileId: activeId,
-      preserved: {
-        auth: !!u.id || !!u.email,
-        tier: !!u.isPro,
-        consent: !!u.tosAcceptedAt,
-        marketingOptIn: !!u.marketingOptIn
-      }
-    });
-  }
-  window.FurnishResetUserDesignProfile = resetUserDesignProfile;
-
-  // Confirm-dialog copy is identical from both reset entry points
-  // (profile screen + preferences screen). Defined once so the wording
-  // can't drift between surfaces. Per Hassan's spec: explicit about
-  // what's wiped + explicit that auth survives.
-  const RESET_CONFIRM_COPY =
-    'Reset your design profile?\n\n' +
-    "This clears your saved rooms, preferences, and design history. " +
-    "You'll start fresh from the welcome page. " +
-    "You'll stay signed in — your account is safe. This can't be undone.";
-
-  // ==========================================================
-  // [Reset Dialog] openResetDialog / closeResetDialog
-  // ==========================================================
-  // Single source of truth for the reset confirmation modal. Both
-  // entry points (profile screen + preferences screen) route through
-  // openResetDialog({source}). Hold-to-confirm friction (1s) on the
-  // destructive button. Focus-trapped, ARIA-modal, keyboard-navigable.
-  // Per RESET_DIALOG_AUDIT.md.
-  const RESET_HOLD_MS = 1000;
-  let _resetDialogState = null; // { source, holdTimer, holdStartedAt, confirmed, openerEl, lastActiveEl }
-
-  function openResetDialog(options = {}) {
-    const m = document.getElementById('resetDialog');
-    if (!m) return;
-    if (_resetDialogState) return; // guard against double-open
-    const source = options.source || 'unknown';
-    const opener = options.opener || document.activeElement;
-    _resetDialogState = {
-      source,
-      holdTimer: null,
-      holdStartedAt: 0,
-      confirmed: false,
-      openerEl: opener,
-      lastActiveEl: document.activeElement
-    };
-    m.classList.add('open');
-    m.setAttribute('aria-hidden', 'false');
-    trackEvent('reset_dialog_opened', { source });
-    // Default focus: Cancel button (per spec — Enter without thinking
-    // does nothing destructive).
-    setTimeout(() => {
-      document.getElementById('resetDialogCancel')?.focus();
-    }, 50);
-  }
-
-  function closeResetDialog(reason) {
-    const m = document.getElementById('resetDialog');
-    if (!m || !_resetDialogState) return;
-    const { source, holdTimer, confirmed, lastActiveEl } = _resetDialogState;
-    if (holdTimer) clearTimeout(holdTimer);
-    cancelHoldVisual();
-    m.classList.remove('open');
-    m.setAttribute('aria-hidden', 'true');
-    if (!confirmed) {
-      trackEvent('reset_dialog_cancelled', { source, dismissReason: reason || 'cancel' });
-    }
-    // Return focus to the original opener (the Reset Profile button).
-    try {
-      if (lastActiveEl && typeof lastActiveEl.focus === 'function') {
-        lastActiveEl.focus();
-      }
-    } catch (_) {}
-    _resetDialogState = null;
-  }
-  window.FurnishOpenResetDialog = openResetDialog;
-
-  // Hold-to-confirm visual control.
-  function startHoldVisual() {
-    const fill = document.querySelector('.reset-dialog-confirm-fill');
-    const btn = document.getElementById('resetDialogConfirm');
-    if (!fill || !btn) return;
-    btn.classList.add('holding');
-    // Override the snap-back transition with a linear 1s fill grow.
-    fill.style.transition = `width ${RESET_HOLD_MS}ms linear`;
-    fill.style.width = '100%';
-  }
-  function cancelHoldVisual() {
-    const fill = document.querySelector('.reset-dialog-confirm-fill');
-    const btn = document.getElementById('resetDialogConfirm');
-    if (!fill || !btn) return;
-    btn.classList.remove('holding');
-    fill.style.transition = '';
-    fill.style.width = '0';
-  }
-
-  function onResetHoldStart(e) {
-    if (!_resetDialogState || _resetDialogState.confirmed) return;
-    if (_resetDialogState.holdTimer) return; // already holding
-    // Keyboard: only Space and Enter trigger the hold-start.
-    if (e && e.type === 'keydown' && e.key !== ' ' && e.key !== 'Enter') return;
-    if (e && e.type === 'keydown') {
-      // Suppress repeat-fire from holding the key down.
-      if (e.repeat) return;
-      e.preventDefault();
-    }
-    _resetDialogState.holdStartedAt = Date.now();
-    startHoldVisual();
-    _resetDialogState.holdTimer = setTimeout(() => {
-      // Hold completed — fire confirmed analytics, close dialog, run reset.
-      const source = _resetDialogState.source;
-      _resetDialogState.confirmed = true;
-      _resetDialogState.holdTimer = null;
-      trackEvent('reset_dialog_confirmed', { source });
-      // Preserve the per-source legacy event for backwards-compatible
-      // funnels. Pre-dialog this event fired from the prefs handler
-      // directly; now it fires only on actual reset (post-friction).
-      if (source === 'preferences_screen') {
-        trackEvent('profile_reset_from_preferences', { profileId: getActiveProfile()?.id });
-      }
-      closeResetDialog('confirmed');
-      resetUserDesignProfile();
-      toast('Profile reset — your account is still signed in');
-      showScreen('welcome');
-    }, RESET_HOLD_MS);
-  }
-  function onResetHoldEnd() {
-    if (!_resetDialogState || _resetDialogState.confirmed) return;
-    if (_resetDialogState.holdTimer) {
-      clearTimeout(_resetDialogState.holdTimer);
-      _resetDialogState.holdTimer = null;
-    }
-    cancelHoldVisual();
-  }
-
-  // Wire dialog event handlers ONCE at module load.
-  (function wireResetDialog() {
-    const m = document.getElementById('resetDialog');
-    if (!m) return;
-    document.getElementById('resetDialogCancel')?.addEventListener('click', () => closeResetDialog('cancel'));
-    document.getElementById('resetDialogClose')?.addEventListener('click', () => closeResetDialog('close'));
-    m.addEventListener('click', (e) => {
-      // Backdrop click — only close if the click target is the modal
-      // overlay itself (not the card or its descendants).
-      if (e.target === m) closeResetDialog('backdrop');
-    });
-    // Hold-to-confirm wiring.
-    const confirmBtn = document.getElementById('resetDialogConfirm');
-    if (confirmBtn) {
-      confirmBtn.addEventListener('mousedown', onResetHoldStart);
-      confirmBtn.addEventListener('touchstart', onResetHoldStart, { passive: true });
-      confirmBtn.addEventListener('keydown', onResetHoldStart);
-      // Cancel on release / leave.
-      confirmBtn.addEventListener('mouseup', onResetHoldEnd);
-      confirmBtn.addEventListener('mouseleave', onResetHoldEnd);
-      confirmBtn.addEventListener('touchend', onResetHoldEnd);
-      confirmBtn.addEventListener('touchcancel', onResetHoldEnd);
-      confirmBtn.addEventListener('keyup', onResetHoldEnd);
-      confirmBtn.addEventListener('blur', onResetHoldEnd);
-    }
-    // Global keyboard handlers — Escape to close, Tab focus-trap.
-    document.addEventListener('keydown', (e) => {
-      if (!_resetDialogState) return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeResetDialog('escape');
-        return;
-      }
-      if (e.key === 'Tab') {
-        // Trap focus inside the dialog.
-        const focusables = m.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])');
-        if (!focusables.length) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          last.focus();
-          e.preventDefault();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          first.focus();
-          e.preventDefault();
-        }
-      }
-    });
-  })();
+  // [Bug 26] Reset Profile feature removed entirely (RESET_PRESERVED_USER_FIELDS,
+  //          resetUserDesignProfile, RESET_CONFIRM_COPY, RESET_HOLD_MS,
+  //          _resetDialogState, openResetDialog, closeResetDialog, hold-to-confirm
+  //          visual + IIFE wireResetDialog). All ~290 lines deleted from this
+  //          file plus the 5 reset_dialog_* / profile_reset_* analytics events.
+  //          The two button HTML sites + the dialog modal HTML + the .reset-dialog*
+  //          CSS block also gone. If a Delete Account flow is needed for App Store
+  //          privacy compliance, that becomes a separate branch — see launch plan Phase E.
 
   const FREE_PLAN_CARD = Object.freeze({
     title: 'Furnish Free',
@@ -4587,20 +4312,17 @@
     syncFreeModeClass();
     syncVisitBandClass();
     ensureActiveProfile();
+    // [Bug 25] Removed #activeProfileName text update + #activeProfilePill
+    // .dot avatar styling — both elements deleted with the profile-pill
+    // removal. Active-profile context still surfaces via the topbar
+    // dropdown name and the profile-select screen.
+    //
+    // [Bug 25 follow-up] `const p = getActiveProfile()` retained — it was
+    // declared in the deleted pill block but consumed BELOW by
+    // renderResumeHero(p), renderHomeProgress(p), and renderStylePulse(p).
+    // Removing it crashed renderHome with ReferenceError on first call
+    // post-signin. ensureActiveProfile() above guarantees p is non-null.
     const p = getActiveProfile();
-    $('#activeProfileName').textContent = p ? p.name : 'No profile';
-
-    // Pill avatar — uses profile photo if set, otherwise the tan dot.
-    const dot = document.querySelector('#activeProfilePill .dot');
-    if (dot) {
-      if (p?.avatar) {
-        dot.classList.add('has-photo');
-        dot.style.backgroundImage = `url('${p.avatar}')`;
-      } else {
-        dot.classList.remove('has-photo');
-        dot.style.backgroundImage = '';
-      }
-    }
 
     renderExploreWelcome();
     // [Batch 5 Part 2 — Dim 02 D02-11] Welcome-back commitment card fires
@@ -5619,8 +5341,8 @@
         <p class="save-home-dialog-body">You already designed a ${label} for this home. If you exclude it, that design moves to your Saved Rooms instead.</p>
         <div class="save-home-dialog-actions">
           <button class="btn btn-ghost" id="excDlgKeep" type="button" autofocus>Keep it</button>
-          <button class="btn reset-dialog-confirm" id="excDlgConfirm" type="button">
-            <span class="reset-dialog-confirm-label">Exclude and move to Saved</span>
+          <button class="btn btn-destructive-pill" id="excDlgConfirm" type="button">
+            <span class="btn-destructive-pill-label">Exclude and move to Saved</span>
           </button>
         </div>
       </div>
@@ -6903,20 +6625,15 @@
     } else if (action === 'support') {
       openSupportModal();
     } else if (action === 'switch') {
-      if (!confirm('Switch account? Your profiles stay on this device.')) return;
-      // [Dim 14 Section F] Snapshot state before sign-out.
-      if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
-      if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
-      // [Batch 6 — Dim 13 REC-13.2] Reset PostHog identity so the next
-      // session is unattributed until a new identify() call.
-      resetAnalyticsIdentity();
-      state.user = null;
-      // [Identity Stage 2] Mirror profile-page Switch Account's state.user clear.
-      if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
-      save();
-      prepareSignin();
-      showScreen('signin');
-      toast('Sign in to switch.');
+      // [Bug 15] Profile-screen Switch Account: same full-wipe-+-route-
+      // to-signin behavior as the topbar dropdown path. Both entry
+      // points now share the same performSignout helper so the wipe
+      // logic stays in one place.
+      await performSignout({
+        destination: 'signin',
+        confirmCopy: 'Switch account? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)',
+        toastCopy: 'Sign in to switch.'
+      });
     } else if (action === 'signout') {
       // [Bug E fix] Single-path signout via performSignout() — clears
       // all local state. Replaces the prior bespoke handler that only
@@ -6929,39 +6646,13 @@
       // This branch routes the guest into the existing signin screen.
       prepareSignin();
       showScreen('signin');
-    } else if (action === 'reset') {
-      // [Reset Dialog] Replaces window.confirm() with the rich confirmation
-      // dialog (lists + hold-to-confirm). The actual reset + toast + welcome
-      // routing fires inside the dialog's hold-complete branch (see
-      // onResetHoldStart). This handler just opens the dialog with the
-      // source discriminator for analytics.
-      const p = getActiveProfile();
-      if (!p) { toast('No active profile'); return; }
-      openResetDialog({ source: 'profile_screen', opener: btn });
     }
+    // [Bug 26] action === 'reset' branch removed (Reset Profile feature
+    // gone). The 'reset' data-action no longer appears in the DOM.
   });
 
-  // [Polish] Reset Profile button on the Preferences screen.
-  // Same shape as the profile-screen handler above, but scoped to
-  // data-screen="preferences" and re-renders via openPreferences() so
-  // the user stays on the preferences page (the answers editor + DNA
-  // gauge re-paint with cleared state). Per Reforge
-  // Monetization Pricing — this surface is the "Free Preview" of the
-  // Pro reset entitlement: badge advertises Pro, behavior is accessible
-  // to Free as a teaser (same pattern as the existing profile-screen
-  // reset).
-  document.querySelector('[data-screen="preferences"]')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('#prefsResetBtn');
-    if (!btn) return;
-    // [Reset Dialog] Same routing as profile-screen reset — open the dialog.
-    // Per-source `profile_reset_from_preferences` event still fires, but
-    // moves into the dialog's hold-complete branch so it only fires on
-    // ACTUAL reset (not on dialog-open). Cancel rate by source comes
-    // from `reset_dialog_cancelled.source` analytics.
-    const p = getActiveProfile();
-    if (!p) { toast('No active profile'); return; }
-    openResetDialog({ source: 'preferences_screen', opener: btn });
-  });
+  // [Bug 26] #prefsResetBtn handler removed (Reset Profile feature gone).
+  // The button + the action it triggered + the dialog are all deleted.
 
   // Click avatar in profile page → re-use the photo source modal
   document.getElementById('profilePageAvatar').addEventListener('click', () => {
@@ -7163,10 +6854,9 @@
     });
   }
 
-  $('#switchProfileBtn').addEventListener('click', () => {
-    showScreen('profile-select');
-    renderProfiles();
-  });
+  // [Bug 25] #switchProfileBtn handler removed — button deleted with the
+  // profile-pill. Profile switching remains accessible via the topbar
+  // dropdown's Switch Account or via the profile-select screen.
 
   $('#wishlistBtn').addEventListener('click', () => {
     renderWishlist();
@@ -11264,8 +10954,24 @@
   // (`furnish.state.backup.<uid>`) — written by FurnishSignoutSnapshot
   // BEFORE the clear so a re-signin with the same account can offer
   // "Restore your previous library?" via maybeOfferStateRestore.
-  async function performSignout() {
-    if (!confirm('Sign out? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)')) {
+  // [Bug 15] performSignout now accepts an optional config object so
+  // Switch Account can run the SAME full wipe but route to signin
+  // instead of welcome. Defaults match the pre-fix behavior so the
+  // bare `performSignout()` call sites elsewhere are unaffected.
+  //
+  //   destination: 'welcome' | 'signin'  (default 'welcome')
+  //   confirmCopy: string                (default the signout copy)
+  //   toastCopy:   string                (default the signout toast)
+  //
+  // Returns true if the wipe completed, false if the user cancelled
+  // the confirm.
+  async function performSignout(opts = {}) {
+    const destination = opts.destination || 'welcome';
+    const confirmCopy = opts.confirmCopy ||
+      'Sign out? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)';
+    const toastCopy = opts.toastCopy ||
+      'Signed out. Your data has been cleared from this device.';
+    if (!confirm(confirmCopy)) {
       return false;
     }
     // 1. Snapshot per-user backup BEFORE clearing
@@ -11322,9 +11028,18 @@
     // (called inside the state wipe block above). The render subscriber
     // repaints any auth-aware surface the user happens to be on.
     // 7. User-facing confirmation + navigation
-    toast('Signed out. Your data has been cleared from this device.');
-    showScreen('welcome');
-    console.log('[signout] cleared all state, navigating to welcome');
+    toast(toastCopy);
+    if (destination === 'signin') {
+      // [Bug 15] Switch Account path — prep the signin screen with
+      // post-signout context (no pending reveal) and route there so
+      // the user can immediately authenticate as a different account.
+      if (typeof prepareSignin === 'function') prepareSignin();
+      showScreen('signin');
+      console.log('[switchAccount] cleared all state, navigating to signin');
+    } else {
+      showScreen('welcome');
+      console.log('[signout] cleared all state, navigating to welcome');
+    }
     return true;
   }
 

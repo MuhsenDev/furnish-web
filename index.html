@@ -184,13 +184,12 @@
         <div class="srh-bg" id="srhBg" aria-hidden="true"></div>
         <div class="srh-veil" aria-hidden="true"></div>
         <div class="srh-panel">
-          <!-- [Conflict 4 lock — replaced the fictitious "2,400+ designs
-               unlocked this week" with a real trust-policy claim. The cancel-
-               policy framing is true, defensible, and lands at exactly the
-               anxiety moment per Reforge Pain Point-Based archetype. -->
-          <div class="srh-trust">
-            <span class="srh-trust-text"><strong>Cancel before day 7</strong> · No charge if it's not for you</span>
-          </div>
+          <!-- [Bug 14] Removed leftover paywall trust line ("Cancel before
+               day 7 · No charge if it's not for you") — signin has no
+               trial, no charge, signin is just signin. Was misleading
+               on a screen with no monetization context. The .srh-trust
+               CSS rule in styles.css is left as an orphan; no other
+               surface uses it. -->
           <h1 class="srh-headline">Your room, reimagined.</h1>
           <!-- [Reframe] Dollar value redacted on the pre-signup reveal because
                budget hasn't been collected yet at this point in the flow.
@@ -465,10 +464,14 @@
         </div>
       </header>
       <p class="subtle">Profiles save your style so every room you design matches your taste.</p>
+      <!-- [Profile limits] Counter populated by renderProfiles. Free: "X of 4". Pro: "X of 10". -->
+      <p class="subtle small" id="profileCount" aria-live="polite"></p>
       <div class="profile-grid" id="profileGrid"></div>
       <button class="btn btn-ghost add-profile-btn" id="addProfileBtn">
         <span class="apb-label">+ Add profile</span>
-        <span class="pro-lock"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>PRO</span>
+        <!-- [Profile limits] Removed .pro-lock PRO badge — Free users
+             can now add up to 4 profiles, so the gate is per-action
+             (toast on limit-hit) rather than per-button. -->
       </button>
     </section>
 
@@ -618,36 +621,16 @@
         <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
       </div>
 
-      <!-- [Polish] Reset Profile Pro feature on Preferences screen.
-           Mirrors the existing data-action="reset" button on the profile
-           screen (PRO · Free Preview badge, same handler shape). Handler
-           is scoped to data-screen="preferences" so it doesn't fight the
-           profile-screen handler. Per CLAUDE.md decision policy: this is
-           a Pro-tier teaser available to Free as a preview. -->
-      <h3 class="section-h">Profile Actions</h3>
-      <div class="prefs-actions-list">
-        <button class="pp-setting" data-action="reset" id="prefsResetBtn" type="button">
-          <span class="pps-icon">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="1 4 1 10 7 10"/>
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-            </svg>
-          </span>
-          <span class="pps-label">Reset Profile</span>
-          <span class="pps-badge-pro">PRO · Free Preview</span>
-          <span class="pps-arrow">›</span>
-        </button>
-      </div>
+      <!-- [Bug 26] "Profile Actions" section + Reset Profile button removed. -->
     </section>
 
     <!-- SCREEN: Home / dashboard -->
     <section class="screen" data-screen="home">
       <header class="topbar">
-        <div class="profile-pill" id="activeProfilePill">
-          <span class="dot"></span>
-          <span id="activeProfileName">Profile</span>
-          <button class="link small" id="switchProfileBtn">switch</button>
-        </div>
+        <!-- [Bug 25] Removed .profile-pill (id=activeProfilePill containing
+             the active profile name + a "switch" link). Profile-switching
+             remains accessible via the topbar dropdown's Switch Account,
+             via Profile screen, and via profile-select. -->
         <div class="topbar-right">
           <button class="btn-icon theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
             <svg class="icon icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
@@ -855,16 +838,7 @@
             <span class="pps-label">Switch Account</span>
             <span class="pps-arrow">›</span>
           </button>
-          <button class="pp-setting" data-action="reset">
-            <span class="pps-icon">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="1 4 1 10 7 10"/>
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-              </svg>
-            </span>
-            <span class="pps-label">Reset Profile</span>
-            <span class="pps-badge-pro">PRO · Free Preview</span>
-          </button>
+          <!-- [Bug 26] Profile-screen Reset Profile button removed. -->
           <button class="pp-setting pp-danger" id="ppAuthBtn" data-action="signout">
             <span class="pps-icon">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1732,95 +1706,7 @@
        the Pro card. Per Reforge Monetization + Pricing — Packaging Strategies:
        roadmap belongs in opt-in disclosure, not impersonating shipped
        features. Opens from #paywallRoadmapLink in the paywall footer. -->
-  <!-- [Reset Profile] Confirmation dialog. Single source of truth for the
-       reset warning copy + hold-to-confirm friction. Both entry points
-       (profile screen .pp-setting + preferences screen #prefsResetBtn)
-       route through openResetDialog({source}). Replaces window.confirm()
-       calls so the user sees the side-by-side WHAT GETS RESET / WHAT
-       STAYS lists at a glance — auth-survives reassurance is the most
-       important content. Per RESET_DIALOG_AUDIT.md decision policy. -->
-<div class="modal reset-dialog" id="resetDialog" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="resetDialogTitle">
-    <div class="modal-card reset-dialog-card">
-      <button class="modal-close" id="resetDialogClose" type="button" aria-label="Cancel">×</button>
-      <h3 id="resetDialogTitle">Reset your design profile?</h3>
-      <p class="reset-dialog-intro">Here's exactly what happens if you continue.</p>
-      <div class="reset-dialog-lists">
-        <section class="reset-dialog-list reset-dialog-list-reset" aria-labelledby="resetListLabel">
-          <h4 class="reset-dialog-list-h" id="resetListLabel">What gets reset</h4>
-          <ul>
-            <li>
-              <span class="reset-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
-              </span>
-              <span class="reset-mark-text">Your 9 onboarding answers (vibe, color, decor density, scope, lighting, materials, room use, what to avoid, dealbreaker piece)</span>
-            </li>
-            <li>
-              <span class="reset-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
-              </span>
-              <span class="reset-mark-text">All saved rooms and redesigns</span>
-            </li>
-            <li>
-              <span class="reset-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
-              </span>
-              <span class="reset-mark-text">Any in-progress design you haven't finished</span>
-            </li>
-            <li>
-              <span class="reset-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
-              </span>
-              <span class="reset-mark-text">The first-redesign tutorial (it'll show again next time)</span>
-            </li>
-            <li>
-              <span class="reset-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>
-              </span>
-              <span class="reset-mark-text">Your AI generation history</span>
-            </li>
-          </ul>
-        </section>
-        <section class="reset-dialog-list reset-dialog-list-stays" aria-labelledby="staysListLabel">
-          <h4 class="reset-dialog-list-h" id="staysListLabel">What stays</h4>
-          <ul>
-            <li>
-              <span class="stay-check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
-              </span>
-              <span class="stay-text">Your account and sign-in (you'll stay logged in)</span>
-            </li>
-            <li>
-              <span class="stay-check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
-              </span>
-              <span class="stay-text">Your email preferences</span>
-            </li>
-            <li>
-              <span class="stay-check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
-              </span>
-              <span class="stay-text">Your Pro subscription, if you have one</span>
-            </li>
-            <li>
-              <span class="stay-check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
-              </span>
-              <span class="stay-text">Your agreement to Terms of Service</span>
-            </li>
-          </ul>
-        </section>
-      </div>
-      <p class="reset-dialog-footer">This can't be undone. Your design history won't come back.</p>
-      <div class="reset-dialog-actions">
-        <button class="btn btn-ghost" id="resetDialogCancel" type="button">Cancel</button>
-        <button class="btn reset-dialog-confirm" id="resetDialogConfirm" type="button" aria-describedby="resetHoldHint">
-          <span class="reset-dialog-confirm-fill" aria-hidden="true"></span>
-          <span class="reset-dialog-confirm-label">Hold to Reset Everything</span>
-        </button>
-      </div>
-      <p id="resetHoldHint" class="reset-dialog-hold-hint muted small">Press and hold for 1 second to confirm.</p>
-    </div>
-  </div>
+  <!-- [Bug 26] Reset Profile confirmation dialog removed. -->
 
   <div class="modal" id="paywallRoadmapModal" aria-hidden="true">
     <div class="modal-card paywall-roadmap-card">

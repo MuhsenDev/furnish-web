@@ -242,6 +242,38 @@ p { color: var(--ink); }
 .btn.big { padding: 16px 22px; font-size: 16px; width: 100%; }
 .btn.small { padding: 8px 14px; font-size: 13px; }
 .btn:active { transform: scale(0.98); }
+
+/* [Bug 26 — micro-rename] Generic destructive-pill button + label.
+   Extracted from the deleted .reset-dialog-confirm rules so the
+   Exclude-Designed-Room dialog (Save-Home flow) keeps its destructive-
+   look styling without dragging the entire reset-dialog block back.
+   No hold-to-confirm fill — the exclusion dialog uses a regular click
+   button (not hold). */
+.btn-destructive-pill {
+  position: relative;
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1.5px solid rgba(181, 75, 58, 0.55);
+  color: var(--danger, #b54b3a);
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+.btn-destructive-pill:hover {
+  background: rgba(181, 75, 58, 0.06);
+  border-color: rgba(181, 75, 58, 0.85);
+}
+.btn-destructive-pill:focus-visible {
+  outline: 2px solid var(--danger, #b54b3a);
+  outline-offset: 2px;
+}
+.btn-destructive-pill-label { position: relative; z-index: 1; }
+html[data-theme="dark"] .btn-destructive-pill {
+  border-color: rgba(255, 130, 110, 0.55);
+  color: #ff8a76;
+}
 .link { background: none; border: none; color: var(--brown); text-decoration: underline; cursor: pointer; padding: 0; font: inherit; }
 
 .actions-row { margin-top: 24px; display: flex; gap: 10px; }
@@ -360,37 +392,9 @@ html[data-theme="dark"] @keyframes heroLampGlow {
 .profile-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--tan); }
 .profile-card.selected { border-color: var(--brown); background: var(--beige); }
 
-/* Pro-locked profile cards — greyed out, lock badge, shows paywall on tap */
-.profile-card.pro-locked {
-  opacity: 0.62;
-  filter: saturate(0.5);
-  position: relative;
-}
-.profile-card.pro-locked .profile-avatar,
-.profile-card.pro-locked .title,
-.profile-card.pro-locked .styles-line {
-  filter: blur(0.3px);
-}
-.profile-card.pro-locked::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(139,111,71,0.04), rgba(92,65,40,0.10));
-  border-radius: inherit;
-  pointer-events: none;
-}
-.profile-card .profile-lock {
-  position: absolute;
-  top: 10px; right: 10px;
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
-  color: #FAF3E7;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  padding: 4px 9px 4px 7px;
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(92, 65, 40, 0.28);
-  z-index: 2;
-}
-.profile-card.pro-locked .profile-edit-btn { display: none; }
+/* [Profile limits] .profile-card.pro-locked + .profile-lock badge rules
+   removed — JS no longer applies these classes (gate is now Free=4 /
+   Pro=10 at creation time, not per-card paywall). */
 .profile-avatar {
   width: 44px; height: 44px; border-radius: 50%;
   background: linear-gradient(135deg, var(--tan), var(--brown));
@@ -513,24 +517,7 @@ html[data-theme="dark"] #addCustomColorBtn:hover {
 .quiz-option.selected { background: var(--brown); color: var(--cream); border-color: var(--brown); }
 
 /* ---------- Home ---------- */
-.profile-pill {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px 6px 8px; border-radius: 999px;
-  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
-  font-size: 13px; color: var(--deep); flex: 1;
-}
-.profile-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tan); }
-.profile-pill .link { color: var(--brown); }
-
-/* Dark-mode contrast for the top bar pill */
-html[data-theme="dark"] .profile-pill {
-  background: var(--beige-2);
-  border-color: var(--brown);
-  color: var(--ink);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
-}
-html[data-theme="dark"] .profile-pill .link { color: var(--tan); font-weight: 600; }
-html[data-theme="dark"] .profile-pill .dot { background: var(--tan); box-shadow: 0 0 0 2px rgba(216,176,126,0.25); }
+/* [Bug 25] .profile-pill rules removed — pill no longer in DOM. */
 html[data-theme="dark"] .user-pill {
   background: var(--beige-2); color: var(--ink); border: 1px solid var(--brown-2);
 }
@@ -2260,7 +2247,7 @@ html[data-theme="dark"] .theme-toggle-btn .icon-sun { display: inline-block; }
 
 /* Avatar carries a photo where it's shown */
 .profile-avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
-.profile-pill .dot.has-photo { width: 18px; height: 18px; background-size: cover; background-position: center; }
+/* [Bug 25] .profile-pill .dot.has-photo rule removed — pill no longer in DOM. */
 
 /* ================================================================
    Profile photo (preferences screen)
@@ -2345,7 +2332,7 @@ html[data-theme="dark"] .theme-toggle-btn .icon-sun { display: inline-block; }
 
 /* Avatar carries a photo where it's shown */
 .profile-avatar.has-photo { color: transparent; background-size: cover; background-position: center; }
-.profile-pill .dot.has-photo { width: 18px; height: 18px; background-size: cover; background-position: center; }
+/* [Bug 25] .profile-pill .dot.has-photo (duplicate rule) removed — pill no longer in DOM. */
 
 /* ================================================================
    Subtle reviews ticker — fades in/out, low contrast
@@ -9355,214 +9342,7 @@ html[data-theme="dark"] .legal-doc .legal-meta {
   border-left-color: var(--cream, #d8b07e);
 }
 
-/* ============================================================
-   Reset Profile Confirmation Dialog
-   See RESET_DIALOG_AUDIT.md. Single source of truth for the reset
-   warning copy + hold-to-confirm friction. Two reset entry points
-   (profile screen + preferences screen) route through this dialog.
-   Visual chrome inherits .modal + .modal-card from the base modal
-   system. Lists are side-by-side on desktop, stacked on mobile.
-   ============================================================ */
-
-.reset-dialog .reset-dialog-card {
-  max-width: 560px;
-  width: 100%;
-  text-align: left;
-}
-.reset-dialog #resetDialogTitle {
-  margin: 0 30px 6px 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--deep, #5c4128);
-}
-.reset-dialog .reset-dialog-intro {
-  margin: 0 0 16px;
-  color: var(--muted, #6e5d48);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-/* The two-column lists. Stacks under 540px so a 360px-wide viewport
-   gets the destructive-impact list ("What gets reset") on top and the
-   reassurance ("What stays") beneath, per spec. */
-.reset-dialog-lists {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-@media (max-width: 540px) {
-  .reset-dialog-lists {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-}
-.reset-dialog-list {
-  background: rgba(244, 232, 208, 0.45);
-  border: 1px solid rgba(139, 111, 71, 0.16);
-  border-radius: 12px;
-  padding: 12px 14px 10px;
-}
-.reset-dialog-list-h {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--brown, #8b6f47);
-}
-.reset-dialog-list ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.reset-dialog-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-.reset-dialog-list .reset-mark,
-.reset-dialog-list .stay-check {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-}
-/* "What gets reset" — muted treatment per spec (de-emphasized). */
-.reset-dialog-list-reset .reset-mark {
-  background: rgba(139, 111, 71, 0.16);
-  color: var(--brown, #8b6f47);
-}
-.reset-dialog-list-reset li {
-  color: var(--muted, #6e5d48);
-}
-.reset-dialog-list-reset .reset-mark-text {
-  flex: 1 1 auto;
-}
-/* "What stays" — reassuring green-checkmark treatment per spec. */
-.reset-dialog-list-stays .stay-check {
-  background: rgba(106, 143, 82, 0.16);
-  color: #6A8F52; /* matches the .hp-check green so the checkmark hue is shared */
-}
-.reset-dialog-list-stays li {
-  color: var(--ink, #2b2218);
-}
-.reset-dialog-list-stays .stay-text {
-  flex: 1 1 auto;
-}
-
-.reset-dialog-footer {
-  margin: 0 0 14px;
-  font-size: 12.5px;
-  color: var(--muted, #6e5d48);
-  font-style: italic;
-}
-
-.reset-dialog-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-end;
-}
-.reset-dialog-actions .btn-ghost {
-  flex: 0 0 auto;
-}
-
-/* Destructive button with hold-to-confirm fill animation.
-   The fill grows left-to-right over 1 second when the user holds.
-   Released early → fill snaps back to 0 (CSS transition handles it).
-   Held full second → JS fires the confirmed event + closes the dialog. */
-.reset-dialog-confirm {
-  position: relative;
-  overflow: hidden;
-  flex: 0 0 auto;
-  background: transparent;
-  border: 1.5px solid rgba(181, 75, 58, 0.55);
-  color: var(--danger, #b54b3a);
-  font-weight: 700;
-  padding: 10px 18px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 200ms ease, border-color 200ms ease;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-}
-.reset-dialog-confirm:hover {
-  background: rgba(181, 75, 58, 0.06);
-  border-color: rgba(181, 75, 58, 0.85);
-}
-.reset-dialog-confirm:focus-visible {
-  outline: 2px solid var(--danger, #b54b3a);
-  outline-offset: 2px;
-}
-.reset-dialog-confirm-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0;
-  background: rgba(181, 75, 58, 0.20);
-  pointer-events: none;
-  transition: width 200ms ease-out;
-  z-index: 0;
-}
-.reset-dialog-confirm.holding .reset-dialog-confirm-fill {
-  width: 100%;
-  /* The actual hold duration is 1000ms — JS sets a transition override
-     when the hold starts so the fill grows linearly over 1s. CSS here
-     just defines the released-fast snap-back transition. */
-}
-.reset-dialog-confirm-label {
-  position: relative;
-  z-index: 1;
-}
-.reset-dialog-hold-hint {
-  margin: 8px 0 0;
-  text-align: right;
-  color: var(--muted, #8a7765);
-  font-style: italic;
-}
-
-/* Dark-mode treatment. */
-html[data-theme="dark"] .reset-dialog-list {
-  background: rgba(216, 176, 126, 0.10);
-  border-color: rgba(216, 176, 126, 0.18);
-}
-html[data-theme="dark"] .reset-dialog-list-reset li,
-html[data-theme="dark"] .reset-dialog-intro,
-html[data-theme="dark"] .reset-dialog-footer {
-  color: var(--brown-2);
-}
-/* [DM-FIX] Same `var(--cream)`-as-text bug we hit on .style-dna-card.
-   In dark mode --cream is #1C1410 (page background), not a text color.
-   Result was dark-on-dark across the entire reset dialog: title invisible,
-   "WHAT GETS RESET" / "WHAT STAYS" headers dim, "What stays" body text
-   unreadable. Use --ink for body and --deep for the headline. */
-html[data-theme="dark"] .reset-dialog-list-stays li {
-  color: var(--ink);
-}
-html[data-theme="dark"] #resetDialogTitle {
-  color: var(--deep);
-}
-html[data-theme="dark"] .reset-dialog-list-h {
-  color: var(--brown-2);
-}
-html[data-theme="dark"] .reset-dialog-confirm {
-  border-color: rgba(255, 130, 110, 0.55);
-  color: #ff8a76;
-}
-html[data-theme="dark"] .reset-dialog-confirm-fill {
-  background: rgba(255, 130, 110, 0.20);
-}
+/* [Bug 26] .reset-dialog* CSS block removed (Reset Profile feature gone). */
 
 /* ============================================================
    Pro Card pricing-tier spacing & badge sizing polish
