@@ -1826,10 +1826,11 @@
       // [Dim 09 D10 — exclamation removed per Warmth-6.]
       toast("FAQ coming soon. You're early.");
     });
-    document.getElementById('supportFeedback').addEventListener('click', () => {
-      close();
-      toast('Send your idea to hello@furnish.app');
-    });
+    // [Item 2] supportFeedback click handler removed — the button is
+    // now an <a href="mailto:ideas@furnish.live"> tag, so the browser
+    // handles the click natively (opens mail client). The prior
+    // toast-only fallback ("Send your idea to hello@furnish.app") is
+    // gone with it.
   })();
 
   // ---------- Theme ----------
@@ -6634,10 +6635,13 @@
         <polyline points="12 5 19 12 12 19"/>
       </svg>
     `;
-    cta.addEventListener('click', e => {
-      e.stopPropagation();
-      // Pick a sensible room type for the redesign — collections don't
-      // specify one, so default to living room. The user can re-pick.
+    // [Item 3] Single fire path used by BOTH the CTA button and the
+    // card-wide tap. Pre-fix, card-tap fired applyCollection (synthesize
+    // style answers into active profile) while CTA fired useTemplateFromCard
+    // (start a redesign with the collection's preview image). Hassan's spec:
+    // entire card should function as Use Template button. Both surfaces
+    // now route to the same useTemplateFromCard call.
+    const fireUseTemplate = () => {
       const previewImage = c.image || (c.images && c.images[0]) || null;
       useTemplateFromCard({
         id: `collection-${c.id}`,
@@ -6648,12 +6652,16 @@
         styleColors: c.colors,
         label: c.label,
       }, 'collection_card');
+    };
+    cta.addEventListener('click', e => {
+      e.stopPropagation();
+      fireUseTemplate();
     });
     card.appendChild(cta);
 
-    // Body / photo tap = apply collection to profile (existing behavior).
-    // The CTA's stopPropagation prevents double-firing.
-    card.addEventListener('click', () => applyCollection(c));
+    // Card-wide tap fires the same path as the CTA. CTA's stopPropagation
+    // prevents double-firing if the user clicks precisely on the button.
+    card.addEventListener('click', fireUseTemplate);
     return card;
   }
 
@@ -6707,24 +6715,11 @@
     buildMarquee(document.getElementById('trendingStrip'),    trending);
   }
 
-  function applyCollection(c) {
-    const p = getActiveProfile();
-    if (!p) return;
-    // [10-Q model] Collection apply uses the same template-synthesizer
-    // bridge as Use Template. Synthesize answers from the collection's
-    // style+color tags, merge into p.answers (without losing existing user
-    // answers), then re-derive the legacy catalog-bridge fields.
-    const synth = synthesizeAnswersFromTemplate(c) || {};
-    p.answers = { ...(p.answers || {}), ...synth };
-    p.styles = deriveStylesFromAnswers(p.answers);
-    p.colors = deriveColorsFromAnswers(p.answers);
-    save();
-    toast(`Applied "${c.label}" to ${p.name}`);
-    // [feat-remove-profile-screen] renderProfiles() call removed — the
-    // profile-select grid no longer exists. The active profile's data
-    // is updated; whichever surface the user navigates to next will
-    // render fresh from state.
-  }
+  // [Item 3] applyCollection(c) function removed — sole caller was the
+  // collection card-tap, which now fires useTemplateFromCard instead
+  // (per Hassan's spec to unify card-wide + CTA-button behavior).
+  // synthesizeAnswersFromTemplate, deriveStylesFromAnswers,
+  // deriveColorsFromAnswers helpers are still used elsewhere.
 
   function renderRoomsGrid() {
     const grid = $('#roomsGrid');
@@ -7008,10 +7003,20 @@
     // The escape state is recomputed on every prepareCapture entry so a
     // user who signs in mid-session sees the button reappear next time
     // they hit capture.
+    const isFirst = isFirstTimeOnboarding();
     const captureTopbarLeft = document.getElementById('captureTopbarLeft');
     if (captureTopbarLeft) {
-      captureTopbarLeft.style.display = isFirstTimeOnboarding() ? 'none' : '';
+      captureTopbarLeft.style.display = isFirst ? 'none' : '';
     }
+    // [Item 10] "Last Step — Your Room Photo" + capture-progress bar are
+    // onboarding-only chrome. For returning users (post-first redesign),
+    // they're misleading — implies "you're 90% through onboarding" when
+    // they're just adding another room. Swap title to plain "Your Room
+    // Photo" and hide the progress bar.
+    const captureTitle = document.querySelector('[data-screen="capture"] h2');
+    if (captureTitle) captureTitle.textContent = isFirst ? 'Last Step — Your Room Photo' : 'Your Room Photo';
+    const captureProgress = document.querySelector('[data-screen="capture"] .capture-progress');
+    if (captureProgress) captureProgress.style.display = isFirst ? '' : 'none';
     // type defaults to null so the user must pick one (enables the analyze btn).
     // keep defaults to false (fresh start) — user can flip post-aha on results.
     state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
