@@ -4689,25 +4689,8 @@ html[data-theme="dark"] .hero-demo .hd-badge {
   font-size: 22px; color: var(--muted); padding-right: 4px;
 }
 
-/* C7 — Aha quality feedback buttons */
-.aha-feedback {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 14px; margin: 10px 0;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-.af-q { font-size: 13px; font-weight: 600; color: var(--ink); }
-.af-buttons { display: flex; gap: 8px; }
-.af-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 10px; background: transparent;
-  border: 1px solid var(--line); border-radius: 10px;
-  font-size: 13px; color: var(--ink);
-  cursor: pointer; transition: all 150ms ease;
-}
-.af-btn:hover { background: var(--beige); }
-.af-btn.selected { background: var(--brown); color: #FAF3E7; border-color: var(--brown); }
-.af-emoji { font-size: 16px; font-weight: 700; }
+/* [Item 11] .aha-feedback / .af-q / .af-buttons / .af-btn / .af-emoji
+   ruleset removed — "How does this feel?" prompt + voting buttons gone. */
 
 /* C9 — Share network buttons */
 .share-net {

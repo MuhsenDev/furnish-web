@@ -2569,7 +2569,6 @@
     subtitle: 'What you already have',
     bullets: Object.freeze([
       'Unlimited AI redesigns at standard quality',
-      'Unlimited reshuffles on your existing redesign',
       'Unlimited item swaps',
       'Full shopping access — every item is yours to buy',
       'Basic personalization (style, mood)',
@@ -6344,7 +6343,7 @@
     ids.forEach(id => {
       const item = window.FURNITURE_DB.find(i => i.id === id);
       if (!item) return;
-      const alertOn = state.priceAlerts[item.id];
+      // [Item 5] state.priceAlerts read removed — bell button gone.
       const card = document.createElement('div');
       card.className = 'item-card';
       card.innerHTML = `
@@ -6361,7 +6360,6 @@
         <div class="item-actions">
           <a class="item-action-btn link-style" href="${item.url}" target="_blank" rel="noopener noreferrer">Shop</a>
           <button class="item-action-btn" data-act="rm">Remove</button>
-          <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
         </div>
       `;
       card.querySelector('[data-act="rm"]').addEventListener('click', e => {
@@ -6370,11 +6368,7 @@
         renderSavedItems();
         $('#stItemsCount').textContent = state.wishlist.length;
       });
-      card.querySelector('[data-act="alert"]').addEventListener('click', e => {
-        e.stopPropagation();
-        togglePriceAlert(item);
-        renderSavedItems();
-      });
+      // [Item 5] data-act="alert" handler removed (button gone).
       card.addEventListener('click', e => {
         if (e.target.closest('button, a')) return;
         openItemSheet(item, null);
@@ -6432,7 +6426,7 @@
       $('#profileProBtn').textContent = 'Manage';
     } else {
       $('#profileProTitle').textContent = 'Free plan';
-      $('#profileProSub').textContent = 'Standard-quality redesigns · reshuffle, swap, and shop always free · Pro for premium quality';
+      $('#profileProSub').textContent = 'Standard-quality redesigns · swap and shop always free · Pro for premium quality';
       $('#profileProBtn').textContent = 'Upgrade';
     }
     $('#profileProBtn').onclick = () => openPaywall('generic');
@@ -8590,7 +8584,7 @@
 
     const summaryEl = $('#resultsSummary');
     summaryEl.innerHTML = `
-      <strong>${titleRoom(room.type)}</strong> · ${room.dims.w}×${room.dims.l} ft · ${(profile?.styles||[]).map(styleLabel).join(' · ') || '—'}
+      <strong>${titleRoom(room.type)}</strong> · ${(profile?.styles||[]).map(styleLabel).join(' · ') || '—'}
     `;
     // Remove any existing banner
     const prevBanner = document.getElementById('keptBanner');
@@ -9115,7 +9109,7 @@
         activeAnchorColor = activeAnchorColor === item.accent ? null : item.accent;
         $('#clearPaletteBtn').style.display = activeAnchorColor ? '' : 'none';
         renderPalette(room);
-        toast(activeAnchorColor ? 'Color anchored — reshuffle to apply' : 'Color cleared');
+        toast(activeAnchorColor ? 'Color anchored — applies on next redesign' : 'Color cleared');
       });
       el.appendChild(sw);
     });
@@ -9224,7 +9218,7 @@
       card.className = 'item-card' + (item.owned ? ' owned' : '') + (aboveBudget ? ' above-budget' : '');
       card.id = 'item-'+item.id;
       const onWishlist = state.wishlist.includes(item.id);
-      const alertOn = state.priceAlerts[item.id];
+      // [Item 5] state.priceAlerts read removed — bell button gone.
 
       card.innerHTML = `
         <div class="item-thumb">${item.icon}</div>
@@ -9243,12 +9237,11 @@
           <a class="item-action-btn link-style" href="${buildAffiliateUrl(item)}" target="_blank" rel="noopener noreferrer" data-shop-id="${item.id}">Shop</a>
           <button class="item-action-btn ${onWishlist ? 'active' : ''}" data-act="wish">${onWishlist ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Saved` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Save`}</button>
           <button class="item-action-btn" data-act="swap">⇄ Swap</button>
-          <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
         </div>`}
       `;
       card.querySelector('[data-act="wish"]')?.addEventListener('click', e => { e.stopPropagation(); toggleWishlist(item); });
       card.querySelector('[data-act="swap"]')?.addEventListener('click', e => { e.stopPropagation(); swapItem(room, item); });
-      card.querySelector('[data-act="alert"]')?.addEventListener('click', e => { e.stopPropagation(); togglePriceAlert(item); });
+      // [Item 5] data-act="alert" handler removed (button gone).
       // [Model A] Track every affiliate clickthrough — primary monetization.
       card.querySelector('[data-shop-id]')?.addEventListener('click', e => { e.stopPropagation(); trackAffiliateClick(item, 'item_card_button'); });
       // Tap anywhere else on the card → open the item sheet
@@ -9358,23 +9351,11 @@
     if (room) renderItemsList(room);
   }
 
-  function togglePriceAlert(item) {
-    // [Compute-quality routing] Setting a price alert is Free. Delivery
-    // (push/email) is also Free for ALL users — moving alert delivery to
-    // free per Hassan's decision: gating the highest-conversion notification
-    // behind a paywall is revenue-self-sabotage for an affiliate business.
-    // Pro adds advanced filters (thresholds, retailer prefs) on top — see
-    // gateProFeature('advanced_price_filters') in the upcoming filters UI.
-    state.priceAlerts[item.id] = !state.priceAlerts[item.id];
-    if (!state.priceAlerts[item.id]) delete state.priceAlerts[item.id];
-    save();
-    trackEvent(state.priceAlerts[item.id] ? 'price_alert_on' : 'price_alert_off', { itemId: item.id });
-    if (state.priceAlerts[item.id]) {
-      toast("We'll notify you when the price drops");
-    } else {
-      toast('Alert off');
-    }
-  }
+  // [Item 5] togglePriceAlert function removed (UI bell buttons gone from
+  // all 3 item-card render sites). state.priceAlerts data structure +
+  // cloud-sync push/pull preserved per spec — write-only path is now
+  // dormant. Analytics events `price_alert_on` / `price_alert_off` no
+  // longer fire.
 
   function swapItem(room, item) {
     // [Model A] Item swap is FREE, unlimited. Swap re-runs the local
@@ -9615,87 +9596,18 @@
     });
   }
 
-  // Aha-quality feedback: [Model A] FREE for everyone. Voting is a free
-  // engagement signal that helps tune later redesigns. Removed the
-  // guest→signin and signedin→paywall gates that existed under the
-  // subscription model.
-  document.querySelectorAll('#ahaFeedback .af-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const vote = btn.dataset.vote;
-      const room = state.rooms.find(r => r.id === currentRoomId);
-      if (!room) return;
-      room.qualityVote = vote;
-      save();
-      trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'explicit_vote', vote, roomId: room.id });
-      document.querySelectorAll('#ahaFeedback .af-btn').forEach(b => b.classList.toggle('selected', b === btn));
-      if (vote === 'love')  {
-        toast("Love it — saving this profile's style");
-        // [Batch 3 — A7] Love-tap is an Aha experience signal.
-        fireAhaMomentIfFresh(room, 'love');
-        // [Batch 3 — Dim 04 R8] Promise-Fit micro-survey only on Love
-        // (gating preserves the high-intent path). Fires once per user.
-        setTimeout(() => showPromiseFitMicrosurvey(room.id), 600);
-        // [Batch 4 — Dim 07] Record Love verdict; recomputes styleScores.
-        recordAhaVerdict(room.id, 'love');
-      }
-      if (vote === 'close') {
-        toast('Try reshuffle below for a different mix');
-        // [Batch 3 — A7] Close also implies the user EXPERIENCED the reveal —
-        // not a thumbs-up but engagement-not-bounce. Counts as Aha.
-        fireAhaMomentIfFresh(room, 'close');
-        // [Batch 4 — Dim 07] Record Close verdict.
-        recordAhaVerdict(room.id, 'close');
-      }
-      if (vote === 'off')   {
-        // [Dim 14 Section B Fix 1 — Off-vote actually changes behavior.
-        //  Per Reforge User Insights: "feedback that doesn't change
-        //  behavior is fake feedback." Soft-avoid the current style for
-        //  this profile's next 24h of generations. Time-limited so users
-        //  can't accidentally permanently block their own preferences.
-        //  Picker reads state.user._styleAvoid in pickItemsForRoom (see
-        //  furniture.js) and applies a -0.5 score weight to avoided
-        //  styles. 24h window per Reforge Engagement Strategies → Habit
-        //  Reinforcement (At-Risk p.5-8): the user must see behavior
-        //  visibly respond, but not be permanently penalized.]
-        if (!state.user) state.user = {};
-        state.user._styleAvoid = state.user._styleAvoid || {};
-        const profile = state.profiles.find(p => p.id === room.profileId);
-        const avoidExpiry = Date.now() + 24 * 60 * 60 * 1000;
-        (profile?.styles || []).forEach(s => {
-          state.user._styleAvoid[s] = avoidExpiry;
-        });
-        save();
-        trackEvent('aha_off_style_avoided', { roomId: room.id, styles: profile?.styles || [], expiryMs: avoidExpiry });
-        // [Batch 4 — Dim 07] Record Off verdict — feeds styleScores recompute.
-        recordAhaVerdict(room.id, 'off');
-        // [Dim 09 D10 voice — calmer, more honest copy.]
-        toast('Got it — pulling a different direction…');
-        setTimeout(() => $('#reshuffleBtn')?.click(), 500);
-      }
-    });
-  });
+  // [Item 11] aha-feedback "How does this feel?" handler removed entirely
+  // (HTML block removed from index.html, all .af-btn voting + per-vote
+  // copy/Promise-Fit-microsurvey/style-avoid logic with it). The
+  // ACTIVATION.AHA_QUALITY analytics event no longer fires from this
+  // path; fireAhaMomentIfFresh + recordAhaVerdict still exist and are
+  // called from openRoom (results render) — those keep firing without
+  // the explicit user vote.
 
-  // [Model A] Reshuffle = FREE, unlimited. No quota, no Pro gate. Reshuffle
-  // re-runs the local pickItemsForRoom() — no AI compute call, so it's not a
-  // "generation" under Model A. Tracking the count is kept for analytics only.
-  $('#reshuffleBtn').addEventListener('click', () => {
-    const room = state.rooms.find(r => r.id === currentRoomId);
-    if (!room) return;
-    const profile = state.profiles.find(p => p.id === room.profileId);
-    if (!profile) return;
-    // [BUDGET_RESET_PASS] Reuse room.budget — same generation context.
-    room.reshuffleCount = (room.reshuffleCount || 0) + 1;
-    const draftLike = { type: room.type, dims: room.dims };
-    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), room.budget || SLIDER_BUDGET_DEFAULT,
-      { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
-    room.items = fresh;
-    pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
-    save();
-    renderRoomPieces(room);
-    renderVersions(room);
-    // [Dim 14 Section C Fix 2 — reshuffle copy honesty.]
-    toast('Different items, same style.');
-  });
+  // [Item 12] #reshuffleBtn handler removed (button gone). pickItemsForRoom
+  // is still used by item swap, color anchor, keepMode toggle. The
+  // room.reshuffleCount field becomes a write-nothing legacy field — left
+  // in place for analytics aggregation of historical data.
 
   // [Model A] "Shop the Whole Room" — restores the original affiliate semantics.
   // Free for everyone — opens an affiliate URL per item. This is the primary
@@ -9829,7 +9741,7 @@
     ids.forEach(id => {
       const item = window.FURNITURE_DB.find(i => i.id === id);
       if (!item) return;
-      const alertOn = state.priceAlerts[item.id];
+      // [Item 5] state.priceAlerts read removed — bell button gone.
       const card = document.createElement('div');
       card.className = 'item-card';
       card.innerHTML = `
@@ -9846,11 +9758,10 @@
         <div class="item-actions">
           <a class="item-action-btn link-style" href="${item.url}" target="_blank" rel="noopener noreferrer">Shop</a>
           <button class="item-action-btn" data-act="rm">Remove</button>
-          <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
         </div>
       `;
       card.querySelector('[data-act="rm"]').addEventListener('click', () => { toggleWishlist(item); renderWishlist(); });
-      card.querySelector('[data-act="alert"]').addEventListener('click', () => { togglePriceAlert(item); renderWishlist(); });
+      // [Item 5] data-act="alert" handler removed (button gone).
       list.appendChild(card);
     });
   }
