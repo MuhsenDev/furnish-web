@@ -12545,9 +12545,19 @@
     // paint welcome before that route fires. The splash element covers
     // the deferral window.
     //
-    // Without OAuth markers, default to welcome immediately — guests,
-    // returning auth users, and local-mode users all land on welcome as
-    // their intended destination, so no deferral is needed.
+    // [Refresh-flash fix] Also defer when Identity hydrates as
+    // authenticated at boot. A signed-in user refreshing on any surface
+    // (results, home, etc.) would otherwise see boot paint welcome for
+    // ~200-500ms before Bug 2's routing branch in the backend-ready
+    // handler resolves and switches to home. Identity is hydrated
+    // synchronously from localStorage by identity.js before app.js
+    // loads, so isAuthenticated() is reliable at boot. Bug 2's branch
+    // (wasSignedIn && fromWelcomeOrSplash) handles routing the splash
+    // → home/capture/profile-select cascade once backend-ready fires.
+    //
+    // For guests with no OAuth markers (typical first-visit), default
+    // to welcome immediately — that IS their intended destination, so
+    // no deferral is needed.
     //
     // Markers checked: `#access_token=` (implicit OAuth flow) and
     // `?code=` (PKCE flow). Mirrors what Supabase v2's detectSessionInUrl
@@ -12555,20 +12565,22 @@
     const isOAuthCallback =
       window.location.hash.includes('access_token=') ||
       window.location.search.includes('code=');
+    const isSignedInOnBoot = window.Identity?.isAuthenticated?.() === true;
 
-    if (!isOAuthCallback) {
+    if (!isOAuthCallback && !isSignedInOnBoot) {
       showScreen('welcome');
     } else {
-      console.log('[boot] OAuth callback detected — deferring initial screen until backend-ready resolves');
+      console.log(`[boot] deferring initial screen — ${isOAuthCallback ? 'OAuth callback' : 'signed-in user'} (backend-ready will route)`);
       // Fallback safety net: if backend-ready never fires (SDK fetch
       // failed, listener missed the event, mode='local' early-return) or
       // never makes a routing decision, the user would otherwise be
       // stuck on the splash indefinitely. After 5s, force welcome so the
       // app doesn't appear hung. Gated on _firstScreenShown so this is a
-      // no-op when backend-ready already routed.
+      // no-op when backend-ready already routed. Covers BOTH the OAuth-
+      // callback and signed-in-on-boot deferrals.
       setTimeout(() => {
         if (!_firstScreenShown) {
-          console.warn('[boot] OAuth-callback fallback firing — backend-ready did not resolve a screen within 5s');
+          console.warn('[boot] deferral fallback firing — backend-ready did not resolve a screen within 5s');
           showScreen('welcome');
         }
       }, 5000);
