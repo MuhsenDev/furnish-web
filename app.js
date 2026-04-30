@@ -1742,19 +1742,17 @@
       close();
       switch (action) {
         case 'switch':
-          if (!confirm('Switch account? Your profiles stay on this device.')) return;
-          // [Dim 14 Section F] Snapshot state to per-user backup before clearing.
-          if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
-          if (window.furnishBackend?.mode === 'supabase') {
-            await window.furnishBackend.auth.signOut().catch(()=>{});
-          }
-          state.user = null;
-          // [Identity Stage 2] Mirror Switch Account's state.user clear.
-          if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
-          save();
-          prepareSignin();
-          showScreen('signin');
-          toast('Sign in to switch.');
+          // [Bug 15] Switch Account = full signout wipe + route to
+          // signin. Replaces the prior partial wipe (which left
+          // profiles/rooms/wishlist on device) with the same total
+          // wipe performSignout does for signout. Per-account snapshot
+          // still runs first so the same-account-resign restore offer
+          // works via maybeOfferStateRestore.
+          await performSignout({
+            destination: 'signin',
+            confirmCopy: 'Switch account? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)',
+            toastCopy: 'Sign in to switch.'
+          });
           break;
         case 'furnish-pro':
           openPaywall('generic');
@@ -6904,20 +6902,15 @@
     } else if (action === 'support') {
       openSupportModal();
     } else if (action === 'switch') {
-      if (!confirm('Switch account? Your profiles stay on this device.')) return;
-      // [Dim 14 Section F] Snapshot state before sign-out.
-      if (typeof window.FurnishSignoutSnapshot === 'function') window.FurnishSignoutSnapshot();
-      if (window.furnishBackend?.mode === 'supabase') await window.furnishBackend.auth.signOut().catch(()=>{});
-      // [Batch 6 — Dim 13 REC-13.2] Reset PostHog identity so the next
-      // session is unattributed until a new identify() call.
-      resetAnalyticsIdentity();
-      state.user = null;
-      // [Identity Stage 2] Mirror profile-page Switch Account's state.user clear.
-      if (typeof window.Identity !== 'undefined') window.Identity.completeSignout();
-      save();
-      prepareSignin();
-      showScreen('signin');
-      toast('Sign in to switch.');
+      // [Bug 15] Profile-screen Switch Account: same full-wipe-+-route-
+      // to-signin behavior as the topbar dropdown path. Both entry
+      // points now share the same performSignout helper so the wipe
+      // logic stays in one place.
+      await performSignout({
+        destination: 'signin',
+        confirmCopy: 'Switch account? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)',
+        toastCopy: 'Sign in to switch.'
+      });
     } else if (action === 'signout') {
       // [Bug E fix] Single-path signout via performSignout() — clears
       // all local state. Replaces the prior bespoke handler that only
@@ -11264,8 +11257,24 @@
   // (`furnish.state.backup.<uid>`) — written by FurnishSignoutSnapshot
   // BEFORE the clear so a re-signin with the same account can offer
   // "Restore your previous library?" via maybeOfferStateRestore.
-  async function performSignout() {
-    if (!confirm('Sign out? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)')) {
+  // [Bug 15] performSignout now accepts an optional config object so
+  // Switch Account can run the SAME full wipe but route to signin
+  // instead of welcome. Defaults match the pre-fix behavior so the
+  // bare `performSignout()` call sites elsewhere are unaffected.
+  //
+  //   destination: 'welcome' | 'signin'  (default 'welcome')
+  //   confirmCopy: string                (default the signout copy)
+  //   toastCopy:   string                (default the signout toast)
+  //
+  // Returns true if the wipe completed, false if the user cancelled
+  // the confirm.
+  async function performSignout(opts = {}) {
+    const destination = opts.destination || 'welcome';
+    const confirmCopy = opts.confirmCopy ||
+      'Sign out? This will clear your design data on this device. (A backup is saved if you sign back in with the same account.)';
+    const toastCopy = opts.toastCopy ||
+      'Signed out. Your data has been cleared from this device.';
+    if (!confirm(confirmCopy)) {
       return false;
     }
     // 1. Snapshot per-user backup BEFORE clearing
@@ -11322,9 +11331,18 @@
     // (called inside the state wipe block above). The render subscriber
     // repaints any auth-aware surface the user happens to be on.
     // 7. User-facing confirmation + navigation
-    toast('Signed out. Your data has been cleared from this device.');
-    showScreen('welcome');
-    console.log('[signout] cleared all state, navigating to welcome');
+    toast(toastCopy);
+    if (destination === 'signin') {
+      // [Bug 15] Switch Account path — prep the signin screen with
+      // post-signout context (no pending reveal) and route there so
+      // the user can immediately authenticate as a different account.
+      if (typeof prepareSignin === 'function') prepareSignin();
+      showScreen('signin');
+      console.log('[switchAccount] cleared all state, navigating to signin');
+    } else {
+      showScreen('welcome');
+      console.log('[signout] cleared all state, navigating to welcome');
+    }
     return true;
   }
 
