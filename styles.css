@@ -4758,8 +4758,22 @@ html[data-theme="dark"] .hero-demo .hd-badge {
 }
 .ew-title { font-size: 18px; font-weight: 700; color: var(--ink); margin: 0 0 6px; line-height: 1.3; }
 .ew-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 14px; }
-.ew-cta   { width: 100%; margin-bottom: 6px; }
+/* [Item 1] .ew-cta rule removed — "Browse My Redesign" button gone. */
 .ew-dismiss { width: 100%; }
+
+/* [Item 14] Dark-mode treatment for the welcome card. Pre-fix the card
+   used a hardcoded light cream gradient (#FAF3E7 → #F0E2CC) which
+   stayed light in dark mode while text used --ink (light in dark) →
+   light-on-light unreadable. Override with a dark-cream gradient that
+   matches the page's dark surface tones. */
+html[data-theme="dark"] .explore-welcome {
+  background: linear-gradient(145deg, #2A1F17 0%, #1F1610 100%);
+  border-color: var(--brown);
+}
+html[data-theme="dark"] .ew-badge {
+  background: rgba(216, 176, 126, 0.16);
+  color: var(--tan);
+}
 @keyframes ewIn  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ewOut { from { opacity: 1; transform: translateY(0); }  to { opacity: 0; transform: translateY(-6px); } }
 

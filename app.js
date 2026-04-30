@@ -4801,12 +4801,14 @@
       });
       // [Batch 3 — Dim 04 R6] Price-drop tap is a habit action.
       logHabitAction('price_drop_tap');
-      // Open the wishlist screen scrolled to the item, or the item sheet
-      // directly if openItemSheet is exposed. Fallback: route to wishlist.
+      // [Item 13] Open the item sheet directly if the helper is exposed,
+      // otherwise route to the Saved Items tab (was: dedicated wishlist
+      // screen, retired). openSavedItemsTab activates bottom-nav saved
+      // tab + the items pane.
       if (typeof openItemSheet === 'function') {
         openItemSheet(top.item);
       } else {
-        document.querySelector('[data-go="wishlist"]')?.click();
+        openSavedItemsTab();
       }
     });
     banner.querySelector('[data-pdb-close]').addEventListener('click', () => {
@@ -5860,7 +5862,9 @@
       card.remove();
       const lc = getLifecycleState();
       if (lc === LIFECYCLE.DORMANT && (state.wishlist || []).length) {
-        document.getElementById('wishlistBtn')?.click();
+        // [Item 13] Was wishlistBtn click → dedicated wishlist screen.
+        // Now routes to Saved tab → Saved Items pane.
+        openSavedItemsTab();
       } else {
         document.querySelector('[data-go="capture"]')?.click();
       }
@@ -5971,7 +5975,9 @@
         : `Come back when you're ready to redesign another room.`;
       ctaLabel = wishlistCount > 0 ? 'Check Your Saved' : "Browse What's New";
       ctaAction = () => {
-        if (wishlistCount > 0) document.getElementById('wishlistBtn')?.click();
+        // [Item 13] Was wishlistBtn click → dedicated wishlist screen.
+        // Now routes to Saved tab → Saved Items pane via openSavedItemsTab().
+        if (wishlistCount > 0) openSavedItemsTab();
         else document.querySelector('[data-go="templates"]')?.click();
       };
     } else if (lifecycle === LIFECYCLE.CHURNED) {
@@ -6046,21 +6052,16 @@
     card.className = 'explore-welcome';
     // [Compute-quality routing] No more "N free redesigns remaining" line —
     // unlimited generations make that copy obsolete. Just shop + save guidance.
+    // [Item 1] "Browse My Redesign" CTA removed; only "Got it" dismiss
+    // remains. The explore_welcome_browse_clicked analytics event no
+    // longer fires.
     card.innerHTML = `
       <div class="ew-badge">WELCOME</div>
       <h3 class="ew-title">You're in. Start shopping your style.</h3>
       <p class="ew-sub">Tap any item in your redesign to view it at the retailer. Save favorites to your wishlist.</p>
-      <button class="btn btn-primary big ew-cta" type="button">Browse My Redesign</button>
       <button class="btn btn-ghost small ew-dismiss" type="button">Got it</button>
     `;
     hero.prepend(card);
-    card.querySelector('.ew-cta').addEventListener('click', () => {
-      trackEvent('explore_welcome_browse_clicked');
-      // Find their most recent room and open it.
-      const rooms = (state.rooms || []).filter(r => r.profileId === state.activeProfileId);
-      const last = rooms[rooms.length - 1];
-      if (last) openRoom(last.id);
-    });
     card.querySelector('.ew-dismiss').addEventListener('click', () => {
       card.classList.add('out');
       setTimeout(() => card.remove(), 220);
@@ -6789,10 +6790,28 @@
   // profile-pill. Profile switching remains accessible via the topbar
   // dropdown's Switch Account or via the profile-select screen.
 
-  $('#wishlistBtn').addEventListener('click', () => {
-    renderWishlist();
-    showScreen('wishlist');
-  });
+  // [Item 13] #wishlistBtn handler removed — button gone from the home
+  // topbar, dedicated wishlist screen retired. Wishlist content lives
+  // in the Saved tab → "Saved Items" pane. The 4 in-app shortcuts that
+  // previously fired #wishlistBtn?.click() now route via
+  // openSavedItemsTab() defined below.
+
+  // [Item 13] openSavedItemsTab() — single helper for the 4 in-app
+  // shortcuts that used to open the dedicated wishlist screen. Sets the
+  // .st-tab active state to 'items' BEFORE the bottom-nav click so that
+  // renderSaved() (which reads .st-tab.active to pick the default pane)
+  // lands directly on Saved Items — no Saved-Homes-flash before the
+  // override. Then triggers the bn-tab click which routes to
+  // data-screen="saved" via the global [data-go] dispatcher.
+  function openSavedItemsTab() {
+    document.querySelectorAll('.st-tab').forEach(t => {
+      const on = t.dataset.st === 'items';
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelector('.bn-tab[data-tab="saved"]')?.click();
+  }
+  window.FurnishOpenSavedItems = openSavedItemsTab;
 
   // ---------- Templates ----------
   // Grouped by room type + "For your style" section up top (User Psychology:
@@ -8921,7 +8940,9 @@
       trackEvent('tonights_recap_clicked', { hasWishlist: savedCount > 0, roomId: room.id });
       dismiss('clicked');
       if (savedCount > 0) {
-        document.getElementById('wishlistBtn')?.click();
+        // [Item 13] Was wishlistBtn click → dedicated wishlist screen.
+        // Now routes to Saved tab → Saved Items pane.
+        openSavedItemsTab();
       } else {
         document.querySelector('[data-go="capture"]')?.click();
       }
@@ -9722,46 +9743,12 @@
     });
   });
 
-  // ---------- Wishlist ----------
-  function renderWishlist() {
-    const list = $('#wishlistList');
-    list.innerHTML = '';
-    const ids = state.wishlist;
-    if (!ids.length) {
-      // [Dim 09 Section B.3 — empty states forgive + offer next action,
-      //  never blame. Was "No saved items yet." → names the value prop
-      //  the empty surface enables. Mirror of the HTML fallback at
-      //  index.html (wishlist screen).]
-      list.innerHTML = `<div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>Save items to track price drops.</p></div>`;
-      return;
-    }
-    ids.forEach(id => {
-      const item = window.FURNITURE_DB.find(i => i.id === id);
-      if (!item) return;
-      // [Item 5] state.priceAlerts read removed — bell button gone.
-      const card = document.createElement('div');
-      card.className = 'item-card';
-      card.innerHTML = `
-        <div class="item-thumb">${item.icon}</div>
-        <div class="item-body">
-          <div class="name">${item.name}</div>
-          <div class="desc">${item.description}</div>
-          <div class="meta">
-            <span class="tag source">${sourceLabel(item.source)}</span>
-            <span class="tag">${item.type}</span>
-            <span class="price">$${item.price.toLocaleString()}</span>
-          </div>
-        </div>
-        <div class="item-actions">
-          <a class="item-action-btn link-style" href="${item.url}" target="_blank" rel="noopener noreferrer">Shop</a>
-          <button class="item-action-btn" data-act="rm">Remove</button>
-        </div>
-      `;
-      card.querySelector('[data-act="rm"]').addEventListener('click', () => { toggleWishlist(item); renderWishlist(); });
-      // [Item 5] data-act="alert" handler removed (button gone).
-      list.appendChild(card);
-    });
-  }
+  // [Item 13] renderWishlist() function removed entirely. Dedicated
+  // wishlist screen retired; the Saved tab's renderSavedItems() is
+  // the canonical wishlist surface (strict superset of the prior
+  // dedicated screen — adds tap-card-to-open-item-sheet, explicit
+  // item count via #stItemsCount, cross-tab discovery alongside Saved
+  // Homes + Saved Rooms).
 
   // ---------- Share modal ----------
   // [Model A] Sharing is FREE — viral loops drive affiliate referrals (D
