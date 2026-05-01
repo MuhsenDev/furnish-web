@@ -3283,31 +3283,43 @@
     finishQuiz();
   });
 
-  // [feat-pre-launch-bundle Theme 2 Feature A] Helper: read the freeform
-  // textbox on the Tell Us More screen, append a new entry to the active
-  // profile's tellUsMoreEntries[] if non-empty. Fires the submission
-  // analytics event with text-length only (no content — privacy).
-  function appendTellUsMoreEntryFromQuizScreen() {
-    const ta = document.getElementById('tellUsMoreInput');
-    if (!ta) return;
-    const text = (ta.value || '').trim().slice(0, 280);
-    if (!text) return;
-    const p = state.profiles.find(x => x.id === state.quiz?.profileId);
-    if (!p) return;
-    const entries = getTellUsMoreEntries(p);
+  // [feat-pre-launch-bundle Theme 2 Feature A / feat-pre-ai-bridge Item 1]
+  // Unified entry-creation helper. Both the quiz-flow Tell Us More
+  // screen AND the Preferences-page input affordance call this. Empty
+  // text bails out (no empty bubbles). Fires the submission analytics
+  // event with text-length + source discriminator (no content — privacy).
+  // Returns the new entry on success, null on bail.
+  function addTellUsMoreEntry(profile, rawText, source) {
+    if (!profile) return null;
+    const text = (rawText || '').trim().slice(0, 280);
+    if (!text) return null;
+    const entries = getTellUsMoreEntries(profile);
     const now = Date.now();
-    entries.push({
+    const entry = {
       id: 'tum_' + now + '_' + Math.random().toString(36).slice(2, 7),
       text,
       createdAt: now,
       updatedAt: now
-    });
+    };
+    entries.push(entry);
     save();
     trackEvent('tell_us_more_entry_submitted', {
       text_length: text.length,
-      source: 'quiz_dealbreaker_screen',
+      source: source || 'tell_us_more_screen',
       total_entries: entries.length
     });
+    return entry;
+  }
+  // [feat-pre-launch-bundle Theme 2 Feature A] Quiz-screen entry path.
+  // Wraps addTellUsMoreEntry with the quiz-specific source tag and
+  // textbox-reset side effect.
+  function appendTellUsMoreEntryFromQuizScreen() {
+    const ta = document.getElementById('tellUsMoreInput');
+    if (!ta) return;
+    const p = state.profiles.find(x => x.id === state.quiz?.profileId);
+    if (!p) return;
+    const entry = addTellUsMoreEntry(p, ta.value, 'quiz_dealbreaker_screen');
+    if (!entry) return;
     // Clear the textbox so a back-nav re-entry doesn't double-submit.
     ta.value = '';
     const cc = document.getElementById('tellUsMoreCharCount');
@@ -3916,22 +3928,53 @@
     }
   }
 
-  // [feat-pre-launch-bundle Theme 2 Feature A] Bubble renderer for the
-  // "Things we know about you" section on Preferences. One bubble per
-  // entry. Tap a bubble to enter inline-edit mode (textarea + Save /
-  // Delete / Cancel). Section hides entirely when the array is empty.
+  // [feat-pre-launch-bundle Theme 2 Feature A / feat-pre-ai-bridge Item 1]
+  // Bubble renderer for the "Things we know about you" section on
+  // Preferences. One bubble per entry. Tap a bubble to enter inline-
+  // edit mode (textarea + Save / Delete / Cancel).
+  // Section is always visible now (Item 1 added the input affordance
+  // at the top — even users with no entries see the add row). Bubble
+  // host clears when the array is empty.
+  // Wires the input row's add button to addTellUsMoreEntry on the
+  // active profile. Idempotent — listeners replaced via .oninput /
+  // .onclick reassignment so re-renders don't multi-bind.
   function renderTellUsMoreBubbles(profile) {
     const section = document.getElementById('tellUsMoreSection');
     const host = document.getElementById('tellUsMoreBubbles');
     if (!section || !host) return;
-    const entries = getTellUsMoreEntries(profile);
-    if (!entries.length) {
-      section.hidden = true;
-      host.innerHTML = '';
-      return;
-    }
     section.hidden = false;
+    // Wire the add-row affordance for this profile context. Re-runs
+    // each render so the closure captures the correct `profile` ref.
+    const addInput = document.getElementById('tellUsMoreAddInput');
+    const addBtn = document.getElementById('tellUsMoreAddBtn');
+    if (addInput && addBtn) {
+      // Reset to empty state every time openPreferences re-renders
+      // (user might have left mid-typing on a different profile).
+      addInput.value = '';
+      addBtn.disabled = true;
+      addInput.oninput = () => {
+        addBtn.disabled = !addInput.value.trim();
+      };
+      addBtn.onclick = () => {
+        const text = addInput.value;
+        const entry = addTellUsMoreEntry(profile, text, 'preferences_page');
+        if (!entry) return;
+        addInput.value = '';
+        addBtn.disabled = true;
+        renderTellUsMoreBubbles(profile);
+      };
+      // Cmd/Ctrl+Enter submits without leaving the textbox — power-user
+      // path. Plain Enter inserts newlines (matches textarea convention).
+      addInput.onkeydown = (e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !addBtn.disabled) {
+          e.preventDefault();
+          addBtn.click();
+        }
+      };
+    }
+    const entries = getTellUsMoreEntries(profile);
     host.innerHTML = '';
+    if (!entries.length) return;
     // Newest first — most-recently-edited at the top.
     const sorted = entries.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     sorted.forEach(entry => {

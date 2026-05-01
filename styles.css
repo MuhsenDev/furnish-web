@@ -4666,13 +4666,69 @@ html[data-theme="dark"] .tum-block {
   margin: 22px 0 8px;
 }
 .tum-section .tum-section-hint {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
+
+/* [feat-pre-ai-bridge Item 1] In-page add affordance at the top of the
+   "Things we know about you" section. Third entry point for Tell Us
+   More entries (alongside the quiz-flow screen and the per-room
+   pre-generation context box — that one writes to a different field).
+   Textarea on the left, primary "+ Add" button on the right. Button
+   disables when textbox is empty so the empty-submission bail-out
+   doesn't surprise the user. */
+.tum-add-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tum-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 44px;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.tum-add-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.16);
+}
+.tum-add-input::placeholder { color: var(--muted); opacity: 0.85; }
+.tum-add-btn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+}
+.tum-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tum-add-btn svg { flex-shrink: 0; }
+html[data-theme="dark"] .tum-add-input {
+  background: var(--beige);
+  color: var(--ink);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .tum-add-input::placeholder { color: var(--brown-2); opacity: 0.75; }
+
 .tum-bubbles {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+.tum-bubbles:empty { display: none; }
 .tum-bubble {
   display: inline-flex;
   align-items: center;
