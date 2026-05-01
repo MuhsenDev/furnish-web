@@ -9692,6 +9692,10 @@ html[data-theme="dark"] .save-home-missing-row .bullet {
   font-size: 11.5px;
   font-weight: 500;
   opacity: 0.85;
+  /* Inherits parent .btn-primary color (var(--cream)) for readable contrast
+     on the brown button. Override .muted if it ever gets reapplied here —
+     muted on a colored button is unreadable (dark-brown-on-dark-brown). */
+  color: inherit;
 }
 html[data-theme="dark"] .save-surface-modal h3 { color: var(--deep); }
 

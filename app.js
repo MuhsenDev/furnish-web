@@ -5392,7 +5392,7 @@
             ? ''
             : `<button class="btn btn-primary big" id="saveToHomeBtn" type="button">
                 <span class="save-surface-cta-label">Save as your ${label} in Your Home</span>
-                ${slotOccupied ? `<span class="save-surface-cta-sub muted small">Previous ${label} moves to Saved Rooms</span>` : ''}
+                ${slotOccupied ? `<span class="save-surface-cta-sub small">Previous ${label} moves to Saved Rooms</span>` : ''}
               </button>`
           }
           <button class="btn btn-ghost" id="saveToSavedRoomsBtn" type="button">Save to Saved Rooms</button>
