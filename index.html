@@ -564,7 +564,7 @@
             <svg class="icon icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
             <svg class="icon icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
           </button>
-          <button class="btn-icon" id="wishlistBtn" aria-label="Wishlist" title="Wishlist">♡</button>
+          <!-- [Item 13] Home-topbar wishlist icon removed; wishlist consolidated into Saved tab. -->
         </div>
       </header>
       <div class="home-hero">
@@ -963,22 +963,8 @@
         </button>
       </div>
 
-      <!-- Aha quality signal: ask one question, capture + use the answer -->
-      <div class="aha-feedback" id="ahaFeedback">
-        <span class="af-q">How does this feel?</span>
-        <div class="af-buttons">
-          <button class="af-btn" data-vote="love" type="button" aria-label="I love it">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-            <span>Love it</span>
-          </button>
-          <button class="af-btn" data-vote="close" type="button" aria-label="Close but not quite">
-            <span class="af-emoji">≈</span><span>Close</span>
-          </button>
-          <button class="af-btn" data-vote="off" type="button" aria-label="Off the mark">
-            <span class="af-emoji">×</span><span>Not me</span>
-          </button>
-        </div>
-      </div>
+      <!-- [Item 11] "How does this feel?" aha-feedback prompt removed. -->
+
 
       <!-- [Model A] Primary affiliate CTA — restored to "Shop the Whole Room"
            semantics. Free for everyone. The Reshuffle button is unhidden below
@@ -1061,13 +1047,8 @@
         <div class="versions-list" id="versionsList"></div>
       </div>
 
-      <!-- Hidden: the prominent button up top now is Reshuffle All Picks.
-           Kept in DOM so existing keyboard handlers keep working. -->
-      <!-- [Model A] Reshuffle is FREE + visible. Sits below versions/items as
-           the secondary action; primary is "Shop The Whole Room" up top. -->
-      <div class="actions-row stacked">
-        <button class="btn btn-ghost" id="reshuffleBtn">Reshuffle All Picks</button>
-      </div>
+      <!-- [Item 12] Reshuffle All Picks button removed. -->
+
 
       <!-- [Reforge Retention — Habit Moment frequency / return-loop salience]
            This is the highest-leverage habit-forming action on the results
@@ -1100,17 +1081,12 @@
       </div>
     </section>
 
-    <!-- SCREEN: Wishlist -->
-    <section class="screen" data-screen="wishlist">
-      <header class="topbar">
-        <button class="btn-icon" data-go="home" aria-label="Back">‹</button>
-        <h2>Wishlist</h2>
-      </header>
-      <p class="subtle">Saved items. Toggle price-drop alerts for the ones you're watching.</p>
-      <div class="items-list" id="wishlistList">
-        <div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>Save items to track price drops.</p></div>
-      </div>
-    </section>
+    <!-- [Item 13] Dedicated <section data-screen="wishlist"> removed.
+         Wishlist content consolidated into the Saved tab's "Saved Items"
+         pane (renderSavedItems → #savedItemsGrid). Saved tab is a strict
+         superset — adds tap-card-to-open-item-sheet, explicit item count,
+         cross-tab discovery with Saved Homes + Saved Rooms. -->
+
 
     <!-- SCREEN: This Week's Featured Style — dedicated page for the
          weekly Style Pulse drop. Reads from THIS_WEEK_CONFIG (single source
@@ -1255,7 +1231,7 @@
                paywall, the relevant pain is "will this charge me when I
                forget?" Real trust > fake reviews. -->
           <div class="paywall-social">
-            <span class="paywall-social-text"><strong>Cancel before day 7</strong> · No charge. We don't auto-bill surprise.</span>
+            <span class="paywall-social-text"><strong>Cancel before day 7</strong> · No charge. We'll notify you a day before your trial ends.</span>
           </div>
 
           <!-- [Batch 5 — Dim 06 Section B.1] Renovation-cost anchor.
@@ -1309,9 +1285,7 @@
           <ul class="paywall-list">
             <li><span class="bullet">✓</span> <strong>HD downloads</strong> — no watermark, share-ready for Instagram &amp; Pinterest</li>
             <li><span class="bullet">✓</span> A separate style profile for every person in your home</li>
-            <li><span class="bullet">✓</span> Advanced price-drop filters — set thresholds + retailer prefs</li>
             <li><span class="bullet">✓</span> Premium AI quality — sharper, more accurate redesigns</li>
-            <li><span class="bullet">✓</span> Premium template library</li>
           </ul>
 
           <!-- [More Pro perks dropdown] Native <details> element so the
@@ -1338,7 +1312,7 @@
               </li>
               <li>
                 <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Cancel anytime</strong> before day 7 — no charge, no surprise auto-bill</span>
+                <span class="pmp-text"><strong>Cancel anytime</strong> before day 7 — no charge; we'll notify you a day before your trial ends</span>
               </li>
               <li>
                 <span class="bullet pmp-bullet-soon" aria-hidden="true">
@@ -1475,9 +1449,9 @@
       <h3>Need a Hand?</h3>
       <p class="subtle">We're a small team and we love hearing from you.</p>
       <div class="support-options">
-        <a class="support-row" href="mailto:hello@furnish.app">
+        <a class="support-row" href="mailto:hello@furnish.live">
           <span class="sr-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>
-          <div class="sr-body"><strong>Email Us</strong><small>hello@furnish.app · usually within 24h</small></div>
+          <div class="sr-body"><strong>Email Us</strong><small>hello@furnish.live · usually within 24h</small></div>
           <span class="sr-arrow">›</span>
         </a>
         <button class="support-row" id="supportFaq" type="button">
@@ -1485,11 +1459,11 @@
           <div class="sr-body"><strong>Browse the FAQ</strong><small>Quick answers to common questions</small></div>
           <span class="sr-arrow">›</span>
         </button>
-        <button class="support-row" id="supportFeedback" type="button">
+        <a class="support-row" href="mailto:ideas@furnish.live?subject=Furnish%20feature%20suggestion">
           <span class="sr-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21h6M10 17h4M12 3a6 6 0 00-4 10.5c.8.8 1 1.5 1 3h6c0-1.5.2-2.2 1-3A6 6 0 0012 3z"/></svg></span>
-          <div class="sr-body"><strong>Suggest a Feature</strong><small>We read every note</small></div>
+          <div class="sr-body"><strong>Suggest a Feature</strong><small>ideas@furnish.live · we read every note</small></div>
           <span class="sr-arrow">›</span>
-        </button>
+        </a>
       </div>
     </div>
   </div>

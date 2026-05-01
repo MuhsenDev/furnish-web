@@ -588,7 +588,15 @@ html[data-theme="dark"] .user-pill {
   position: relative;
   overflow: hidden;
 }
-/* Cross-fade slideshow for seasonal cards: each slide takes 6s of a 24s loop. */
+/* [Item 4] Cross-fade slideshow for seasonal cards. 24s loop with each
+   slide visible for ~5s + fade-in/out at start/end. Pre-fix the keyframe
+   was: 0%-20% opacity 1, 20%-25% fade out, 25%-95% hidden, 95%-100% return
+   to 1 — which produced a 1.2s fade-OUT but NO real fade-IN (next slide
+   appeared at full opacity in its own delayed cycle).
+   Post-fix: 0%-2% fade IN (480ms), 2%-23% visible, 23%-25% fade OUT
+   (480ms), 25%-100% hidden. With the per-slide animation-delay setup in
+   buildCollectionCard, adjacent slides overlap their fade-in/fade-out
+   windows for a true crossfade. */
 .c-photo-slideshow .c-slide {
   position: absolute; inset: 0;
   background-size: cover; background-position: center;
@@ -596,11 +604,11 @@ html[data-theme="dark"] .user-pill {
   animation: cSlideCycle 24s infinite ease-in-out;
 }
 @keyframes cSlideCycle {
-  0%   { opacity: 1; }
-  20%  { opacity: 1; }
+  0%   { opacity: 0; }
+  2%   { opacity: 1; }
+  23%  { opacity: 1; }
   25%  { opacity: 0; }
-  95%  { opacity: 0; }
-  100% { opacity: 1; }
+  100% { opacity: 0; }
 }
 .collection-card .c-body { padding: 12px 14px 14px; }
 .collection-card .c-label { font-weight: 700; color: var(--deep); font-size: 14px; }
@@ -4689,25 +4697,8 @@ html[data-theme="dark"] .hero-demo .hd-badge {
   font-size: 22px; color: var(--muted); padding-right: 4px;
 }
 
-/* C7 — Aha quality feedback buttons */
-.aha-feedback {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 14px; margin: 10px 0;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-.af-q { font-size: 13px; font-weight: 600; color: var(--ink); }
-.af-buttons { display: flex; gap: 8px; }
-.af-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 10px; background: transparent;
-  border: 1px solid var(--line); border-radius: 10px;
-  font-size: 13px; color: var(--ink);
-  cursor: pointer; transition: all 150ms ease;
-}
-.af-btn:hover { background: var(--beige); }
-.af-btn.selected { background: var(--brown); color: #FAF3E7; border-color: var(--brown); }
-.af-emoji { font-size: 16px; font-weight: 700; }
+/* [Item 11] .aha-feedback / .af-q / .af-buttons / .af-btn / .af-emoji
+   ruleset removed — "How does this feel?" prompt + voting buttons gone. */
 
 /* C9 — Share network buttons */
 .share-net {
@@ -4775,8 +4766,22 @@ html[data-theme="dark"] .hero-demo .hd-badge {
 }
 .ew-title { font-size: 18px; font-weight: 700; color: var(--ink); margin: 0 0 6px; line-height: 1.3; }
 .ew-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 14px; }
-.ew-cta   { width: 100%; margin-bottom: 6px; }
+/* [Item 1] .ew-cta rule removed — "Browse My Redesign" button gone. */
 .ew-dismiss { width: 100%; }
+
+/* [Item 14] Dark-mode treatment for the welcome card. Pre-fix the card
+   used a hardcoded light cream gradient (#FAF3E7 → #F0E2CC) which
+   stayed light in dark mode while text used --ink (light in dark) →
+   light-on-light unreadable. Override with a dark-cream gradient that
+   matches the page's dark surface tones. */
+html[data-theme="dark"] .explore-welcome {
+  background: linear-gradient(145deg, #2A1F17 0%, #1F1610 100%);
+  border-color: var(--brown);
+}
+html[data-theme="dark"] .ew-badge {
+  background: rgba(216, 176, 126, 0.16);
+  color: var(--tan);
+}
 @keyframes ewIn  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ewOut { from { opacity: 1; transform: translateY(0); }  to { opacity: 0; transform: translateY(-6px); } }
 
@@ -8478,10 +8483,9 @@ html[data-theme="dark"] .promise-fit-survey .pfs-btn { background: var(--beige);
   /* Power layout: deeper brown — household/multi-profile feel */
   color: var(--brown) !important;
 }
-#paywallModal.layout-C_save .paywall-badge {
-  /* Save layout: green — savings/bargain feel */
-  color: var(--ok) !important;
-}
+/* [Item 8] #paywallModal.layout-C_save .paywall-badge rule removed —
+   layout-C_save class no longer applied (advanced_price_filters context
+   retired). */
 
 /* [B3 / A3 / Dim 12 E3] Demote quiz-intro Skip button to text link.
    Per Reforge Setup Moment Experience: setup phase should be slightly

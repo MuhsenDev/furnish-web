@@ -1826,10 +1826,11 @@
       // [Dim 09 D10 — exclamation removed per Warmth-6.]
       toast("FAQ coming soon. You're early.");
     });
-    document.getElementById('supportFeedback').addEventListener('click', () => {
-      close();
-      toast('Send your idea to hello@furnish.app');
-    });
+    // [Item 2] supportFeedback click handler removed — the button is
+    // now an <a href="mailto:ideas@furnish.live"> tag, so the browser
+    // handles the click natively (opens mail client). The prior
+    // toast-only fallback ("Send your idea to hello@furnish.app") is
+    // gone with it.
   })();
 
   // ---------- Theme ----------
@@ -2569,7 +2570,6 @@
     subtitle: 'What you already have',
     bullets: Object.freeze([
       'Unlimited AI redesigns at standard quality',
-      'Unlimited reshuffles on your existing redesign',
       'Unlimited item swaps',
       'Full shopping access — every item is yours to buy',
       'Basic personalization (style, mood)',
@@ -2625,20 +2625,21 @@
   //   Layout A — Quality (premium_quality, hd_export, template_pro)
   //   Layout B — Power   (profile)  -- multi_room_batch + advanced_personalization
   //                                    were retired in Batch 1 Conflict 3 lock
-  //   Layout C — Save    (advanced_price_filters)
+  //   [Item 8] Layout C — Save (advanced_price_filters) RETIRED — the
+  //   feature ("set thresholds + retailer prefs") was never built.
+  //   Bullet removed from paywall card, all context references purged.
   // generic stays as a Layout-A fallback. Existing call sites unchanged —
   // each context still maps to copy, but the underlying layout is shared.
   const PAYWALL_LAYOUTS = Object.freeze({
     A_quality: { layout: 'A', leadBullet: 'Premium AI model — sharper results, no watermark.' },
     B_power:   { layout: 'B', leadBullet: 'Designed for households and frequent users.' },
-    C_save:    { layout: 'C', leadBullet: 'Set price-drop thresholds and never overpay.' }
+    // [Item 8] C_save layout retired with advanced_price_filters context.
   });
   const PAYWALL_CONTEXT_LAYOUT = Object.freeze({
     premium_quality:        'A_quality',
     hd_export:              'A_quality',
     template_pro:           'A_quality',
     profile:                'B_power',
-    advanced_price_filters: 'C_save',
     rearrange:              'A_quality',
     generic:                'A_quality',
   });
@@ -2656,10 +2657,7 @@
       title: 'Your redesigns, photo-real.',
       sub: 'Same room, sharper light, accurate fabrics — no more blocky textures or fake reflections. Pro routes you to the premium AI model.',
     },
-    advanced_price_filters: {
-      title: 'Filter your price-drop alerts',
-      sub: 'Pro lets you set thresholds (only alert me on drops ≥20%) and retailer preferences. Free alerts already cover everything saved — Pro is for power users.',
-    },
+    // [Item 8] advanced_price_filters PAYWALL_COPY entry removed.
     template_pro: {
       title: 'Premium templates',
       sub: 'Pro templates include curated rooms across every style and space — designer-quality starts with the right shape.',
@@ -2731,7 +2729,7 @@
     // pure vitamin → need motivational boosts (urgency / scarcity) to
     // clear the decision hill. `data-scarcity` toggles the visibility
     // of `.paywall-urgency` (founding-member 1,000-spot copy).
-    const scarcityOnContexts = ['hd_export','profile','advanced_price_filters','template_pro','generic'];
+    const scarcityOnContexts = ['hd_export','profile','template_pro','generic'];
     m.dataset.scarcity = scarcityOnContexts.includes(context) ? 'on' : 'off';
     trackEvent('paywall_shown', { context, layout: layoutKey });
   }
@@ -2757,9 +2755,9 @@
       // dismissed context (per the contextMap in maybeFireValueMomentPaywall).
       const trigForContext = {
         hd_export:              ['hd_export_attempt', 'affiliate_click_2plus_items', 'share_attempt'],
-        advanced_price_filters: ['wishlist_3rd_save'],
         profile:                ['second_room_intent'],
         premium_quality:        ['love_dwell_5min', 'same_room_3rd_redesign'],
+        // [Item 8] advanced_price_filters → wishlist_3rd_save mapping removed.
       };
       (trigForContext[context] || []).forEach(t => suppressValueMomentTrigger(t));
     }
@@ -4804,12 +4802,14 @@
       });
       // [Batch 3 — Dim 04 R6] Price-drop tap is a habit action.
       logHabitAction('price_drop_tap');
-      // Open the wishlist screen scrolled to the item, or the item sheet
-      // directly if openItemSheet is exposed. Fallback: route to wishlist.
+      // [Item 13] Open the item sheet directly if the helper is exposed,
+      // otherwise route to the Saved Items tab (was: dedicated wishlist
+      // screen, retired). openSavedItemsTab activates bottom-nav saved
+      // tab + the items pane.
       if (typeof openItemSheet === 'function') {
         openItemSheet(top.item);
       } else {
-        document.querySelector('[data-go="wishlist"]')?.click();
+        openSavedItemsTab();
       }
     });
     banner.querySelector('[data-pdb-close]').addEventListener('click', () => {
@@ -5863,7 +5863,9 @@
       card.remove();
       const lc = getLifecycleState();
       if (lc === LIFECYCLE.DORMANT && (state.wishlist || []).length) {
-        document.getElementById('wishlistBtn')?.click();
+        // [Item 13] Was wishlistBtn click → dedicated wishlist screen.
+        // Now routes to Saved tab → Saved Items pane.
+        openSavedItemsTab();
       } else {
         document.querySelector('[data-go="capture"]')?.click();
       }
@@ -5974,7 +5976,9 @@
         : `Come back when you're ready to redesign another room.`;
       ctaLabel = wishlistCount > 0 ? 'Check Your Saved' : "Browse What's New";
       ctaAction = () => {
-        if (wishlistCount > 0) document.getElementById('wishlistBtn')?.click();
+        // [Item 13] Was wishlistBtn click → dedicated wishlist screen.
+        // Now routes to Saved tab → Saved Items pane via openSavedItemsTab().
+        if (wishlistCount > 0) openSavedItemsTab();
         else document.querySelector('[data-go="templates"]')?.click();
       };
     } else if (lifecycle === LIFECYCLE.CHURNED) {
@@ -6049,21 +6053,16 @@
     card.className = 'explore-welcome';
     // [Compute-quality routing] No more "N free redesigns remaining" line —
     // unlimited generations make that copy obsolete. Just shop + save guidance.
+    // [Item 1] "Browse My Redesign" CTA removed; only "Got it" dismiss
+    // remains. The explore_welcome_browse_clicked analytics event no
+    // longer fires.
     card.innerHTML = `
       <div class="ew-badge">WELCOME</div>
       <h3 class="ew-title">You're in. Start shopping your style.</h3>
       <p class="ew-sub">Tap any item in your redesign to view it at the retailer. Save favorites to your wishlist.</p>
-      <button class="btn btn-primary big ew-cta" type="button">Browse My Redesign</button>
       <button class="btn btn-ghost small ew-dismiss" type="button">Got it</button>
     `;
     hero.prepend(card);
-    card.querySelector('.ew-cta').addEventListener('click', () => {
-      trackEvent('explore_welcome_browse_clicked');
-      // Find their most recent room and open it.
-      const rooms = (state.rooms || []).filter(r => r.profileId === state.activeProfileId);
-      const last = rooms[rooms.length - 1];
-      if (last) openRoom(last.id);
-    });
     card.querySelector('.ew-dismiss').addEventListener('click', () => {
       card.classList.add('out');
       setTimeout(() => card.remove(), 220);
@@ -6344,7 +6343,7 @@
     ids.forEach(id => {
       const item = window.FURNITURE_DB.find(i => i.id === id);
       if (!item) return;
-      const alertOn = state.priceAlerts[item.id];
+      // [Item 5] state.priceAlerts read removed — bell button gone.
       const card = document.createElement('div');
       card.className = 'item-card';
       card.innerHTML = `
@@ -6361,7 +6360,6 @@
         <div class="item-actions">
           <a class="item-action-btn link-style" href="${item.url}" target="_blank" rel="noopener noreferrer">Shop</a>
           <button class="item-action-btn" data-act="rm">Remove</button>
-          <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
         </div>
       `;
       card.querySelector('[data-act="rm"]').addEventListener('click', e => {
@@ -6370,11 +6368,7 @@
         renderSavedItems();
         $('#stItemsCount').textContent = state.wishlist.length;
       });
-      card.querySelector('[data-act="alert"]').addEventListener('click', e => {
-        e.stopPropagation();
-        togglePriceAlert(item);
-        renderSavedItems();
-      });
+      // [Item 5] data-act="alert" handler removed (button gone).
       card.addEventListener('click', e => {
         if (e.target.closest('button, a')) return;
         openItemSheet(item, null);
@@ -6432,7 +6426,7 @@
       $('#profileProBtn').textContent = 'Manage';
     } else {
       $('#profileProTitle').textContent = 'Free plan';
-      $('#profileProSub').textContent = 'Standard-quality redesigns · reshuffle, swap, and shop always free · Pro for premium quality';
+      $('#profileProSub').textContent = 'Standard-quality redesigns · swap and shop always free · Pro for premium quality';
       $('#profileProBtn').textContent = 'Upgrade';
     }
     $('#profileProBtn').onclick = () => openPaywall('generic');
@@ -6641,10 +6635,13 @@
         <polyline points="12 5 19 12 12 19"/>
       </svg>
     `;
-    cta.addEventListener('click', e => {
-      e.stopPropagation();
-      // Pick a sensible room type for the redesign — collections don't
-      // specify one, so default to living room. The user can re-pick.
+    // [Item 3] Single fire path used by BOTH the CTA button and the
+    // card-wide tap. Pre-fix, card-tap fired applyCollection (synthesize
+    // style answers into active profile) while CTA fired useTemplateFromCard
+    // (start a redesign with the collection's preview image). Hassan's spec:
+    // entire card should function as Use Template button. Both surfaces
+    // now route to the same useTemplateFromCard call.
+    const fireUseTemplate = () => {
       const previewImage = c.image || (c.images && c.images[0]) || null;
       useTemplateFromCard({
         id: `collection-${c.id}`,
@@ -6655,12 +6652,16 @@
         styleColors: c.colors,
         label: c.label,
       }, 'collection_card');
+    };
+    cta.addEventListener('click', e => {
+      e.stopPropagation();
+      fireUseTemplate();
     });
     card.appendChild(cta);
 
-    // Body / photo tap = apply collection to profile (existing behavior).
-    // The CTA's stopPropagation prevents double-firing.
-    card.addEventListener('click', () => applyCollection(c));
+    // Card-wide tap fires the same path as the CTA. CTA's stopPropagation
+    // prevents double-firing if the user clicks precisely on the button.
+    card.addEventListener('click', fireUseTemplate);
     return card;
   }
 
@@ -6714,24 +6715,11 @@
     buildMarquee(document.getElementById('trendingStrip'),    trending);
   }
 
-  function applyCollection(c) {
-    const p = getActiveProfile();
-    if (!p) return;
-    // [10-Q model] Collection apply uses the same template-synthesizer
-    // bridge as Use Template. Synthesize answers from the collection's
-    // style+color tags, merge into p.answers (without losing existing user
-    // answers), then re-derive the legacy catalog-bridge fields.
-    const synth = synthesizeAnswersFromTemplate(c) || {};
-    p.answers = { ...(p.answers || {}), ...synth };
-    p.styles = deriveStylesFromAnswers(p.answers);
-    p.colors = deriveColorsFromAnswers(p.answers);
-    save();
-    toast(`Applied "${c.label}" to ${p.name}`);
-    // [feat-remove-profile-screen] renderProfiles() call removed — the
-    // profile-select grid no longer exists. The active profile's data
-    // is updated; whichever surface the user navigates to next will
-    // render fresh from state.
-  }
+  // [Item 3] applyCollection(c) function removed — sole caller was the
+  // collection card-tap, which now fires useTemplateFromCard instead
+  // (per Hassan's spec to unify card-wide + CTA-button behavior).
+  // synthesizeAnswersFromTemplate, deriveStylesFromAnswers,
+  // deriveColorsFromAnswers helpers are still used elsewhere.
 
   function renderRoomsGrid() {
     const grid = $('#roomsGrid');
@@ -6797,10 +6785,28 @@
   // profile-pill. Profile switching remains accessible via the topbar
   // dropdown's Switch Account or via the profile-select screen.
 
-  $('#wishlistBtn').addEventListener('click', () => {
-    renderWishlist();
-    showScreen('wishlist');
-  });
+  // [Item 13] #wishlistBtn handler removed — button gone from the home
+  // topbar, dedicated wishlist screen retired. Wishlist content lives
+  // in the Saved tab → "Saved Items" pane. The 4 in-app shortcuts that
+  // previously fired #wishlistBtn?.click() now route via
+  // openSavedItemsTab() defined below.
+
+  // [Item 13] openSavedItemsTab() — single helper for the 4 in-app
+  // shortcuts that used to open the dedicated wishlist screen. Sets the
+  // .st-tab active state to 'items' BEFORE the bottom-nav click so that
+  // renderSaved() (which reads .st-tab.active to pick the default pane)
+  // lands directly on Saved Items — no Saved-Homes-flash before the
+  // override. Then triggers the bn-tab click which routes to
+  // data-screen="saved" via the global [data-go] dispatcher.
+  function openSavedItemsTab() {
+    document.querySelectorAll('.st-tab').forEach(t => {
+      const on = t.dataset.st === 'items';
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelector('.bn-tab[data-tab="saved"]')?.click();
+  }
+  window.FurnishOpenSavedItems = openSavedItemsTab;
 
   // ---------- Templates ----------
   // Grouped by room type + "For your style" section up top (User Psychology:
@@ -6997,10 +7003,20 @@
     // The escape state is recomputed on every prepareCapture entry so a
     // user who signs in mid-session sees the button reappear next time
     // they hit capture.
+    const isFirst = isFirstTimeOnboarding();
     const captureTopbarLeft = document.getElementById('captureTopbarLeft');
     if (captureTopbarLeft) {
-      captureTopbarLeft.style.display = isFirstTimeOnboarding() ? 'none' : '';
+      captureTopbarLeft.style.display = isFirst ? 'none' : '';
     }
+    // [Item 10] "Last Step — Your Room Photo" + capture-progress bar are
+    // onboarding-only chrome. For returning users (post-first redesign),
+    // they're misleading — implies "you're 90% through onboarding" when
+    // they're just adding another room. Swap title to plain "Your Room
+    // Photo" and hide the progress bar.
+    const captureTitle = document.querySelector('[data-screen="capture"] h2');
+    if (captureTitle) captureTitle.textContent = isFirst ? 'Last Step — Your Room Photo' : 'Your Room Photo';
+    const captureProgress = document.querySelector('[data-screen="capture"] .capture-progress');
+    if (captureProgress) captureProgress.style.display = isFirst ? '' : 'none';
     // type defaults to null so the user must pick one (enables the analyze btn).
     // keep defaults to false (fresh start) — user can flip post-aha on results.
     state.draft = state.draft || { photo: null, type: null, dims: { w:12, l:14, h:9 }, keep: false };
@@ -8590,7 +8606,7 @@
 
     const summaryEl = $('#resultsSummary');
     summaryEl.innerHTML = `
-      <strong>${titleRoom(room.type)}</strong> · ${room.dims.w}×${room.dims.l} ft · ${(profile?.styles||[]).map(styleLabel).join(' · ') || '—'}
+      <strong>${titleRoom(room.type)}</strong> · ${(profile?.styles||[]).map(styleLabel).join(' · ') || '—'}
     `;
     // Remove any existing banner
     const prevBanner = document.getElementById('keptBanner');
@@ -8929,7 +8945,9 @@
       trackEvent('tonights_recap_clicked', { hasWishlist: savedCount > 0, roomId: room.id });
       dismiss('clicked');
       if (savedCount > 0) {
-        document.getElementById('wishlistBtn')?.click();
+        // [Item 13] Was wishlistBtn click → dedicated wishlist screen.
+        // Now routes to Saved tab → Saved Items pane.
+        openSavedItemsTab();
       } else {
         document.querySelector('[data-go="capture"]')?.click();
       }
@@ -9115,7 +9133,7 @@
         activeAnchorColor = activeAnchorColor === item.accent ? null : item.accent;
         $('#clearPaletteBtn').style.display = activeAnchorColor ? '' : 'none';
         renderPalette(room);
-        toast(activeAnchorColor ? 'Color anchored — reshuffle to apply' : 'Color cleared');
+        toast(activeAnchorColor ? 'Color anchored — applies on next redesign' : 'Color cleared');
       });
       el.appendChild(sw);
     });
@@ -9224,7 +9242,7 @@
       card.className = 'item-card' + (item.owned ? ' owned' : '') + (aboveBudget ? ' above-budget' : '');
       card.id = 'item-'+item.id;
       const onWishlist = state.wishlist.includes(item.id);
-      const alertOn = state.priceAlerts[item.id];
+      // [Item 5] state.priceAlerts read removed — bell button gone.
 
       card.innerHTML = `
         <div class="item-thumb">${item.icon}</div>
@@ -9243,12 +9261,11 @@
           <a class="item-action-btn link-style" href="${buildAffiliateUrl(item)}" target="_blank" rel="noopener noreferrer" data-shop-id="${item.id}">Shop</a>
           <button class="item-action-btn ${onWishlist ? 'active' : ''}" data-act="wish">${onWishlist ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Saved` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Save`}</button>
           <button class="item-action-btn" data-act="swap">⇄ Swap</button>
-          <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
         </div>`}
       `;
       card.querySelector('[data-act="wish"]')?.addEventListener('click', e => { e.stopPropagation(); toggleWishlist(item); });
       card.querySelector('[data-act="swap"]')?.addEventListener('click', e => { e.stopPropagation(); swapItem(room, item); });
-      card.querySelector('[data-act="alert"]')?.addEventListener('click', e => { e.stopPropagation(); togglePriceAlert(item); });
+      // [Item 5] data-act="alert" handler removed (button gone).
       // [Model A] Track every affiliate clickthrough — primary monetization.
       card.querySelector('[data-shop-id]')?.addEventListener('click', e => { e.stopPropagation(); trackAffiliateClick(item, 'item_card_button'); });
       // Tap anywhere else on the card → open the item sheet
@@ -9346,10 +9363,9 @@
       if (room0) fireAhaMomentIfFresh(room0, 'wishlist_save');
       // [Batch 3 — Dim 04 R6] Wishlist save is a habit action.
       logHabitAction('wishlist_save');
-      // [Batch 3 — Dim 03 R-Paywall1] Value-moment paywall: 3rd save crossed.
-      if (state.wishlist.length === 3 && !isPro()) {
-        setTimeout(() => maybeFireValueMomentPaywall('wishlist_3rd_save', { count: state.wishlist.length }), 1200);
-      }
+      // [Item 8] wishlist_3rd_save value-moment trigger removed — its only
+      // mapping was to advanced_price_filters, which was retired with
+      // the bullet (the feature was never built).
       // First save triggers the push pre-prompt
       setTimeout(() => maybeAskForPushPermission(), 800);
     }
@@ -9358,23 +9374,11 @@
     if (room) renderItemsList(room);
   }
 
-  function togglePriceAlert(item) {
-    // [Compute-quality routing] Setting a price alert is Free. Delivery
-    // (push/email) is also Free for ALL users — moving alert delivery to
-    // free per Hassan's decision: gating the highest-conversion notification
-    // behind a paywall is revenue-self-sabotage for an affiliate business.
-    // Pro adds advanced filters (thresholds, retailer prefs) on top — see
-    // gateProFeature('advanced_price_filters') in the upcoming filters UI.
-    state.priceAlerts[item.id] = !state.priceAlerts[item.id];
-    if (!state.priceAlerts[item.id]) delete state.priceAlerts[item.id];
-    save();
-    trackEvent(state.priceAlerts[item.id] ? 'price_alert_on' : 'price_alert_off', { itemId: item.id });
-    if (state.priceAlerts[item.id]) {
-      toast("We'll notify you when the price drops");
-    } else {
-      toast('Alert off');
-    }
-  }
+  // [Item 5] togglePriceAlert function removed (UI bell buttons gone from
+  // all 3 item-card render sites). state.priceAlerts data structure +
+  // cloud-sync push/pull preserved per spec — write-only path is now
+  // dormant. Analytics events `price_alert_on` / `price_alert_off` no
+  // longer fire.
 
   function swapItem(room, item) {
     // [Model A] Item swap is FREE, unlimited. Swap re-runs the local
@@ -9615,87 +9619,18 @@
     });
   }
 
-  // Aha-quality feedback: [Model A] FREE for everyone. Voting is a free
-  // engagement signal that helps tune later redesigns. Removed the
-  // guest→signin and signedin→paywall gates that existed under the
-  // subscription model.
-  document.querySelectorAll('#ahaFeedback .af-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const vote = btn.dataset.vote;
-      const room = state.rooms.find(r => r.id === currentRoomId);
-      if (!room) return;
-      room.qualityVote = vote;
-      save();
-      trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'explicit_vote', vote, roomId: room.id });
-      document.querySelectorAll('#ahaFeedback .af-btn').forEach(b => b.classList.toggle('selected', b === btn));
-      if (vote === 'love')  {
-        toast("Love it — saving this profile's style");
-        // [Batch 3 — A7] Love-tap is an Aha experience signal.
-        fireAhaMomentIfFresh(room, 'love');
-        // [Batch 3 — Dim 04 R8] Promise-Fit micro-survey only on Love
-        // (gating preserves the high-intent path). Fires once per user.
-        setTimeout(() => showPromiseFitMicrosurvey(room.id), 600);
-        // [Batch 4 — Dim 07] Record Love verdict; recomputes styleScores.
-        recordAhaVerdict(room.id, 'love');
-      }
-      if (vote === 'close') {
-        toast('Try reshuffle below for a different mix');
-        // [Batch 3 — A7] Close also implies the user EXPERIENCED the reveal —
-        // not a thumbs-up but engagement-not-bounce. Counts as Aha.
-        fireAhaMomentIfFresh(room, 'close');
-        // [Batch 4 — Dim 07] Record Close verdict.
-        recordAhaVerdict(room.id, 'close');
-      }
-      if (vote === 'off')   {
-        // [Dim 14 Section B Fix 1 — Off-vote actually changes behavior.
-        //  Per Reforge User Insights: "feedback that doesn't change
-        //  behavior is fake feedback." Soft-avoid the current style for
-        //  this profile's next 24h of generations. Time-limited so users
-        //  can't accidentally permanently block their own preferences.
-        //  Picker reads state.user._styleAvoid in pickItemsForRoom (see
-        //  furniture.js) and applies a -0.5 score weight to avoided
-        //  styles. 24h window per Reforge Engagement Strategies → Habit
-        //  Reinforcement (At-Risk p.5-8): the user must see behavior
-        //  visibly respond, but not be permanently penalized.]
-        if (!state.user) state.user = {};
-        state.user._styleAvoid = state.user._styleAvoid || {};
-        const profile = state.profiles.find(p => p.id === room.profileId);
-        const avoidExpiry = Date.now() + 24 * 60 * 60 * 1000;
-        (profile?.styles || []).forEach(s => {
-          state.user._styleAvoid[s] = avoidExpiry;
-        });
-        save();
-        trackEvent('aha_off_style_avoided', { roomId: room.id, styles: profile?.styles || [], expiryMs: avoidExpiry });
-        // [Batch 4 — Dim 07] Record Off verdict — feeds styleScores recompute.
-        recordAhaVerdict(room.id, 'off');
-        // [Dim 09 D10 voice — calmer, more honest copy.]
-        toast('Got it — pulling a different direction…');
-        setTimeout(() => $('#reshuffleBtn')?.click(), 500);
-      }
-    });
-  });
+  // [Item 11] aha-feedback "How does this feel?" handler removed entirely
+  // (HTML block removed from index.html, all .af-btn voting + per-vote
+  // copy/Promise-Fit-microsurvey/style-avoid logic with it). The
+  // ACTIVATION.AHA_QUALITY analytics event no longer fires from this
+  // path; fireAhaMomentIfFresh + recordAhaVerdict still exist and are
+  // called from openRoom (results render) — those keep firing without
+  // the explicit user vote.
 
-  // [Model A] Reshuffle = FREE, unlimited. No quota, no Pro gate. Reshuffle
-  // re-runs the local pickItemsForRoom() — no AI compute call, so it's not a
-  // "generation" under Model A. Tracking the count is kept for analytics only.
-  $('#reshuffleBtn').addEventListener('click', () => {
-    const room = state.rooms.find(r => r.id === currentRoomId);
-    if (!room) return;
-    const profile = state.profiles.find(p => p.id === room.profileId);
-    if (!profile) return;
-    // [BUDGET_RESET_PASS] Reuse room.budget — same generation context.
-    room.reshuffleCount = (room.reshuffleCount || 0) + 1;
-    const draftLike = { type: room.type, dims: room.dims };
-    const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), room.budget || SLIDER_BUDGET_DEFAULT,
-      { excludeIds: [], anchorColor: activeAnchorColor, keepMode: !!room.keepMode });
-    room.items = fresh;
-    pushVersion(room, activeAnchorColor ? 'Reshuffled (color anchored)' : 'Reshuffled picks');
-    save();
-    renderRoomPieces(room);
-    renderVersions(room);
-    // [Dim 14 Section C Fix 2 — reshuffle copy honesty.]
-    toast('Different items, same style.');
-  });
+  // [Item 12] #reshuffleBtn handler removed (button gone). pickItemsForRoom
+  // is still used by item swap, color anchor, keepMode toggle. The
+  // room.reshuffleCount field becomes a write-nothing legacy field — left
+  // in place for analytics aggregation of historical data.
 
   // [Model A] "Shop the Whole Room" — restores the original affiliate semantics.
   // Free for everyone — opens an affiliate URL per item. This is the primary
@@ -9813,47 +9748,12 @@
     });
   });
 
-  // ---------- Wishlist ----------
-  function renderWishlist() {
-    const list = $('#wishlistList');
-    list.innerHTML = '';
-    const ids = state.wishlist;
-    if (!ids.length) {
-      // [Dim 09 Section B.3 — empty states forgive + offer next action,
-      //  never blame. Was "No saved items yet." → names the value prop
-      //  the empty surface enables. Mirror of the HTML fallback at
-      //  index.html (wishlist screen).]
-      list.innerHTML = `<div class="empty-state"><div class="empty-art"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z"/></svg></div><p>Save items to track price drops.</p></div>`;
-      return;
-    }
-    ids.forEach(id => {
-      const item = window.FURNITURE_DB.find(i => i.id === id);
-      if (!item) return;
-      const alertOn = state.priceAlerts[item.id];
-      const card = document.createElement('div');
-      card.className = 'item-card';
-      card.innerHTML = `
-        <div class="item-thumb">${item.icon}</div>
-        <div class="item-body">
-          <div class="name">${item.name}</div>
-          <div class="desc">${item.description}</div>
-          <div class="meta">
-            <span class="tag source">${sourceLabel(item.source)}</span>
-            <span class="tag">${item.type}</span>
-            <span class="price">$${item.price.toLocaleString()}</span>
-          </div>
-        </div>
-        <div class="item-actions">
-          <a class="item-action-btn link-style" href="${item.url}" target="_blank" rel="noopener noreferrer">Shop</a>
-          <button class="item-action-btn" data-act="rm">Remove</button>
-          <button class="item-action-btn ${alertOn ? 'active' : ''}" data-act="alert">${alertOn ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 2a2 2 0 012 2v1.2A6 6 0 0118 11v3l1.5 2H4.5L6 14v-3a6 6 0 014-5.8V4a2 2 0 012-2zM10 19h4a2 2 0 01-4 0z'/></svg>On` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M18 14v-3a6 6 0 00-12 0v3l-1.5 2h15z'/><path d='M10 19a2 2 0 004 0'/><path d='M3 3l18 18' stroke-width='2'/></svg>Alert`}</button>
-        </div>
-      `;
-      card.querySelector('[data-act="rm"]').addEventListener('click', () => { toggleWishlist(item); renderWishlist(); });
-      card.querySelector('[data-act="alert"]').addEventListener('click', () => { togglePriceAlert(item); renderWishlist(); });
-      list.appendChild(card);
-    });
-  }
+  // [Item 13] renderWishlist() function removed entirely. Dedicated
+  // wishlist screen retired; the Saved tab's renderSavedItems() is
+  // the canonical wishlist surface (strict superset of the prior
+  // dedicated screen — adds tap-card-to-open-item-sheet, explicit
+  // item count via #stItemsCount, cross-tab discovery alongside Saved
+  // Homes + Saved Rooms).
 
   // ---------- Share modal ----------
   // [Model A] Sharing is FREE — viral loops drive affiliate referrals (D
@@ -11384,7 +11284,7 @@
     // Map triggerKind → paywall context (post 8→3 consolidation, see R-Paywall2)
     const contextMap = {
       hd_export_attempt:           'hd_export',
-      wishlist_3rd_save:           'advanced_price_filters',
+      // [Item 8] wishlist_3rd_save → advanced_price_filters mapping removed.
       second_room_intent:          'profile',
       love_dwell_5min:             'premium_quality',
       // [Batch 5 — Dim 06 Section D] new value-moment hooks
