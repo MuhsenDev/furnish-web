@@ -586,12 +586,15 @@
         <h2 id="quizIntroTitle">Find Your Style</h2>
       </header>
       <div class="quiz-intro-card">
-        <div class="quiz-badge">10 questions · ~90 seconds</div>
-        <h3>Let's Match You to a Look</h3>
-        <p class="muted">Every answer shapes the redesign. Skip any question and the AI fills in a sensible default — you can edit anything later.</p>
+        <!-- [feat-quiz-copy-rewrite] Question count fixed (was 10, now 9
+             after Q6 budget removal). Headline + body copy simplified;
+             em dashes stripped. -->
+        <div class="quiz-badge">9 questions · about 90 seconds</div>
+        <h3>Let's Find Your Style</h3>
+        <p class="muted">Every answer shapes your redesign. Skip any question and we'll pick a sensible default. You can change anything later.</p>
         <div class="quiz-intro-actions">
           <button class="btn btn-primary" id="startQuizBtn">Start</button>
-          <button class="btn btn-ghost" id="skipQuizBtn">Use defaults — show me a redesign now</button>
+          <button class="btn btn-ghost" id="skipQuizBtn">Use defaults, show me a redesign</button>
         </div>
       </div>
     </section>
@@ -623,7 +626,7 @@
         <!-- Skip button is hidden for the first 1.5s of each question per
              spec — prevents reflexive skipping before the user reads it.
              Renderer toggles `data-revealed`. -->
-        <button class="quiz-none-btn" id="quizNoneBtn" type="button" data-revealed="false">Skip — use default</button>
+        <button class="quiz-none-btn" id="quizNoneBtn" type="button" data-revealed="false">Skip, use default</button>
       </div>
     </section>
 
@@ -637,7 +640,7 @@
         <h2>Tell Us More</h2>
       </header>
       <div class="quiz-card">
-        <p class="quiz-subhead muted small" id="dealbreakerSubhead">A short description helps the AI preserve the right thing.</p>
+        <p class="quiz-subhead muted small" id="dealbreakerSubhead">A short description helps us keep the right thing.</p>
         <div id="dealbreakerInputs"></div>
         <!-- [feat-pre-launch-bundle Theme 2 Feature A] Profile-scoped
              freeform note. Optional. Sits below the per-kind dealbreaker
@@ -647,7 +650,7 @@
              Preferences tab manages edits/deletes thereafter. -->
         <div class="tum-block" id="tellUsMoreBlock">
           <h4 class="dealbreaker-block-headline">Anything else we should know about you?</h4>
-          <p class="muted small tum-hint">Lifestyle, household, taste — anything that helps. Optional.</p>
+          <p class="muted small tum-hint">Lifestyle, household, taste. Anything that helps. Optional.</p>
           <textarea class="dealbreaker-input tum-input" id="tellUsMoreInput" maxlength="280" rows="3" placeholder="e.g. I prefer warm wood tones. Two cats who claw fabric. Restoring a 1920s craftsman."></textarea>
           <div class="dealbreaker-meta muted small">
             <span class="dealbreaker-char-count" id="tellUsMoreCharCount">0 / 280</span>
@@ -656,7 +659,7 @@
         <div class="quiz-multi-actions">
           <button class="btn btn-primary" id="dealbreakerContinueBtn" type="button">Continue</button>
         </div>
-        <button class="quiz-none-btn" id="dealbreakerSkipBtn" type="button">Skip — full creative freedom</button>
+        <button class="quiz-none-btn" id="dealbreakerSkipBtn" type="button">Skip, full creative freedom</button>
       </div>
     </section>
 

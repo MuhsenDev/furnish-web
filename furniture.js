@@ -400,14 +400,15 @@ window.ONBOARDING_QUESTIONS = [
     id: 'vibe',
     type: 'single_select',
     ai_param: 'emotional_anchor',
-    headline: 'Walking into this room, you want to feel...',
+    // [feat-quiz-copy-rewrite] Friendlier, conversational. No em dashes.
+    headline: 'Walking in, what do you want to feel?',
     image_kind: 'mood',  // square mood images, atmospheric not literal
     options: [
       { id:'calm_grounded',     label:'Calm and grounded',           image:null },
       { id:'energized_creative',label:'Energized and creative',      image:null },
       { id:'cozy_protected',    label:'Cozy and protected',          image:null },
-      { id:'elevated_hotel',    label:'Elevated, like a hotel',      image:null },
-      { id:'inspired_artist',   label:"Inspired, like an artist's space", image:null }
+      { id:'elevated_hotel',    label:'Like a fancy hotel',          image:null },
+      { id:'inspired_artist',   label:"Like an artist's studio",     image:null }
     ],
     default: 'calm_grounded'
   },
@@ -415,13 +416,14 @@ window.ONBOARDING_QUESTIONS = [
     id: 'color_appetite',
     type: 'single_select',
     ai_param: 'color_palette_intensity',
-    headline: 'How bold do you want to go with color?',
+    // [feat-quiz-copy-rewrite] Plain language, "be honest" wink.
+    headline: 'How do you feel about color? Be honest.',
     image_kind: 'palette', // color-swatch images showing the actual palette feel
     options: [
-      { id:'neutrals_only',  label:'Neutrals only — warm whites, beiges, woods',         image:null },
-      { id:'mostly_neutral', label:'Mostly neutral with one or two color moments',       image:null },
-      { id:'confident_color',label:'Confident color — a few rich, intentional tones',    image:null },
-      { id:'bold',           label:'Go bold — saturated, expressive, unafraid',          image:null }
+      { id:'neutrals_only',  label:'Neutrals only. Whites, beiges, woods.',           image:null },
+      { id:'mostly_neutral', label:'Mostly neutral, with a pop or two',               image:null },
+      { id:'confident_color',label:'Some real color. A few rich tones.',              image:null },
+      { id:'bold',           label:'Go bold. Bring on the color.',                    image:null }
     ],
     default: 'mostly_neutral'
   },
@@ -429,13 +431,15 @@ window.ONBOARDING_QUESTIONS = [
     id: 'decor_density',
     type: 'single_select',
     ai_param: 'decor_amount',
-    headline: "How much 'stuff' do you want?",
+    // [feat-quiz-copy-rewrite] Drop the scare quotes around "stuff" —
+    // the casual word reads fine without them.
+    headline: 'How much stuff do you want?',
     image_kind: 'reference_room', // 4 reference rooms across the density spectrum
     options: [
-      { id:'clean',                label:'A clean look — minimal decor, breathing room',     image:null },
-      { id:'a_little_personality', label:'A little personality — some accents, mostly clean',image:null },
-      { id:'lived_in_rich',        label:'Lived-in and rich — lots of decor, warm and layered',image:null },
-      { id:'maximalist',           label:'Maximalist — every surface tells a story',         image:null }
+      { id:'clean',                label:'Clean and minimal. Lots of breathing room.',         image:null },
+      { id:'a_little_personality', label:'A little personality. Some accents, still clean.',  image:null },
+      { id:'lived_in_rich',        label:'Lived in and warm. Layered, lots of decor.',        image:null },
+      { id:'maximalist',           label:'Maximalist. Every surface tells a story.',          image:null }
     ],
     default: 'a_little_personality'
   },
@@ -446,10 +450,10 @@ window.ONBOARDING_QUESTIONS = [
     headline: 'What are we redesigning?',
     image_kind: 'icon',
     options: [
-      { id:'just_furniture',  label:'Just furniture — keep my walls, floors, lighting', svg:'scope-furniture' },
-      { id:'furniture_decor', label:'Furniture + decor — accessories, art, plants',     svg:'scope-furniture-decor' },
-      { id:'whole_room',      label:'The whole room — lighting, rugs, paint, everything',svg:'scope-whole-room' },
-      { id:'surprise_me',     label:'Surprise me — go full transformation',             svg:'scope-surprise' }
+      { id:'just_furniture',  label:'Just the furniture. Keep my walls and floors.', svg:'scope-furniture' },
+      { id:'furniture_decor', label:'Furniture and decor. Accessories, art, plants.',svg:'scope-furniture-decor' },
+      { id:'whole_room',      label:'The whole room. Everything.',                   svg:'scope-whole-room' },
+      { id:'surprise_me',     label:'Surprise me. Go full transformation.',          svg:'scope-surprise' }
     ],
     default: 'furniture_decor'
   },
@@ -457,13 +461,15 @@ window.ONBOARDING_QUESTIONS = [
     id: 'natural_light',
     type: 'single_select',
     ai_param: 'lighting_strategy',
-    headline: "What's the natural light situation?",
+    // [feat-quiz-copy-rewrite] "the natural light situation" was stiff;
+    // shorten and friendly-up.
+    headline: "How's the natural light?",
     image_kind: 'icon',
     options: [
-      { id:'tons',           label:'Tons of natural light all day',                  svg:'light-tons' },
-      { id:'bright_morning', label:'Bright in the morning / dim later',              svg:'light-morning' },
-      { id:'dim',            label:'Dim or north-facing — needs help feeling bright',svg:'light-dim' },
-      { id:'unsure',         label:"I'm not sure / it varies",                       svg:'light-unsure' }
+      { id:'tons',           label:'Tons of natural light all day',          svg:'light-tons' },
+      { id:'bright_morning', label:'Bright in the morning, dim later',       svg:'light-morning' },
+      { id:'dim',            label:'Dim. Needs help feeling bright.',        svg:'light-dim' },
+      { id:'unsure',         label:'Honestly? It varies.',                   svg:'light-unsure' }
     ],
     default: 'unsure'
   },
@@ -477,17 +483,20 @@ window.ONBOARDING_QUESTIONS = [
     id: 'materials',
     type: 'multi_select_max_2',
     ai_param: 'material_palette',
-    headline: 'Which of these speaks to you most?',
+    // [feat-quiz-copy-rewrite] Tightened headline; option labels now
+    // plain and concrete. metal_glass option dropped at source (was
+    // dropped at runtime by an app.js override block because the
+    // image asset wasn't shipped — same end state, simpler config).
+    headline: 'Which speaks to you?',
     subhead: 'Pick up to 2',
-    image_kind: 'texture', // 6 close-up texture images
+    image_kind: 'texture', // close-up texture images
     max_selections: 2,
     options: [
-      { id:'warm_woods',    label:'Warm woods and rattan',           image:null },
-      { id:'soft_fabrics',  label:'Soft fabrics and boucle',         image:null },
-      { id:'metal_glass',   label:'Smooth metal and glass',          image:null },
-      { id:'stone_ceramic', label:'Stone, ceramic, raw plaster',     image:null },
-      { id:'vintage_patina',label:'Vintage and patina',              image:null },
-      { id:'sleek_modern',  label:'Sleek and modern surfaces',       image:null }
+      { id:'warm_woods',    label:'Warm woods and rattan',     image:null },
+      { id:'soft_fabrics',  label:'Soft fabrics, like boucle', image:null },
+      { id:'stone_ceramic', label:'Stone and ceramic',         image:null },
+      { id:'vintage_patina',label:'Vintage and worn-in',       image:null },
+      { id:'sleek_modern',  label:'Sleek and modern',          image:null }
     ],
     default: ['warm_woods', 'soft_fabrics']
   },
@@ -495,13 +504,14 @@ window.ONBOARDING_QUESTIONS = [
     id: 'room_use',
     type: 'single_select',
     ai_param: 'function_priority',
-    headline: 'How is this room actually used?',
+    // [feat-quiz-copy-rewrite] Talk to me, not at me.
+    headline: 'What do you actually do in here?',
     image_kind: 'icon',
     options: [
-      { id:'slept_relaxed',     label:'Mostly slept/relaxed in',                         svg:'use-relax' },
-      { id:'lived_in_all_day',  label:'Lived in all day — work, hobbies, hanging out',   svg:'use-all-day' },
-      { id:'hosting',           label:'Hosting and entertaining',                        svg:'use-hosting' },
-      { id:'aspirational',      label:'Aspirational — I want it to look amazing more than be practical', svg:'use-aspirational' }
+      { id:'slept_relaxed',     label:'Mostly sleeping or relaxing',                                  svg:'use-relax' },
+      { id:'lived_in_all_day',  label:'Lived in all day. Work, hobbies, hanging out.',                svg:'use-all-day' },
+      { id:'hosting',           label:'Hosting friends',                                              svg:'use-hosting' },
+      { id:'aspirational',      label:'Looks first. I care more about looks than how it works.',     svg:'use-aspirational' }
     ],
     default: 'lived_in_all_day'
   },
@@ -509,34 +519,45 @@ window.ONBOARDING_QUESTIONS = [
     id: 'avoid',
     type: 'multi_select_max_3',
     ai_param: 'negative_prompts',
-    headline: 'What do you NOT want in this room?',
+    // [feat-quiz-copy-rewrite] Source headline already friendlier;
+    // the app.js override below also rewrites it. Both layers carry
+    // the same final copy so either path produces the same result.
+    headline: 'What do you want to avoid?',
     subhead: 'Pick any that apply',
     image_kind: 'icon',
     max_selections: 3,
-    // 'nothing' must be exclusive — when picked, deselects others; others
-    // deselect 'nothing' when picked. Renderer enforces this.
+    // 'nothing' must be exclusive: when picked, deselects others;
+    // others deselect 'nothing' when picked. Renderer enforces this.
     exclusive_option_id: 'nothing',
     options: [
-      { id:'too_modern',    label:'Anything too modern or sterile',          svg:'avoid-modern' },
-      { id:'too_rustic',    label:'Anything too rustic or "farmhouse"',      svg:'avoid-rustic' },
-      { id:'busy_prints',   label:'Bold patterns or busy prints',            svg:'avoid-prints' },
-      { id:'dark_heavy',    label:'Dark colors or heavy furniture',          svg:'avoid-dark' },
-      { id:'trendy',        label:"Trendy stuff that'll feel dated",         svg:'avoid-trendy' },
-      { id:'nothing',       label:'Nothing — show me anything',              svg:'avoid-nothing' }
+      { id:'too_modern',    label:'Too modern or sterile',                svg:'avoid-modern' },
+      { id:'too_rustic',    label:'Too rustic or "farmhouse"',            svg:'avoid-rustic' },
+      { id:'busy_prints',   label:'Bold patterns or busy prints',         svg:'avoid-prints' },
+      { id:'dark_heavy',    label:'Dark or heavy furniture',              svg:'avoid-dark' },
+      { id:'trendy',        label:'Trendy stuff that gets dated fast',    svg:'avoid-trendy' },
+      { id:'nothing',       label:'Nothing. Show me anything.',           svg:'avoid-nothing' }
     ],
     default: []
   },
   {
     id: 'dealbreaker',
-    type: 'single_select_with_followup',
+    type: 'multi_select_with_followup',
     ai_param: 'preserve_element',
-    headline: 'Is there one thing in your room you want to keep no matter what?',
+    // [feat-quiz-copy-rewrite] Source now carries the final copy AND
+    // the structural changes (multi-select, subhead, exclusive
+    // 'nothing', default empty array) that previously lived in an
+    // app.js runtime override. Single source of truth.
+    headline: 'Anything you want to keep?',
+    subhead: 'Pick any that apply',
     image_kind: 'icon',
+    // 'nothing' is exclusive: picking it deselects others; picking
+    // anything else deselects 'nothing'. Renderer enforces.
+    exclusive_option_id: 'nothing',
     options: [
-      { id:'furniture', label:'A specific piece of furniture',         svg:'keep-furniture' },
-      { id:'color',     label:'A color or paint job',                  svg:'keep-color' },
-      { id:'artwork',   label:'An artwork or sentimental item',        svg:'keep-artwork' },
-      { id:'nothing',   label:'Nothing — full creative freedom',       svg:'keep-nothing' }
+      { id:'furniture', label:'A piece of furniture',            svg:'keep-furniture' },
+      { id:'color',     label:'A color or paint job',            svg:'keep-color' },
+      { id:'artwork',   label:'An artwork or something special', svg:'keep-artwork' },
+      { id:'nothing',   label:"Nothing. Designer's choice.",     svg:'keep-nothing' }
     ],
     // Spatial-marking on the user's uploaded photo deferred per
     // ONBOARDING_AUDIT §J + DEFERRED.md. Followup ships text-only.
@@ -549,7 +570,7 @@ window.ONBOARDING_QUESTIONS = [
       },
       max_chars: 120
     },
-    default: { kind: 'nothing', text: '' }
+    default: []
   }
 ];
 

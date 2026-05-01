@@ -2275,66 +2275,14 @@
   // (Dim 10): visible craftsmanship — placeholders read as "incomplete."
   // Reforge Conversion Optimization (Dim 03): polish in onboarding flow
   // reduces drop-off.
-  // [Hassan's call — plain-language overrides] Strip jargon + tighten copy
-  // on Q6 (budget), Q9 (avoid), Q10 (dealbreaker). Voice rubric: concrete,
-  // confident, warm, calm. Mutates the shared ONBOARDING_QUESTIONS in place
-  // at boot — idempotent guards so hot-reload doesn't clobber further edits.
+  // [feat-quiz-copy-rewrite] Runtime override blocks for Q7 / Q9 / Q10
+  // retired. All copy + structural decisions (Q7 metal_glass drop, Q10
+  // type=multi_select_with_followup + exclusive 'nothing' + empty
+  // default array) now live directly in the furniture.js source —
+  // single source of truth. The image-asset wiring block below stays
+  // (different concern: filename → option-id mapping for shipped
+  // assets, decoupled from copy/config).
   if (window.ONBOARDING_QUESTIONS) {
-    // [BUDGET_RESET_PASS] Q6 budget_tier override block removed — Q6 itself
-    // no longer exists in ONBOARDING_QUESTIONS.
-
-    const _q9 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'avoid');
-    if (_q9 && _q9.headline.includes('NOT want')) {
-      _q9.headline = 'What do you want to avoid?';
-      const _q9Labels = {
-        too_modern:  'Too modern or sterile',
-        too_rustic:  'Too rustic or "farmhouse"',
-        busy_prints: 'Bold patterns or busy prints',
-        dark_heavy:  'Dark or heavy furniture',
-        trendy:      'Trendy stuff that gets dated fast',
-        nothing:     'Nothing — show me anything'
-      };
-      _q9.options.forEach(o => { if (_q9Labels[o.id]) o.label = _q9Labels[o.id]; });
-    }
-
-    // [Hassan's call] Q7 materials — drop the metal_glass option (no asset),
-    // simplify labels, tighten headline. Card layout (qo-photo-text) is
-    // handled in the renderer + CSS.
-    const _q7 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'materials');
-    if (_q7 && _q7.options.some(o => o.id === 'metal_glass')) {
-      _q7.headline = 'Which speaks to you?';
-      _q7.options = _q7.options.filter(o => o.id !== 'metal_glass');
-      const _q7Labels = {
-        warm_woods:    'Warm woods and rattan',
-        soft_fabrics:  'Soft fabrics',
-        stone_ceramic: 'Stone & ceramic',
-        vintage_patina:'Vintage patina',
-        sleek_modern:  'Sleek modern'
-      };
-      _q7.options.forEach(o => { if (_q7Labels[o.id]) o.label = _q7Labels[o.id]; });
-      // 'default' was ['warm_woods', 'soft_fabrics'] — both still present, no edit needed.
-    }
-
-    const _q10 = window.ONBOARDING_QUESTIONS.find(q => q.id === 'dealbreaker');
-    if (_q10 && _q10.headline.includes('one thing in your room')) {
-      _q10.headline = 'Anything you want to keep?';
-      const _q10Labels = {
-        furniture: 'A piece of furniture',
-        color:     'A color or paint job',
-        artwork:   'Art or something special',
-        nothing:   'Nothing — full freedom'
-      };
-      _q10.options.forEach(o => { if (_q10Labels[o.id]) o.label = _q10Labels[o.id]; });
-      // [Hassan's call] Q10: switch to multi-select with per-option text
-      // followup. User can keep multiple things; each non-"nothing" pick
-      // gets its own text box on the followup screen. "Nothing" stays
-      // exclusive — picking it deselects others, picking another deselects
-      // it. Default empty array means "no preserve hints."
-      _q10.type = 'multi_select_with_followup';
-      _q10.subhead = 'Pick any that apply';
-      _q10.exclusive_option_id = 'nothing';
-      _q10.default = [];
-    }
 
     // [Hassan dropped image assets] Wire up the "Find Your Style Images"
     // folder to the matching quiz option ids. Filenames preserved as-is
@@ -3081,7 +3029,8 @@
     // profile-select (removed). Route to home instead — Layer A guard
     // sends guests to welcome if needed.
     if (!p) { showScreen('home'); renderHome(); return; }
-    $('#quizIntroTitle').textContent = `${p.name} — let's find your style`;
+    // [feat-quiz-copy-rewrite] Em dash dropped; comma reads cleaner.
+    $('#quizIntroTitle').textContent = `${p.name}, let's find your style`;
     state.quiz = {
       profileId,
       step: 0,
@@ -3606,10 +3555,12 @@
     const q = window.ONBOARDING_QUESTIONS.find(x => x.id === 'dealbreaker');
     if (!q) return;
     const list = Array.isArray(kinds) ? kinds : (kinds ? [kinds] : []);
+    // [feat-quiz-copy-rewrite] Conversational tweaks; "or piece"
+    // reads cleaner than "or item".
     const headlineByKind = {
       furniture: 'Which piece of furniture?',
       color:     'Which color or paint?',
-      artwork:   'Which artwork or item?'
+      artwork:   'Which artwork or piece?'
     };
     const placeholderByKind = q.followup?.placeholder_by_kind || {};
     const host = $('#dealbreakerInputs');
@@ -3658,9 +3609,11 @@
     // dealbreaker kinds. No-kinds path = freeform-only screen.
     const subhead = $('#dealbreakerSubhead');
     if (subhead) {
+      // [feat-quiz-copy-rewrite] Drop "the AI" framing for plain-language
+      // "us"; remove the em dash from the no-kinds variant.
       subhead.textContent = list.length > 0
-        ? 'A short description helps the AI preserve the right thing.'
-        : 'One last thing — anything you want to share is welcome.';
+        ? 'A short description helps us keep the right thing.'
+        : "Anything else? It's optional.";
     }
     if ($('#dealbreakerInputs')) {
       const first = $('#dealbreakerInputs').querySelector('textarea')
