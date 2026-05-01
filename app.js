@@ -260,8 +260,32 @@
       colors: [],
       customColors: [],
       keepExisting: false,
-      seenFinale: false
+      seenFinale: false,
+      // [feat-pre-launch-bundle Theme 2 Feature A] Profile-scoped freeform
+      // notes the user types about themselves (lifestyle, household, taste).
+      // Each entry: { id, text, createdAt, updatedAt }. Captured from the
+      // post-quiz "Tell Us More" screen, managed (edit/delete) from the
+      // Preferences tab "Things we know about you" section. AI-prompt
+      // integration deferred to Phase A.
+      // CLOUD SYNC: supabase-client.js profileToRow / rowToProfile use a
+      // column-mapped whitelist — this field stays local-only until the
+      // server schema gets a tell_us_more_entries jsonb column + the
+      // mappers thread it through. Logged in DEFERRED.md alongside the
+      // furnitureMode + preGenerationContext sync extensions.
+      tellUsMoreEntries: []
     };
+  }
+  // [feat-pre-launch-bundle Theme 2 Feature A] Defensive accessor for
+  // legacy profiles created before tellUsMoreEntries was on the schema.
+  // Always returns an array — mutates the profile in-place to plant the
+  // field on first read so subsequent push/splice operations see a real
+  // reference.
+  function getTellUsMoreEntries(profile) {
+    if (!profile) return [];
+    if (!Array.isArray(profile.tellUsMoreEntries)) {
+      profile.tellUsMoreEntries = [];
+    }
+    return profile.tellUsMoreEntries;
   }
   // Public surface for any future caller (settings page, debug, tests).
   window.FurnishCreateProfile = createProfile;
@@ -435,7 +459,7 @@
     'welcome', 'signin', 'quiz-intro', 'quiz'
   ]);
   const DESIGN_SCREENS = new Set([
-    'preferences', 'capture', 'analyzing', 'results', 'templates'
+    'preferences', 'capture', 'pre-gen-furniture', 'pre-gen-context', 'analyzing', 'results', 'templates'
   ]);
   // Bottom-nav surfaces (Home / Saved / Preferences / Profile).
   // [Hassan's call] Preferences promoted to a bottom-nav surface so users
@@ -467,11 +491,14 @@
   //
   // NOT in the set (forbidden for guests): home, profile, preferences,
   // saved, saved-home-detail, results, templates, this-week,
-  // styles-index, wishlist, home-gallery.
-  // (profile-select removed in feat-remove-profile-screen.)
+  // wishlist, home-gallery.
+  // (profile-select removed in feat-remove-profile-screen;
+  //  styles-index removed in feat-pre-launch-bundle followups.)
   const GUEST_ALLOWED_SCREENS = new Set([
     'welcome',
     'capture',
+    'pre-gen-furniture',
+    'pre-gen-context',
     'quiz-intro',
     'quiz',
     'quiz-dealbreaker',
@@ -479,12 +506,104 @@
     'signin',
     'terms',
     'privacy',
+    // [feat-pre-launch-bundle Theme 5] FAQ accessible from Support
+    // (signed-in surface) but allow-listed for guests too — same
+    // permissiveness rationale as terms/privacy: legal/help content
+    // should never be auth-gated.
+    'faq',
   ]);
 
   // [Batch 6 — Dim 13 REC-13.3] Track previous screen for the screen_viewed
   // analytics event so navigation paths can be cohort-analyzed.
   let _previousScreen = null;
   let _screenEnteredAt = null;
+
+  // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Single source of
+  // truth for "user has already seen this hint" state. Replaces a mix of
+  // session-scoped flags (state._tourShown, state._templateTipShown) and
+  // per-hint persistent flags (state.user.firstRedesignTutorialSeen,
+  // state.user.budgetSliderTutorialSeen) with a unified array on
+  // state.user. Legacy flags still respected on read for backward-compat
+  // with existing localStorage payloads — new writes go to seenHints.
+  // Hint IDs registered: 'first_aha_pricetag', 'template_tip',
+  // 'tutorial_trio', 'budget_slider'. Photo tip is INTENTIONALLY not
+  // here — it has its own persist-dismiss key (_photoTipDismissed) that
+  // implements the same semantic without needing the auto-clear-on-
+  // navigation behavior (it's an inline card, not an overlay/coachmark).
+  // CLOUD SYNC: state.user.seenHints stays local-only until the
+  // user_settings table gets a column + supabase-client.js mappers
+  // thread it through. Same deferred-sync pattern as Theme 1
+  // furnitureMode / Theme 2 tellUsMoreEntries / preGenerationContext.
+  function hasSeenHint(id) {
+    if (!state.user) return false;
+    if (Array.isArray(state.user.seenHints) && state.user.seenHints.includes(id)) {
+      return true;
+    }
+    // Legacy persistent flags — treat as already-seen if set.
+    if (id === 'tutorial_trio'  && state.user.firstRedesignTutorialSeen) return true;
+    if (id === 'budget_slider'  && state.user.budgetSliderTutorialSeen) return true;
+    // Legacy session flags — treat as already-seen for THIS session only.
+    // Per the new lifecycle spec they shouldn't be session-only anymore;
+    // reading them keeps any in-flight session consistent until the next
+    // navigation marks them properly persistent.
+    if (id === 'first_aha_pricetag' && state._tourShown) return true;
+    if (id === 'template_tip'       && state._templateTipShown) return true;
+    return false;
+  }
+  function markHintSeen(id) {
+    if (!state.user) state.user = {};
+    if (!Array.isArray(state.user.seenHints)) state.user.seenHints = [];
+    if (!state.user.seenHints.includes(id)) {
+      state.user.seenHints.push(id);
+      save();
+      trackEvent('hint_marked_seen', { hintId: id });
+    }
+  }
+  // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Sweep visible
+  // hint elements from the DOM and mark each as seen. Called at the
+  // top of showScreen BEFORE the screen swap, so the hint elements
+  // anchored to the leaving screen are still in the DOM tree. Per spec:
+  // navigating away from a hint = it's done forever for this user.
+  function dismissVisibleHintsOnNavigation() {
+    // 1. First-aha price-tag coachmark (.coach-mark, body-appended).
+    const coachMarks = document.querySelectorAll('.coach-mark');
+    if (coachMarks.length) {
+      coachMarks.forEach(el => {
+        // Drop the pulse on whatever price tag was being highlighted.
+        document.querySelectorAll('.price-tag.coach-pulse').forEach(p => p.classList.remove('coach-pulse'));
+        el.remove();
+      });
+      markHintSeen('first_aha_pricetag');
+    }
+    // 2. Template tip tooltip (.template-tip, body-appended).
+    const templateTips = document.querySelectorAll('.template-tip');
+    if (templateTips.length) {
+      templateTips.forEach(el => {
+        document.querySelectorAll('.tt-pulse').forEach(p => p.classList.remove('tt-pulse'));
+        el.remove();
+      });
+      markHintSeen('template_tip');
+    }
+    // 3. First-redesign tutorial trio (#frtOverlay, persistent in HTML).
+    //    endTutorial(false) handles state.user.firstRedesignTutorialSeen,
+    //    detaches reposition handlers, and hides the overlay. Only invoke
+    //    if the overlay is currently open.
+    const frt = document.getElementById('frtOverlay');
+    if (frt && frt.classList.contains('open') && typeof endTutorial === 'function') {
+      try { endTutorial(false); } catch (_) {}
+      // endTutorial sets firstRedesignTutorialSeen which our legacy-
+      // flag bridge in hasSeenHint maps to the 'tutorial_trio' id —
+      // but mirror it into seenHints for consistency.
+      markHintSeen('tutorial_trio');
+    }
+    // 4. Explore-welcome card (.explore-welcome, hero-prepended). Already
+    //    one-shot via state._showExploreWelcome — sweeping it on nav just
+    //    cleans up DOM if user navigates while it's animating in.
+    document.querySelectorAll('.explore-welcome').forEach(el => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 220);
+    });
+  }
   // [Boot splash] Tracks whether showScreen has been called yet so the
   // splash hide is idempotent and the OAuth-callback fallback timer in
   // boot() can no-op when the backend-ready handler beat it to the punch.
@@ -580,6 +699,14 @@
         delete state._justGeneratedRoomId;
         save();
       }
+    }
+    // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Sweep any
+    // visible hint elements on the leaving screen and mark each as
+    // seen. Per spec: navigating away from a hint = first-time-only,
+    // never re-shows. Only fires when actually leaving (not on the
+    // initial showScreen call where _previousScreen is null).
+    if (_previousScreen && _previousScreen !== name) {
+      dismissVisibleHintsOnNavigation();
     }
     const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
@@ -702,7 +829,10 @@
     if (dest === 'saved')   renderSaved();
     if (dest === 'profile') renderProfilePage();
     if (dest === 'this-week') renderThisWeekPage();
-    if (dest === 'styles-index') trackEvent('styles_index_visited', { source: 'this_week_browse_all' });
+    // [feat-pre-launch-bundle followups] dest === 'styles-index' branch
+    // removed — both the section and its only entry point ("Browse all
+    // styles" CTA on /this-week) are gone. styles_index_visited
+    // analytics event retired with it.
     if (dest === 'home-gallery') renderHomeGallery();
   });
 
@@ -1866,10 +1996,34 @@
     const close = () => { m.classList.remove('open'); m.setAttribute('aria-hidden', 'true'); };
     document.getElementById('supportClose').addEventListener('click', close);
     m.addEventListener('click', e => { if (e.target.id === 'supportModal') close(); });
+    // [feat-pre-launch-bundle Theme 5] Support modal row handlers.
+    // FAQ + Privacy + Terms route to dedicated screens (close modal,
+    // then showScreen). Affiliate Disclosure opens the existing
+    // #affiliateModal — close support modal first so the affiliate
+    // modal opens cleanly on top.
     document.getElementById('supportFaq').addEventListener('click', () => {
       close();
-      // [Dim 09 D10 — exclamation removed per Warmth-6.]
-      toast("FAQ coming soon. You're early.");
+      showScreen('faq');
+    });
+    document.getElementById('supportPrivacy')?.addEventListener('click', () => {
+      close();
+      showScreen('privacy');
+    });
+    document.getElementById('supportTerms')?.addEventListener('click', () => {
+      close();
+      showScreen('terms');
+    });
+    document.getElementById('supportAffiliate')?.addEventListener('click', () => {
+      close();
+      const am = document.getElementById('affiliateModal');
+      if (!am) return;
+      // Brief delay so the support-modal close animation lands first;
+      // affiliate modal opens cleanly without overlapping fades.
+      setTimeout(() => {
+        am.classList.add('open');
+        am.setAttribute('aria-hidden', 'false');
+        trackEvent('affiliate_disclosure_viewed', { source: 'support_modal' });
+      }, 80);
     });
     // [Item 2] supportFeedback click handler removed — the button is
     // now an <a href="mailto:ideas@furnish.live"> tag, so the browser
@@ -2809,15 +2963,12 @@
   // with it. The Reforge decoy-tier model (Economist 3-tier) reattaches
   // at cutover with real Stripe price IDs.
 
-  // [Layer 7] FTC affiliate disclosure modal wiring
-  document.getElementById('affiliateLearnMore')?.addEventListener('click', e => {
-    e.preventDefault();
-    const m = document.getElementById('affiliateModal');
-    if (!m) return;
-    m.classList.add('open');
-    m.setAttribute('aria-hidden', 'false');
-    trackEvent('affiliate_disclosure_viewed');
-  });
+  // [feat-pre-launch-bundle Theme 5] FTC affiliate disclosure modal
+  // wiring. The legacy #affiliateLearnMore inline-results trigger is
+  // gone with the .affiliate-disclosure-v2 panel; the modal now opens
+  // exclusively from the Support modal's "Affiliate Disclosure" row
+  // (handler in the support-modal block above). Close + backdrop
+  // handlers retained — same modal, same close UX.
   document.getElementById('affiliateClose')?.addEventListener('click', () => {
     const m = document.getElementById('affiliateModal');
     if (!m) return;
@@ -3067,21 +3218,20 @@
     // back-nav pre-fill.
     if (q.id === 'dealbreaker') {
       const nonNothing = picks.filter(p => p !== 'nothing');
-      if (nonNothing.length === 0) {
-        state.quiz.answers.dealbreaker = [];
-        save();
-        finishQuiz();
-      } else {
-        const priorEntries = Array.isArray(prevValue) && prevValue.some(v => v && typeof v === 'object')
-          ? prevValue
-          : [];
-        state.quiz.answers.dealbreaker = nonNothing.map(kind => {
-          const prior = priorEntries.find(d => d && d.kind === kind);
-          return { kind, text: prior?.text || '' };
-        });
-        save();
-        openDealbreakerFollowup(nonNothing);
-      }
+      // [feat-pre-launch-bundle Theme 2 Feature A] Always route through
+      // the Tell Us More screen so the freeform "Anything else?" textbox
+      // is reachable for every quiz-finishing user — including those who
+      // picked no dealbreaker kinds. The screen renders just the freeform
+      // section in that case (no per-kind blocks).
+      const priorEntries = Array.isArray(prevValue) && prevValue.some(v => v && typeof v === 'object')
+        ? prevValue
+        : [];
+      state.quiz.answers.dealbreaker = nonNothing.map(kind => {
+        const prior = priorEntries.find(d => d && d.kind === kind);
+        return { kind, text: prior?.text || '' };
+      });
+      save();
+      openDealbreakerFollowup(nonNothing);
       return;
     }
     advanceQuiz();
@@ -3111,6 +3261,12 @@
       answer_value: entries.map(e => ({ kind: e.kind, text_len: e.text.length })),
       time_to_answer_ms: t0 ? Date.now() - t0 : null
     });
+    // [feat-pre-launch-bundle Theme 2 Feature A] Append Tell Us More
+    // freeform entry to the active profile's tellUsMoreEntries[] if
+    // the textbox has non-empty text. Profile is the same one being
+    // mutated by finishQuiz below; appending pre-finishQuiz keeps the
+    // single save() call there as the persistence point.
+    appendTellUsMoreEntryFromQuizScreen();
     finishQuiz();
   });
   $('#dealbreakerSkipBtn').addEventListener('click', () => {
@@ -3119,8 +3275,44 @@
     state.quiz.skippedAt.dealbreaker = true;
     save();
     trackEvent('onboarding_question_skipped', { question_id: 'dealbreaker' });
+    // [feat-pre-launch-bundle Theme 2 Feature A] Skip path also commits
+    // any text the user typed into the freeform "Anything else?" box —
+    // skipping the dealbreaker prompt is independent of the freeform
+    // entry. If the textbox is empty, no-op.
+    appendTellUsMoreEntryFromQuizScreen();
     finishQuiz();
   });
+
+  // [feat-pre-launch-bundle Theme 2 Feature A] Helper: read the freeform
+  // textbox on the Tell Us More screen, append a new entry to the active
+  // profile's tellUsMoreEntries[] if non-empty. Fires the submission
+  // analytics event with text-length only (no content — privacy).
+  function appendTellUsMoreEntryFromQuizScreen() {
+    const ta = document.getElementById('tellUsMoreInput');
+    if (!ta) return;
+    const text = (ta.value || '').trim().slice(0, 280);
+    if (!text) return;
+    const p = state.profiles.find(x => x.id === state.quiz?.profileId);
+    if (!p) return;
+    const entries = getTellUsMoreEntries(p);
+    const now = Date.now();
+    entries.push({
+      id: 'tum_' + now + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      createdAt: now,
+      updatedAt: now
+    });
+    save();
+    trackEvent('tell_us_more_entry_submitted', {
+      text_length: text.length,
+      source: 'quiz_dealbreaker_screen',
+      total_entries: entries.length
+    });
+    // Clear the textbox so a back-nav re-entry doesn't double-submit.
+    ta.value = '';
+    const cc = document.getElementById('tellUsMoreCharCount');
+    if (cc) cc.textContent = '0 / 280';
+  }
 
   function renderQuizStep() {
     if (!state.quiz) return;
@@ -3401,7 +3593,7 @@
   function openDealbreakerFollowup(kinds) {
     const q = window.ONBOARDING_QUESTIONS.find(x => x.id === 'dealbreaker');
     if (!q) return;
-    const list = Array.isArray(kinds) ? kinds : [kinds];
+    const list = Array.isArray(kinds) ? kinds : (kinds ? [kinds] : []);
     const headlineByKind = {
       furniture: 'Which piece of furniture?',
       color:     'Which color or paint?',
@@ -3435,8 +3627,32 @@
         });
         host.appendChild(block);
       });
-      // Focus the first input so the user can type immediately.
-      const first = host.querySelector('textarea');
+    }
+    // [feat-pre-launch-bundle Theme 2 Feature A] Reset the freeform
+    // "Anything else?" textbox each time the screen opens. Char counter
+    // wired here (idempotent on multiple openings — listener replaced
+    // by reassigning .oninput).
+    const tum = $('#tellUsMoreInput');
+    const tumCount = $('#tellUsMoreCharCount');
+    if (tum) {
+      tum.value = '';
+      if (tumCount) tumCount.textContent = '0 / 280';
+      tum.oninput = () => {
+        if (tumCount) tumCount.textContent = `${tum.value.length} / 280`;
+      };
+    }
+    // [feat-pre-launch-bundle Theme 2 Feature A] Adapt the subhead +
+    // first-focus target depending on whether the user picked any
+    // dealbreaker kinds. No-kinds path = freeform-only screen.
+    const subhead = $('#dealbreakerSubhead');
+    if (subhead) {
+      subhead.textContent = list.length > 0
+        ? 'A short description helps the AI preserve the right thing.'
+        : 'One last thing — anything you want to share is welcome.';
+    }
+    if ($('#dealbreakerInputs')) {
+      const first = $('#dealbreakerInputs').querySelector('textarea')
+        || tum;
       if (first) setTimeout(() => first.focus(), 80);
     }
     showScreen('quiz-dealbreaker');
@@ -3673,6 +3889,11 @@
     // collapsible answers editor. Custom-color picker preserved in DOM
     // (hidden) for future Pro feature per CONFLICT 1.
     renderAnswersEditor(p);
+    // [feat-pre-launch-bundle Theme 2 Feature A] Render the "Things we
+    // know about you" bubble surface from profile.tellUsMoreEntries[].
+    // Section auto-hides when the array is empty so the screen stays
+    // tight for users who haven't used the feature.
+    renderTellUsMoreBubbles(p);
     // [Batch 5 Part 2 — Dim 02 D02-5 modified] Style-profile completeness
     // gauge mounted at the top of the answers editor parent. Renders the
     // % bar + identity summary; SVG fingerprint deferred.
@@ -3693,6 +3914,114 @@
     if (typeof maybeFireTutorialOnPreferencesEntry === 'function') {
       maybeFireTutorialOnPreferencesEntry();
     }
+  }
+
+  // [feat-pre-launch-bundle Theme 2 Feature A] Bubble renderer for the
+  // "Things we know about you" section on Preferences. One bubble per
+  // entry. Tap a bubble to enter inline-edit mode (textarea + Save /
+  // Delete / Cancel). Section hides entirely when the array is empty.
+  function renderTellUsMoreBubbles(profile) {
+    const section = document.getElementById('tellUsMoreSection');
+    const host = document.getElementById('tellUsMoreBubbles');
+    if (!section || !host) return;
+    const entries = getTellUsMoreEntries(profile);
+    if (!entries.length) {
+      section.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    section.hidden = false;
+    host.innerHTML = '';
+    // Newest first — most-recently-edited at the top.
+    const sorted = entries.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    sorted.forEach(entry => {
+      const bubble = document.createElement('button');
+      bubble.type = 'button';
+      bubble.className = 'tum-bubble';
+      bubble.dataset.entryId = entry.id;
+      bubble.setAttribute('aria-label', 'Edit note');
+      bubble.textContent = entry.text;
+      bubble.addEventListener('click', () => openTellUsMoreEditor(profile, entry));
+      host.appendChild(bubble);
+    });
+  }
+
+  // [feat-pre-launch-bundle Theme 2 Feature A] Inline editor — replaces
+  // the bubble with an editable textarea + Save / Delete / Cancel.
+  // Cancel restores the bubble; Save mutates the entry + re-renders;
+  // Delete removes it from the array + re-renders. All paths fire the
+  // appropriate analytics event with text-length only (no content).
+  function openTellUsMoreEditor(profile, entry) {
+    const host = document.getElementById('tellUsMoreBubbles');
+    if (!host) return;
+    const original = host.querySelector(`.tum-bubble[data-entry-id="${entry.id}"]`);
+    if (!original) return;
+
+    const editor = document.createElement('div');
+    editor.className = 'tum-editor';
+    editor.innerHTML = `
+      <textarea class="tum-editor-input" maxlength="280" rows="3"></textarea>
+      <div class="tum-editor-meta muted small">
+        <span class="tum-editor-count">${entry.text.length} / 280</span>
+      </div>
+      <div class="tum-editor-actions">
+        <button class="btn btn-primary small" type="button" data-tum-act="save">Save</button>
+        <button class="btn btn-ghost small tum-editor-delete" type="button" data-tum-act="delete">Delete</button>
+        <button class="btn btn-ghost small" type="button" data-tum-act="cancel">Cancel</button>
+      </div>
+    `;
+    const ta = editor.querySelector('textarea');
+    const cc = editor.querySelector('.tum-editor-count');
+    ta.value = entry.text;
+    ta.addEventListener('input', () => {
+      cc.textContent = `${ta.value.length} / 280`;
+    });
+
+    const close = () => renderTellUsMoreBubbles(profile);
+
+    editor.querySelector('[data-tum-act="save"]').addEventListener('click', () => {
+      const newText = (ta.value || '').trim().slice(0, 280);
+      if (!newText) {
+        // Empty save = delete (matches the natural mental model — user
+        // cleared the text and tapped Save).
+        const entries = getTellUsMoreEntries(profile);
+        const idx = entries.findIndex(e => e.id === entry.id);
+        if (idx >= 0) entries.splice(idx, 1);
+        save();
+        trackEvent('tell_us_more_entry_deleted', {
+          entry_age_ms: Date.now() - (entry.createdAt || Date.now()),
+          source: 'empty_save'
+        });
+        close();
+        return;
+      }
+      if (newText !== entry.text) {
+        entry.text = newText;
+        entry.updatedAt = Date.now();
+        save();
+        trackEvent('tell_us_more_entry_edited', {
+          text_length: newText.length,
+          entry_age_ms: Date.now() - (entry.createdAt || Date.now())
+        });
+      }
+      close();
+    });
+    editor.querySelector('[data-tum-act="delete"]').addEventListener('click', () => {
+      const entries = getTellUsMoreEntries(profile);
+      const idx = entries.findIndex(e => e.id === entry.id);
+      if (idx < 0) return;
+      entries.splice(idx, 1);
+      save();
+      trackEvent('tell_us_more_entry_deleted', {
+        entry_age_ms: Date.now() - (entry.createdAt || Date.now()),
+        source: 'delete_button'
+      });
+      close();
+    });
+    editor.querySelector('[data-tum-act="cancel"]').addEventListener('click', close);
+
+    original.replaceWith(editor);
+    setTimeout(() => ta.focus(), 60);
   }
 
   // ---------- Profile picture ----------
@@ -4282,11 +4611,12 @@
     runLifecycleScheduler();
 
     // First-time home visit: explain what templates are for.
-    // One-shot via state._templateTipShown. Dismisses on tap or 10s timeout.
+    // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Migrated from
+    // session-only state._templateTipShown to persistent hasSeenHint/
+    // markHintSeen. Hint fires once-per-user across sessions; auto-
+    // clears + marks seen on navigation away from home.
     // Skipped for non-Pro users who'll be paywalled instead (tip would be noise).
-    if (!state._templateTipShown && isPro()) {
-      state._templateTipShown = true;
-      save();
+    if (!hasSeenHint('template_tip') && isPro()) {
       setTimeout(showTemplateTip, 650);
     }
   }
@@ -6082,6 +6412,14 @@
   // happens at the AI-generation entry points only (analyzeBtn, template tap).
 
   function showTemplateTip() {
+    // [feat-pre-launch-bundle followups Item 2] Guard against the
+    // setTimeout firing AFTER the user has already navigated away from
+    // home. The .home-ctas elements stay in the DOM (just hidden via
+    // .screen.active toggle), so a hidden-element getBoundingClientRect
+    // returns 0,0,0,0 — which positioned the tip at top:12 left:12, the
+    // exact "stuck top-left" symptom. Bail out unless home is active.
+    const homeActive = document.querySelector('.screen[data-screen="home"].active');
+    if (!homeActive) return;
     const tmplBtn = document.querySelector('.home-ctas [data-go="templates"]');
     if (!tmplBtn) return;
     // Remove any prior instance
@@ -6110,9 +6448,15 @@
     // Pulse the button for a beat
     tmplBtn.classList.add('tt-pulse');
     const dismiss = () => {
+      // Defensive: tip may already be removed by showScreen's hint
+      // sweep if the user navigated away mid-display.
+      if (!tip.isConnected) return;
       tip.classList.add('out');
-      tmplBtn.classList.remove('tt-pulse');
+      if (tmplBtn.isConnected) tmplBtn.classList.remove('tt-pulse');
       setTimeout(() => tip.remove(), 220);
+      // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Mark seen on
+      // explicit dismiss (× click, backdrop tap, or 10s auto-timeout).
+      markHintSeen('template_tip');
     };
     tip.querySelector('.tt-close').addEventListener('click', dismiss);
     tip.addEventListener('click', e => { if (e.target === tip) dismiss(); });
@@ -7230,7 +7574,85 @@
     // [BUDGET_RESET_PASS] Budget already set on the slider on this screen;
     // its value is read at generation time via getCurrentBudget() inside
     // _runAnalyze. No modal gate, no callback chain.
+    // [feat-pre-launch-bundle Theme 1] Route through the pre-generation
+    // furniture-mode question screen instead of going straight to analyze.
+    // The user picks keep / replace / blank; that handler then calls
+    // _runAnalyze. Reset any stale value so the user's last pick from a
+    // prior generation doesn't pre-bias the question.
+    if (state.draft) state.draft.furnitureMode = null;
+    showScreen('pre-gen-furniture');
+  });
+
+  // [feat-pre-launch-bundle Theme 1] Pre-generation furniture-mode card
+  // handlers. Tap → save mode to state.draft.furnitureMode → fire
+  // analytics → kick off the existing _runAnalyze pipeline. _runAnalyze
+  // already calls showScreen('analyzing') itself, so we don't need to
+  // pre-route here. Any previously-selected card visually deselects on
+  // a fresh pick (the screen re-enters with state.draft.furnitureMode
+  // null, but defensive cleanup here covers a tap-twice race).
+  document.querySelectorAll('.fur-mode-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const mode = card.dataset.mode;
+      if (!mode || !['keep', 'replace', 'blank'].includes(mode)) return;
+      if (!state.draft) return;
+      state.draft.furnitureMode = mode;
+      // Visual selected state (briefly visible before the screen swaps)
+      document.querySelectorAll('.fur-mode-card').forEach(c => {
+        c.classList.toggle('selected', c === card);
+        c.setAttribute('aria-pressed', c === card ? 'true' : 'false');
+      });
+      trackEvent('generation_furniture_mode_selected', {
+        mode,
+        source: 'photo_redesign',
+        room_type: state.draft.type || null
+      });
+      // [feat-pre-launch-bundle Theme 2 Feature B] Route to pre-gen-context
+      // (the room-scoped freeform context screen) instead of running
+      // analyze directly. The pre-gen-context Generate/Skip handlers are
+      // the new bridge to _runAnalyze. Reset stale draft context so a
+      // prior generation's text doesn't pre-fill.
+      state.draft.preGenerationContext = '';
+      const ctxInput = document.getElementById('preGenContextInput');
+      const ctxCount = document.getElementById('preGenContextCharCount');
+      if (ctxInput) ctxInput.value = '';
+      if (ctxCount) ctxCount.textContent = '0 / 400';
+      showScreen('pre-gen-context');
+    });
+  });
+
+  // [feat-pre-launch-bundle Theme 2 Feature B] Pre-gen-context screen
+  // wiring. Char counter on the textbox; Generate captures text and
+  // proceeds; Skip proceeds with empty context. Both call _runAnalyze.
+  // Analytics event fires once per advance with text length + source +
+  // mode discriminator (submit vs skip) so cohort funnel can measure
+  // submit-vs-skip rate.
+  const _preGenContextInput = document.getElementById('preGenContextInput');
+  const _preGenContextCount = document.getElementById('preGenContextCharCount');
+  if (_preGenContextInput && _preGenContextCount) {
+    _preGenContextInput.addEventListener('input', () => {
+      _preGenContextCount.textContent = `${_preGenContextInput.value.length} / 400`;
+    });
+  }
+  function _commitPreGenContext(mode /* 'submit' | 'skip' */) {
+    if (!state.draft) return;
+    const ta = document.getElementById('preGenContextInput');
+    const text = mode === 'submit' && ta
+      ? (ta.value || '').trim().slice(0, 400)
+      : '';
+    state.draft.preGenerationContext = text;
+    trackEvent('pre_gen_context_submitted', {
+      text_length: text.length,
+      mode,
+      source: 'photo_redesign',
+      room_type: state.draft.type || null
+    });
     _runAnalyze();
+  }
+  document.getElementById('preGenContextGenerateBtn')?.addEventListener('click', () => {
+    _commitPreGenContext('submit');
+  });
+  document.getElementById('preGenContextSkipBtn')?.addEventListener('click', () => {
+    _commitPreGenContext('skip');
   });
   async function _runAnalyze() {
     if (!state.draft?.photo) return;
@@ -7855,6 +8277,11 @@
     trackEvent('tutorial_started', { totalSteps: TUTORIAL_STEPS.length });
     const overlay = $('#frtOverlay');
     if (!overlay) return;
+    // [feat-pre-launch-bundle followups Item 2] Clear the inline
+    // display:none endTutorial set on the previous run so the CSS
+    // fade-in transition can run again. Idempotent — '' restores
+    // default cascade (effectively block via the .frt-overlay rule).
+    overlay.style.display = '';
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
     showTutorialStep(0);
@@ -7953,6 +8380,34 @@
     if (overlay) {
       overlay.classList.remove('open', 'frt-emphasized');
       overlay.setAttribute('aria-hidden', 'true');
+      // [feat-pre-launch-bundle followups Item 2] Hard-hide the overlay
+      // instantly. The CSS-driven opacity transition (280ms fade) was
+      // leaving the dark spotlight backdrop visible on top of the next
+      // screen during navigation — the "tutorial pop-up stuck top-left"
+      // symptom Hassan reported. display:none kills it on the same tick.
+      // runFirstRedesignTutorialOnCurrentScreen restores display before
+      // the next open so the fade-in animation still works.
+      overlay.style.display = 'none';
+    }
+    // [feat-pre-launch-bundle followups Item 2] Clear inline coords on
+    // the spotlight + tip so a stale rectangle from the LAST tutorial
+    // step doesn't pin them top-left when this overlay element is
+    // reopened (or, in the navigation-mid-tutorial path, isn't visually
+    // residual under the next screen).
+    const spot = $('#frtSpotlight');
+    if (spot) {
+      spot.style.top = '';
+      spot.style.left = '';
+      spot.style.width = '';
+      spot.style.height = '';
+    }
+    const tip = $('#frtTip');
+    if (tip) {
+      tip.style.top = '';
+      tip.style.left = '';
+      tip.style.bottom = '';
+      tip.style.width = '';
+      tip.classList.remove('frt-tip-above');
     }
     clearTimeout(_tutorialSkipTimer);
     if (_tutorialReposition) {
@@ -8243,9 +8698,21 @@
     const effective = answersOverride
       ? { ...getEffectiveAnswers(profile), ...answersOverride }
       : getEffectiveAnswers(profile);
-    // CONFLICT 2: scope === 'just_furniture' is the keepMode default; the
-    // results-screen toggle (draft.keep) overrides if set.
-    const keepMode = draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture');
+    // [feat-pre-launch-bundle Theme 1] Furniture mode is now an explicit
+    // pre-generation question. draft.furnitureMode ∈ {'keep','replace',
+    // 'blank',null}. 'keep' → keepMode true; 'replace' or 'blank' →
+    // keepMode false (fresh full pick). When null (e.g., template flow
+    // skips the screen, or legacy state), fall back to the previous
+    // behavior: scope === 'just_furniture' default + draft.keep override.
+    // AI-prompt integration of furnitureMode itself is deferred (Phase A);
+    // for today the existing pickItemsForRoom keepMode flag is the only
+    // generation-time consumer.
+    const fm = draft.furnitureMode;
+    const keepMode = fm === 'keep'
+      ? true
+      : (fm === 'replace' || fm === 'blank')
+        ? false
+        : (draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture'));
     // [BUDGET_RESET_PASS] Read the transient budget from state.draft.budget
     // (set by the slider on the capture screen). Falls back to
     // SLIDER_BUDGET_DEFAULT if for some reason draft.budget isn't set.
@@ -8265,6 +8732,19 @@
       dims: draft.dims,
       items: picked,
       keepMode,
+      // [feat-pre-launch-bundle Theme 1] Snapshot the user's explicit
+      // pre-generation furniture-mode pick so future AI-prompt builds
+      // (Phase A) and analytics segmentation can read it back. Default
+      // 'keep' for the template / legacy flows that skip the picker —
+      // matches the prior keep-existing-fallback behavior on those paths.
+      furnitureMode: fm || 'keep',
+      // [feat-pre-launch-bundle Theme 2 Feature B] Per-room freeform
+      // context typed by the user on the pre-gen-context screen. Empty
+      // string for skipped path or template / legacy flows that bypass
+      // the screen. AI-prompt integration deferred to Phase A.
+      preGenerationContext: typeof draft.preGenerationContext === 'string'
+        ? draft.preGenerationContext
+        : '',
       // [BUDGET_RESET_PASS] Snapshot the transient budget the user chose for
       // this generation. Reshuffle/keep/different-style on the reveal screen
       // read from room.budget so they stay coherent with the original pick.
@@ -8584,12 +9064,10 @@
       logHabitAction('second_redesign');
     }
 
-    // Sync the post-aha keep-existing switch to this room's state.
-    const _keepSw = $('#keepExistingSwitch');
-    if (_keepSw) {
-      _keepSw.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
-      _keepSw.classList.toggle('on', !!room.keepMode);
-    }
+    // [feat-pre-launch-bundle Theme 1] keepExistingSwitch sync removed
+    // along with the switch element. Furniture mode is locked at
+    // generation time via the pre-gen-furniture screen; no post-aha
+    // toggle to keep in sync.
 
     // First-results hint tour: highlight a price tag so users discover
     // tap-to-shop. One-shot, separate from the celebration.
@@ -8599,9 +9077,11 @@
     // the coachmark land AFTER the reveal choreography settles (Frame 7
     // ends at 3300ms in the Section C spec). Pulse-against-settled-user
     // converts higher than pulse-against-loading-user.
-    if (isFirstResultsForProfile && !state._tourShown) {
-      state._tourShown = true;
-      save();
+    // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Migrated from
+    // session-only state._tourShown to persistent hasSeenHint/markHintSeen.
+    // Hint now fires once-per-user (across sessions/devices when sync
+    // lands), auto-clears + marks seen on navigation away from results.
+    if (isFirstResultsForProfile && !hasSeenHint('first_aha_pricetag')) {
       setTimeout(() => showFirstAhaHint(), 3500);
     }
 
@@ -8709,6 +9189,13 @@
   }
 
   function showFirstAhaHint() {
+    // [feat-pre-launch-bundle followups Item 2] Guard against the
+    // setTimeout firing AFTER the user has already navigated away from
+    // results. Same root cause as showTemplateTip — hidden #priceTags
+    // elements would still match and a getBoundingClientRect would
+    // return 0,0,0,0, positioning the coach-mark top-left.
+    const resultsActive = document.querySelector('.screen[data-screen="results"].active');
+    if (!resultsActive) return;
     // Highlight the first price tag + show a floating coach mark.
     const tag = document.querySelector('#priceTags .price-tag');
     if (!tag) return;
@@ -8725,9 +9212,18 @@
     coach.style.top  = (rect.bottom + 12 + window.scrollY) + 'px';
     coach.style.left = Math.max(12, Math.min(window.innerWidth - 280, rect.left - 20)) + 'px';
     const dismiss = () => {
-      tag.classList.remove('coach-pulse');
+      // Defensive: tag/coach may already be removed if user navigated
+      // away (showScreen sweep ran first). isConnected check avoids
+      // ghost classList/animation calls on detached nodes.
+      if (tag.isConnected) tag.classList.remove('coach-pulse');
+      if (!coach.isConnected) return;
       coach.classList.add('out');
       setTimeout(() => coach.remove(), 240);
+      // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Mark seen on
+      // any explicit dismiss (Got-it click or 8s auto-timeout). The
+      // showScreen sweep marks seen on navigation-away as a separate
+      // path; markHintSeen is idempotent so double-calls are safe.
+      markHintSeen('first_aha_pricetag');
     };
     coach.querySelector('.cm-ok').addEventListener('click', dismiss);
     setTimeout(dismiss, 8000);
@@ -9111,15 +9607,20 @@
   }
 
   document.getElementById('rearrangeBtn').addEventListener('click', () => {
-    // [Model A — D10 override] Rearrange is FREE for everyone. The AI
-    // re-layout call must stay minimal-cost (server-side concern) since this
-    // doesn't decrement the generation quota. Until the real AI re-layout
-    // pipeline lands (DEFERRED.md), this remains a UI-only stub: tags become
-    // draggable and the new layout is saved per-room. No Pro gate, no paywall.
-    trackEvent('rearrange_clicked', { roomId: currentRoomIdSafe() });
-    toast('Drag any price tag to reposition it. Tap done to save.');
-    // Existing rearrange-mode toggling is wired separately via attachTagDrag —
-    // keeping this handler simple to avoid duplicate behavior.
+    // [feat-pre-launch-bundle followups Item 3] Coming-Soon lock. The
+    // previous handler enabled price-tag drag mode (a UI-only stub for
+    // the future AI re-layout feature). Now the button is visually
+    // dimmed + carries a "Coming soon" pill; the click is a no-op apart
+    // from a brief toast and an analytics ping so we can measure intent
+    // (button taps signal demand for the real feature once it ships).
+    // The legacy rearrange_clicked event is preserved for funnel
+    // continuity; rearrange_coming_soon_seen distinguishes post-lock
+    // taps in cohort analysis. The rearrangeMode global + attachTagDrag
+    // wiring stay in the codebase but become dormant — no entry point
+    // fires them now.
+    trackEvent('rearrange_clicked', { roomId: currentRoomIdSafe(), locked: true });
+    trackEvent('rearrange_coming_soon_seen', { roomId: currentRoomIdSafe() });
+    toast('Coming soon');
   });
 
   let activeAnchorColor = null;
@@ -9600,34 +10101,14 @@
     refreshBookmarkBtn(room);
   });
 
-  // Post-aha "keep my pieces" switch on results. Flipping it re-picks items.
-  const keepSwitch = $('#keepExistingSwitch');
-  if (keepSwitch) {
-    keepSwitch.addEventListener('click', () => {
-      const room = state.rooms.find(r => r.id === currentRoomId);
-      if (!room) return;
-      const profile = state.profiles.find(p => p.id === room.profileId);
-      if (!profile) return;
-      // [BUDGET_RESET_PASS] Reuse the budget that produced this room
-      // (room.budget). Reshuffle/keep happens on the reveal screen, not
-      // the photo upload screen, so we don't re-prompt the user.
-      room.keepMode = !room.keepMode;
-      keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
-      keepSwitch.classList.toggle('on', room.keepMode);
-      const fresh = pickItemsForRoom(
-        { type: room.type, dims: room.dims, photo: room.photo },
-        getEffectiveAnswers(profile),
-        room.budget || SLIDER_BUDGET_DEFAULT,
-        { keepMode: room.keepMode }
-      );
-      room.items = fresh;
-      pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
-      save();
-      renderRoomPieces(room);
-      renderVersions(room);
-      toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
-    });
-  }
+  // [feat-pre-launch-bundle Theme 1] #keepExistingSwitch click handler
+  // removed alongside the switch element. Furniture mode is now an
+  // explicit pre-generation question (data-screen="pre-gen-furniture")
+  // — locked once the user picks keep/replace/blank. The room's
+  // keepMode + furnitureMode are snapshotted in buildRoomFromDraft
+  // and don't flip post-generation. (If we add a re-edit affordance
+  // later, it'd re-enter the pre-gen-furniture screen rather than
+  // toggling in place — single source of truth.)
 
   // [Item 11] aha-feedback "How does this feel?" handler removed entirely
   // (HTML block removed from index.html, all .af-btn voting + per-vote
@@ -10439,11 +10920,22 @@
   // assets/tip-example.jpg lands, flip examplePath in PHOTO_TIP_CONFIG
   // and the image renders without component changes (per Hassan's
   // explicit ask: "config edit, no component changes").
+  // [feat-pre-launch-bundle Theme 4] Single-line .copy expanded into a
+  // 5-item .tips array; the renderer fills <ul id="photoTipList"> with
+  // one <li> per tip. Existing persist-dismiss key + analytics events
+  // unchanged — same system, more guidance.
   const PHOTO_TIP_CONFIG = Object.freeze({
     enabled: true,
-    copy: 'Brightly lit, full-room view works best.',
+    title: 'Photo tips',
+    tips: Object.freeze([
+      'Bright daylight is ideal — open the curtains',
+      'Make sure the entire room fits in frame — back up to capture corners',
+      'Avoid heavy shadows or harsh backlighting',
+      'Hold the phone steady, around chest height',
+      'Avoid wide-angle / panoramic distortion'
+    ]),
     examplePath: null,  // set to 'assets/tip-example.jpg' when ready
-    dismissKey: '_photoTipDismissed',  // session-scoped flag
+    dismissKey: '_photoTipDismissed',  // persisted on state.user
   });
   window.FurnishPhotoTipConfig = PHOTO_TIP_CONFIG;
 
@@ -10452,9 +10944,18 @@
     if (!tip) return;
     if (!PHOTO_TIP_CONFIG.enabled) { tip.hidden = true; return; }
     if (state.user?.[PHOTO_TIP_CONFIG.dismissKey]) { tip.hidden = true; return; }
-    const copyEl = document.getElementById('photoTipCopy');
+    const listEl = document.getElementById('photoTipList');
+    const titleEl = tip.querySelector('.photo-tip-title');
     const exampleEl = document.getElementById('photoTipExample');
-    if (copyEl) copyEl.textContent = PHOTO_TIP_CONFIG.copy;
+    if (titleEl) titleEl.textContent = PHOTO_TIP_CONFIG.title;
+    if (listEl) {
+      listEl.innerHTML = '';
+      PHOTO_TIP_CONFIG.tips.forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        listEl.appendChild(li);
+      });
+    }
     if (exampleEl) {
       if (PHOTO_TIP_CONFIG.examplePath) {
         exampleEl.innerHTML = `<img src="${PHOTO_TIP_CONFIG.examplePath}" alt="Example: brightly lit full-room view">`;

@@ -1433,6 +1433,46 @@ html[data-theme="dark"] .bs-actions { background: var(--surface); border-top-col
 }
 .rearrange-btn.active .rb-icon { background: var(--cream); color: var(--brown); }
 
+/* [feat-pre-launch-bundle followups Item 3] Coming-Soon lock on the
+   results-screen Rearrange furniture button. Subtle treatment per
+   Hassan's spec: small inline pill + dimmed button, no big banner.
+   Dashed border softens to muted-tan, label opacity drops to 0.65,
+   icon-rotate hover effect suppressed (no false interactivity cue). */
+.rearrange-btn-locked {
+  opacity: 0.7;
+  border-color: rgba(139, 111, 71, 0.30);
+  cursor: default;
+}
+.rearrange-btn-locked .rb-label {
+  color: var(--brown-2);
+}
+.rearrange-btn-locked:hover .rb-icon {
+  transform: none;
+}
+.rearrange-btn-locked:hover {
+  background: transparent;
+}
+.rb-soon {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--brown-2);
+  border-radius: 999px;
+  vertical-align: 1px;
+}
+html[data-theme="dark"] .rearrange-btn-locked {
+  border-color: rgba(216, 176, 126, 0.28);
+}
+html[data-theme="dark"] .rb-soon {
+  background: rgba(216, 176, 126, 0.18);
+  color: var(--brown-2);
+}
+
 /* Rearrange-active state on the room visual */
 .ba-slider.rearranging .ba-after { clip-path: none !important; }
 .ba-slider.rearranging .ba-before { opacity: 0.05; }
@@ -2843,16 +2883,16 @@ html[data-theme="dark"] .qoc-face {
   border-color: var(--tan);
 }
 
-.quiz-option-card.selected .qoc-label::before {
-  content: '✓';
-  position: absolute; top: -30px; left: 14px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brown); color: var(--cream);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-  animation: heartPulse 420ms var(--ease-spring);
-}
+/* [feat-pre-launch-bundle followups Item 1] Circular checkmark badge
+   on selected quiz cards removed entirely. Was a brown 28×28 circle
+   with '✓' positioned top:-30 left:14 — read as a "circle artifact in
+   top-left" once Bug 16 (Theme 4) had already softened its shadow.
+   Selection state is already communicated unambiguously via the
+   .selected rules above (brown border, scale(0.97), 4px brown ring,
+   --shadow-lg). The badge was redundant visual feedback. Removing
+   it kills the artifact in both .q-text (badge floated above card
+   top) and photo-card (badge floated above the .qoc-label band)
+   contexts. heartPulse keyframe stays in styles.css — used elsewhere. */
 
 /* ================================================================
    Add-profile lock + paywall
@@ -3527,16 +3567,16 @@ html[data-theme="dark"] .yesno-btn[aria-selected="true"] .yesno-emoji { backgrou
   text-shadow: 0 2px 6px rgba(0,0,0,0.55);
   letter-spacing: 0.01em;
 }
-.quiz-option-card.selected .qoc-label::before {
-  content: '✓';
-  position: absolute; top: -30px; left: 14px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brown); color: var(--cream);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-  animation: heartPulse 420ms var(--ease-spring);
-}
+/* [feat-pre-launch-bundle followups Item 1] Circular checkmark badge
+   on selected quiz cards removed entirely. Was a brown 28×28 circle
+   with '✓' positioned top:-30 left:14 — read as a "circle artifact in
+   top-left" once Bug 16 (Theme 4) had already softened its shadow.
+   Selection state is already communicated unambiguously via the
+   .selected rules above (brown border, scale(0.97), 4px brown ring,
+   --shadow-lg). The badge was redundant visual feedback. Removing
+   it kills the artifact in both .q-text (badge floated above card
+   top) and photo-card (badge floated above the .qoc-label band)
+   contexts. heartPulse keyframe stays in styles.css — used elsewhere. */
 
 /* ================================================================
    Add-profile lock + paywall
@@ -3820,16 +3860,16 @@ html[data-theme="dark"] .paywall-card {
   text-shadow: 0 2px 6px rgba(0,0,0,0.55);
   letter-spacing: 0.01em;
 }
-.quiz-option-card.selected .qoc-label::before {
-  content: '✓';
-  position: absolute; top: -30px; left: 14px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brown); color: var(--cream);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-  animation: heartPulse 420ms var(--ease-spring);
-}
+/* [feat-pre-launch-bundle followups Item 1] Circular checkmark badge
+   on selected quiz cards removed entirely. Was a brown 28×28 circle
+   with '✓' positioned top:-30 left:14 — read as a "circle artifact in
+   top-left" once Bug 16 (Theme 4) had already softened its shadow.
+   Selection state is already communicated unambiguously via the
+   .selected rules above (brown border, scale(0.97), 4px brown ring,
+   --shadow-lg). The badge was redundant visual feedback. Removing
+   it kills the artifact in both .q-text (badge floated above card
+   top) and photo-card (badge floated above the .qoc-label band)
+   contexts. heartPulse keyframe stays in styles.css — used elsewhere. */
 
 /* ================================================================
    Add-profile lock + paywall
@@ -3918,12 +3958,19 @@ html[data-theme="dark"] .paywall-card {
   letter-spacing: -0.005em;
 }
 
-/* Extend stagger animation for items 5 + 6 of the paywall list.
+/* Extend stagger animation for items 5, 6, 7 of the paywall list.
    [feat-paywall-restructure Item 4] List grew from 3 to 6 items when the
-   More-Perks dropdown was merged in — extra delays so the last two
-   bullets don't pop in flat with the earlier ones. */
+   More-Perks dropdown was merged in.
+   [feat-pre-launch-bundle Theme 3] Rearrange-furniture inserted as the
+   new position-1 bullet, pushing total to 7. The stagger increment is
+   ~70ms per position; nth-child(7) gets 600ms so the last bullet still
+   trails the rest cleanly. The existing :nth-child(1)-(4) rules at the
+   base .paywall-list block (lines 2901-2904 and the two reconstruction-
+   artifact dupes) automatically retarget the newly-shifted bullets —
+   no edits needed there. */
 .paywall-list li:nth-child(5) { animation-delay: 460ms; }
 .paywall-list li:nth-child(6) { animation-delay: 530ms; }
+.paywall-list li:nth-child(7) { animation-delay: 600ms; }
 
 /* ---------- Sign-in ---------- */
 .signin-card {
@@ -4507,31 +4554,206 @@ html[data-theme="dark"] .qf-heart-glow {
 }
 .section-h.compact { margin: 18px 0 6px; font-size: 14px; }
 
-/* Batch D — post-aha keep-existing switch on results */
-.results-keep-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; margin: 10px 0;
-  background: var(--surface); border: 1px solid var(--line);
+/* [feat-pre-launch-bundle Theme 1] Batch D post-aha keep-existing switch
+   styles removed (.results-keep-row, .rkr-label, .rkr-switch, .rkr-track,
+   .rkr-thumb, .rkr-switch.on variants). Replaced by the pre-generation
+   furniture-mode question screen (.fur-mode-card family below). */
+
+/* [feat-pre-launch-bundle Theme 1] Pre-generation furniture-mode picker.
+   Three big stacked cards on data-screen="pre-gen-furniture". Visual
+   language matches the existing .yesno-btn pattern (icon + title +
+   subcopy on a cream card with brown border on selected) but stacks
+   vertically instead of side-by-side since the labels run longer. */
+.fur-mode-options {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 16px;
+}
+.fur-mode-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  background: var(--cream);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
+  cursor: pointer; text-align: left;
+  color: var(--deep);
+  transition: transform 240ms var(--ease-premium),
+              border-color 240ms ease,
+              background-color 240ms ease,
+              box-shadow 240ms ease;
 }
-.rkr-label { font-size: 13px; color: var(--ink); font-weight: 500; }
-.rkr-switch {
-  background: none; border: 0; padding: 0; cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+.fur-mode-card:hover { border-color: var(--tan); transform: translateY(-2px); }
+.fur-mode-card .fmc-icon {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--beige);
+  color: var(--brown);
 }
-.rkr-track {
-  display: inline-block; position: relative;
-  width: 42px; height: 24px; border-radius: 14px;
-  background: var(--line); transition: background 200ms ease;
+.fur-mode-card .fmc-text {
+  display: flex; flex-direction: column; gap: 3px; line-height: 1.3;
 }
-.rkr-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: var(--surface); box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-  transition: transform 200ms ease;
+.fur-mode-card .fmc-text strong { font-size: 15px; font-weight: 700; }
+.fur-mode-card .fmc-text small { font-size: 12px; color: var(--muted); }
+.fur-mode-card.selected,
+.fur-mode-card[aria-pressed="true"] {
+  background: var(--brown);
+  color: var(--cream);
+  border-color: var(--brown);
+  box-shadow: 0 6px 18px rgba(139, 111, 71, 0.22);
 }
-.rkr-switch.on .rkr-track { background: var(--brown); }
-.rkr-switch.on .rkr-thumb { transform: translateX(18px); }
+.fur-mode-card.selected .fmc-icon,
+.fur-mode-card[aria-pressed="true"] .fmc-icon {
+  background: var(--cream); color: var(--brown);
+}
+.fur-mode-card.selected .fmc-text small,
+.fur-mode-card[aria-pressed="true"] .fmc-text small {
+  color: rgba(250, 243, 231, 0.82);
+}
+html[data-theme="dark"] .fur-mode-card { background: var(--beige); color: var(--ink); }
+html[data-theme="dark"] .fur-mode-card .fmc-icon { background: var(--beige-2); color: var(--tan); }
+html[data-theme="dark"] .fur-mode-card.selected,
+html[data-theme="dark"] .fur-mode-card[aria-pressed="true"] {
+  background: var(--brown); color: var(--cream);
+}
+html[data-theme="dark"] .fur-mode-card.selected .fmc-icon,
+html[data-theme="dark"] .fur-mode-card[aria-pressed="true"] .fmc-icon {
+  background: #1C1410; color: var(--tan);
+}
+
+/* [feat-pre-launch-bundle Theme 2 Feature A] Tell Us More freeform
+   block on the quiz-dealbreaker screen. Sits below the per-kind
+   dealbreaker blocks (or alone for the no-kinds path). Visual language
+   matches the existing .dealbreaker-block — same headline weight,
+   same .dealbreaker-input textarea, same char-counter row. The
+   .tum-block selector is the only structural difference, used here
+   to add a top divider when it follows real dealbreaker blocks. */
+.tum-block {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(139, 111, 71, 0.18);
+}
+#dealbreakerInputs:empty + .tum-block {
+  /* No-kinds path: no leading divider needed since this is the only
+     content above the action row. */
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: none;
+}
+.tum-block .tum-hint {
+  margin: 0 0 8px;
+}
+.tum-input { width: 100%; }
+html[data-theme="dark"] .tum-block {
+  border-top-color: rgba(216, 176, 126, 0.20);
+}
+
+/* [feat-pre-launch-bundle Theme 2 Feature B] Pre-generation room-context
+   screen. Same .quiz-card layout, dedicated card class for any
+   future spacing tweaks. Reuses .dealbreaker-input for the textarea
+   styling so the visual matches the rest of the freeform-text family. */
+.pre-gen-context-card .pre-gen-context-input {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* [feat-pre-launch-bundle Theme 2 Feature A] "Things we know about
+   you" bubble surface on the Preferences tab. Bubbles wrap in a flex
+   row, soft beige backgrounds, brown text. Tap a bubble → bubble
+   replaces in place with .tum-editor (textarea + Save / Delete /
+   Cancel actions). */
+.tum-section {
+  margin: 22px 0 8px;
+}
+.tum-section .tum-section-hint {
+  margin: 0 0 10px;
+}
+.tum-bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tum-bubble {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--beige);
+  border: 1px solid var(--line);
+  color: var(--deep);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+  /* Bubbles can grow vertically when the text is long — wrap and
+     allow multi-line. Keeps long notes readable instead of forcing
+     ellipsis. The whole-bubble tap-target stays valid. */
+  white-space: normal;
+  word-break: break-word;
+}
+.tum-bubble:hover {
+  border-color: var(--tan);
+  transform: translateY(-1px);
+}
+html[data-theme="dark"] .tum-bubble {
+  background: var(--beige-2);
+  color: var(--ink);
+  border-color: rgba(216, 176, 126, 0.20);
+}
+.tum-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.tum-editor-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 70px;
+}
+.tum-editor-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.18);
+}
+.tum-editor-meta { text-align: right; }
+.tum-editor-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tum-editor-actions .btn { flex: 0 0 auto; }
+.tum-editor-actions .tum-editor-delete {
+  /* Visually distinguish the destructive action from Cancel — same
+     ghost button base, but a subtle red tint on the border so it
+     reads as a destructive option without screaming. */
+  border-color: rgba(180, 60, 50, 0.45);
+  color: rgba(160, 50, 40, 0.95);
+}
+html[data-theme="dark"] .tum-editor {
+  background: var(--surface);
+}
+html[data-theme="dark"] .tum-editor-input {
+  background: var(--beige);
+  color: var(--ink);
+}
+html[data-theme="dark"] .tum-editor-actions .tum-editor-delete {
+  border-color: rgba(220, 110, 100, 0.45);
+  color: rgba(230, 130, 120, 0.95);
+}
 
 /* Batch E — welcome hero demo (before/after sweep) */
 .hero-demo {
@@ -6671,69 +6893,12 @@ html[data-theme="dark"] .tw-hero-week-stamp { color: #E8C193; }
   min-width: 0;
 }
 
-/* Bottom "Browse all styles" CTA. */
-.tw-bottom-cta {
-  display: flex;
-  justify-content: center;
-  margin: 8px 0 0;
-}
-.tw-browse-all {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 22px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 13px;
-}
-.tw-browse-all svg {
-  transition: transform 220ms var(--ease-premium);
-}
-.tw-browse-all:hover svg { transform: translateX(3px); }
-
-/* ============================================================
-   Styles Index stub — placeholder until the real page lands.
-   ============================================================ */
-.styles-index-stub {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 32px 22px 40px;
-  margin: 18px 0 0;
-}
-.styles-index-stub .sis-art {
-  width: 84px; height: 84px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(235, 199, 147, 0.20) 0%, rgba(196, 154, 96, 0.10) 100%);
-  border: 1px solid rgba(212, 165, 116, 0.32);
-  color: var(--brown);
-  margin-bottom: 18px;
-}
-.sis-title {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--deep);
-  letter-spacing: -0.01em;
-}
-.sis-body {
-  margin: 0 0 22px;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--muted);
-  max-width: 360px;
-}
-html[data-theme="dark"] .styles-index-stub .sis-art {
-  background: linear-gradient(135deg, rgba(235, 199, 147, 0.18) 0%, rgba(140, 100, 60, 0.08) 100%);
-  border-color: rgba(232, 193, 147, 0.32);
-  color: #E8C193;
-}
-html[data-theme="dark"] .sis-title { color: #F5E9D7; }
-html[data-theme="dark"] .sis-body  { color: #C7B493; }
+/* [feat-pre-launch-bundle followups] Removed:
+   - .tw-bottom-cta + .tw-browse-all (+ svg / hover variants) —
+     "Browse all styles" CTA at the bottom of /this-week.
+   - .styles-index-stub (+ .sis-art / .sis-title / .sis-body +
+     dark-mode variants) — the destination stub page; only entry
+     point was the CTA above. Both surfaces gone together. */
 
 /* ============================================================
    Retention pass — Engagement Loop surfaces
@@ -7487,47 +7652,109 @@ html[data-theme="dark"] .ao-label { color: #F5E9D7; }
    Trust badge replacing the FTC-min single-line disclosure. Mapped to
    Furnish design tokens (not the proposed bg-elev/border tokens which
    don't exist here). Light + dark mode covered. */
-.affiliate-disclosure-v2 {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin: 16px 0;
-  box-shadow: var(--shadow);
-}
-.adv2-row {
+/* [feat-pre-launch-bundle Theme 5] .affiliate-disclosure-v2 + .adv2-*
+   styles removed — inline-on-results FTC panel was relocated to the
+   Support area exclusively (Profile → Support → Affiliate Disclosure
+   opens #affiliateModal). HTML element gone; selectors had no
+   consumers left.
+
+   AI-generated content label on results screen — small muted caption
+   below the before/after slider. Custom SVG sparkle icon, not emoji. */
+.ai-gen-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  color: var(--ink);
+  justify-content: center;
+  gap: 5px;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  opacity: 0.75;
 }
-.adv2-icon {
-  display: inline-flex;
-  align-items: center;
-  color: var(--brown);
-}
-.adv2-body {
-  font-size: 13px;
-  line-height: 1.55;
+.ai-gen-label svg {
+  flex-shrink: 0;
   color: var(--brown-2);
-  margin: 0;
 }
-.adv2-body strong {
-  color: var(--ink);
-  font-weight: 600;
-  margin-right: 2px;
+html[data-theme="dark"] .ai-gen-label {
+  color: var(--muted);
 }
-.adv2-body a {
-  color: var(--tan);
-  text-decoration: underline;
-  margin-left: 4px;
-  cursor: pointer;
+html[data-theme="dark"] .ai-gen-label svg {
+  color: var(--brown-2);
 }
-html[data-theme="dark"] .affiliate-disclosure-v2 {
+
+/* [feat-pre-launch-bundle Theme 5] FAQ accordion — uses native <details>
+   so expand/collapse is keyboard-navigable + screen-reader-aware with
+   zero JS. Visual treatment matches the existing .legal-doc family
+   (warm cream/beige surface, brown accent on summary chevron). */
+.faq-doc { padding-top: 4px; }
+.faq-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--surface);
-  border-color: rgba(232, 193, 147, 0.24);
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
 }
+.faq-item[open] {
+  border-color: var(--tan);
+  box-shadow: 0 4px 14px rgba(139, 111, 71, 0.10);
+}
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 44px 14px 16px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--deep);
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  line-height: 1.4;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::marker { content: ''; }
+.faq-item summary::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--brown-2);
+  border-bottom: 2px solid var(--brown-2);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform 220ms ease;
+}
+.faq-item[open] summary::after {
+  transform: translateY(-30%) rotate(-135deg);
+}
+.faq-item summary:hover { color: var(--ink); }
+.faq-item summary:focus-visible {
+  outline: 2px solid rgba(139, 111, 71, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.faq-item p {
+  margin: 0;
+  padding: 0 18px 16px 16px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.faq-item p a {
+  color: var(--brown-2);
+  text-decoration: underline;
+}
+html[data-theme="dark"] .faq-item {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.20);
+}
+html[data-theme="dark"] .faq-item[open] {
+  border-color: rgba(216, 176, 126, 0.50);
+  box-shadow: 0 4px 14px rgba(216, 176, 126, 0.08);
+}
+html[data-theme="dark"] .faq-item summary { color: var(--deep); }
+html[data-theme="dark"] .faq-item p { color: var(--ink); }
 
 /* [IDX-12 + CSS-2 — Photo tip card]
    Soft inline card on capture screen above .capture-actions. Per
@@ -7536,7 +7763,10 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
    lands, it slots into .photo-tip-example without component changes. */
 .photo-tip {
   display: flex;
-  align-items: center;
+  /* [feat-pre-launch-bundle Theme 4] flex-start so the icon hugs the
+     top of the now-multi-line tip list (was align-items: center, which
+     looked off when the body grew to 5 lines). */
+  align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
   margin: 20px 0;
@@ -7548,8 +7778,8 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
 .photo-tip[hidden] { display: none; }
 .photo-tip-example {
   flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   background: var(--cream);
   display: flex;
@@ -7557,6 +7787,9 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
   justify-content: center;
   color: var(--brown);
   overflow: hidden;
+  /* Slight top offset so the icon vertically aligns with the title row
+     when the list pushes the body taller. */
+  margin-top: 2px;
 }
 .photo-tip-example img {
   width: 100%;
@@ -7564,13 +7797,52 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
   object-fit: cover;
 }
 .photo-tip-icon { color: var(--brown); }
-.photo-tip-copy {
+/* [feat-pre-launch-bundle Theme 4] Body wrapper for title + tip list.
+   Replaces the old .photo-tip-copy single-line <p>. The list uses
+   custom dot bullets (color tinted to --brown-2) instead of browser
+   default discs so the visual hierarchy stays warm-tan. */
+.photo-tip-body {
   flex: 1 1 auto;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.photo-tip-title {
   font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.photo-tip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.photo-tip-list li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 12.5px;
   line-height: 1.45;
   color: var(--brown-2);
 }
+.photo-tip-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brown);
+  opacity: 0.7;
+}
+html[data-theme="dark"] .photo-tip-title { color: var(--ink); }
+html[data-theme="dark"] .photo-tip-list li { color: var(--brown-2); }
+html[data-theme="dark"] .photo-tip-list li::before { background: var(--brown-2); }
 .photo-tip-dismiss {
   flex: 0 0 auto;
   background: transparent;
