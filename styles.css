@@ -7738,6 +7738,133 @@ html[data-theme="dark"] .ai-gen-label svg {
   color: var(--brown-2);
 }
 
+/* [feat-pre-ai-bridge Item 2] Post-generation sentiment survey.
+   Subtle inline card on the results screen that slides up after the
+   reveal choreography settles. State machine: prompt (3 faces) →
+   feedback textbox (sad/neutral only) → thanks. Once-per-session
+   dedup via JS module-level _sessionSurveyShown — no CSS state to
+   persist. Light + dark mode variants both covered. */
+.pg-survey {
+  position: relative;
+  margin: 14px 0 6px;
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 280ms var(--ease-premium), transform 320ms var(--ease-premium);
+}
+.pg-survey.open {
+  opacity: 1;
+  transform: translateY(0);
+}
+.pg-survey[hidden] { display: none; }
+.pg-survey-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.pg-survey-close:hover {
+  background: var(--beige);
+  color: var(--ink);
+}
+.pg-survey-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+.pg-survey-faces {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+.pg-face {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 180ms var(--ease-premium), filter 180ms ease;
+}
+.pg-face:hover {
+  transform: scale(1.12);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.18));
+}
+.pg-face:active {
+  transform: scale(0.96);
+}
+.pg-face svg {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: auto;
+}
+.pg-survey-prompt {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.pg-survey-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 70px;
+}
+.pg-survey-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.16);
+}
+.pg-survey-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+.pg-survey-thanks {
+  margin: 4px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brown-2);
+}
+html[data-theme="dark"] .pg-survey {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.20);
+}
+html[data-theme="dark"] .pg-survey-input {
+  background: var(--beige);
+  color: var(--ink);
+}
+html[data-theme="dark"] .pg-face:hover {
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.32));
+}
+
 /* [feat-pre-launch-bundle Theme 5] FAQ accordion — uses native <details>
    so expand/collapse is keyboard-navigable + screen-reader-aware with
    zero JS. Visual treatment matches the existing .legal-doc family

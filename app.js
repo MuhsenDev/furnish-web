@@ -9185,6 +9185,14 @@
     // match Section C spec. CSS keyframes do the actual motion; this
     // function only adds/removes class flags at the right moments.
     runRevealChoreography();
+
+    // [feat-pre-ai-bridge Item 2] Post-generation sentiment survey.
+    // Fires once per session (in-memory dedup, NOT persisted —
+    // resets on app reload). Delayed past the reveal choreography
+    // (~3300ms total) so the survey doesn't compete with the
+    // image fade-in / overlay flash / totals-card slide-up. Bails
+    // out cleanly if the user navigates away mid-delay.
+    maybePostGenSurvey(room);
   }
 
   // [B2-15 / Dim 11 D.2 + B2-21 / Dim 11 D.8]
@@ -9230,6 +9238,180 @@
       setTimeout(() => totalsCard?.classList.remove('entering'), 460);
     }, 2700);
   }
+
+  // [feat-pre-ai-bridge Item 2] Post-generation sentiment survey.
+  // Fires once per session (in-memory dedup). State machine: prompt
+  // (3 faces) → on sad/neutral, reveals optional feedback textbox →
+  // on submit, opens mailto with sentiment + room + timestamp body.
+  // Happy path skips the textbox and dismisses immediately.
+  // _sessionSurveyShown is a module-level closure variable, not a
+  // state.* field — guarantees it's NEVER persisted to localStorage
+  // (so app reload = fresh survey opportunity, matching spec).
+  let _sessionSurveyShown = false;
+  let _surveyRoomRef = null;
+  let _surveySentimentChosen = null;
+
+  function maybePostGenSurvey(room) {
+    if (_sessionSurveyShown) return;
+    if (!room) return;
+    _sessionSurveyShown = true;
+    _surveyRoomRef = room;
+    _surveySentimentChosen = null;
+    // Delay past the reveal choreography (~3300ms) so the survey
+    // doesn't compete with image fade-in / overlay flash / totals-
+    // card slide-up. Bail if user navigates away mid-delay.
+    setTimeout(() => {
+      const resultsActive = document.querySelector('.screen[data-screen="results"].active');
+      if (!resultsActive) return;
+      openPostGenSurvey();
+    }, 3800);
+  }
+
+  function openPostGenSurvey() {
+    const survey = document.getElementById('postGenSurvey');
+    if (!survey) return;
+    // Reset stage visibility (defensive — same DOM element reused
+    // across rooms within a session, but session-flag dedup means
+    // this only fires once anyway).
+    survey.querySelector('[data-stage="prompt"]').hidden = false;
+    survey.querySelector('[data-stage="feedback"]').hidden = true;
+    survey.querySelector('[data-stage="thanks"]').hidden = true;
+    const ta = document.getElementById('pgSurveyInput');
+    if (ta) ta.value = '';
+    survey.hidden = false;
+    // RAF to let display:flex paint before the slide-up class triggers
+    // the transition.
+    requestAnimationFrame(() => survey.classList.add('open'));
+    trackEvent('survey_shown', {
+      roomId: _surveyRoomRef?.id || null,
+      room_type: _surveyRoomRef?.type || null
+    });
+  }
+
+  function dismissPostGenSurvey(reason /* 'close' | 'happy' | 'submitted' | 'skip' */) {
+    const survey = document.getElementById('postGenSurvey');
+    if (!survey) return;
+    survey.classList.remove('open');
+    // Wait for the slide-down transition to finish before display:none
+    // so the user sees the exit animation.
+    setTimeout(() => { survey.hidden = true; }, 280);
+    if (reason === 'close') {
+      trackEvent('survey_dismissed', {
+        sentiment: _surveySentimentChosen,
+        roomId: _surveyRoomRef?.id || null,
+        room_type: _surveyRoomRef?.type || null
+      });
+    }
+  }
+
+  function handlePostGenSurveyFace(sentiment) {
+    _surveySentimentChosen = sentiment;
+    const hasFeedback = sentiment === 'sad' || sentiment === 'neutral';
+    trackEvent('survey_response', {
+      sentiment,
+      hasFeedback,
+      roomId: _surveyRoomRef?.id || null,
+      room_type: _surveyRoomRef?.type || null
+    });
+    if (sentiment === 'happy') {
+      // Happy path: brief thanks beat, then dismiss.
+      const survey = document.getElementById('postGenSurvey');
+      if (!survey) return;
+      survey.querySelector('[data-stage="prompt"]').hidden = true;
+      survey.querySelector('[data-stage="thanks"]').hidden = false;
+      setTimeout(() => dismissPostGenSurvey('happy'), 1200);
+      return;
+    }
+    // Sad / neutral: reveal optional feedback textbox.
+    const survey = document.getElementById('postGenSurvey');
+    if (!survey) return;
+    survey.querySelector('[data-stage="prompt"]').hidden = true;
+    survey.querySelector('[data-stage="feedback"]').hidden = false;
+    const promptEl = document.getElementById('pgSurveyPrompt');
+    if (promptEl) {
+      promptEl.textContent = sentiment === 'sad'
+        ? 'Tell us what went wrong (optional)'
+        : 'What could be better? (optional)';
+    }
+    setTimeout(() => {
+      const ta = document.getElementById('pgSurveyInput');
+      if (ta) ta.focus();
+    }, 80);
+  }
+
+  function submitPostGenSurveyFeedback() {
+    const ta = document.getElementById('pgSurveyInput');
+    const text = (ta?.value || '').trim().slice(0, 600);
+    const sentiment = _surveySentimentChosen || 'unspecified';
+    trackEvent('survey_feedback_submitted', {
+      sentiment,
+      textLength: text.length,
+      roomId: _surveyRoomRef?.id || null,
+      room_type: _surveyRoomRef?.type || null
+    });
+    // Build mailto: sentiment + room type + timestamp + user text.
+    // URL-encode to handle newlines, spaces, and special characters.
+    const subject = `Furnish feedback (${sentiment})`;
+    const bodyLines = [
+      `Sentiment: ${sentiment}`,
+      '',
+      `Room type: ${_surveyRoomRef?.type || 'unknown'}`,
+      `Generated at: ${new Date().toISOString()}`,
+      '',
+      'User feedback:',
+      text || '(no additional comment)'
+    ];
+    const body = bodyLines.join('\n');
+    const mailto = 'mailto:support@furnish.live?subject='
+      + encodeURIComponent(subject)
+      + '&body='
+      + encodeURIComponent(body);
+    // Open the user's mail client. Use a transient anchor + click so
+    // the navigation happens via the user's last gesture (the Send
+    // click), satisfying browser pop-up rules. window.open also works
+    // in modern browsers for mailto: but the anchor approach is more
+    // reliable across in-app webviews.
+    const a = document.createElement('a');
+    a.href = mailto;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Show the brief thanks beat then dismiss. Same pattern as happy.
+    const survey = document.getElementById('postGenSurvey');
+    if (!survey) return;
+    survey.querySelector('[data-stage="feedback"]').hidden = true;
+    survey.querySelector('[data-stage="thanks"]').hidden = false;
+    setTimeout(() => dismissPostGenSurvey('submitted'), 1400);
+  }
+
+  function skipPostGenSurveyFeedback() {
+    // User picked sad/neutral but tapped Skip on the textbox path.
+    // Sentiment was already recorded by handlePostGenSurveyFace; just
+    // dismiss without firing survey_feedback_submitted.
+    dismissPostGenSurvey('skip');
+  }
+
+  // Wire up survey controls. Idempotent — safe even if elements
+  // missing or re-bound (single addEventListener per element across
+  // the IIFE's lifetime; event delegation not needed since the survey
+  // DOM is static in index.html, not re-rendered).
+  (function wirePostGenSurvey() {
+    const close = document.getElementById('pgSurveyClose');
+    if (close) close.addEventListener('click', () => dismissPostGenSurvey('close'));
+    document.querySelectorAll('.pg-face').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = btn.dataset.sentiment;
+        if (s === 'sad' || s === 'neutral' || s === 'happy') {
+          handlePostGenSurveyFace(s);
+        }
+      });
+    });
+    const submit = document.getElementById('pgSurveySubmit');
+    if (submit) submit.addEventListener('click', submitPostGenSurveyFeedback);
+    const skip = document.getElementById('pgSurveySkip');
+    if (skip) skip.addEventListener('click', skipPostGenSurveyFeedback);
+  })();
 
   function showFirstAhaHint() {
     // [feat-pre-launch-bundle followups Item 2] Guard against the
