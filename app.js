@@ -491,8 +491,9 @@
   //
   // NOT in the set (forbidden for guests): home, profile, preferences,
   // saved, saved-home-detail, results, templates, this-week,
-  // styles-index, wishlist, home-gallery.
-  // (profile-select removed in feat-remove-profile-screen.)
+  // wishlist, home-gallery.
+  // (profile-select removed in feat-remove-profile-screen;
+  //  styles-index removed in feat-pre-launch-bundle followups.)
   const GUEST_ALLOWED_SCREENS = new Set([
     'welcome',
     'capture',
@@ -828,7 +829,10 @@
     if (dest === 'saved')   renderSaved();
     if (dest === 'profile') renderProfilePage();
     if (dest === 'this-week') renderThisWeekPage();
-    if (dest === 'styles-index') trackEvent('styles_index_visited', { source: 'this_week_browse_all' });
+    // [feat-pre-launch-bundle followups] dest === 'styles-index' branch
+    // removed — both the section and its only entry point ("Browse all
+    // styles" CTA on /this-week) are gone. styles_index_visited
+    // analytics event retired with it.
     if (dest === 'home-gallery') renderHomeGallery();
   });
 

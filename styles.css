@@ -6893,69 +6893,12 @@ html[data-theme="dark"] .tw-hero-week-stamp { color: #E8C193; }
   min-width: 0;
 }
 
-/* Bottom "Browse all styles" CTA. */
-.tw-bottom-cta {
-  display: flex;
-  justify-content: center;
-  margin: 8px 0 0;
-}
-.tw-browse-all {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 22px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 13px;
-}
-.tw-browse-all svg {
-  transition: transform 220ms var(--ease-premium);
-}
-.tw-browse-all:hover svg { transform: translateX(3px); }
-
-/* ============================================================
-   Styles Index stub — placeholder until the real page lands.
-   ============================================================ */
-.styles-index-stub {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 32px 22px 40px;
-  margin: 18px 0 0;
-}
-.styles-index-stub .sis-art {
-  width: 84px; height: 84px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(235, 199, 147, 0.20) 0%, rgba(196, 154, 96, 0.10) 100%);
-  border: 1px solid rgba(212, 165, 116, 0.32);
-  color: var(--brown);
-  margin-bottom: 18px;
-}
-.sis-title {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--deep);
-  letter-spacing: -0.01em;
-}
-.sis-body {
-  margin: 0 0 22px;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--muted);
-  max-width: 360px;
-}
-html[data-theme="dark"] .styles-index-stub .sis-art {
-  background: linear-gradient(135deg, rgba(235, 199, 147, 0.18) 0%, rgba(140, 100, 60, 0.08) 100%);
-  border-color: rgba(232, 193, 147, 0.32);
-  color: #E8C193;
-}
-html[data-theme="dark"] .sis-title { color: #F5E9D7; }
-html[data-theme="dark"] .sis-body  { color: #C7B493; }
+/* [feat-pre-launch-bundle followups] Removed:
+   - .tw-bottom-cta + .tw-browse-all (+ svg / hover variants) —
+     "Browse all styles" CTA at the bottom of /this-week.
+   - .styles-index-stub (+ .sis-art / .sis-title / .sis-body +
+     dark-mode variants) — the destination stub page; only entry
+     point was the CTA above. Both surfaces gone together. */
 
 /* ============================================================
    Retention pass — Engagement Loop surfaces

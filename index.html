@@ -1386,40 +1386,11 @@
       <!-- Full grid of all 9 rooms — populated by renderThisWeekPage(). -->
       <div class="tw-grid" id="thisWeekGrid"></div>
 
-      <!-- Bottom CTA — routes to the stubbed styles-index. -->
-      <div class="tw-bottom-cta">
-        <button class="btn btn-ghost tw-browse-all" type="button" data-go="styles-index">
-          Browse all styles
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
-        </button>
-      </div>
-    </section>
-
-    <!-- SCREEN: Styles Index (stub) — reachable from /this-week's bottom
-         CTA. Currently a "coming soon" placeholder; the immediate next task
-         in CHANGES_APPLIED.md flags it for build-out (filterable index of
-         every style with current week/season annotations). -->
-    <section class="screen" data-screen="styles-index">
-      <header class="topbar">
-        <button class="btn-icon" data-go="this-week" aria-label="Back">‹</button>
-        <h2>All Styles</h2>
-      </header>
-      <div class="styles-index-stub">
-        <div class="sis-art" aria-hidden="true">
-          <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="6"  y="6"  width="22" height="22" rx="3"/>
-            <rect x="36" y="6"  width="22" height="22" rx="3"/>
-            <rect x="6"  y="36" width="22" height="22" rx="3"/>
-            <rect x="36" y="36" width="22" height="22" rx="3"/>
-          </svg>
-        </div>
-        <h3 class="sis-title">Every style, browsable</h3>
-        <p class="sis-body">A filterable index of every style in Furnish — with seasonal annotations, "this week" callouts, and side-by-side comparisons — is on its way.</p>
-        <button class="btn btn-primary" type="button" data-go="this-week">Back to this week</button>
-      </div>
+      <!-- [feat-pre-launch-bundle followups] Bottom "Browse all styles"
+           CTA removed — its destination (the styles-index stub) was
+           coming-soon placeholder content with no real value. The
+           entire data-screen="styles-index" section is gone too;
+           it had no other entry point. -->
     </section>
 
   </div>
