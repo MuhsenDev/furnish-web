@@ -260,8 +260,32 @@
       colors: [],
       customColors: [],
       keepExisting: false,
-      seenFinale: false
+      seenFinale: false,
+      // [feat-pre-launch-bundle Theme 2 Feature A] Profile-scoped freeform
+      // notes the user types about themselves (lifestyle, household, taste).
+      // Each entry: { id, text, createdAt, updatedAt }. Captured from the
+      // post-quiz "Tell Us More" screen, managed (edit/delete) from the
+      // Preferences tab "Things we know about you" section. AI-prompt
+      // integration deferred to Phase A.
+      // CLOUD SYNC: supabase-client.js profileToRow / rowToProfile use a
+      // column-mapped whitelist — this field stays local-only until the
+      // server schema gets a tell_us_more_entries jsonb column + the
+      // mappers thread it through. Logged in DEFERRED.md alongside the
+      // furnitureMode + preGenerationContext sync extensions.
+      tellUsMoreEntries: []
     };
+  }
+  // [feat-pre-launch-bundle Theme 2 Feature A] Defensive accessor for
+  // legacy profiles created before tellUsMoreEntries was on the schema.
+  // Always returns an array — mutates the profile in-place to plant the
+  // field on first read so subsequent push/splice operations see a real
+  // reference.
+  function getTellUsMoreEntries(profile) {
+    if (!profile) return [];
+    if (!Array.isArray(profile.tellUsMoreEntries)) {
+      profile.tellUsMoreEntries = [];
+    }
+    return profile.tellUsMoreEntries;
   }
   // Public surface for any future caller (settings page, debug, tests).
   window.FurnishCreateProfile = createProfile;
@@ -435,7 +459,7 @@
     'welcome', 'signin', 'quiz-intro', 'quiz'
   ]);
   const DESIGN_SCREENS = new Set([
-    'preferences', 'capture', 'pre-gen-furniture', 'analyzing', 'results', 'templates'
+    'preferences', 'capture', 'pre-gen-furniture', 'pre-gen-context', 'analyzing', 'results', 'templates'
   ]);
   // Bottom-nav surfaces (Home / Saved / Preferences / Profile).
   // [Hassan's call] Preferences promoted to a bottom-nav surface so users
@@ -473,6 +497,7 @@
     'welcome',
     'capture',
     'pre-gen-furniture',
+    'pre-gen-context',
     'quiz-intro',
     'quiz',
     'quiz-dealbreaker',
@@ -3068,21 +3093,20 @@
     // back-nav pre-fill.
     if (q.id === 'dealbreaker') {
       const nonNothing = picks.filter(p => p !== 'nothing');
-      if (nonNothing.length === 0) {
-        state.quiz.answers.dealbreaker = [];
-        save();
-        finishQuiz();
-      } else {
-        const priorEntries = Array.isArray(prevValue) && prevValue.some(v => v && typeof v === 'object')
-          ? prevValue
-          : [];
-        state.quiz.answers.dealbreaker = nonNothing.map(kind => {
-          const prior = priorEntries.find(d => d && d.kind === kind);
-          return { kind, text: prior?.text || '' };
-        });
-        save();
-        openDealbreakerFollowup(nonNothing);
-      }
+      // [feat-pre-launch-bundle Theme 2 Feature A] Always route through
+      // the Tell Us More screen so the freeform "Anything else?" textbox
+      // is reachable for every quiz-finishing user — including those who
+      // picked no dealbreaker kinds. The screen renders just the freeform
+      // section in that case (no per-kind blocks).
+      const priorEntries = Array.isArray(prevValue) && prevValue.some(v => v && typeof v === 'object')
+        ? prevValue
+        : [];
+      state.quiz.answers.dealbreaker = nonNothing.map(kind => {
+        const prior = priorEntries.find(d => d && d.kind === kind);
+        return { kind, text: prior?.text || '' };
+      });
+      save();
+      openDealbreakerFollowup(nonNothing);
       return;
     }
     advanceQuiz();
@@ -3112,6 +3136,12 @@
       answer_value: entries.map(e => ({ kind: e.kind, text_len: e.text.length })),
       time_to_answer_ms: t0 ? Date.now() - t0 : null
     });
+    // [feat-pre-launch-bundle Theme 2 Feature A] Append Tell Us More
+    // freeform entry to the active profile's tellUsMoreEntries[] if
+    // the textbox has non-empty text. Profile is the same one being
+    // mutated by finishQuiz below; appending pre-finishQuiz keeps the
+    // single save() call there as the persistence point.
+    appendTellUsMoreEntryFromQuizScreen();
     finishQuiz();
   });
   $('#dealbreakerSkipBtn').addEventListener('click', () => {
@@ -3120,8 +3150,44 @@
     state.quiz.skippedAt.dealbreaker = true;
     save();
     trackEvent('onboarding_question_skipped', { question_id: 'dealbreaker' });
+    // [feat-pre-launch-bundle Theme 2 Feature A] Skip path also commits
+    // any text the user typed into the freeform "Anything else?" box —
+    // skipping the dealbreaker prompt is independent of the freeform
+    // entry. If the textbox is empty, no-op.
+    appendTellUsMoreEntryFromQuizScreen();
     finishQuiz();
   });
+
+  // [feat-pre-launch-bundle Theme 2 Feature A] Helper: read the freeform
+  // textbox on the Tell Us More screen, append a new entry to the active
+  // profile's tellUsMoreEntries[] if non-empty. Fires the submission
+  // analytics event with text-length only (no content — privacy).
+  function appendTellUsMoreEntryFromQuizScreen() {
+    const ta = document.getElementById('tellUsMoreInput');
+    if (!ta) return;
+    const text = (ta.value || '').trim().slice(0, 280);
+    if (!text) return;
+    const p = state.profiles.find(x => x.id === state.quiz?.profileId);
+    if (!p) return;
+    const entries = getTellUsMoreEntries(p);
+    const now = Date.now();
+    entries.push({
+      id: 'tum_' + now + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      createdAt: now,
+      updatedAt: now
+    });
+    save();
+    trackEvent('tell_us_more_entry_submitted', {
+      text_length: text.length,
+      source: 'quiz_dealbreaker_screen',
+      total_entries: entries.length
+    });
+    // Clear the textbox so a back-nav re-entry doesn't double-submit.
+    ta.value = '';
+    const cc = document.getElementById('tellUsMoreCharCount');
+    if (cc) cc.textContent = '0 / 280';
+  }
 
   function renderQuizStep() {
     if (!state.quiz) return;
@@ -3402,7 +3468,7 @@
   function openDealbreakerFollowup(kinds) {
     const q = window.ONBOARDING_QUESTIONS.find(x => x.id === 'dealbreaker');
     if (!q) return;
-    const list = Array.isArray(kinds) ? kinds : [kinds];
+    const list = Array.isArray(kinds) ? kinds : (kinds ? [kinds] : []);
     const headlineByKind = {
       furniture: 'Which piece of furniture?',
       color:     'Which color or paint?',
@@ -3436,8 +3502,32 @@
         });
         host.appendChild(block);
       });
-      // Focus the first input so the user can type immediately.
-      const first = host.querySelector('textarea');
+    }
+    // [feat-pre-launch-bundle Theme 2 Feature A] Reset the freeform
+    // "Anything else?" textbox each time the screen opens. Char counter
+    // wired here (idempotent on multiple openings — listener replaced
+    // by reassigning .oninput).
+    const tum = $('#tellUsMoreInput');
+    const tumCount = $('#tellUsMoreCharCount');
+    if (tum) {
+      tum.value = '';
+      if (tumCount) tumCount.textContent = '0 / 280';
+      tum.oninput = () => {
+        if (tumCount) tumCount.textContent = `${tum.value.length} / 280`;
+      };
+    }
+    // [feat-pre-launch-bundle Theme 2 Feature A] Adapt the subhead +
+    // first-focus target depending on whether the user picked any
+    // dealbreaker kinds. No-kinds path = freeform-only screen.
+    const subhead = $('#dealbreakerSubhead');
+    if (subhead) {
+      subhead.textContent = list.length > 0
+        ? 'A short description helps the AI preserve the right thing.'
+        : 'One last thing — anything you want to share is welcome.';
+    }
+    if ($('#dealbreakerInputs')) {
+      const first = $('#dealbreakerInputs').querySelector('textarea')
+        || tum;
       if (first) setTimeout(() => first.focus(), 80);
     }
     showScreen('quiz-dealbreaker');
@@ -3674,6 +3764,11 @@
     // collapsible answers editor. Custom-color picker preserved in DOM
     // (hidden) for future Pro feature per CONFLICT 1.
     renderAnswersEditor(p);
+    // [feat-pre-launch-bundle Theme 2 Feature A] Render the "Things we
+    // know about you" bubble surface from profile.tellUsMoreEntries[].
+    // Section auto-hides when the array is empty so the screen stays
+    // tight for users who haven't used the feature.
+    renderTellUsMoreBubbles(p);
     // [Batch 5 Part 2 — Dim 02 D02-5 modified] Style-profile completeness
     // gauge mounted at the top of the answers editor parent. Renders the
     // % bar + identity summary; SVG fingerprint deferred.
@@ -3694,6 +3789,114 @@
     if (typeof maybeFireTutorialOnPreferencesEntry === 'function') {
       maybeFireTutorialOnPreferencesEntry();
     }
+  }
+
+  // [feat-pre-launch-bundle Theme 2 Feature A] Bubble renderer for the
+  // "Things we know about you" section on Preferences. One bubble per
+  // entry. Tap a bubble to enter inline-edit mode (textarea + Save /
+  // Delete / Cancel). Section hides entirely when the array is empty.
+  function renderTellUsMoreBubbles(profile) {
+    const section = document.getElementById('tellUsMoreSection');
+    const host = document.getElementById('tellUsMoreBubbles');
+    if (!section || !host) return;
+    const entries = getTellUsMoreEntries(profile);
+    if (!entries.length) {
+      section.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    section.hidden = false;
+    host.innerHTML = '';
+    // Newest first — most-recently-edited at the top.
+    const sorted = entries.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    sorted.forEach(entry => {
+      const bubble = document.createElement('button');
+      bubble.type = 'button';
+      bubble.className = 'tum-bubble';
+      bubble.dataset.entryId = entry.id;
+      bubble.setAttribute('aria-label', 'Edit note');
+      bubble.textContent = entry.text;
+      bubble.addEventListener('click', () => openTellUsMoreEditor(profile, entry));
+      host.appendChild(bubble);
+    });
+  }
+
+  // [feat-pre-launch-bundle Theme 2 Feature A] Inline editor — replaces
+  // the bubble with an editable textarea + Save / Delete / Cancel.
+  // Cancel restores the bubble; Save mutates the entry + re-renders;
+  // Delete removes it from the array + re-renders. All paths fire the
+  // appropriate analytics event with text-length only (no content).
+  function openTellUsMoreEditor(profile, entry) {
+    const host = document.getElementById('tellUsMoreBubbles');
+    if (!host) return;
+    const original = host.querySelector(`.tum-bubble[data-entry-id="${entry.id}"]`);
+    if (!original) return;
+
+    const editor = document.createElement('div');
+    editor.className = 'tum-editor';
+    editor.innerHTML = `
+      <textarea class="tum-editor-input" maxlength="280" rows="3"></textarea>
+      <div class="tum-editor-meta muted small">
+        <span class="tum-editor-count">${entry.text.length} / 280</span>
+      </div>
+      <div class="tum-editor-actions">
+        <button class="btn btn-primary small" type="button" data-tum-act="save">Save</button>
+        <button class="btn btn-ghost small tum-editor-delete" type="button" data-tum-act="delete">Delete</button>
+        <button class="btn btn-ghost small" type="button" data-tum-act="cancel">Cancel</button>
+      </div>
+    `;
+    const ta = editor.querySelector('textarea');
+    const cc = editor.querySelector('.tum-editor-count');
+    ta.value = entry.text;
+    ta.addEventListener('input', () => {
+      cc.textContent = `${ta.value.length} / 280`;
+    });
+
+    const close = () => renderTellUsMoreBubbles(profile);
+
+    editor.querySelector('[data-tum-act="save"]').addEventListener('click', () => {
+      const newText = (ta.value || '').trim().slice(0, 280);
+      if (!newText) {
+        // Empty save = delete (matches the natural mental model — user
+        // cleared the text and tapped Save).
+        const entries = getTellUsMoreEntries(profile);
+        const idx = entries.findIndex(e => e.id === entry.id);
+        if (idx >= 0) entries.splice(idx, 1);
+        save();
+        trackEvent('tell_us_more_entry_deleted', {
+          entry_age_ms: Date.now() - (entry.createdAt || Date.now()),
+          source: 'empty_save'
+        });
+        close();
+        return;
+      }
+      if (newText !== entry.text) {
+        entry.text = newText;
+        entry.updatedAt = Date.now();
+        save();
+        trackEvent('tell_us_more_entry_edited', {
+          text_length: newText.length,
+          entry_age_ms: Date.now() - (entry.createdAt || Date.now())
+        });
+      }
+      close();
+    });
+    editor.querySelector('[data-tum-act="delete"]').addEventListener('click', () => {
+      const entries = getTellUsMoreEntries(profile);
+      const idx = entries.findIndex(e => e.id === entry.id);
+      if (idx < 0) return;
+      entries.splice(idx, 1);
+      save();
+      trackEvent('tell_us_more_entry_deleted', {
+        entry_age_ms: Date.now() - (entry.createdAt || Date.now()),
+        source: 'delete_button'
+      });
+      close();
+    });
+    editor.querySelector('[data-tum-act="cancel"]').addEventListener('click', close);
+
+    original.replaceWith(editor);
+    setTimeout(() => ta.focus(), 60);
   }
 
   // ---------- Profile picture ----------
@@ -7263,8 +7466,53 @@
         source: 'photo_redesign',
         room_type: state.draft.type || null
       });
-      _runAnalyze();
+      // [feat-pre-launch-bundle Theme 2 Feature B] Route to pre-gen-context
+      // (the room-scoped freeform context screen) instead of running
+      // analyze directly. The pre-gen-context Generate/Skip handlers are
+      // the new bridge to _runAnalyze. Reset stale draft context so a
+      // prior generation's text doesn't pre-fill.
+      state.draft.preGenerationContext = '';
+      const ctxInput = document.getElementById('preGenContextInput');
+      const ctxCount = document.getElementById('preGenContextCharCount');
+      if (ctxInput) ctxInput.value = '';
+      if (ctxCount) ctxCount.textContent = '0 / 400';
+      showScreen('pre-gen-context');
     });
+  });
+
+  // [feat-pre-launch-bundle Theme 2 Feature B] Pre-gen-context screen
+  // wiring. Char counter on the textbox; Generate captures text and
+  // proceeds; Skip proceeds with empty context. Both call _runAnalyze.
+  // Analytics event fires once per advance with text length + source +
+  // mode discriminator (submit vs skip) so cohort funnel can measure
+  // submit-vs-skip rate.
+  const _preGenContextInput = document.getElementById('preGenContextInput');
+  const _preGenContextCount = document.getElementById('preGenContextCharCount');
+  if (_preGenContextInput && _preGenContextCount) {
+    _preGenContextInput.addEventListener('input', () => {
+      _preGenContextCount.textContent = `${_preGenContextInput.value.length} / 400`;
+    });
+  }
+  function _commitPreGenContext(mode /* 'submit' | 'skip' */) {
+    if (!state.draft) return;
+    const ta = document.getElementById('preGenContextInput');
+    const text = mode === 'submit' && ta
+      ? (ta.value || '').trim().slice(0, 400)
+      : '';
+    state.draft.preGenerationContext = text;
+    trackEvent('pre_gen_context_submitted', {
+      text_length: text.length,
+      mode,
+      source: 'photo_redesign',
+      room_type: state.draft.type || null
+    });
+    _runAnalyze();
+  }
+  document.getElementById('preGenContextGenerateBtn')?.addEventListener('click', () => {
+    _commitPreGenContext('submit');
+  });
+  document.getElementById('preGenContextSkipBtn')?.addEventListener('click', () => {
+    _commitPreGenContext('skip');
   });
   async function _runAnalyze() {
     if (!state.draft?.photo) return;
@@ -8317,6 +8565,13 @@
       // 'keep' for the template / legacy flows that skip the picker —
       // matches the prior keep-existing-fallback behavior on those paths.
       furnitureMode: fm || 'keep',
+      // [feat-pre-launch-bundle Theme 2 Feature B] Per-room freeform
+      // context typed by the user on the pre-gen-context screen. Empty
+      // string for skipped path or template / legacy flows that bypass
+      // the screen. AI-prompt integration deferred to Phase A.
+      preGenerationContext: typeof draft.preGenerationContext === 'string'
+        ? draft.preGenerationContext
+        : '',
       // [BUDGET_RESET_PASS] Snapshot the transient budget the user chose for
       // this generation. Reshuffle/keep/different-style on the reveal screen
       // read from room.budget so they stay coherent with the original pick.

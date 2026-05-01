@@ -4574,6 +4574,140 @@ html[data-theme="dark"] .fur-mode-card[aria-pressed="true"] .fmc-icon {
   background: #1C1410; color: var(--tan);
 }
 
+/* [feat-pre-launch-bundle Theme 2 Feature A] Tell Us More freeform
+   block on the quiz-dealbreaker screen. Sits below the per-kind
+   dealbreaker blocks (or alone for the no-kinds path). Visual language
+   matches the existing .dealbreaker-block — same headline weight,
+   same .dealbreaker-input textarea, same char-counter row. The
+   .tum-block selector is the only structural difference, used here
+   to add a top divider when it follows real dealbreaker blocks. */
+.tum-block {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(139, 111, 71, 0.18);
+}
+#dealbreakerInputs:empty + .tum-block {
+  /* No-kinds path: no leading divider needed since this is the only
+     content above the action row. */
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: none;
+}
+.tum-block .tum-hint {
+  margin: 0 0 8px;
+}
+.tum-input { width: 100%; }
+html[data-theme="dark"] .tum-block {
+  border-top-color: rgba(216, 176, 126, 0.20);
+}
+
+/* [feat-pre-launch-bundle Theme 2 Feature B] Pre-generation room-context
+   screen. Same .quiz-card layout, dedicated card class for any
+   future spacing tweaks. Reuses .dealbreaker-input for the textarea
+   styling so the visual matches the rest of the freeform-text family. */
+.pre-gen-context-card .pre-gen-context-input {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* [feat-pre-launch-bundle Theme 2 Feature A] "Things we know about
+   you" bubble surface on the Preferences tab. Bubbles wrap in a flex
+   row, soft beige backgrounds, brown text. Tap a bubble → bubble
+   replaces in place with .tum-editor (textarea + Save / Delete /
+   Cancel actions). */
+.tum-section {
+  margin: 22px 0 8px;
+}
+.tum-section .tum-section-hint {
+  margin: 0 0 10px;
+}
+.tum-bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tum-bubble {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--beige);
+  border: 1px solid var(--line);
+  color: var(--deep);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+  /* Bubbles can grow vertically when the text is long — wrap and
+     allow multi-line. Keeps long notes readable instead of forcing
+     ellipsis. The whole-bubble tap-target stays valid. */
+  white-space: normal;
+  word-break: break-word;
+}
+.tum-bubble:hover {
+  border-color: var(--tan);
+  transform: translateY(-1px);
+}
+html[data-theme="dark"] .tum-bubble {
+  background: var(--beige-2);
+  color: var(--ink);
+  border-color: rgba(216, 176, 126, 0.20);
+}
+.tum-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.tum-editor-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 70px;
+}
+.tum-editor-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.18);
+}
+.tum-editor-meta { text-align: right; }
+.tum-editor-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tum-editor-actions .btn { flex: 0 0 auto; }
+.tum-editor-actions .tum-editor-delete {
+  /* Visually distinguish the destructive action from Cancel — same
+     ghost button base, but a subtle red tint on the border so it
+     reads as a destructive option without screaming. */
+  border-color: rgba(180, 60, 50, 0.45);
+  color: rgba(160, 50, 40, 0.95);
+}
+html[data-theme="dark"] .tum-editor {
+  background: var(--surface);
+}
+html[data-theme="dark"] .tum-editor-input {
+  background: var(--beige);
+  color: var(--ink);
+}
+html[data-theme="dark"] .tum-editor-actions .tum-editor-delete {
+  border-color: rgba(220, 110, 100, 0.45);
+  color: rgba(230, 130, 120, 0.95);
+}
+
 /* Batch E — welcome hero demo (before/after sweep) */
 .hero-demo {
   position: relative; width: 100%; max-width: 340px; margin: 14px auto 20px;

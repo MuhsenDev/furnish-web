@@ -465,8 +465,22 @@
         <h2>Tell Us More</h2>
       </header>
       <div class="quiz-card">
-        <p class="quiz-subhead muted small">A short description helps the AI preserve the right thing.</p>
+        <p class="quiz-subhead muted small" id="dealbreakerSubhead">A short description helps the AI preserve the right thing.</p>
         <div id="dealbreakerInputs"></div>
+        <!-- [feat-pre-launch-bundle Theme 2 Feature A] Profile-scoped
+             freeform note. Optional. Sits below the per-kind dealbreaker
+             blocks (or alone, when the user picked no dealbreaker kinds).
+             On Continue with non-empty text, appends a new entry to
+             profile.tellUsMoreEntries[]; the bubble surface on the
+             Preferences tab manages edits/deletes thereafter. -->
+        <div class="tum-block" id="tellUsMoreBlock">
+          <h4 class="dealbreaker-block-headline">Anything else we should know about you?</h4>
+          <p class="muted small tum-hint">Lifestyle, household, taste — anything that helps. Optional.</p>
+          <textarea class="dealbreaker-input tum-input" id="tellUsMoreInput" maxlength="280" rows="3" placeholder="e.g. I prefer warm wood tones. Two cats who claw fabric. Restoring a 1920s craftsman."></textarea>
+          <div class="dealbreaker-meta muted small">
+            <span class="dealbreaker-char-count" id="tellUsMoreCharCount">0 / 280</span>
+          </div>
+        </div>
         <div class="quiz-multi-actions">
           <button class="btn btn-primary" id="dealbreakerContinueBtn" type="button">Continue</button>
         </div>
@@ -548,6 +562,20 @@
       <div class="actions-row">
         <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
       </div>
+
+      <!-- [feat-pre-launch-bundle Theme 2 Feature A] Profile-scoped
+           freeform notes the user has typed about themselves. Renderer
+           (renderTellUsMoreBubbles) populates per profile, showing a
+           bubble per entry in profile.tellUsMoreEntries[]. Tap a bubble
+           to enter inline-edit mode (textarea + Save / Delete / Cancel).
+           Hidden until at least one entry exists OR the user lands here
+           the first time after submitting one — keeps the section from
+           cluttering the screen for users who haven't used the feature. -->
+      <section class="tum-section" id="tellUsMoreSection" hidden>
+        <h3 class="section-h">Things we know about you</h3>
+        <p class="muted small tum-section-hint">Tap any note to edit or remove it.</p>
+        <div class="tum-bubbles" id="tellUsMoreBubbles"></div>
+      </section>
 
       <!-- [Bug 26] "Profile Actions" section + Reset Profile button removed. -->
     </section>
@@ -952,6 +980,32 @@
             </span>
           </button>
         </div>
+      </div>
+    </section>
+
+    <!-- [feat-pre-launch-bundle Theme 2 Feature B] Pre-generation
+         room-context textbox. Sits AFTER the Theme-1 furniture-mode
+         picker, BEFORE _runAnalyze. Single per-room freeform string;
+         saved to state.draft.preGenerationContext, snapshotted onto
+         room.preGenerationContext at generation time. Optional — the
+         Skip button proceeds with empty context. AI-prompt integration
+         deferred (Phase A). -->
+    <section class="screen" data-screen="pre-gen-context" data-flow-prev="pre-gen-furniture">
+      <header class="topbar">
+        <button class="btn-icon" data-go="pre-gen-furniture" aria-label="Back">‹</button>
+        <h2>One Last Thing</h2>
+      </header>
+      <div class="quiz-card pre-gen-context-card">
+        <h3>Anything specific you want for this room?</h3>
+        <p class="quiz-subhead muted small">A sentence about the feel you're after. Optional.</p>
+        <textarea class="dealbreaker-input pre-gen-context-input" id="preGenContextInput" maxlength="400" rows="4" placeholder="e.g. Bright and inviting kitchen. Modern but cozy, not cold. Need to fit a 6-person dining table."></textarea>
+        <div class="dealbreaker-meta muted small">
+          <span class="dealbreaker-char-count" id="preGenContextCharCount">0 / 400</span>
+        </div>
+        <div class="quiz-multi-actions">
+          <button class="btn btn-primary" id="preGenContextGenerateBtn" type="button">Generate</button>
+        </div>
+        <button class="quiz-none-btn" id="preGenContextSkipBtn" type="button">Skip — no extra context</button>
       </div>
     </section>
 
