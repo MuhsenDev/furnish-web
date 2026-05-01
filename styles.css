@@ -7693,47 +7693,109 @@ html[data-theme="dark"] .ao-label { color: #F5E9D7; }
    Trust badge replacing the FTC-min single-line disclosure. Mapped to
    Furnish design tokens (not the proposed bg-elev/border tokens which
    don't exist here). Light + dark mode covered. */
-.affiliate-disclosure-v2 {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin: 16px 0;
-  box-shadow: var(--shadow);
-}
-.adv2-row {
+/* [feat-pre-launch-bundle Theme 5] .affiliate-disclosure-v2 + .adv2-*
+   styles removed — inline-on-results FTC panel was relocated to the
+   Support area exclusively (Profile → Support → Affiliate Disclosure
+   opens #affiliateModal). HTML element gone; selectors had no
+   consumers left.
+
+   AI-generated content label on results screen — small muted caption
+   below the before/after slider. Custom SVG sparkle icon, not emoji. */
+.ai-gen-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  color: var(--ink);
+  justify-content: center;
+  gap: 5px;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  opacity: 0.75;
 }
-.adv2-icon {
-  display: inline-flex;
-  align-items: center;
-  color: var(--brown);
-}
-.adv2-body {
-  font-size: 13px;
-  line-height: 1.55;
+.ai-gen-label svg {
+  flex-shrink: 0;
   color: var(--brown-2);
-  margin: 0;
 }
-.adv2-body strong {
-  color: var(--ink);
-  font-weight: 600;
-  margin-right: 2px;
+html[data-theme="dark"] .ai-gen-label {
+  color: var(--muted);
 }
-.adv2-body a {
-  color: var(--tan);
-  text-decoration: underline;
-  margin-left: 4px;
-  cursor: pointer;
+html[data-theme="dark"] .ai-gen-label svg {
+  color: var(--brown-2);
 }
-html[data-theme="dark"] .affiliate-disclosure-v2 {
+
+/* [feat-pre-launch-bundle Theme 5] FAQ accordion — uses native <details>
+   so expand/collapse is keyboard-navigable + screen-reader-aware with
+   zero JS. Visual treatment matches the existing .legal-doc family
+   (warm cream/beige surface, brown accent on summary chevron). */
+.faq-doc { padding-top: 4px; }
+.faq-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--surface);
-  border-color: rgba(232, 193, 147, 0.24);
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
 }
+.faq-item[open] {
+  border-color: var(--tan);
+  box-shadow: 0 4px 14px rgba(139, 111, 71, 0.10);
+}
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 44px 14px 16px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--deep);
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  line-height: 1.4;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::marker { content: ''; }
+.faq-item summary::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--brown-2);
+  border-bottom: 2px solid var(--brown-2);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform 220ms ease;
+}
+.faq-item[open] summary::after {
+  transform: translateY(-30%) rotate(-135deg);
+}
+.faq-item summary:hover { color: var(--ink); }
+.faq-item summary:focus-visible {
+  outline: 2px solid rgba(139, 111, 71, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.faq-item p {
+  margin: 0;
+  padding: 0 18px 16px 16px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.faq-item p a {
+  color: var(--brown-2);
+  text-decoration: underline;
+}
+html[data-theme="dark"] .faq-item {
+  background: var(--surface);
+  border-color: rgba(216, 176, 126, 0.20);
+}
+html[data-theme="dark"] .faq-item[open] {
+  border-color: rgba(216, 176, 126, 0.50);
+  box-shadow: 0 4px 14px rgba(216, 176, 126, 0.08);
+}
+html[data-theme="dark"] .faq-item summary { color: var(--deep); }
+html[data-theme="dark"] .faq-item p { color: var(--ink); }
 
 /* [IDX-12 + CSS-2 — Photo tip card]
    Soft inline card on capture screen above .capture-actions. Per

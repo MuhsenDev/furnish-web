@@ -505,6 +505,11 @@
     'signin',
     'terms',
     'privacy',
+    // [feat-pre-launch-bundle Theme 5] FAQ accessible from Support
+    // (signed-in surface) but allow-listed for guests too — same
+    // permissiveness rationale as terms/privacy: legal/help content
+    // should never be auth-gated.
+    'faq',
   ]);
 
   // [Batch 6 — Dim 13 REC-13.3] Track previous screen for the screen_viewed
@@ -1987,10 +1992,34 @@
     const close = () => { m.classList.remove('open'); m.setAttribute('aria-hidden', 'true'); };
     document.getElementById('supportClose').addEventListener('click', close);
     m.addEventListener('click', e => { if (e.target.id === 'supportModal') close(); });
+    // [feat-pre-launch-bundle Theme 5] Support modal row handlers.
+    // FAQ + Privacy + Terms route to dedicated screens (close modal,
+    // then showScreen). Affiliate Disclosure opens the existing
+    // #affiliateModal — close support modal first so the affiliate
+    // modal opens cleanly on top.
     document.getElementById('supportFaq').addEventListener('click', () => {
       close();
-      // [Dim 09 D10 — exclamation removed per Warmth-6.]
-      toast("FAQ coming soon. You're early.");
+      showScreen('faq');
+    });
+    document.getElementById('supportPrivacy')?.addEventListener('click', () => {
+      close();
+      showScreen('privacy');
+    });
+    document.getElementById('supportTerms')?.addEventListener('click', () => {
+      close();
+      showScreen('terms');
+    });
+    document.getElementById('supportAffiliate')?.addEventListener('click', () => {
+      close();
+      const am = document.getElementById('affiliateModal');
+      if (!am) return;
+      // Brief delay so the support-modal close animation lands first;
+      // affiliate modal opens cleanly without overlapping fades.
+      setTimeout(() => {
+        am.classList.add('open');
+        am.setAttribute('aria-hidden', 'false');
+        trackEvent('affiliate_disclosure_viewed', { source: 'support_modal' });
+      }, 80);
     });
     // [Item 2] supportFeedback click handler removed — the button is
     // now an <a href="mailto:ideas@furnish.live"> tag, so the browser
@@ -2930,15 +2959,12 @@
   // with it. The Reforge decoy-tier model (Economist 3-tier) reattaches
   // at cutover with real Stripe price IDs.
 
-  // [Layer 7] FTC affiliate disclosure modal wiring
-  document.getElementById('affiliateLearnMore')?.addEventListener('click', e => {
-    e.preventDefault();
-    const m = document.getElementById('affiliateModal');
-    if (!m) return;
-    m.classList.add('open');
-    m.setAttribute('aria-hidden', 'false');
-    trackEvent('affiliate_disclosure_viewed');
-  });
+  // [feat-pre-launch-bundle Theme 5] FTC affiliate disclosure modal
+  // wiring. The legacy #affiliateLearnMore inline-results trigger is
+  // gone with the .affiliate-disclosure-v2 panel; the modal now opens
+  // exclusively from the Support modal's "Affiliate Disclosure" row
+  // (handler in the support-modal block above). Close + backdrop
+  // handlers retained — same modal, same close UX.
   document.getElementById('affiliateClose')?.addEventListener('click', () => {
     const m = document.getElementById('affiliateModal');
     if (!m) return;
