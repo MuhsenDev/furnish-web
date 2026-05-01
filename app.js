@@ -2722,8 +2722,8 @@
     //  trigger a paywall (per Reforge Packaging Strategies: don't price
     //  features that don't exist). Both surfaces previously triggering
     //  these contexts now route to `generic` until the features ship.
-    //  Roadmap modal (#paywallRoadmapModal) discloses planned features
-    //  without impersonating shipped ones.]
+    //  [feat-paywall-restructure] Roadmap modal disclosure path removed;
+    //  the 2 coming-soon items now live as bullets 5+6 of the Pro card.]
     rearrange: {
       // [Model A — D10] Rearrange is FREE. Kept here for backward-compat in
       // case any stale call site tries to open this context — it'll fall
@@ -2831,34 +2831,14 @@
     }
   });
 
-  // [Conflict 3 lock — Roadmap modal wiring] Replaces "[coming soon]"
-  // Pro bullets. Per Reforge Monetization + Pricing — Packaging
-  // Strategies: roadmap is opt-in disclosure, not impersonating shipped
-  // features. Opens from #paywallRoadmapLink (paywall footer).
-  document.getElementById('paywallRoadmapLink')?.addEventListener('click', e => {
-    e.preventDefault();
-    const m = document.getElementById('paywallRoadmapModal');
-    if (!m) return;
-    m.classList.add('open');
-    m.setAttribute('aria-hidden', 'false');
-    trackEvent('paywall_roadmap_viewed');
-  });
-
   // [feat-paywall-restructure Item 4] More-Pro-perks <details> dropdown
   // merged into the primary .paywall-list — no expand/collapse left to
   // measure. paywall_more_perks_opened/_closed analytics retired with it.
-  document.getElementById('paywallRoadmapClose')?.addEventListener('click', () => {
-    const m = document.getElementById('paywallRoadmapModal');
-    if (!m) return;
-    m.classList.remove('open');
-    m.setAttribute('aria-hidden', 'true');
-  });
-  document.getElementById('paywallRoadmapModal')?.addEventListener('click', e => {
-    if (e.target.id === 'paywallRoadmapModal') {
-      e.target.classList.remove('open');
-      e.target.setAttribute('aria-hidden', 'true');
-    }
-  });
+
+  // [feat-paywall-restructure] Roadmap modal removed entirely. Open +
+  // close + backdrop handlers retired with it. paywall_roadmap_viewed
+  // analytics event also gone. The 2 coming-soon items live solely as
+  // bullets 5+6 of the Pro card primary list.
 
   // [Batch 5 — Dim 06 Section D + E.8] Differentiated dismiss reasons.
   // Each path passes its specific reason to closePaywall for analytics +

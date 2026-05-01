@@ -1260,9 +1260,6 @@
             <button class="btn btn-primary big" id="paywallCta">Notify me when Pro launches</button>
             <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
           </div>
-          <p class="muted small center paywall-footnote">
-            <a class="paywall-roadmap-link" id="paywallRoadmapLink">What's on the roadmap →</a>
-          </p>
         </article>
       </div>
     </div>
@@ -1508,29 +1505,12 @@
     </div>
   </div>
 
-  <!-- [Conflict 3 lock — Roadmap modal] Replaces "[coming soon]" bullets in
-       the Pro card. Per Reforge Monetization + Pricing — Packaging Strategies:
-       roadmap belongs in opt-in disclosure, not impersonating shipped
-       features. Opens from #paywallRoadmapLink in the paywall footer. -->
+  <!-- [feat-paywall-restructure] Roadmap modal + #paywallRoadmapLink
+       footer link removed. The 2 coming-soon items (Multi-room batch
+       design, Style that learns over time) now live solely as bullets
+       5 and 6 of the Pro card primary list — single source of truth,
+       no duplicate roadmap surface. -->
   <!-- [Bug 26] Reset Profile confirmation dialog removed. -->
-
-  <div class="modal" id="paywallRoadmapModal" aria-hidden="true">
-    <div class="modal-card paywall-roadmap-card">
-      <button class="modal-close" id="paywallRoadmapClose" aria-label="Close">×</button>
-      <h3>What's on the roadmap</h3>
-      <p class="muted small">Features we're building next.</p>
-      <ul class="paywall-roadmap-list">
-        <li>
-          <strong>Multi-room batch design</strong>
-          <span class="prl-body">Design every room in one pass. We're nailing the per-room cost model first.</span>
-        </li>
-        <li>
-          <strong>Style that learns over time</strong>
-          <span class="prl-body">Saves, swaps, and price-drop alerts feed your style profile. Better picks every redesign.</span>
-        </li>
-      </ul>
-    </div>
-  </div>
 
   <!-- [Item 3] Different Style modal removed (#differentStyleBtn no
        longer in DOM — modal is unreachable). -->

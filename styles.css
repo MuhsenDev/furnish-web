@@ -2917,7 +2917,6 @@ html[data-theme="dark"] .paywall-card {
   position: relative; z-index: 1;
 }
 .paywall-actions .btn { width: 100%; }
-.paywall-footnote { margin: 6px 0 0; position: relative; z-index: 1; }
 
 /* ================================================================
    Budget slider
@@ -3602,7 +3601,6 @@ html[data-theme="dark"] .paywall-card {
   position: relative; z-index: 1;
 }
 .paywall-actions .btn { width: 100%; }
-.paywall-footnote { margin: 6px 0 0; position: relative; z-index: 1; }
 
 /* ================================================================
    Premium motion system
@@ -3896,7 +3894,6 @@ html[data-theme="dark"] .paywall-card {
   position: relative; z-index: 1;
 }
 .paywall-actions .btn { width: 100%; }
-.paywall-footnote { margin: 6px 0 0; position: relative; z-index: 1; }
 
 /* [feat-paywall-restructure] Removed:
    - .paywall-social / .paywall-stars / .paywall-social-text
@@ -7597,54 +7594,12 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
    responsive grid override at 540px). All selectors orphan after the
    buttons + modal HTML deletion. */
 
-/* [IDX-11 + CSS-3 — Paywall roadmap link + modal]
-   Replaces "[coming soon]" bullets per Conflict 3 lock. Roadmap is
-   opt-in disclosure in the footer, not impersonating shipped features. */
-.paywall-footnote .paywall-footnote-sep {
-  margin: 0 6px;
-  color: var(--muted);
-}
-.paywall-roadmap-link {
-  color: var(--brown-2);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: inherit;
-}
-.paywall-roadmap-link:hover { color: var(--ink); }
-.paywall-roadmap-card {
-  max-width: 480px;
-  padding: 24px 20px;
-}
-.paywall-roadmap-card h3 {
-  margin: 0 0 8px;
-  color: var(--ink);
-}
-.paywall-roadmap-list {
-  list-style: none;
-  padding: 0;
-  margin: 16px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.paywall-roadmap-list li {
-  background: var(--cream);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.paywall-roadmap-list strong {
-  color: var(--ink);
-  font-size: 14px;
-}
-.paywall-roadmap-list .prl-body {
-  font-size: 13px;
-  color: var(--brown-2);
-  line-height: 1.45;
-}
+/* [feat-paywall-restructure] Roadmap link + modal CSS retired:
+   .paywall-footnote .paywall-footnote-sep, .paywall-roadmap-link,
+   .paywall-roadmap-card, .paywall-roadmap-list (+ li / strong /
+   .prl-body). The roadmap modal HTML + JS handlers are gone; these
+   selectors had no consumers left. Coming-soon items live as bullets
+   5+6 of the Pro card primary list now. */
 
 /* [Dim 14 Section F — insecure-context banner]
    Dev/test footgun signal when opening via local IP without HTTPS. */
