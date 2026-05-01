@@ -536,6 +536,51 @@
     // [Bug 26] Reset Profile feature removed entirely; the
     // closeResetDialog('navigation') guard previously here is no
     // longer needed (dialog symbol no longer exists).
+    //
+    // [Bugs 27 + 30] Save-Home modal exit-intent trigger. Pre-fix the
+    // modal fired from openRoom (every first-time results view of a
+    // just-generated room) — too eager, surfaced before users had a
+    // chance to read the redesign. Spec: fire ONLY when the user
+    // genuinely leaves results with an unsaved just-generated room.
+    //
+    // Conditions:
+    //   - Currently on results (_previousScreen === 'results')
+    //   - Navigating away (name !== 'results')
+    //   - state._justGeneratedRoomId is still set (the just-generated
+    //     room hasn't been consumed by a prior exit-intent fire)
+    //   - Room exists in state.rooms
+    //   - Room is not yet explicitly user-saved (savedToHome /
+    //     savedToSavedRooms flags both falsy)
+    //
+    // [Save-Home modal regression fix] The gate previously checked
+    // isRoomClaimed(roomId), but that always returns TRUE for just-
+    // generated rooms because recordHomeProgressRoom (called during
+    // analyze + template flows BEFORE the user reaches results)
+    // auto-populates activeHome.designedRooms[type].roomId for My Home
+    // progress tracking. The flag conflated auto-progress with explicit
+    // user-save semantics. Now we read the explicit-save flags
+    // (savedToHome / savedToSavedRooms) which the modal sets only on
+    // explicit user action.
+    //
+    // Modal fires via setTimeout so navigation completes first; modal
+    // appears OVER the new screen as a final "save before leaving?"
+    // prompt. Standard exit-intent UX. _justGeneratedRoomId is cleared
+    // inside the gate so re-navigating doesn't re-fire.
+    if (_previousScreen === 'results' && name !== 'results' && state._justGeneratedRoomId) {
+      const justRoomId = state._justGeneratedRoomId;
+      const justRoom = (state.rooms || []).find(r => r.id === justRoomId);
+      const alreadySaved = !!(justRoom && (justRoom.savedToHome || justRoom.savedToSavedRooms));
+      if (justRoom && !alreadySaved) {
+        delete state._justGeneratedRoomId;
+        save();
+        setTimeout(() => openPostGenerationSaveSurface(justRoom), 350);
+      } else {
+        // Room is missing OR already explicitly saved — clear flag
+        // without firing modal so it doesn't linger forever.
+        delete state._justGeneratedRoomId;
+        save();
+      }
+    }
     const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
     window.scrollTo({ top: 0 });
@@ -5314,7 +5359,13 @@
   // Save to Saved Rooms.
   function openPostGenerationSaveSurface(room) {
     if (!room) return;
-    if (isRoomClaimed(room.id)) return; // already saved/claimed
+    // [Save-Home modal regression fix] Was: isRoomClaimed(room.id)
+    // early-return. That check returned TRUE for every just-generated
+    // room because recordHomeProgressRoom auto-populates
+    // activeHome.designedRooms[type].roomId during generation. Switched
+    // to the explicit-save flags so the modal only suppresses on real
+    // user-save action.
+    if (room.savedToHome || room.savedToSavedRooms) return;
     closePostGenerationSaveSurface();
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
     const label = ROOM_LABELS[room.type] || room.type;
@@ -5341,7 +5392,7 @@
             ? ''
             : `<button class="btn btn-primary big" id="saveToHomeBtn" type="button">
                 <span class="save-surface-cta-label">Save as your ${label} in Your Home</span>
-                ${slotOccupied ? `<span class="save-surface-cta-sub muted small">Previous ${label} moves to Saved Rooms</span>` : ''}
+                ${slotOccupied ? `<span class="save-surface-cta-sub small">Previous ${label} moves to Saved Rooms</span>` : ''}
               </button>`
           }
           <button class="btn btn-ghost" id="saveToSavedRoomsBtn" type="button">Save to Saved Rooms</button>
@@ -5360,12 +5411,19 @@
           generatedAt: room.timestamp || room.createdAt || Date.now(),
           source: 'save_surface'
         });
+        // [Save-Home modal regression fix] Mark this room as explicitly
+        // saved-to-home by user action. Distinct from activeHome.designedRooms
+        // auto-population by recordHomeProgressRoom during generation —
+        // that auto-marks the slot for My Home progress tracking, but
+        // doesn't represent an explicit user save. The exit-intent gate
+        // in showScreen reads this flag to decide whether to re-prompt.
+        room.savedToHome = true;
         // Update the legacy homeProgress array for backward-compat
         const hp = getHomeProgress();
         if (!hp.designedRooms.includes(room.type)) {
           hp.designedRooms.push(room.type);
-          save();
         }
+        save();
         trackEvent('save_to_home_selected', {
           room_type: room.type,
           overwrote_previous: !!result.overwroteRoomId
@@ -5388,6 +5446,10 @@
         source: 'save_surface',
         reason: 'standalone'
       });
+      // [Save-Home modal regression fix] Mark explicit user save to
+      // Saved Rooms — same rationale as savedToHome above. Suppresses
+      // the modal from re-firing on subsequent exit-intent navigations.
+      room.savedToSavedRooms = true;
       save();
       trackEvent('save_to_saved_rooms_selected', { room_type: room.type });
       toast(`${label} saved to your Saved Rooms.`);
@@ -8525,16 +8587,15 @@
     currentRoomId = roomId;
     const profile = state.profiles.find(p => p.id === room.profileId);
 
-    // [Save Home] Fire the post-generation save surface ONCE per just-
-    // generated room. _justGeneratedRoomId is set inside the success
-    // branch of routeGenerationByModelTier; cleared after the surface
-    // fires so revisits don't re-prompt.
-    if (state._justGeneratedRoomId === roomId) {
-      delete state._justGeneratedRoomId;
-      save();
-      // Defer to next tick so the results-screen layout settles first
-      setTimeout(() => openPostGenerationSaveSurface(room), 600);
-    }
+    // [Bugs 27 + 30] Auto-fire of openPostGenerationSaveSurface on
+    // openRoom REMOVED. Pre-fix the save-home modal fired here every
+    // time the user first viewed a just-generated room — too eager,
+    // surfaced before users had time to read the redesign and felt
+    // like a premature interruption. The modal now fires on
+    // exit-intent (showScreen leaving results with unsaved
+    // _justGeneratedRoomId) — see the new gate at the top of
+    // showScreen. _justGeneratedRoomId stays set across openRoom
+    // calls; it's the showScreen exit-intent gate that consumes it.
 
     // [Batch 3 — A7] Aha event split.
     // The existing AHA_RESULTS event fires on render — that's the GATE.
@@ -9040,12 +9101,12 @@
 
       tag.addEventListener('click', e => {
         if (rearrangeMode) { e.preventDefault(); return; }
-        // [FOUR_FIX_PASS — Fix 2] Tag taps now scroll to the item's card in
-        // the "Shop The Whole Room" list with a brief highlight pulse,
-        // instead of opening the bottom sheet. Reforge Conversion
-        // Optimization: removes friction between intent ("I want this
-        // thing in the photo") and action (the affiliate Shop button on
-        // the matched card).
+        // [FOUR_FIX_PASS — Fix 2] Tag taps scroll to the item's card in
+        // the "Your Picks" list with a brief highlight pulse, instead
+        // of opening the bottom sheet. Reforge Conversion Optimization:
+        // removes friction between intent ("I want this thing in the
+        // photo") and action (the affiliate Shop button on the matched
+        // card).
         scrollToItemCard(item, room);
       });
       attachTagDrag(tag, room);
@@ -9260,11 +9321,15 @@
         <div class="item-actions">
           <a class="item-action-btn link-style" href="${buildAffiliateUrl(item)}" target="_blank" rel="noopener noreferrer" data-shop-id="${item.id}">Shop</a>
           <button class="item-action-btn ${onWishlist ? 'active' : ''}" data-act="wish">${onWishlist ? `<svg viewBox='0 0 24 24' width='14' height='14' fill='currentColor' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Saved` : `<svg viewBox='0 0 24 24' width='14' height='14' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='vertical-align:-2px;margin-right:4px'><path d='M12 21s-7-4.5-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.5 12 21 12 21z'/></svg>Save`}</button>
-          <button class="item-action-btn" data-act="swap">⇄ Swap</button>
+          <!-- [Item 4] Per-item swap button removed. Tap card body to open
+               the item sheet, which still has its own #bsSwapBtn for users
+               who want to explore alternates from inside the sheet. -->
         </div>`}
       `;
       card.querySelector('[data-act="wish"]')?.addEventListener('click', e => { e.stopPropagation(); toggleWishlist(item); });
-      card.querySelector('[data-act="swap"]')?.addEventListener('click', e => { e.stopPropagation(); swapItem(room, item); });
+      // [Item 4] data-act="swap" handler removed (button gone). swapItem
+      // function preserved — still called from the item-sheet's
+      // #bsSwapBtn click handler.
       // [Item 5] data-act="alert" handler removed (button gone).
       // [Model A] Track every affiliate clickthrough — primary monetization.
       card.querySelector('[data-shop-id]')?.addEventListener('click', e => { e.stopPropagation(); trackAffiliateClick(item, 'item_card_button'); });
@@ -9632,28 +9697,10 @@
   // room.reshuffleCount field becomes a write-nothing legacy field — left
   // in place for analytics aggregation of historical data.
 
-  // [Model A] "Shop the Whole Room" — restores the original affiliate semantics.
-  // Free for everyone — opens an affiliate URL per item. This is the primary
-  // monetization path; gating it here would directly suppress revenue.
-  $('#shopAllBtn').addEventListener('click', () => {
-    const room = state.rooms.find(r => r.id === currentRoomId);
-    if (!room) return;
-    const purchaseable = room.items.filter(i => !i.owned);
-    trackEvent('affiliate_shop_all_clicked', {
-      roomId: room.id,
-      itemCount: purchaseable.length,
-      totalPrice: purchaseable.reduce((s, i) => s + (i.price || 0), 0)
-    });
-    // [Batch 3 — A7] Shop-all is an Aha experience signal.
-    fireAhaMomentIfFresh(room, 'shop_all');
-    purchaseable.forEach((i, idx) => {
-      setTimeout(() => {
-        trackAffiliateClick(i, 'shop_all');
-        window.open(buildAffiliateUrl(i), '_blank', 'noopener');
-      }, idx * 120);
-    });
-    toast(`Opening ${purchaseable.length} affiliate tabs…`);
-  });
+  // [Item 1] #shopAllBtn click handler removed (button gone). Shop-all
+  // affiliate semantics retired in favor of per-item Shop buttons in
+  // the items list — those still fire trackAffiliateClick on tap.
+  // affiliate_shop_all_clicked analytics no longer fires.
 
   // ---------- Before/after slider drag ----------
   // [FOUR_FIX_PASS — Fix 1] Slider responds to drag on the HANDLE only.
@@ -9770,23 +9817,9 @@
     if (!isPro()) maybeFireValueMomentPaywall('share_attempt', { source: 'header_icon' });
     openShareModal();
   });
-  // [Batch 4 — Dim 08 Top 3 #1] Reveal-moment share trigger.
-  // Per Reforge Social Viral Loops Lesson 4: share at peak emotion. Click
-  // routes through the same openShareModal but logs a distinct funnel
-  // source so we can compare reveal-moment vs header-icon share rates.
-  document.getElementById('revealShareBtn')?.addEventListener('click', () => {
-    trackEvent(ACTIVATION.AHA_QUALITY, { signal: 'share_clicked', roomId: currentRoomId });
-    trackShareFunnel('modal_opened', { source: 'reveal_cta' });
-    // Lifecycle-aware default format + pre-filled caption
-    const room = state.rooms.find(r => r.id === currentRoomId);
-    if (room) {
-      state._shareDefaultFormat = defaultShareFormatForLifecycle();
-      state._sharePrefilledCaption = shareCaptionForLifecycle(room);
-    }
-    // [Batch 5 — Dim 06 Section D] share_attempt value-moment trigger.
-    if (!isPro()) maybeFireValueMomentPaywall('share_attempt', { source: 'reveal_cta' });
-    openShareModal();
-  });
+  // [Item 2] #revealShareBtn click handler removed (button gone). The
+  // discreet topbar #shareRoomBtn icon at index.html:922 stays as the
+  // sole share entry point on results.
   $('#shareClose').addEventListener('click', () => $('#shareModal').classList.remove('open'));
   $('#shareModal').addEventListener('click', e => { if (e.target.id === 'shareModal') $('#shareModal').classList.remove('open'); });
 
@@ -10497,87 +10530,11 @@
     trackEvent('photo_tip_shown');
   }
 
-  // [Dim 14 Section C Fix 1 + Top 3 #1] "Different Style?" modal.
-  // Opens from #differentStyleBtn on the reveal screen. 6 alt-style
-  // chips → tap → re-runs pickItemsForRoom() with new style override
-  // (no AI compute call — pure local re-pick) → pushVersion() →
-  // open the room with new picks. ~2 seconds end-to-end. Per Reforge
-  // Strategies For At-Risk Users → Use Case Transition.
-  function openStylePivotModal(room) {
-    const modal = document.getElementById('differentStyleModal');
-    const grid = document.getElementById('differentStyleGrid');
-    if (!modal || !grid) return;
-    const profile = state.profiles.find(p => p.id === room.profileId);
-    const current = new Set(profile?.styles || []);
-    // Pick up to 6 alt styles, prefer non-current. Stable order.
-    const candidates = (window.STYLES || [])
-      .filter(s => !current.has(s.id))
-      .slice(0, 6);
-    grid.innerHTML = '';
-    candidates.forEach(s => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'different-style-chip';
-      btn.dataset.styleId = s.id;
-      btn.innerHTML = `<span class="dsc-label">${s.label || s.id}</span>`;
-      btn.addEventListener('click', () => {
-        // [BUDGET_RESET_PASS] No budget gate — pivotToStyle uses
-        // room.budget (the value chosen for the original generation).
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-        pivotToStyle(room, s.id);
-      });
-      grid.appendChild(btn);
-    });
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
-    trackEvent('reveal_different_style_opened', { roomId: room.id, currentStyles: profile?.styles });
-  }
-
-  function closeStylePivotModal() {
-    const modal = document.getElementById('differentStyleModal');
-    if (!modal) return;
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden', 'true');
-  }
-
-  function pivotToStyle(room, newStyleId) {
-    const profile = state.profiles.find(p => p.id === room.profileId);
-    if (!profile) return;
-    const fromStyles = [...(profile.styles || [])];
-    // Override the profile styles temporarily for the re-pick. We push
-    // a new version on the same room (preserving original picks via
-    // pushVersion) so the user can compare.
-    const originalStyles = profile.styles;
-    profile.styles = [newStyleId];
-    try {
-      const draftLike = { type: room.type, dims: room.dims };
-      const fresh = pickItemsForRoom(draftLike, getEffectiveAnswers(profile), room.budget || SLIDER_BUDGET_DEFAULT,
-        { excludeIds: [], anchorColor: null, keepMode: !!room.keepMode });
-      room.items = fresh;
-      pushVersion(room, `Pivoted to ${(window.STYLES || []).find(s => s.id === newStyleId)?.label || newStyleId}`);
-    } finally {
-      // Restore the profile's original style intent — the pivot is per-room,
-      // not a permanent profile change. User can confirm via preferences.
-      profile.styles = originalStyles;
-    }
-    save();
-    renderRoomPieces(room);
-    renderVersions(room);
-    trackEvent('reveal_different_style_picked', { roomId: room.id, fromStyles, toStyle: newStyleId });
-    closeStylePivotModal();
-    toast(`Different items in ${(window.STYLES || []).find(s => s.id === newStyleId)?.label || 'a new style'}.`);
-  }
-
-  document.getElementById('differentStyleBtn')?.addEventListener('click', () => {
-    const room = state.rooms.find(r => r.id === currentRoomId);
-    if (!room) return;
-    openStylePivotModal(room);
-  });
-  document.getElementById('differentStyleClose')?.addEventListener('click', closeStylePivotModal);
-  document.getElementById('differentStyleModal')?.addEventListener('click', e => {
-    if (e.target.id === 'differentStyleModal') closeStylePivotModal();
-  });
+  // [Item 3] Different Style? modal + handlers removed entirely.
+  // openStylePivotModal, closeStylePivotModal, pivotToStyle functions
+  // gone with the trigger button. The modal HTML at index.html:1610+
+  // also removed. reveal_different_style_opened /
+  // reveal_different_style_picked analytics no longer fire.
 
   // [Dim 14 Section F — localStorage quota exceeded handling]
   // The save() function above is the canonical persistence point;
@@ -11459,51 +11416,10 @@
   }
   window.FurnishRankItems = rankItemsForCondensedList;
 
-  // [Batch 3 — Dim 03 R-Bottom2] Sticky shop-all CTA on scroll.
-  // Mounts a fixed-bottom CTA when the user scrolls past the totals card
-  // on the results screen. Mirrors the primary #shopAllBtn but with
-  // surface='shop_all_sticky' for analytics differentiation.
-  function wireStickyShopAllCTA() {
-    const screen = document.querySelector('[data-screen="results"]');
-    if (!screen) return;
-    let stickyEl = document.getElementById('stickyShopAllBtn');
-    if (!stickyEl) {
-      stickyEl = document.createElement('button');
-      stickyEl.id = 'stickyShopAllBtn';
-      stickyEl.className = 'btn btn-primary sticky-shop-all';
-      stickyEl.type = 'button';
-      stickyEl.innerHTML = '<span class="ssa-label">Shop The Whole Room</span><span class="ssa-meta" id="ssaMeta"></span>';
-      document.body.appendChild(stickyEl);
-      stickyEl.addEventListener('click', () => {
-        const room = state.rooms.find(r => r.id === currentRoomId);
-        if (!room) return;
-        room.items.forEach(i => {
-          trackAffiliateClick(i, 'shop_all_sticky');
-          window.open(buildAffiliateUrl(i), '_blank', 'noopener');
-        });
-        trackEvent('affiliate_shop_all_clicked', { roomId: room.id, surface: 'sticky', itemCount: room.items.length });
-      });
-    }
-    const updateSticky = () => {
-      if (document.querySelector('.screen.active')?.dataset?.screen !== 'results') {
-        stickyEl.classList.remove('visible');
-        return;
-      }
-      const totals = document.getElementById('totalsCard');
-      if (!totals) return;
-      const rect = totals.getBoundingClientRect();
-      const past = rect.bottom < 0;  // user scrolled below totals card
-      stickyEl.classList.toggle('visible', past);
-      if (past) {
-        const room = state.rooms.find(r => r.id === currentRoomId);
-        const total = room?.items.reduce((s, i) => s + (i.price || 0), 0) || 0;
-        const meta = document.getElementById('ssaMeta');
-        if (meta) meta.textContent = ` · $${total.toLocaleString()}`;
-      }
-    };
-    window.addEventListener('scroll', updateSticky, { passive: true });
-    document.addEventListener('scroll', updateSticky, { passive: true, capture: true });
-  }
+  // [Item 1] wireStickyShopAllCTA function removed entirely. The
+  // sticky "Shop The Whole Room" scroll-mounted CTA is gone with the
+  // primary #shopAllBtn. Per-item Shop buttons in the items list are
+  // now the sole affiliate-click entry point on results.
 
   // ============================================================
   // Batch 4 additions — Dim 05 Retention + Dim 07 Personalization + Dim 08 Social
@@ -12081,7 +11997,7 @@
 
     // [Batch 3 additions]
     maybeIncrementSessionCount();   // Dim 04 — session-count for tutorial gate
-    wireStickyShopAllCTA();         // Dim 03 R-Bottom2 — sticky shop-all
+    // [Item 1] wireStickyShopAllCTA() boot call removed — function gone.
     maybeFireSessionTwoTutorial();  // Dim 04 R5 / Conflict 7 — defer tutorial
     // [Side Note 1] wireSoftEmailCaptureForm() call site removed — see
     // softEmailCapture deletion comment at the original definition site.
