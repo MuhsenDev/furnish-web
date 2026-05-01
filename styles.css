@@ -1015,12 +1015,32 @@ html[data-nav="show"][data-reviews="hidden"] #app { padding-bottom: 78px; }
   background: linear-gradient(135deg, var(--brown), var(--brown-2));
   color: var(--cream);
 }
+/* [feat-paywall-restructure Item 6] Off-center glow fix.
+   Was: top:-40 right:-40 anchored to the card's top-right corner, with
+   the shared glowPulse keyframe applying transform: translateX(-50%) —
+   which is meant for left:50%-anchored siblings. On a right-anchored
+   element, that translateX shifted the whole 160px glow 80px westward
+   during animation, biasing the visible halo to the left side of the
+   corner. Now: vertically centered on the card (which centers it on
+   the button row, since the button is the only tall flex child), and
+   horizontally tucked just past the right edge so the visible 70%-
+   transparent radial covers the Upgrade button uniformly. Uses a
+   button-local keyframe (ppProGlowPulse) that only scales — no more
+   stale translate-X overshoot. */
 .pp-pro-glow {
-  position: absolute; top: -40px; right: -40px;
-  width: 160px; height: 160px;
+  position: absolute;
+  top: 50%;
+  right: -28px;
+  width: 140px;
+  height: 140px;
+  transform: translateY(-50%);
   background: radial-gradient(circle, rgba(212,165,116,0.5), transparent 70%);
   pointer-events: none;
-  animation: glowPulse 3.6s ease-in-out infinite;
+  animation: ppProGlowPulse 3.6s ease-in-out infinite;
+}
+@keyframes ppProGlowPulse {
+  0%, 100% { transform: translateY(-50%) scale(1);    opacity: 0.8; }
+  50%      { transform: translateY(-50%) scale(1.10); opacity: 1;   }
 }
 .pp-pro-content { flex: 1; min-width: 0; position: relative; z-index: 1; }
 .pp-pro-badge {
