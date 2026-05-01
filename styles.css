@@ -3918,12 +3918,19 @@ html[data-theme="dark"] .paywall-card {
   letter-spacing: -0.005em;
 }
 
-/* Extend stagger animation for items 5 + 6 of the paywall list.
+/* Extend stagger animation for items 5, 6, 7 of the paywall list.
    [feat-paywall-restructure Item 4] List grew from 3 to 6 items when the
-   More-Perks dropdown was merged in — extra delays so the last two
-   bullets don't pop in flat with the earlier ones. */
+   More-Perks dropdown was merged in.
+   [feat-pre-launch-bundle Theme 3] Rearrange-furniture inserted as the
+   new position-1 bullet, pushing total to 7. The stagger increment is
+   ~70ms per position; nth-child(7) gets 600ms so the last bullet still
+   trails the rest cleanly. The existing :nth-child(1)-(4) rules at the
+   base .paywall-list block (lines 2901-2904 and the two reconstruction-
+   artifact dupes) automatically retarget the newly-shifted bullets —
+   no edits needed there. */
 .paywall-list li:nth-child(5) { animation-delay: 460ms; }
 .paywall-list li:nth-child(6) { animation-delay: 530ms; }
+.paywall-list li:nth-child(7) { animation-delay: 600ms; }
 
 /* ---------- Sign-in ---------- */
 .signin-card {
