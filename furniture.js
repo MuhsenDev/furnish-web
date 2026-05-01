@@ -431,9 +431,11 @@ window.ONBOARDING_QUESTIONS = [
     id: 'decor_density',
     type: 'single_select',
     ai_param: 'decor_amount',
-    // [feat-quiz-copy-rewrite] Drop the scare quotes around "stuff" —
-    // the casual word reads fine without them.
-    headline: 'How much stuff do you want?',
+    // [feat-quiz-copy-rewrite] "How much stuff" read pathetic/unprofessional.
+    // "How busy should it feel?" maps cleanly across the clean → maximalist
+    // option spectrum (clean = not busy; maximalist = very busy) and lands
+    // conversational without sliding into colloquial.
+    headline: 'How busy should it feel?',
     image_kind: 'reference_room', // 4 reference rooms across the density spectrum
     options: [
       { id:'clean',                label:'Clean and minimal. Lots of breathing room.',         image:null },
@@ -450,8 +452,8 @@ window.ONBOARDING_QUESTIONS = [
     headline: 'What are we redesigning?',
     image_kind: 'icon',
     options: [
-      { id:'just_furniture',  label:'Just the furniture. Keep my walls and floors.', svg:'scope-furniture' },
-      { id:'furniture_decor', label:'Furniture and decor. Accessories, art, plants.',svg:'scope-furniture-decor' },
+      { id:'just_furniture',  label:'Just the furniture',  svg:'scope-furniture' },
+      { id:'furniture_decor', label:'Furniture and Decor', svg:'scope-furniture-decor' },
       { id:'whole_room',      label:'The whole room. Everything.',                   svg:'scope-whole-room' },
       { id:'surprise_me',     label:'Surprise me. Go full transformation.',          svg:'scope-surprise' }
     ],
