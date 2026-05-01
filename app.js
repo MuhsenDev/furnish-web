@@ -3283,31 +3283,43 @@
     finishQuiz();
   });
 
-  // [feat-pre-launch-bundle Theme 2 Feature A] Helper: read the freeform
-  // textbox on the Tell Us More screen, append a new entry to the active
-  // profile's tellUsMoreEntries[] if non-empty. Fires the submission
-  // analytics event with text-length only (no content — privacy).
-  function appendTellUsMoreEntryFromQuizScreen() {
-    const ta = document.getElementById('tellUsMoreInput');
-    if (!ta) return;
-    const text = (ta.value || '').trim().slice(0, 280);
-    if (!text) return;
-    const p = state.profiles.find(x => x.id === state.quiz?.profileId);
-    if (!p) return;
-    const entries = getTellUsMoreEntries(p);
+  // [feat-pre-launch-bundle Theme 2 Feature A / feat-pre-ai-bridge Item 1]
+  // Unified entry-creation helper. Both the quiz-flow Tell Us More
+  // screen AND the Preferences-page input affordance call this. Empty
+  // text bails out (no empty bubbles). Fires the submission analytics
+  // event with text-length + source discriminator (no content — privacy).
+  // Returns the new entry on success, null on bail.
+  function addTellUsMoreEntry(profile, rawText, source) {
+    if (!profile) return null;
+    const text = (rawText || '').trim().slice(0, 280);
+    if (!text) return null;
+    const entries = getTellUsMoreEntries(profile);
     const now = Date.now();
-    entries.push({
+    const entry = {
       id: 'tum_' + now + '_' + Math.random().toString(36).slice(2, 7),
       text,
       createdAt: now,
       updatedAt: now
-    });
+    };
+    entries.push(entry);
     save();
     trackEvent('tell_us_more_entry_submitted', {
       text_length: text.length,
-      source: 'quiz_dealbreaker_screen',
+      source: source || 'tell_us_more_screen',
       total_entries: entries.length
     });
+    return entry;
+  }
+  // [feat-pre-launch-bundle Theme 2 Feature A] Quiz-screen entry path.
+  // Wraps addTellUsMoreEntry with the quiz-specific source tag and
+  // textbox-reset side effect.
+  function appendTellUsMoreEntryFromQuizScreen() {
+    const ta = document.getElementById('tellUsMoreInput');
+    if (!ta) return;
+    const p = state.profiles.find(x => x.id === state.quiz?.profileId);
+    if (!p) return;
+    const entry = addTellUsMoreEntry(p, ta.value, 'quiz_dealbreaker_screen');
+    if (!entry) return;
     // Clear the textbox so a back-nav re-entry doesn't double-submit.
     ta.value = '';
     const cc = document.getElementById('tellUsMoreCharCount');
@@ -3916,22 +3928,53 @@
     }
   }
 
-  // [feat-pre-launch-bundle Theme 2 Feature A] Bubble renderer for the
-  // "Things we know about you" section on Preferences. One bubble per
-  // entry. Tap a bubble to enter inline-edit mode (textarea + Save /
-  // Delete / Cancel). Section hides entirely when the array is empty.
+  // [feat-pre-launch-bundle Theme 2 Feature A / feat-pre-ai-bridge Item 1]
+  // Bubble renderer for the "Things we know about you" section on
+  // Preferences. One bubble per entry. Tap a bubble to enter inline-
+  // edit mode (textarea + Save / Delete / Cancel).
+  // Section is always visible now (Item 1 added the input affordance
+  // at the top — even users with no entries see the add row). Bubble
+  // host clears when the array is empty.
+  // Wires the input row's add button to addTellUsMoreEntry on the
+  // active profile. Idempotent — listeners replaced via .oninput /
+  // .onclick reassignment so re-renders don't multi-bind.
   function renderTellUsMoreBubbles(profile) {
     const section = document.getElementById('tellUsMoreSection');
     const host = document.getElementById('tellUsMoreBubbles');
     if (!section || !host) return;
-    const entries = getTellUsMoreEntries(profile);
-    if (!entries.length) {
-      section.hidden = true;
-      host.innerHTML = '';
-      return;
-    }
     section.hidden = false;
+    // Wire the add-row affordance for this profile context. Re-runs
+    // each render so the closure captures the correct `profile` ref.
+    const addInput = document.getElementById('tellUsMoreAddInput');
+    const addBtn = document.getElementById('tellUsMoreAddBtn');
+    if (addInput && addBtn) {
+      // Reset to empty state every time openPreferences re-renders
+      // (user might have left mid-typing on a different profile).
+      addInput.value = '';
+      addBtn.disabled = true;
+      addInput.oninput = () => {
+        addBtn.disabled = !addInput.value.trim();
+      };
+      addBtn.onclick = () => {
+        const text = addInput.value;
+        const entry = addTellUsMoreEntry(profile, text, 'preferences_page');
+        if (!entry) return;
+        addInput.value = '';
+        addBtn.disabled = true;
+        renderTellUsMoreBubbles(profile);
+      };
+      // Cmd/Ctrl+Enter submits without leaving the textbox — power-user
+      // path. Plain Enter inserts newlines (matches textarea convention).
+      addInput.onkeydown = (e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !addBtn.disabled) {
+          e.preventDefault();
+          addBtn.click();
+        }
+      };
+    }
+    const entries = getTellUsMoreEntries(profile);
     host.innerHTML = '';
+    if (!entries.length) return;
     // Newest first — most-recently-edited at the top.
     const sorted = entries.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     sorted.forEach(entry => {
@@ -6622,6 +6665,10 @@
     const active = document.querySelector('.st-tab.active')?.dataset?.st || 'homes';
     showSavedPane(active);
     updateSavedTabBadge();
+    // [feat-pre-ai-bridge Item 2] Feedback survey — eligibility check
+    // happens on every Saved-tab render. shouldShowFeedbackSurvey
+    // gates on the 76-hour cooldown + 20% probability roll.
+    maybeShowFeedbackSurvey();
   }
 
   function showSavedPane(which) {
@@ -6638,6 +6685,184 @@
     else if (which === 'rooms') renderSavedRooms();
     else renderSavedItems();
   }
+
+  // [feat-pre-ai-bridge Item 2 — REWRITE] Feedback survey on Saved tab.
+  // Replaces the prior results-screen post-generation survey (wrong
+  // trigger + wrong placement). Eligibility:
+  //   1. User on Saved tab (renderSaved invokes this directly)
+  //   2. state.user.surveyLastShownAt > 76h ago (or 0 / undefined)
+  //   3. Math.random() < 0.2
+  // On render: timestamp updates to Date.now() and persists. Cooldown
+  // ticks regardless of whether the user dismisses, responds, or
+  // ignores the survey — they won't see it again for at least 76h.
+  // CLOUD SYNC: state.user.surveyLastShownAt is threaded through
+  // user_settings via supabase-client.js (push: survey_last_shown_at
+  // field; pull: hydrates state.user.surveyLastShownAt). Server schema
+  // needs `alter table user_settings add column if not exists
+  // survey_last_shown_at bigint default 0;` — documented in
+  // SUPABASE_SETUP.md. Until that runs, the upsert tolerates the
+  // missing column gracefully (Supabase rejects the unknown field
+  // but the rest of the row writes; localStorage persists the value
+  // for single-device cooldown).
+  const SURVEY_COOLDOWN_MS = 76 * 60 * 60 * 1000;
+  const SURVEY_PROBABILITY = 0.2;
+  let _surveySentimentChosen = null;
+  let _surveyMostRecentRoom = null;
+
+  function shouldShowFeedbackSurvey() {
+    if (!state.user) return false;
+    const lastShown = Number(state.user.surveyLastShownAt) || 0;
+    if (Date.now() - lastShown < SURVEY_COOLDOWN_MS) return false;
+    return Math.random() < SURVEY_PROBABILITY;
+  }
+
+  function maybeShowFeedbackSurvey() {
+    if (!shouldShowFeedbackSurvey()) return;
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    // Reset stage visibility (defensive — same DOM element reused
+    // across cooldown windows; previous open may have left a different
+    // stage active).
+    const promptStage = survey.querySelector('[data-stage="prompt"]');
+    const feedbackStage = survey.querySelector('[data-stage="feedback"]');
+    const thanksStage = survey.querySelector('[data-stage="thanks"]');
+    if (promptStage) promptStage.hidden = false;
+    if (feedbackStage) feedbackStage.hidden = true;
+    if (thanksStage) thanksStage.hidden = true;
+    const ta = document.getElementById('fbSurveyInput');
+    if (ta) ta.value = '';
+    _surveySentimentChosen = null;
+    // Snapshot the most-recent room (if any) so submitted feedback can
+    // include room context. Falls back to 'N/A' in the mailto if the
+    // user has never generated anything.
+    const rooms = state.rooms || [];
+    _surveyMostRecentRoom = rooms.length ? rooms[rooms.length - 1] : null;
+    // Update the cooldown timestamp + persist BEFORE animation. Even
+    // if the user immediately navigates away, the cooldown is locked.
+    if (!state.user) state.user = {};
+    state.user.surveyLastShownAt = Date.now();
+    save();
+    survey.hidden = false;
+    requestAnimationFrame(() => survey.classList.add('open'));
+    trackEvent('survey_shown', {
+      surface: 'saved_tab',
+      room_type: _surveyMostRecentRoom?.type || null
+    });
+  }
+
+  function dismissFeedbackSurvey(reason /* 'close' | 'happy' | 'submitted' | 'skip' */) {
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    survey.classList.remove('open');
+    setTimeout(() => { survey.hidden = true; }, 280);
+    if (reason === 'close') {
+      trackEvent('survey_dismissed', {
+        surface: 'saved_tab',
+        sentiment: _surveySentimentChosen,
+        room_type: _surveyMostRecentRoom?.type || null
+      });
+    }
+  }
+
+  function handleFeedbackSurveyFace(sentiment) {
+    _surveySentimentChosen = sentiment;
+    const hasFeedback = sentiment === 'sad' || sentiment === 'neutral';
+    trackEvent('survey_response', {
+      surface: 'saved_tab',
+      sentiment,
+      hasFeedback,
+      room_type: _surveyMostRecentRoom?.type || null
+    });
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    if (sentiment === 'happy') {
+      survey.querySelector('[data-stage="prompt"]').hidden = true;
+      survey.querySelector('[data-stage="thanks"]').hidden = false;
+      setTimeout(() => dismissFeedbackSurvey('happy'), 1200);
+      return;
+    }
+    // Sad / neutral: reveal optional feedback textbox.
+    survey.querySelector('[data-stage="prompt"]').hidden = true;
+    survey.querySelector('[data-stage="feedback"]').hidden = false;
+    const promptEl = document.getElementById('fbSurveyPrompt');
+    if (promptEl) {
+      promptEl.textContent = sentiment === 'sad'
+        ? 'Tell us what went wrong (optional)'
+        : 'What could be better? (optional)';
+    }
+    setTimeout(() => {
+      const ta = document.getElementById('fbSurveyInput');
+      if (ta) ta.focus();
+    }, 80);
+  }
+
+  function submitFeedbackSurveyFeedback() {
+    const ta = document.getElementById('fbSurveyInput');
+    const text = (ta?.value || '').trim().slice(0, 600);
+    const sentiment = _surveySentimentChosen || 'unspecified';
+    trackEvent('survey_feedback_submitted', {
+      surface: 'saved_tab',
+      sentiment,
+      textLength: text.length,
+      room_type: _surveyMostRecentRoom?.type || null
+    });
+    const subject = `Furnish feedback (${sentiment})`;
+    const bodyLines = [
+      `Sentiment: ${sentiment}`,
+      '',
+      `Most recent room: ${_surveyMostRecentRoom?.type || 'N/A'}`,
+      `Submitted at: ${new Date().toISOString()}`,
+      '',
+      'User feedback:',
+      text || '(no additional comment)'
+    ];
+    const body = bodyLines.join('\n');
+    const mailto = 'mailto:support@furnish.live?subject='
+      + encodeURIComponent(subject)
+      + '&body='
+      + encodeURIComponent(body);
+    // Open the user's mail client via transient anchor + click —
+    // matches the user's last gesture so browsers don't pop-up-block.
+    const a = document.createElement('a');
+    a.href = mailto;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    survey.querySelector('[data-stage="feedback"]').hidden = true;
+    survey.querySelector('[data-stage="thanks"]').hidden = false;
+    setTimeout(() => dismissFeedbackSurvey('submitted'), 1400);
+  }
+
+  function skipFeedbackSurveyFeedback() {
+    // Sad/neutral with Skip on the textbox. Sentiment was already
+    // recorded by handleFeedbackSurveyFace; just dismiss without
+    // firing survey_feedback_submitted.
+    dismissFeedbackSurvey('skip');
+  }
+
+  // Wire up survey controls. Idempotent — DOM is static in
+  // index.html, not re-rendered, so a single bind on app boot is
+  // sufficient. All elements .?-checked since the IIFE runs even on
+  // screens where #feedbackSurvey hasn't rendered yet.
+  (function wireFeedbackSurvey() {
+    const close = document.getElementById('fbSurveyClose');
+    if (close) close.addEventListener('click', () => dismissFeedbackSurvey('close'));
+    document.querySelectorAll('.fb-face').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = btn.dataset.sentiment;
+        if (s === 'sad' || s === 'neutral' || s === 'happy') {
+          handleFeedbackSurveyFace(s);
+        }
+      });
+    });
+    const submit = document.getElementById('fbSurveySubmit');
+    if (submit) submit.addEventListener('click', submitFeedbackSurveyFeedback);
+    const skip = document.getElementById('fbSurveySkip');
+    if (skip) skip.addEventListener('click', skipFeedbackSurveyFeedback);
+  })();
 
   function renderSavedRooms() {
     const grid = $('#savedRoomsGrid');

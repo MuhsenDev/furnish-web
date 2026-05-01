@@ -735,17 +735,29 @@
         <button class="btn btn-primary" id="savePrefsBtn">Save & Continue</button>
       </div>
 
-      <!-- [feat-pre-launch-bundle Theme 2 Feature A] Profile-scoped
-           freeform notes the user has typed about themselves. Renderer
-           (renderTellUsMoreBubbles) populates per profile, showing a
-           bubble per entry in profile.tellUsMoreEntries[]. Tap a bubble
-           to enter inline-edit mode (textarea + Save / Delete / Cancel).
-           Hidden until at least one entry exists OR the user lands here
-           the first time after submitting one — keeps the section from
-           cluttering the screen for users who haven't used the feature. -->
-      <section class="tum-section" id="tellUsMoreSection" hidden>
+      <!-- [feat-pre-launch-bundle Theme 2 Feature A / feat-pre-ai-bridge
+           Item 1] Profile-scoped freeform notes — third entry point for
+           Tell Us More entries (alongside the quiz-flow Tell Us More
+           screen and the per-room pre-generation context box). Section
+           always visible now: top input affordance lets users add new
+           notes directly from Preferences; bubble list renders existing
+           entries below (auto-hides when no entries exist). Bubble tap
+           opens inline editor with Save / Delete / Cancel — same
+           behavior on bubbles created from any of the three entry
+           points. Renderer: renderTellUsMoreBubbles in app.js. -->
+      <section class="tum-section" id="tellUsMoreSection">
         <h3 class="section-h">Things we know about you</h3>
-        <p class="muted small tum-section-hint">Tap any note to edit or remove it.</p>
+        <p class="muted small tum-section-hint">Anything you'd want a designer to know — warm tones, no orange, two cats. Adds up across redesigns.</p>
+        <div class="tum-add-row">
+          <textarea class="tum-add-input" id="tellUsMoreAddInput" maxlength="280" rows="2" placeholder="Add a note about yourself…" aria-label="Add a Tell Us More note"></textarea>
+          <button class="btn btn-primary small tum-add-btn" id="tellUsMoreAddBtn" type="button" aria-label="Add note" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Add</span>
+          </button>
+        </div>
         <div class="tum-bubbles" id="tellUsMoreBubbles"></div>
       </section>
 
@@ -846,6 +858,59 @@
       <div class="saved-pane" id="savedItemsPane" style="display:none">
         <div class="items-list" id="savedItemsGrid"></div>
       </div>
+
+      <!-- [feat-pre-ai-bridge Item 2 — REWRITE] Feedback survey. Sits
+           at the bottom of the Saved tab regardless of which sub-pane
+           (Homes / Rooms / Items) is active. Show eligibility:
+           state.user.surveyLastShownAt > 76h ago (or 0/undefined) AND
+           Math.random() < 0.2. On render, the timestamp is updated to
+           Date.now() — cooldown ticks regardless of how the user
+           responds (or doesn't). State machine (prompt → feedback →
+           thanks) and mailto:support@furnish.live submission match the
+           prior spec; the trigger surface is what changed. -->
+      <aside class="fb-survey" id="feedbackSurvey" hidden role="region" aria-label="Feedback survey">
+        <button class="fb-survey-close" id="fbSurveyClose" type="button" aria-label="Dismiss survey">×</button>
+        <div class="fb-survey-stage fb-survey-stage--prompt" data-stage="prompt">
+          <h4 class="fb-survey-title">Tell us how we did!</h4>
+          <div class="fb-survey-faces" role="group" aria-label="Choose a sentiment">
+            <button class="fb-face fb-face-sad" type="button" data-sentiment="sad" aria-label="Sad">
+              <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" fill="#7DA8D9" stroke="#5A86B8" stroke-width="1.5"/>
+                <circle cx="11" cy="13" r="1.6" fill="#1F3550"/>
+                <circle cx="21" cy="13" r="1.6" fill="#1F3550"/>
+                <path d="M10 22 Q16 18 22 22" stroke="#1F3550" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="fb-face fb-face-neutral" type="button" data-sentiment="neutral" aria-label="Neutral">
+              <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" fill="#B9B5AE" stroke="#8A857C" stroke-width="1.5"/>
+                <circle cx="11" cy="13" r="1.6" fill="#2A2722"/>
+                <circle cx="21" cy="13" r="1.6" fill="#2A2722"/>
+                <line x1="10" y1="21" x2="22" y2="21" stroke="#2A2722" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="fb-face fb-face-happy" type="button" data-sentiment="happy" aria-label="Happy">
+              <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" fill="#F5C84B" stroke="#C29A2A" stroke-width="1.5"/>
+                <circle cx="11" cy="13" r="1.6" fill="#3A2A0A"/>
+                <circle cx="21" cy="13" r="1.6" fill="#3A2A0A"/>
+                <path d="M10 19 Q16 24 22 19" stroke="#3A2A0A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="fb-survey-stage fb-survey-stage--feedback" data-stage="feedback" hidden>
+          <p class="fb-survey-prompt" id="fbSurveyPrompt">Tell us what went wrong (optional)</p>
+          <textarea class="fb-survey-input" id="fbSurveyInput" maxlength="600" rows="3" placeholder="What didn't work for you? Anything we should know?"></textarea>
+          <div class="fb-survey-actions">
+            <button class="btn btn-primary small" id="fbSurveySubmit" type="button">Send feedback</button>
+            <button class="btn btn-ghost small" id="fbSurveySkip" type="button">Skip</button>
+          </div>
+        </div>
+        <div class="fb-survey-stage fb-survey-stage--thanks" data-stage="thanks" hidden>
+          <p class="fb-survey-thanks">Thanks — noted.</p>
+        </div>
+      </aside>
     </section>
 
     <!-- [Save Home] Saved home detail view — opens when user taps a

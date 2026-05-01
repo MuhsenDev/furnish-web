@@ -4666,13 +4666,69 @@ html[data-theme="dark"] .tum-block {
   margin: 22px 0 8px;
 }
 .tum-section .tum-section-hint {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
+
+/* [feat-pre-ai-bridge Item 1] In-page add affordance at the top of the
+   "Things we know about you" section. Third entry point for Tell Us
+   More entries (alongside the quiz-flow screen and the per-room
+   pre-generation context box — that one writes to a different field).
+   Textarea on the left, primary "+ Add" button on the right. Button
+   disables when textbox is empty so the empty-submission bail-out
+   doesn't surprise the user. */
+.tum-add-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tum-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 44px;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.tum-add-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.16);
+}
+.tum-add-input::placeholder { color: var(--muted); opacity: 0.85; }
+.tum-add-btn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+}
+.tum-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tum-add-btn svg { flex-shrink: 0; }
+html[data-theme="dark"] .tum-add-input {
+  background: var(--beige);
+  color: var(--ink);
+  border-color: rgba(216, 176, 126, 0.22);
+}
+html[data-theme="dark"] .tum-add-input::placeholder { color: var(--brown-2); opacity: 0.75; }
+
 .tum-bubbles {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+.tum-bubbles:empty { display: none; }
 .tum-bubble {
   display: inline-flex;
   align-items: center;
@@ -7680,6 +7736,135 @@ html[data-theme="dark"] .ai-gen-label {
 }
 html[data-theme="dark"] .ai-gen-label svg {
   color: var(--brown-2);
+}
+
+/* [feat-pre-ai-bridge Item 2 — REWRITE] Feedback survey on Saved tab.
+   Sits at the bottom of <section data-screen="saved"> regardless of
+   active sub-pane (Homes / Rooms / Items). Full-width card surface
+   matching the warm-tan visual language used by the lifecycle banner
+   and other low-friction nudges. State machine (prompt → feedback
+   → thanks) handled via [hidden] toggles in JS. Slide-up animation
+   on .open class. Light + dark mode variants both covered. */
+.fb-survey {
+  position: relative;
+  margin: 24px 0 18px;
+  padding: 16px 18px 14px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--cream) 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 280ms var(--ease-premium), transform 320ms var(--ease-premium);
+}
+.fb-survey.open {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fb-survey[hidden] { display: none; }
+.fb-survey-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.fb-survey-close:hover {
+  background: var(--beige);
+  color: var(--ink);
+}
+.fb-survey-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+.fb-survey-faces {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+  padding: 4px 0 6px;
+}
+.fb-face {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 180ms var(--ease-premium), filter 180ms ease;
+}
+.fb-face:hover {
+  transform: scale(1.14);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+}
+.fb-face:active { transform: scale(0.96); }
+.fb-face svg {
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: auto;
+}
+.fb-survey-prompt {
+  margin: 4px 0 8px;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: center;
+}
+.fb-survey-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 80px;
+}
+.fb-survey-input:focus {
+  outline: none;
+  border-color: var(--brown);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.16);
+}
+.fb-survey-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+.fb-survey-thanks {
+  margin: 8px 0 4px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brown-2);
+}
+html[data-theme="dark"] .fb-survey {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--beige) 100%);
+  border-color: rgba(216, 176, 126, 0.20);
+}
+html[data-theme="dark"] .fb-survey-input {
+  background: var(--beige);
+  color: var(--ink);
+}
+html[data-theme="dark"] .fb-face:hover {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.32));
 }
 
 /* [feat-pre-launch-bundle Theme 5] FAQ accordion — uses native <details>
