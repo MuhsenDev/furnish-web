@@ -536,6 +536,38 @@
     // [Bug 26] Reset Profile feature removed entirely; the
     // closeResetDialog('navigation') guard previously here is no
     // longer needed (dialog symbol no longer exists).
+    //
+    // [Bugs 27 + 30] Save-Home modal exit-intent trigger. Pre-fix the
+    // modal fired from openRoom (every first-time results view of a
+    // just-generated room) — too eager, surfaced before users had a
+    // chance to read the redesign. Spec: fire ONLY when the user
+    // genuinely leaves results with an unsaved just-generated room.
+    //
+    // Conditions:
+    //   - Currently on results (_previousScreen === 'results')
+    //   - Navigating away (name !== 'results')
+    //   - state._justGeneratedRoomId is still set (the just-generated
+    //     room hasn't been claimed by save-to-home or save-to-saved-
+    //     rooms yet)
+    //   - Room exists in state.rooms and isn't already claimed
+    //
+    // Modal fires via setTimeout so navigation completes first; modal
+    // appears OVER the new screen as a final "save before leaving?"
+    // prompt. Standard exit-intent UX. _justGeneratedRoomId is cleared
+    // inside the gate so re-navigating doesn't re-fire.
+    if (_previousScreen === 'results' && name !== 'results' && state._justGeneratedRoomId) {
+      const justRoomId = state._justGeneratedRoomId;
+      const justRoom = (state.rooms || []).find(r => r.id === justRoomId);
+      if (justRoom && typeof isRoomClaimed === 'function' && !isRoomClaimed(justRoomId)) {
+        delete state._justGeneratedRoomId;
+        save();
+        setTimeout(() => openPostGenerationSaveSurface(justRoom), 350);
+      } else if (state._justGeneratedRoomId) {
+        // Room is claimed or missing — clear flag without firing modal.
+        delete state._justGeneratedRoomId;
+        save();
+      }
+    }
     const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
     window.scrollTo({ top: 0 });
@@ -8525,16 +8557,15 @@
     currentRoomId = roomId;
     const profile = state.profiles.find(p => p.id === room.profileId);
 
-    // [Save Home] Fire the post-generation save surface ONCE per just-
-    // generated room. _justGeneratedRoomId is set inside the success
-    // branch of routeGenerationByModelTier; cleared after the surface
-    // fires so revisits don't re-prompt.
-    if (state._justGeneratedRoomId === roomId) {
-      delete state._justGeneratedRoomId;
-      save();
-      // Defer to next tick so the results-screen layout settles first
-      setTimeout(() => openPostGenerationSaveSurface(room), 600);
-    }
+    // [Bugs 27 + 30] Auto-fire of openPostGenerationSaveSurface on
+    // openRoom REMOVED. Pre-fix the save-home modal fired here every
+    // time the user first viewed a just-generated room — too eager,
+    // surfaced before users had time to read the redesign and felt
+    // like a premature interruption. The modal now fires on
+    // exit-intent (showScreen leaving results with unsaved
+    // _justGeneratedRoomId) — see the new gate at the top of
+    // showScreen. _justGeneratedRoomId stays set across openRoom
+    // calls; it's the showScreen exit-intent gate that consumes it.
 
     // [Batch 3 — A7] Aha event split.
     // The existing AHA_RESULTS event fires on render — that's the GATE.
