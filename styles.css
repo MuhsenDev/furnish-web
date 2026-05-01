@@ -4507,31 +4507,72 @@ html[data-theme="dark"] .qf-heart-glow {
 }
 .section-h.compact { margin: 18px 0 6px; font-size: 14px; }
 
-/* Batch D — post-aha keep-existing switch on results */
-.results-keep-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; margin: 10px 0;
-  background: var(--surface); border: 1px solid var(--line);
+/* [feat-pre-launch-bundle Theme 1] Batch D post-aha keep-existing switch
+   styles removed (.results-keep-row, .rkr-label, .rkr-switch, .rkr-track,
+   .rkr-thumb, .rkr-switch.on variants). Replaced by the pre-generation
+   furniture-mode question screen (.fur-mode-card family below). */
+
+/* [feat-pre-launch-bundle Theme 1] Pre-generation furniture-mode picker.
+   Three big stacked cards on data-screen="pre-gen-furniture". Visual
+   language matches the existing .yesno-btn pattern (icon + title +
+   subcopy on a cream card with brown border on selected) but stacks
+   vertically instead of side-by-side since the labels run longer. */
+.fur-mode-options {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 16px;
+}
+.fur-mode-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  background: var(--cream);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
+  cursor: pointer; text-align: left;
+  color: var(--deep);
+  transition: transform 240ms var(--ease-premium),
+              border-color 240ms ease,
+              background-color 240ms ease,
+              box-shadow 240ms ease;
 }
-.rkr-label { font-size: 13px; color: var(--ink); font-weight: 500; }
-.rkr-switch {
-  background: none; border: 0; padding: 0; cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+.fur-mode-card:hover { border-color: var(--tan); transform: translateY(-2px); }
+.fur-mode-card .fmc-icon {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--beige);
+  color: var(--brown);
 }
-.rkr-track {
-  display: inline-block; position: relative;
-  width: 42px; height: 24px; border-radius: 14px;
-  background: var(--line); transition: background 200ms ease;
+.fur-mode-card .fmc-text {
+  display: flex; flex-direction: column; gap: 3px; line-height: 1.3;
 }
-.rkr-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: var(--surface); box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-  transition: transform 200ms ease;
+.fur-mode-card .fmc-text strong { font-size: 15px; font-weight: 700; }
+.fur-mode-card .fmc-text small { font-size: 12px; color: var(--muted); }
+.fur-mode-card.selected,
+.fur-mode-card[aria-pressed="true"] {
+  background: var(--brown);
+  color: var(--cream);
+  border-color: var(--brown);
+  box-shadow: 0 6px 18px rgba(139, 111, 71, 0.22);
 }
-.rkr-switch.on .rkr-track { background: var(--brown); }
-.rkr-switch.on .rkr-thumb { transform: translateX(18px); }
+.fur-mode-card.selected .fmc-icon,
+.fur-mode-card[aria-pressed="true"] .fmc-icon {
+  background: var(--cream); color: var(--brown);
+}
+.fur-mode-card.selected .fmc-text small,
+.fur-mode-card[aria-pressed="true"] .fmc-text small {
+  color: rgba(250, 243, 231, 0.82);
+}
+html[data-theme="dark"] .fur-mode-card { background: var(--beige); color: var(--ink); }
+html[data-theme="dark"] .fur-mode-card .fmc-icon { background: var(--beige-2); color: var(--tan); }
+html[data-theme="dark"] .fur-mode-card.selected,
+html[data-theme="dark"] .fur-mode-card[aria-pressed="true"] {
+  background: var(--brown); color: var(--cream);
+}
+html[data-theme="dark"] .fur-mode-card.selected .fmc-icon,
+html[data-theme="dark"] .fur-mode-card[aria-pressed="true"] .fmc-icon {
+  background: #1C1410; color: var(--tan);
+}
 
 /* Batch E — welcome hero demo (before/after sweep) */
 .hero-demo {

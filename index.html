@@ -898,6 +898,63 @@
       </div>
     </section>
 
+    <!-- SCREEN: Pre-generation furniture-mode question.
+         [feat-pre-launch-bundle Theme 1] Replaces the post-aha
+         "Design around my current pieces" results-screen toggle.
+         User explicitly tells the AI how to handle existing furniture
+         BEFORE generation runs. Three options written to
+         state.draft.furnitureMode and snapshotted onto room.furnitureMode.
+         AI prompt integration deferred (Phase A); for today the choice
+         drives the existing pickItemsForRoom keepMode flag. -->
+    <section class="screen" data-screen="pre-gen-furniture" data-flow-prev="capture">
+      <header class="topbar">
+        <button class="btn-icon" data-go="capture" aria-label="Back to photo">‹</button>
+        <h2>One More Thing</h2>
+      </header>
+      <div class="quiz-card pre-gen-furniture-card">
+        <h3>How should we handle your furniture?</h3>
+        <p class="quiz-subhead muted small">Pick the option that matches what's in your photo.</p>
+        <div class="fur-mode-options">
+          <button class="fur-mode-card" data-mode="keep" type="button" aria-label="Keep my furniture">
+            <span class="fmc-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </span>
+            <span class="fmc-text">
+              <strong>Keep my furniture</strong>
+              <small>Design around what's already there — accents, lighting, decor</small>
+            </span>
+          </button>
+          <button class="fur-mode-card" data-mode="replace" type="button" aria-label="Replace my furniture">
+            <span class="fmc-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="17 1 21 5 17 9"/>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                <polyline points="7 23 3 19 7 15"/>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+            </span>
+            <span class="fmc-text">
+              <strong>Replace my furniture</strong>
+              <small>Imagine a fresh start — new pieces in the same room</small>
+            </span>
+          </button>
+          <button class="fur-mode-card" data-mode="blank" type="button" aria-label="Blank room">
+            <span class="fmc-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+              </svg>
+            </span>
+            <span class="fmc-text">
+              <strong>Blank room</strong>
+              <small>I don't have furniture yet — design from scratch</small>
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- SCREEN: Analyzing -->
     <section class="screen" data-screen="analyzing">
       <div class="loader-wrap">
@@ -955,13 +1012,11 @@
         <span class="rb-label">Rearrange furniture</span>
       </button>
 
-      <!-- Post-aha keep-existing toggle (moved from capture flow) -->
-      <div class="results-keep-row" id="resultsKeepRow">
-        <span class="rkr-label">Design around my current pieces</span>
-        <button class="rkr-switch" id="keepExistingSwitch" role="switch" aria-checked="false" type="button">
-          <span class="rkr-track"><span class="rkr-thumb"></span></span>
-        </button>
-      </div>
+      <!-- [feat-pre-launch-bundle Theme 1] Post-aha keep-existing toggle
+           (#keepExistingSwitch) removed. Furniture mode is now an explicit
+           pre-generation question on data-screen="pre-gen-furniture" —
+           user picks Keep / Replace / Blank before analyze fires.
+           Snapshotted to room.furnitureMode at generation time. -->
 
       <!-- [Item 11] "How does this feel?" aha-feedback prompt removed. -->
 

@@ -435,7 +435,7 @@
     'welcome', 'signin', 'quiz-intro', 'quiz'
   ]);
   const DESIGN_SCREENS = new Set([
-    'preferences', 'capture', 'analyzing', 'results', 'templates'
+    'preferences', 'capture', 'pre-gen-furniture', 'analyzing', 'results', 'templates'
   ]);
   // Bottom-nav surfaces (Home / Saved / Preferences / Profile).
   // [Hassan's call] Preferences promoted to a bottom-nav surface so users
@@ -472,6 +472,7 @@
   const GUEST_ALLOWED_SCREENS = new Set([
     'welcome',
     'capture',
+    'pre-gen-furniture',
     'quiz-intro',
     'quiz',
     'quiz-dealbreaker',
@@ -7230,7 +7231,40 @@
     // [BUDGET_RESET_PASS] Budget already set on the slider on this screen;
     // its value is read at generation time via getCurrentBudget() inside
     // _runAnalyze. No modal gate, no callback chain.
-    _runAnalyze();
+    // [feat-pre-launch-bundle Theme 1] Route through the pre-generation
+    // furniture-mode question screen instead of going straight to analyze.
+    // The user picks keep / replace / blank; that handler then calls
+    // _runAnalyze. Reset any stale value so the user's last pick from a
+    // prior generation doesn't pre-bias the question.
+    if (state.draft) state.draft.furnitureMode = null;
+    showScreen('pre-gen-furniture');
+  });
+
+  // [feat-pre-launch-bundle Theme 1] Pre-generation furniture-mode card
+  // handlers. Tap → save mode to state.draft.furnitureMode → fire
+  // analytics → kick off the existing _runAnalyze pipeline. _runAnalyze
+  // already calls showScreen('analyzing') itself, so we don't need to
+  // pre-route here. Any previously-selected card visually deselects on
+  // a fresh pick (the screen re-enters with state.draft.furnitureMode
+  // null, but defensive cleanup here covers a tap-twice race).
+  document.querySelectorAll('.fur-mode-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const mode = card.dataset.mode;
+      if (!mode || !['keep', 'replace', 'blank'].includes(mode)) return;
+      if (!state.draft) return;
+      state.draft.furnitureMode = mode;
+      // Visual selected state (briefly visible before the screen swaps)
+      document.querySelectorAll('.fur-mode-card').forEach(c => {
+        c.classList.toggle('selected', c === card);
+        c.setAttribute('aria-pressed', c === card ? 'true' : 'false');
+      });
+      trackEvent('generation_furniture_mode_selected', {
+        mode,
+        source: 'photo_redesign',
+        room_type: state.draft.type || null
+      });
+      _runAnalyze();
+    });
   });
   async function _runAnalyze() {
     if (!state.draft?.photo) return;
@@ -8243,9 +8277,21 @@
     const effective = answersOverride
       ? { ...getEffectiveAnswers(profile), ...answersOverride }
       : getEffectiveAnswers(profile);
-    // CONFLICT 2: scope === 'just_furniture' is the keepMode default; the
-    // results-screen toggle (draft.keep) overrides if set.
-    const keepMode = draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture');
+    // [feat-pre-launch-bundle Theme 1] Furniture mode is now an explicit
+    // pre-generation question. draft.furnitureMode ∈ {'keep','replace',
+    // 'blank',null}. 'keep' → keepMode true; 'replace' or 'blank' →
+    // keepMode false (fresh full pick). When null (e.g., template flow
+    // skips the screen, or legacy state), fall back to the previous
+    // behavior: scope === 'just_furniture' default + draft.keep override.
+    // AI-prompt integration of furnitureMode itself is deferred (Phase A);
+    // for today the existing pickItemsForRoom keepMode flag is the only
+    // generation-time consumer.
+    const fm = draft.furnitureMode;
+    const keepMode = fm === 'keep'
+      ? true
+      : (fm === 'replace' || fm === 'blank')
+        ? false
+        : (draft.keep === true || (draft.keep !== false && effective.scope === 'just_furniture'));
     // [BUDGET_RESET_PASS] Read the transient budget from state.draft.budget
     // (set by the slider on the capture screen). Falls back to
     // SLIDER_BUDGET_DEFAULT if for some reason draft.budget isn't set.
@@ -8265,6 +8311,12 @@
       dims: draft.dims,
       items: picked,
       keepMode,
+      // [feat-pre-launch-bundle Theme 1] Snapshot the user's explicit
+      // pre-generation furniture-mode pick so future AI-prompt builds
+      // (Phase A) and analytics segmentation can read it back. Default
+      // 'keep' for the template / legacy flows that skip the picker —
+      // matches the prior keep-existing-fallback behavior on those paths.
+      furnitureMode: fm || 'keep',
       // [BUDGET_RESET_PASS] Snapshot the transient budget the user chose for
       // this generation. Reshuffle/keep/different-style on the reveal screen
       // read from room.budget so they stay coherent with the original pick.
@@ -8584,12 +8636,10 @@
       logHabitAction('second_redesign');
     }
 
-    // Sync the post-aha keep-existing switch to this room's state.
-    const _keepSw = $('#keepExistingSwitch');
-    if (_keepSw) {
-      _keepSw.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
-      _keepSw.classList.toggle('on', !!room.keepMode);
-    }
+    // [feat-pre-launch-bundle Theme 1] keepExistingSwitch sync removed
+    // along with the switch element. Furniture mode is locked at
+    // generation time via the pre-gen-furniture screen; no post-aha
+    // toggle to keep in sync.
 
     // First-results hint tour: highlight a price tag so users discover
     // tap-to-shop. One-shot, separate from the celebration.
@@ -9600,34 +9650,14 @@
     refreshBookmarkBtn(room);
   });
 
-  // Post-aha "keep my pieces" switch on results. Flipping it re-picks items.
-  const keepSwitch = $('#keepExistingSwitch');
-  if (keepSwitch) {
-    keepSwitch.addEventListener('click', () => {
-      const room = state.rooms.find(r => r.id === currentRoomId);
-      if (!room) return;
-      const profile = state.profiles.find(p => p.id === room.profileId);
-      if (!profile) return;
-      // [BUDGET_RESET_PASS] Reuse the budget that produced this room
-      // (room.budget). Reshuffle/keep happens on the reveal screen, not
-      // the photo upload screen, so we don't re-prompt the user.
-      room.keepMode = !room.keepMode;
-      keepSwitch.setAttribute('aria-checked', room.keepMode ? 'true' : 'false');
-      keepSwitch.classList.toggle('on', room.keepMode);
-      const fresh = pickItemsForRoom(
-        { type: room.type, dims: room.dims, photo: room.photo },
-        getEffectiveAnswers(profile),
-        room.budget || SLIDER_BUDGET_DEFAULT,
-        { keepMode: room.keepMode }
-      );
-      room.items = fresh;
-      pushVersion(room, room.keepMode ? 'Kept existing pieces' : 'Fresh start');
-      save();
-      renderRoomPieces(room);
-      renderVersions(room);
-      toast(room.keepMode ? 'Designing around your pieces' : 'Fresh start');
-    });
-  }
+  // [feat-pre-launch-bundle Theme 1] #keepExistingSwitch click handler
+  // removed alongside the switch element. Furniture mode is now an
+  // explicit pre-generation question (data-screen="pre-gen-furniture")
+  // — locked once the user picks keep/replace/blank. The room's
+  // keepMode + furnitureMode are snapshotted in buildRoomFromDraft
+  // and don't flip post-generation. (If we add a re-edit affordance
+  // later, it'd re-enter the pre-gen-furniture screen rather than
+  // toggling in place — single source of truth.)
 
   // [Item 11] aha-feedback "How does this feel?" handler removed entirely
   // (HTML block removed from index.html, all .af-btn voting + per-vote
