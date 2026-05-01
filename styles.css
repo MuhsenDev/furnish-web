@@ -1015,12 +1015,32 @@ html[data-nav="show"][data-reviews="hidden"] #app { padding-bottom: 78px; }
   background: linear-gradient(135deg, var(--brown), var(--brown-2));
   color: var(--cream);
 }
+/* [feat-paywall-restructure Item 6] Off-center glow fix.
+   Was: top:-40 right:-40 anchored to the card's top-right corner, with
+   the shared glowPulse keyframe applying transform: translateX(-50%) —
+   which is meant for left:50%-anchored siblings. On a right-anchored
+   element, that translateX shifted the whole 160px glow 80px westward
+   during animation, biasing the visible halo to the left side of the
+   corner. Now: vertically centered on the card (which centers it on
+   the button row, since the button is the only tall flex child), and
+   horizontally tucked just past the right edge so the visible 70%-
+   transparent radial covers the Upgrade button uniformly. Uses a
+   button-local keyframe (ppProGlowPulse) that only scales — no more
+   stale translate-X overshoot. */
 .pp-pro-glow {
-  position: absolute; top: -40px; right: -40px;
-  width: 160px; height: 160px;
+  position: absolute;
+  top: 50%;
+  right: -28px;
+  width: 140px;
+  height: 140px;
+  transform: translateY(-50%);
   background: radial-gradient(circle, rgba(212,165,116,0.5), transparent 70%);
   pointer-events: none;
-  animation: glowPulse 3.6s ease-in-out infinite;
+  animation: ppProGlowPulse 3.6s ease-in-out infinite;
+}
+@keyframes ppProGlowPulse {
+  0%, 100% { transform: translateY(-50%) scale(1);    opacity: 0.8; }
+  50%      { transform: translateY(-50%) scale(1.10); opacity: 1;   }
 }
 .pp-pro-content { flex: 1; min-width: 0; position: relative; z-index: 1; }
 .pp-pro-badge {
@@ -2897,7 +2917,6 @@ html[data-theme="dark"] .paywall-card {
   position: relative; z-index: 1;
 }
 .paywall-actions .btn { width: 100%; }
-.paywall-footnote { margin: 6px 0 0; position: relative; z-index: 1; }
 
 /* ================================================================
    Budget slider
@@ -3582,7 +3601,6 @@ html[data-theme="dark"] .paywall-card {
   position: relative; z-index: 1;
 }
 .paywall-actions .btn { width: 100%; }
-.paywall-footnote { margin: 6px 0 0; position: relative; z-index: 1; }
 
 /* ================================================================
    Premium motion system
@@ -3876,69 +3894,36 @@ html[data-theme="dark"] .paywall-card {
   position: relative; z-index: 1;
 }
 .paywall-actions .btn { width: 100%; }
-.paywall-footnote { margin: 6px 0 0; position: relative; z-index: 1; }
 
-/* Social proof row (per Reforge Convert p.3 — Drift example). */
-.paywall-social {
-  display: flex; align-items: center; justify-content: center;
-  gap: 8px; margin: -4px 0 16px; position: relative; z-index: 1;
-  font-size: 13px; color: var(--deep);
-}
-.paywall-stars { color: #D4A574; letter-spacing: 1px; }
-.paywall-social-text { opacity: 0.85; }
-html[data-theme="dark"] .paywall-social-text {
-  /* Lift opacity to 1 in dark mode — 0.85 reads as washed-out on the dark
-     paywall card and was hiding the "Cancel before day 7" trust message
-     which is a key conversion signal at the moment of payment. */
-  opacity: 1;
-}
+/* [feat-paywall-restructure] Removed:
+   - .paywall-social / .paywall-stars / .paywall-social-text
+     (Cancel-before-day-7 trust line)
+   - .paywall-toggle / .pw-toggle-btn / .pw-save (Monthly/Annual/Lifetime
+     selector — pricing UI gone until Stripe cutover)
+   - .paywall-price-unit (no /year sub-line on "Coming soon for Pro")
+   - .paywall-urgency (founding-member 1,000-spot scarcity)
+   All reattach when prices are real (DEFERRED.md item 1). */
 
-/* Monthly / Annual toggle (anchor per Figma critique, Convert p.4). */
-.paywall-toggle {
-  display: flex; gap: 4px; padding: 4px;
-  background: var(--beige); border-radius: 999px;
-  margin: 0 0 14px; position: relative; z-index: 1;
-}
-.pw-toggle-btn {
-  flex: 1; padding: 9px 12px; border: none; background: transparent;
-  border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--deep);
-  cursor: pointer; transition: background 160ms ease, color 160ms ease;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-}
-.pw-toggle-btn.active {
-  background: var(--surface); color: var(--deep);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.pw-save {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
-  padding: 2px 7px; border-radius: 999px;
-  background: linear-gradient(135deg, var(--tan), var(--brown));
-  color: #FFFFFF;
-}
-
-/* Price display. */
+/* Pre-launch "Coming soon for Pro" callout. Reuses .paywall-price /
+   .paywall-price-amount selectors so existing layout positioning still
+   works; font size dialed back since this is a phrase, not a numeric
+   anchor. */
 .paywall-price {
   display: flex; align-items: baseline; justify-content: center;
   gap: 6px; margin: 0 0 18px; position: relative; z-index: 1;
   flex-wrap: wrap;
 }
 .paywall-price-amount {
-  font-size: 34px; font-weight: 800; color: var(--deep);
-  letter-spacing: -0.02em;
-}
-.paywall-price-unit { font-size: 13px; color: var(--deep); opacity: 0.7; }
-
-/* Urgency banner (per Drift "limited time only", Convert p.3). */
-.paywall-urgency {
-  margin: 0 0 14px; padding: 9px 12px; border-radius: var(--radius-sm);
-  background: rgba(212,165,116,0.14);
-  border: 1px dashed rgba(139,111,71,0.4);
-  font-size: 12px; color: var(--deep);
-  position: relative; z-index: 1;
+  font-size: 22px; font-weight: 700; color: var(--deep);
+  letter-spacing: -0.005em;
 }
 
-/* Extend stagger animation for the 5th paywall list item. */
+/* Extend stagger animation for items 5 + 6 of the paywall list.
+   [feat-paywall-restructure Item 4] List grew from 3 to 6 items when the
+   More-Perks dropdown was merged in — extra delays so the last two
+   bullets don't pop in flat with the earlier ones. */
 .paywall-list li:nth-child(5) { animation-delay: 460ms; }
+.paywall-list li:nth-child(6) { animation-delay: 530ms; }
 
 /* ---------- Sign-in ---------- */
 .signin-card {
@@ -7609,54 +7594,12 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
    responsive grid override at 540px). All selectors orphan after the
    buttons + modal HTML deletion. */
 
-/* [IDX-11 + CSS-3 — Paywall roadmap link + modal]
-   Replaces "[coming soon]" bullets per Conflict 3 lock. Roadmap is
-   opt-in disclosure in the footer, not impersonating shipped features. */
-.paywall-footnote .paywall-footnote-sep {
-  margin: 0 6px;
-  color: var(--muted);
-}
-.paywall-roadmap-link {
-  color: var(--brown-2);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: inherit;
-}
-.paywall-roadmap-link:hover { color: var(--ink); }
-.paywall-roadmap-card {
-  max-width: 480px;
-  padding: 24px 20px;
-}
-.paywall-roadmap-card h3 {
-  margin: 0 0 8px;
-  color: var(--ink);
-}
-.paywall-roadmap-list {
-  list-style: none;
-  padding: 0;
-  margin: 16px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.paywall-roadmap-list li {
-  background: var(--cream);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.paywall-roadmap-list strong {
-  color: var(--ink);
-  font-size: 14px;
-}
-.paywall-roadmap-list .prl-body {
-  font-size: 13px;
-  color: var(--brown-2);
-  line-height: 1.45;
-}
+/* [feat-paywall-restructure] Roadmap link + modal CSS retired:
+   .paywall-footnote .paywall-footnote-sep, .paywall-roadmap-link,
+   .paywall-roadmap-card, .paywall-roadmap-list (+ li / strong /
+   .prl-body). The roadmap modal HTML + JS handlers are gone; these
+   selectors had no consumers left. Coming-soon items live as bullets
+   5+6 of the Pro card primary list now. */
 
 /* [Dim 14 Section F — insecure-context banner]
    Dev/test footgun signal when opening via local IP without HTTPS. */
@@ -7835,11 +7778,6 @@ html[data-theme="dark"] .price-tag {
 .paywall-pro-card:hover {
   border-color: var(--tan);
   box-shadow: var(--shadow-3), 0 0 0 1px rgba(212, 165, 116, 0.3) inset;
-}
-.paywall-urgency {
-  font-style: italic;
-  color: var(--brown-2);
-  font-weight: 400;
 }
 html[data-theme="dark"] .paywall-list li {
   background: linear-gradient(135deg, rgba(58, 43, 33, 0.7), rgba(42, 31, 24, 0.55));
@@ -8355,22 +8293,8 @@ html[data-theme="dark"] .hts-chip {
 html[data-theme="dark"] .promise-fit-survey { background: var(--surface); }
 html[data-theme="dark"] .promise-fit-survey .pfs-btn { background: var(--beige); }
 
-/* [B3 / Dim 03 R-Paywall3] Annual price anchor — "MOST POPULAR" pill. */
-.pw-most-popular {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--brown);
-  color: var(--cream);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 3px 8px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-.pw-toggle-btn { position: relative; }
+/* [feat-paywall-restructure] .pw-most-popular + .pw-toggle-btn position
+   rules removed with the rest of the toggle UI. */
 
 /* [B3 / Dim 03 R-Paywall2] Paywall layout variants A/B/C.
    Visual differentiation per Reforge One Key Takeaway: each layout
@@ -8516,76 +8440,13 @@ html[data-theme="dark"] .share-format-chip.active {
 
 /* ==============================================================
    BATCH 5 — Dim 06 Monetization
-   Renovation-cost anchor, competitive reference footer,
-   Lifetime $99 decoy toggle, annual prominence, founding-member
-   scarcity counter, power-Free slide-in micro-card.
+   [feat-paywall-restructure] All Section B.1 (renovation-cost anchor),
+   B.2 (Lifetime decoy toggle), B.3 (competitive reference footer), and
+   E.9 (founding-member scarcity counter) styles removed. Pre-Stripe-
+   cutover the corresponding HTML elements are gone too — these
+   selectors had no consumers left. Reattach with the real pricing UI
+   (DEFERRED.md item 1).
    ============================================================== */
-
-/* Section B.1 — Renovation-cost anchor above the price */
-.paywall-anchor {
-  margin: 6px 0 4px;
-  text-align: center;
-  font-size: 0.82rem;
-  color: var(--muted, #8a7a66);
-  line-height: 1.4;
-}
-.paywall-anchor strong {
-  color: var(--ink, #2b2218);
-  font-weight: 600;
-}
-html[data-theme="dark"] .paywall-anchor {
-  /* Was rgba(216, 176, 126, 0.65) — alpha 0.65 made the "$5,200 / $47.88"
-     anchor line render permanently washed-out in dark mode. Use the solid
-     --brown-2 token (resolves to rgb(216, 176, 126) in dark, full alpha). */
-  color: var(--brown-2);
-}
-html[data-theme="dark"] .paywall-anchor strong {
-  /* Was var(--cream) — but in dark mode --cream is #1C1410 (page bg),
-     not a text token. Strong text was rendering dark-on-dark. Use --deep
-     (bright cream #F5E6D3 in dark) for the emphasized prices. */
-  color: var(--deep);
-}
-
-/* Section B.2 — Lifetime decoy toggle (3rd button)
-   Reuses existing .pw-toggle-btn / .pw-save typography. The button
-   inherits the toggle row's segmented look and just needs slight
-   layout breathing room when 3 buttons fit in the row. */
-.paywall-toggle {
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.pw-toggle-btn[data-plan="lifetime"] .pw-save {
-  /* "Pay once" tag styled like Annual's "Save $24/yr" sibling */
-  display: inline-block;
-}
-
-/* Section B.3 — Competitive reference-price footer */
-.paywall-references {
-  margin-top: 8px;
-  margin-bottom: 0;
-  font-size: 0.75rem;
-  letter-spacing: 0.01em;
-  opacity: 0.85;
-}
-
-/* Section E.9 — Founding-member scarcity counter */
-.paywall-urgency-cap {
-  display: inline-block;
-  margin-left: 6px;
-  font-size: 0.92em;
-  opacity: 0.92;
-}
-.paywall-urgency-cap strong {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Dim 02 D02-8 — Selective scarcity per paywall context.
-   Painkiller contexts (premium_quality, rearrange) hide the founding-
-   member urgency line; vitamin/abstract-upsell contexts show it. Driven
-   by `data-scarcity` attribute set in openPaywall(). */
-#paywallModal[data-scarcity="off"] .paywall-urgency {
-  display: none;
-}
 
 /* ==============================================================
    BATCH 5 PART 2 — Dim 02 User Psychology
@@ -9155,106 +9016,21 @@ html[data-theme="dark"] .legal-doc .legal-meta {
      the underlying tier pill (badges are labels, not buttons)
    ============================================================ */
 
-/* 1. Breathing room between comparison line and toggle + bordered
-   callout treatment so the value-anchor reads as a deliberate frame,
-   not floating text. Per Reforge Monetization (Anchoring): the
-   $5,200 renovation comparison is the highest-leverage psych element
-   on the paywall — bordering it pulls the eye to the comparison
-   first, then the price. Visual language matches the existing
-   .paywall-urgency callout below (light tan tint + brown border +
-   rounded corners) but uses a SOLID border (vs dashed on urgency)
-   because this is a fact-anchor, not a time-limited offer.
-   Margin-bottom owns the full gap budget (no toggle margin-top to
-   avoid margin-collapse) — covers visible breathing room AND the
-   floating space for the absolute MOST POPULAR ribbon at -41px. */
-.paywall-card .paywall-anchor {
-  margin: 6px 0 58px;
-  padding: 12px 14px;
-  border: 1.5px solid rgba(139, 111, 71, 0.32);
-  border-radius: 12px;
-  background: rgba(212, 165, 116, 0.18);
-}
-html[data-theme="dark"] .paywall-card .paywall-anchor {
-  border-color: rgba(216, 176, 126, 0.28);
-  background: rgba(216, 176, 126, 0.10);
-}
+/* [feat-paywall-restructure] .paywall-card .paywall-anchor framing
+   removed alongside the renovation-cost anchor element. Reattach with
+   real pricing UI at Stripe cutover. */
 
-/* More Pro perks dropdown — native <details> styling.
-   Lives between .paywall-list (the 5 headline bullets) and
-   .paywall-urgency (the founding-member callout). Visual language
-   matches the rest of the Pro card — same .bullet check pattern as
-   .paywall-list, same color palette, no new tokens. Coming-soon
-   items get a tag per Conflict 3 lock so they read as disclosure,
-   not entitlements being priced. */
-.paywall-more-perks {
-  margin: 4px 0 14px;
-  border-top: 1px dashed rgba(139, 111, 71, 0.20);
-  padding-top: 10px;
-}
-.paywall-more-perks-summary {
-  list-style: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 4px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--brown, #8b6f47);
-  letter-spacing: 0.02em;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.paywall-more-perks-summary::-webkit-details-marker { display: none; }
-.paywall-more-perks-summary::marker { content: ''; }
-.paywall-more-perks-summary:hover { color: var(--deep, #5c4128); }
-.paywall-more-perks-summary:focus-visible {
-  outline: 2px solid rgba(139, 111, 71, 0.55);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
+/* [feat-paywall-restructure Item 4] Pro-perks coming-soon items + sub-text.
+   Originally lived inside the More-Pro-perks <details> dropdown
+   (.paywall-more-perks*). With the dropdown gone and items merged into
+   the primary .paywall-list, these classes are now scoped to descend
+   from .paywall-list. Same visual treatment — clock-icon bullet, dashed
+   border, "Coming soon" pill, italic sub-line — just no longer hidden
+   behind a toggle. */
 .pmp-chevron {
   transition: transform 220ms ease;
 }
-.paywall-more-perks[open] .pmp-chevron {
-  transform: rotate(180deg);
-}
-.paywall-more-perks-list {
-  list-style: none;
-  padding: 8px 0 4px;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.paywall-more-perks-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink, #2b2218);
-  text-align: left;
-  background: rgba(244, 232, 208, 0.45);
-  border: 1px solid rgba(139, 111, 71, 0.14);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-.paywall-more-perks-list .bullet {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(139, 111, 71, 0.18);
-  color: var(--brown, #8b6f47);
-  font-size: 11px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-}
-.paywall-more-perks-list .pmp-bullet-soon {
+.paywall-list .pmp-bullet-soon {
   background: rgba(139, 111, 71, 0.10);
   color: var(--muted, #8a7a66);
 }
@@ -9280,51 +9056,35 @@ html[data-theme="dark"] .paywall-card .paywall-anchor {
   color: var(--muted, #6e5d48);
   line-height: 1.4;
 }
-.paywall-more-perks-list li:has(.pmp-bullet-soon) {
+.paywall-list li:has(.pmp-bullet-soon) {
   opacity: 0.92;
   background: rgba(244, 232, 208, 0.30);
   border-style: dashed;
 }
-/* Open animation — staggered fade-in for each list item so the
-   reveal feels intentional, not abrupt. */
-@keyframes pmpItemFadeIn {
-  0% { opacity: 0; transform: translateY(-4px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.paywall-more-perks[open] .paywall-more-perks-list li {
-  animation: pmpItemFadeIn 240ms ease-out both;
-}
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(2) { animation-delay: 40ms; }
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(3) { animation-delay: 80ms; }
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(4) { animation-delay: 120ms; }
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(5) { animation-delay: 160ms; }
 @media (prefers-reduced-motion: reduce) {
-  .paywall-more-perks[open] .paywall-more-perks-list li,
-  .pmp-chevron { animation: none; transition: none; }
+  .pmp-chevron { transition: none; }
 }
 
-/* Dark-mode treatment. */
-html[data-theme="dark"] .paywall-more-perks {
-  border-top-color: rgba(216, 176, 126, 0.18);
+/* Decorative chevron beneath the merged perks list — the old More-Perks
+   drop-banner arrow, repurposed as a static visual flow cue pointing
+   the eye toward the CTA below. Pure ornament. */
+.paywall-perks-flow {
+  display: flex;
+  justify-content: center;
+  margin: -4px 0 12px;
+  color: var(--brown, #8b6f47);
+  opacity: 0.55;
 }
-/* [DM-FIX] Same var(--cream)-as-text trap. Migrated to --ink / --brown-2
-   / --deep based on role (body / accent / heading). .pmp-sub alpha 0.65
-   lifted to solid --muted for legibility. */
-html[data-theme="dark"] .paywall-more-perks-summary {
+html[data-theme="dark"] .paywall-perks-flow {
   color: var(--brown-2);
 }
-html[data-theme="dark"] .paywall-more-perks-list li {
-  background: rgba(216, 176, 126, 0.08);
-  border-color: rgba(216, 176, 126, 0.16);
-  color: var(--ink);
-}
-html[data-theme="dark"] .paywall-more-perks-list li strong {
-  color: var(--deep);
-}
-html[data-theme="dark"] .paywall-more-perks-list li:has(.pmp-bullet-soon) {
+
+/* Dark-mode treatment for coming-soon perks (was scoped to
+   .paywall-more-perks-list — rescoped to .paywall-list). */
+html[data-theme="dark"] .paywall-list li:has(.pmp-bullet-soon) {
   background: rgba(216, 176, 126, 0.05);
 }
-html[data-theme="dark"] .paywall-more-perks-list .bullet {
+html[data-theme="dark"] .paywall-list .pmp-bullet-soon {
   background: rgba(216, 176, 126, 0.18);
   color: var(--brown-2);
 }
@@ -9835,66 +9595,9 @@ html[data-theme="dark"] .bn-tab-badge {
   flex-shrink: 0;
 }
 
-/* 2. Tier pill padding — more vertical air above + below the label */
-.paywall-card .pw-toggle-btn {
-  padding: 13px 14px;
-}
-
-/* 3. Save $24/yr + Pay once badges resized + repositioned as sticker.
-   Math (desktop, line-height-aware): rendered badge ≈ 22px tall
-   (font 12 with default line-height + padding 4×2). For ~5px overlap
-   of pill top edge: top = -(22 - 5) = -17px. */
-.paywall-card .pw-save {
-  position: absolute;
-  top: -17px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 4px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-  pointer-events: none; /* taps pass through to the tier pill */
-  z-index: 2;
-  /* background gradient + white color inherited from base .pw-save rule */
-}
-
-/* 4. MOST POPULAR ribbon — sits ABOVE Save on Annual with ~7px
-   breathing room between them.
-   Math (desktop): MOST POPULAR rendered ≈ 17px tall. Save top = -17.
-   MOST POPULAR bottom should sit at -17 - 7 = -24 → top = -24 - 17 = -41px. */
-.paywall-card .pw-most-popular {
-  top: -41px;
-  pointer-events: none; /* match badge behavior — pass clicks through */
-  z-index: 2;
-}
-
-/* 5. Mobile (<640px) — proportionally smaller padding + font sizes.
-   Math (line-height-aware): badge ≈ 20px tall. For ~5px overlap:
-   top = -(20 - 5) = -15px. MOST POPULAR ≈ 16px tall. For 7px
-   breathing room: bottom at -15-7 = -22 → top = -22-16 = -38px.
-   Anchor margin-bottom: 16px visible gap + 38px ribbon offset = 54px. */
-@media (max-width: 640px) {
-  .paywall-card .paywall-anchor {
-    margin: 6px 0 54px;
-  }
-  .paywall-card .pw-toggle-btn {
-    padding: 11px 12px;
-  }
-  .paywall-card .pw-save {
-    font-size: 11px;
-    padding: 3px 9px;
-    top: -15px;
-  }
-  .paywall-card .pw-most-popular {
-    top: -38px;
-  }
-}
-
-/* 6. 320px viewport safety — existing flex-wrap (line 8396) lets the
-   third pill drop to its own row if the row can't fit. Already in
-   place; no change needed. */
+/* [feat-paywall-restructure] Tier-pill / Save-badge / MOST-POPULAR
+   sticker positioning + mobile breakpoints all removed alongside the
+   toggle UI. Reattach with the real pricing UI at Stripe cutover. */
 
 /* ============================================================
    DARK_MODE_FIX_PASS (2026-04-27)

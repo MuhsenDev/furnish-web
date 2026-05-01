@@ -1187,7 +1187,7 @@
              premium_quality context). Per Reforge Product Marketing —
              Building Proof Point Pillars: sub restates OKT, not feature
              list. -->
-        <p class="subtle paywall-sub" id="paywallSub">Pro upgrades the AI on every redesign — sharper matches, better lighting, no compromises. $5.99/month, founding-member rate.</p>
+        <p class="subtle paywall-sub" id="paywallSub">Pro upgrades the AI on every redesign — sharper matches, better lighting, no compromises.</p>
       </div>
 
       <!-- Side-by-side comparison cards. Mobile stacks Free → Pro; ≥600px wide
@@ -1204,140 +1204,62 @@
         <!-- PRO CARD — varies copy per context, structure stays. -->
         <article class="paywall-pro-card">
           <div class="paywall-badge">Furnish Pro</div>
-          <!-- [Conflict 4 lock — fictitious "2,400+ reviews" claim removed.
-               Replaced with cancel-policy trust at the moment of payment per
-               Reforge Strategic Emphasis Pain Point-Based archetype: at the
-               paywall, the relevant pain is "will this charge me when I
-               forget?" Real trust > fake reviews. -->
-          <div class="paywall-social">
-            <span class="paywall-social-text"><strong>Cancel before day 7</strong> · No charge. We'll notify you a day before your trial ends.</span>
-          </div>
-
-          <!-- [Batch 5 — Dim 06 Section B.1] Renovation-cost anchor.
-               Per Reforge Convert + Use Case Model (Alternatives): anchor
-               against the consumer's existing alternative cost, not against
-               your own other plan. $5,200 is the HomeAdvisor median US
-               room-renovation cost. Frames Pro at <1% of one renovation. -->
-          <p class="paywall-anchor" aria-label="Cost comparison">
-            Average US room renovation: <strong>$5,200</strong> &nbsp;·&nbsp; Furnish Pro: <strong>$47.88 / year</strong>
-          </p>
-
-          <!-- [Batch 3 — Dim 03 R-Paywall3] Annual price anchor.
-               Per Reforge Convert And Activate p.4 (Figma critique slide):
-               anchor the annual price against monthly with concrete dollars
-               (Bargain motivational boost) + "Most Popular" pill (Belonging
-               boost). Concrete dollars beat percentages on mobile paywalls.
-               [Batch 5 — Dim 06 Section B.2] 3rd toggle "Lifetime" added as
-               decoy per Economist 3-tier study. Annual stays default-selected;
-               Lifetime anchors annual as obviously cheap by comparison. -->
-          <div class="paywall-toggle" role="tablist" aria-label="Billing period">
-            <button class="pw-toggle-btn" data-plan="monthly" role="tab" aria-selected="false">Monthly</button>
-            <button class="pw-toggle-btn active" data-plan="annual" role="tab" aria-selected="true">
-              <span class="pw-most-popular">MOST POPULAR</span>
-              Annual <span class="pw-save">Save $24/yr</span>
-            </button>
-            <button class="pw-toggle-btn" data-plan="lifetime" role="tab" aria-selected="false">
-              Lifetime <span class="pw-save">Pay once</span>
-            </button>
-          </div>
-
-          <!-- [Batch 5 — Dim 06 Section E entry 6] Annual prominence.
-               Total ($47.88/yr) raised to a headline-equivalent line so users
-               aren't doing $3.99 × 12 in their heads. Per Reforge Convert
-               (Figma critique): reduce cognitive friction at the decision
-               moment — burying the year total in a parenthetical wastes
-               the anchoring effect. -->
+          <!-- [feat-paywall-restructure] Pre-launch state: prices, plan
+               toggle, renovation-cost anchor, cancel-trust line, founding-
+               member scarcity, and competitive-reference footer all
+               removed. Pro is a "register interest" surface until pricing
+               is real. The earlier Reforge anchoring/scarcity stack
+               (Conflict 4 trust, Section B.1 renovation anchor, R-Paywall3
+               annual toggle, Section E.6 annual prominence, B.2 Lifetime
+               decoy) reattaches at Stripe cutover (DEFERRED.md item 1). -->
           <div class="paywall-price">
-            <span class="paywall-price-amount" id="paywallPrice">$47.88</span>
-            <span class="paywall-price-unit" id="paywallUnit">/year &nbsp;·&nbsp; $3.99/month equivalent</span>
+            <span class="paywall-price-amount">Coming soon for Pro</span>
           </div>
 
-          <!-- [Compute-quality routing] Pro feature list — anchored on what
-               Pro actually delivers under the new model.
-               [Batch 5 — Dim 06 Section C] Reordered per Packaging Strategy
-               Matrix: HD (loop-aligned, drives shares→acquisition→affiliate)
-               first; multi-profile (clean Use-Case Persona segmentation) #2;
-               advanced price filters (Add-on quadrant for power users) #3;
-               premium AI (legibility-weak Add-on, demoted) #4; templates #5.
-               [Conflict 3 lock — "coming soon" bullets stripped, moved to
-               Roadmap link in footer.] -->
+          <!-- [feat-paywall-restructure Item 4] Primary perks list — was
+               3 headline bullets + a "More Pro perks" <details> dropdown
+               of 5 more. Merged into a single flat list now that pricing
+               is gone (founding-member rate + cancel-anytime bullets had
+               nowhere to live; real-time push alerts on price drops kept
+               but the Free/Pro split parenthetical stripped — Free no
+               longer advertises price-drop alerts as a tier feature).
+               Coming-soon items keep their clock-icon + tag treatment.
+               The chevron SVG that used to indicate the dropdown is now
+               a decorative element below the list — visual flow cue
+               toward the CTA. -->
           <ul class="paywall-list">
             <li><span class="bullet">✓</span> <strong>HD downloads</strong> — no watermark, share-ready for Instagram &amp; Pinterest</li>
             <li><span class="bullet">✓</span> A separate style profile for every person in your home</li>
             <li><span class="bullet">✓</span> Premium AI quality — sharper, more accurate redesigns</li>
+            <li><span class="bullet">✓</span> <strong>Real-time push alerts</strong> — every price drop the moment it happens</li>
+            <li>
+              <span class="bullet pmp-bullet-soon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+              </span>
+              <span class="pmp-text">Multi-room batch design <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Design every room in one pass.</span></span>
+            </li>
+            <li>
+              <span class="bullet pmp-bullet-soon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+              </span>
+              <span class="pmp-text">Style that learns over time <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Saves, swaps, and price-drop taps feed your AI for sharper picks every redesign.</span></span>
+            </li>
           </ul>
 
-          <!-- [More Pro perks dropdown] Native <details> element so the
-               toggle is fully keyboard-navigable + screen-reader-aware
-               with zero JS. Lists every remaining Pro perk + the
-               currently-deferred coming-soon items. Per Conflict 3 lock,
-               coming-soon items get a clearly-labeled tag (disclosure-
-               only — we're not pricing them as available features). -->
-          <details class="paywall-more-perks" id="paywallMorePerks">
-            <summary class="paywall-more-perks-summary">
-              <span class="pmp-label">More Pro perks</span>
-              <svg class="pmp-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </summary>
-            <ul class="paywall-more-perks-list">
-              <li>
-                <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Founding-member rate</strong> — locks in your price for life</span>
-              </li>
-              <li>
-                <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Real-time push alerts</strong> — every price drop the moment it happens (Free tier sees the top picks; Pro sees them all)</span>
-              </li>
-              <li>
-                <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Cancel anytime</strong> before day 7 — no charge; we'll notify you a day before your trial ends</span>
-              </li>
-              <li>
-                <span class="bullet pmp-bullet-soon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
-                </span>
-                <span class="pmp-text">Multi-room batch design <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Design every room in one pass.</span></span>
-              </li>
-              <li>
-                <span class="bullet pmp-bullet-soon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
-                </span>
-                <span class="pmp-text">Style that learns over time <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Saves, swaps, and price-drop taps feed your AI for sharper picks every redesign.</span></span>
-              </li>
-            </ul>
-          </details>
-
-          <!-- [Batch 5 — Dim 06 Section E entry 9] Founding-member cap with
-               scarcity counter. Replaces unbounded "this month" framing with
-               a bounded "first 1,000 spots" promise. Per Reforge Convert
-               (Drift "Limited time only" pattern): scarcity + bounded
-               commitment. Bounds the lifetime-grandfather cost per
-               Cost of Revenue lens. -->
-          <div class="paywall-urgency">
-            Founding-member pricing — locks in for life.
-            <span class="paywall-urgency-cap">First <strong id="paywallFoundingSpots">1,000</strong> spots.</span>
+          <!-- [feat-paywall-restructure Item 4] Drop-banner chevron from
+               the retired More-Perks summary, repurposed as a decorative
+               visual flow indicator pointing from the perks list toward
+               the CTA below. Pure ornament — no toggle behavior. -->
+          <div class="paywall-perks-flow" aria-hidden="true">
+            <svg class="pmp-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
           </div>
 
           <div class="paywall-actions">
-            <button class="btn btn-primary big" id="paywallCta">Start 7-day free trial</button>
+            <button class="btn btn-primary big" id="paywallCta">Notify me when Pro launches</button>
             <button class="btn btn-ghost" id="paywallDismiss">Maybe later</button>
           </div>
-          <p class="muted small center paywall-footnote">
-            Cancel anytime before day 7 — no charge.
-            <span class="paywall-footnote-sep">·</span>
-            <a class="paywall-roadmap-link" id="paywallRoadmapLink">What's on the roadmap →</a>
-          </p>
-          <!-- [Batch 5 — Dim 06 Section B.3 + Dim 02 D02-10 expansion]
-               Competitive reference-price footer. Per Reforge Use Case
-               Model (Alternatives) + Reforge Monetization Reference Price:
-               the strongest anchor is *outside* your pricing tier ladder.
-               Modsy (acquired/wound down 2022) and Havenly are the closest
-               consumer-facing comparables. Multiple reference points
-               ascending into Furnish Pro = textbook anchor stack. -->
-          <p class="muted small center paywall-references" aria-label="Competitive reference">
-            Modsy (RIP) $159/room &nbsp;·&nbsp; Havenly $79&ndash;$499/room &nbsp;·&nbsp; Houzz Pro $50/mo &nbsp;·&nbsp; Designer $200+/hr &nbsp;·&nbsp; Furnish Pro $4/mo
-          </p>
         </article>
       </div>
     </div>
@@ -1408,7 +1330,7 @@
              affiliate click-through because users trust the recommendation
              more, not less. -->
         <p>We earn a small commission when you buy through Furnish — and that's how we keep AI redesigns free. No extra cost to you; the price is identical to going to the retailer directly.</p>
-        <p>Furnish Pro ($5.99/month) is the paid plan that funds the rest of what we do. Unlimited redesigns and the full catalog stay free for everyone.</p>
+        <p>Furnish Pro is the paid plan that funds the rest of what we do. Unlimited redesigns and the full catalog stay free for everyone.</p>
         <h4>What we don't do</h4>
         <ul>
           <li>We don't mark up prices.</li>
@@ -1583,29 +1505,12 @@
     </div>
   </div>
 
-  <!-- [Conflict 3 lock — Roadmap modal] Replaces "[coming soon]" bullets in
-       the Pro card. Per Reforge Monetization + Pricing — Packaging Strategies:
-       roadmap belongs in opt-in disclosure, not impersonating shipped
-       features. Opens from #paywallRoadmapLink in the paywall footer. -->
+  <!-- [feat-paywall-restructure] Roadmap modal + #paywallRoadmapLink
+       footer link removed. The 2 coming-soon items (Multi-room batch
+       design, Style that learns over time) now live solely as bullets
+       5 and 6 of the Pro card primary list — single source of truth,
+       no duplicate roadmap surface. -->
   <!-- [Bug 26] Reset Profile confirmation dialog removed. -->
-
-  <div class="modal" id="paywallRoadmapModal" aria-hidden="true">
-    <div class="modal-card paywall-roadmap-card">
-      <button class="modal-close" id="paywallRoadmapClose" aria-label="Close">×</button>
-      <h3>What's on the roadmap</h3>
-      <p class="muted small">Features we're building next. Founding-member pricing locks in your access — no extra charge when these ship.</p>
-      <ul class="paywall-roadmap-list">
-        <li>
-          <strong>Multi-room batch design</strong>
-          <span class="prl-body">Design every room in one pass. We're nailing the per-room cost model first.</span>
-        </li>
-        <li>
-          <strong>Style that learns over time</strong>
-          <span class="prl-body">Saves, swaps, and price-drop alerts feed your style profile. Better picks every redesign.</span>
-        </li>
-      </ul>
-    </div>
-  </div>
 
   <!-- [Item 3] Different Style modal removed (#differentStyleBtn no
        longer in DOM — modal is unreachable). -->

@@ -2613,12 +2613,14 @@
   const FREE_PLAN_CARD = Object.freeze({
     title: 'Furnish Free',
     subtitle: 'What you already have',
+    // [feat-paywall-restructure] Item swaps bullet removed alongside the
+    // results-screen swap UI (feat-results-cleanup-2). Price-drop-alerts
+    // bullet removed: feature is Pro-tier only now, so listing it on Free
+    // was misleading.
     bullets: Object.freeze([
       'Unlimited AI redesigns at standard quality',
-      'Unlimited item swaps',
       'Full shopping access — every item is yours to buy',
       'Basic personalization (style, mood)',
-      'Real-time price-drop alerts on saved items',
     ]),
     // [Batch 5 Part 2 — Dim 02 D02-3 modified] Cancellation-safety line.
     // Per Reforge User Psychology Psych Framework (Darius Contractor): the
@@ -2720,8 +2722,8 @@
     //  trigger a paywall (per Reforge Packaging Strategies: don't price
     //  features that don't exist). Both surfaces previously triggering
     //  these contexts now route to `generic` until the features ship.
-    //  Roadmap modal (#paywallRoadmapModal) discloses planned features
-    //  without impersonating shipped ones.]
+    //  [feat-paywall-restructure] Roadmap modal disclosure path removed;
+    //  the 2 coming-soon items now live as bullets 5+6 of the Pro card.]
     rearrange: {
       // [Model A — D10] Rearrange is FREE. Kept here for backward-compat in
       // case any stale call site tries to open this context — it'll fall
@@ -2766,16 +2768,9 @@
     // rejected, >15s=considered-and-rejected). Stored on the modal element
     // so concurrent contexts don't trample each other.
     m.dataset.shownAt = String(Date.now());
-    // [Batch 5 Part 2 — Dim 02 D02-8] Selective scarcity per context.
-    // Per Reforge Apply User Psych Painkiller-vs-Vitamin distinction:
-    // premium_quality is closer to painkiller (user just felt standard-
-    // quality limits) — adding scarcity reads as overselling. Abstract
-    // upsells (HD export, multi-profile, price filters, generic) are
-    // pure vitamin → need motivational boosts (urgency / scarcity) to
-    // clear the decision hill. `data-scarcity` toggles the visibility
-    // of `.paywall-urgency` (founding-member 1,000-spot copy).
-    const scarcityOnContexts = ['hd_export','profile','template_pro','generic'];
-    m.dataset.scarcity = scarcityOnContexts.includes(context) ? 'on' : 'off';
+    // [feat-paywall-restructure] Selective scarcity logic retired with the
+    // .paywall-urgency element. Reattach (with the founding-member counter
+    // or its successor) at Stripe cutover when prices are real.
     trackEvent('paywall_shown', { context, layout: layoutKey });
   }
   // [Batch 5 — Dim 06 Section D + E.8] Differentiated dismiss paths.
@@ -2808,36 +2803,11 @@
     }
   }
 
-  // [Batch 5 — Dim 06 Section B.2 + E.6] Monthly/Annual/Lifetime toggle.
-  // Lifetime = decoy tier per Reforge Pricing Strategies (Economist
-  // 3-tier study). Annual stays default-selected; Lifetime $99 anchors
-  // annual ($47.88/yr) as obviously cheap by comparison. Pre-Stripe,
-  // selecting Lifetime mocks the same Pro flag (existing
-  // grandfatherProUsers covers cutover). Section E.6 also raises Annual
-  // total ($47.88/yr) to the headline price line.
-  $$('.pw-toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('.pw-toggle-btn').forEach(b => {
-        const on = b === btn;
-        b.classList.toggle('active', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-      const plan = btn.dataset.plan;
-      const priceEl = $('#paywallPrice');
-      const unitEl = $('#paywallUnit');
-      let amount = '$5.99', unit = '/month';
-      if (plan === 'annual') {
-        // Annual prominence: lead with the year total, sub-line shows /mo equiv.
-        amount = '$47.88'; unit = '/year  ·  $3.99/month equivalent';
-      } else if (plan === 'lifetime') {
-        amount = '$99';    unit = 'one-time  ·  Pay once, never billed again';
-      }
-      if (priceEl) priceEl.textContent = amount;
-      if (unitEl) unitEl.textContent = unit;
-      if (state) state._paywallSelectedPlan = plan;
-      trackEvent('paywall_plan_selected', { plan });
-    });
-  });
+  // [feat-paywall-restructure] Monthly/Annual/Lifetime toggle handler
+  // removed — pricing UI gone until Stripe cutover. State key
+  // _paywallSelectedPlan + analytics event paywall_plan_selected retired
+  // with it. The Reforge decoy-tier model (Economist 3-tier) reattaches
+  // at cutover with real Stripe price IDs.
 
   // [Layer 7] FTC affiliate disclosure modal wiring
   document.getElementById('affiliateLearnMore')?.addEventListener('click', e => {
@@ -2861,39 +2831,14 @@
     }
   });
 
-  // [Conflict 3 lock — Roadmap modal wiring] Replaces "[coming soon]"
-  // Pro bullets. Per Reforge Monetization + Pricing — Packaging
-  // Strategies: roadmap is opt-in disclosure, not impersonating shipped
-  // features. Opens from #paywallRoadmapLink (paywall footer).
-  document.getElementById('paywallRoadmapLink')?.addEventListener('click', e => {
-    e.preventDefault();
-    const m = document.getElementById('paywallRoadmapModal');
-    if (!m) return;
-    m.classList.add('open');
-    m.setAttribute('aria-hidden', 'false');
-    trackEvent('paywall_roadmap_viewed');
-  });
+  // [feat-paywall-restructure Item 4] More-Pro-perks <details> dropdown
+  // merged into the primary .paywall-list — no expand/collapse left to
+  // measure. paywall_more_perks_opened/_closed analytics retired with it.
 
-  // [More Pro perks dropdown] Native <details> toggle event. Fires
-  // analytics on each expand/collapse so dashboards can measure
-  // dropdown engagement (high open-rate = users want more disclosure;
-  // low rate = the headline 5 bullets cover the decision).
-  document.getElementById('paywallMorePerks')?.addEventListener('toggle', (e) => {
-    const opened = e.target.open;
-    trackEvent(opened ? 'paywall_more_perks_opened' : 'paywall_more_perks_closed');
-  });
-  document.getElementById('paywallRoadmapClose')?.addEventListener('click', () => {
-    const m = document.getElementById('paywallRoadmapModal');
-    if (!m) return;
-    m.classList.remove('open');
-    m.setAttribute('aria-hidden', 'true');
-  });
-  document.getElementById('paywallRoadmapModal')?.addEventListener('click', e => {
-    if (e.target.id === 'paywallRoadmapModal') {
-      e.target.classList.remove('open');
-      e.target.setAttribute('aria-hidden', 'true');
-    }
-  });
+  // [feat-paywall-restructure] Roadmap modal removed entirely. Open +
+  // close + backdrop handlers retired with it. paywall_roadmap_viewed
+  // analytics event also gone. The 2 coming-soon items live solely as
+  // bullets 5+6 of the Pro card primary list.
 
   // [Batch 5 — Dim 06 Section D + E.8] Differentiated dismiss reasons.
   // Each path passes its specific reason to closePaywall for analytics +
