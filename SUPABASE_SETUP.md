@@ -87,6 +87,12 @@ create table public.user_settings (
 -- For existing tables predating compute-quality routing, run:
 -- alter table public.user_settings add column if not exists generations_used integer default 0;
 
+-- [feat-pre-ai-bridge Item 2] Feedback-survey cooldown timestamp.
+-- Cross-device cooldown gating for the Saved-tab "Tell us how we did!"
+-- survey. state.user.surveyLastShownAt millisecond timestamp; default
+-- 0 = never shown, eligible immediately. Run on existing databases:
+-- alter table public.user_settings add column if not exists survey_last_shown_at bigint default 0;
+
 -- Row-level security: every user sees only their own data
 alter table public.profiles       enable row level security;
 alter table public.rooms          enable row level security;

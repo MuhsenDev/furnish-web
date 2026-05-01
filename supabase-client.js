@@ -246,6 +246,19 @@
           state.user.generationsUsed = settings.generations_used;
           state.user.redesignsUsed = settings.generations_used; // legacy mirror
         }
+        // [feat-pre-ai-bridge Item 2] Feedback-survey cooldown
+        // timestamp. Cross-device persistence so a 76-hour cooldown
+        // honored on the user's phone also gates the same window on
+        // their tablet. Server schema needs:
+        //   alter table public.user_settings
+        //     add column if not exists survey_last_shown_at bigint default 0;
+        // Documented in SUPABASE_SETUP.md. Until that runs, this read
+        // is a no-op (settings.survey_last_shown_at is undefined,
+        // state.user.surveyLastShownAt stays at its localStorage
+        // value).
+        if (typeof settings.survey_last_shown_at === 'number') {
+          state.user.surveyLastShownAt = settings.survey_last_shown_at;
+        }
       }
     }
   }
@@ -277,6 +290,12 @@
       bookmarked_rooms: state.bookmarkedRooms || [],
       is_pro: !!state.user?.isPro,
       generations_used: Number(state.user?.generationsUsed || state.user?.redesignsUsed || 0),
+      // [feat-pre-ai-bridge Item 2] Feedback-survey cooldown timestamp
+      // pushed alongside other user_settings fields. Server column
+      // needs the migration in SUPABASE_SETUP.md to land; until then,
+      // PostgREST will reject this field but the rest of the row still
+      // upserts (degraded — single-device-only cooldown via localStorage).
+      survey_last_shown_at: Number(state.user?.surveyLastShownAt || 0),
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
 

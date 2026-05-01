@@ -858,6 +858,59 @@
       <div class="saved-pane" id="savedItemsPane" style="display:none">
         <div class="items-list" id="savedItemsGrid"></div>
       </div>
+
+      <!-- [feat-pre-ai-bridge Item 2 — REWRITE] Feedback survey. Sits
+           at the bottom of the Saved tab regardless of which sub-pane
+           (Homes / Rooms / Items) is active. Show eligibility:
+           state.user.surveyLastShownAt > 76h ago (or 0/undefined) AND
+           Math.random() < 0.2. On render, the timestamp is updated to
+           Date.now() — cooldown ticks regardless of how the user
+           responds (or doesn't). State machine (prompt → feedback →
+           thanks) and mailto:support@furnish.live submission match the
+           prior spec; the trigger surface is what changed. -->
+      <aside class="fb-survey" id="feedbackSurvey" hidden role="region" aria-label="Feedback survey">
+        <button class="fb-survey-close" id="fbSurveyClose" type="button" aria-label="Dismiss survey">×</button>
+        <div class="fb-survey-stage fb-survey-stage--prompt" data-stage="prompt">
+          <h4 class="fb-survey-title">Tell us how we did!</h4>
+          <div class="fb-survey-faces" role="group" aria-label="Choose a sentiment">
+            <button class="fb-face fb-face-sad" type="button" data-sentiment="sad" aria-label="Sad">
+              <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" fill="#7DA8D9" stroke="#5A86B8" stroke-width="1.5"/>
+                <circle cx="11" cy="13" r="1.6" fill="#1F3550"/>
+                <circle cx="21" cy="13" r="1.6" fill="#1F3550"/>
+                <path d="M10 22 Q16 18 22 22" stroke="#1F3550" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="fb-face fb-face-neutral" type="button" data-sentiment="neutral" aria-label="Neutral">
+              <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" fill="#B9B5AE" stroke="#8A857C" stroke-width="1.5"/>
+                <circle cx="11" cy="13" r="1.6" fill="#2A2722"/>
+                <circle cx="21" cy="13" r="1.6" fill="#2A2722"/>
+                <line x1="10" y1="21" x2="22" y2="21" stroke="#2A2722" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="fb-face fb-face-happy" type="button" data-sentiment="happy" aria-label="Happy">
+              <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                <circle cx="16" cy="16" r="14" fill="#F5C84B" stroke="#C29A2A" stroke-width="1.5"/>
+                <circle cx="11" cy="13" r="1.6" fill="#3A2A0A"/>
+                <circle cx="21" cy="13" r="1.6" fill="#3A2A0A"/>
+                <path d="M10 19 Q16 24 22 19" stroke="#3A2A0A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="fb-survey-stage fb-survey-stage--feedback" data-stage="feedback" hidden>
+          <p class="fb-survey-prompt" id="fbSurveyPrompt">Tell us what went wrong (optional)</p>
+          <textarea class="fb-survey-input" id="fbSurveyInput" maxlength="600" rows="3" placeholder="What didn't work for you? Anything we should know?"></textarea>
+          <div class="fb-survey-actions">
+            <button class="btn btn-primary small" id="fbSurveySubmit" type="button">Send feedback</button>
+            <button class="btn btn-ghost small" id="fbSurveySkip" type="button">Skip</button>
+          </div>
+        </div>
+        <div class="fb-survey-stage fb-survey-stage--thanks" data-stage="thanks" hidden>
+          <p class="fb-survey-thanks">Thanks — noted.</p>
+        </div>
+      </aside>
     </section>
 
     <!-- [Save Home] Saved home detail view — opens when user taps a
@@ -1284,58 +1337,6 @@
 
       <!-- [Item 11] "How does this feel?" aha-feedback prompt removed. -->
 
-      <!-- [feat-pre-ai-bridge Item 2] Post-generation sentiment survey.
-           Slides up after the redesign reveals; once-per-session
-           dedup'd via an in-memory flag (NOT persisted) so the survey
-           reappears on app reload. Three custom-SVG faces (sad / neutral
-           / happy — no emoji per CLAUDE.md). Sad/Neutral reveals an
-           optional textbox; submit opens mailto:support@furnish.live
-           with sentiment + room type + timestamp pre-filled.
-           Hidden by default; openPostGenSurvey() in app.js controls
-           reveal + transitions through the response states. -->
-      <aside class="pg-survey" id="postGenSurvey" hidden role="region" aria-label="Post-generation feedback">
-        <button class="pg-survey-close" id="pgSurveyClose" type="button" aria-label="Dismiss survey">×</button>
-        <div class="pg-survey-stage pg-survey-stage--prompt" data-stage="prompt">
-          <h4 class="pg-survey-title">Tell us how we did!</h4>
-          <div class="pg-survey-faces" role="group" aria-label="Choose a sentiment">
-            <button class="pg-face pg-face-sad" type="button" data-sentiment="sad" aria-label="Sad">
-              <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-                <circle cx="16" cy="16" r="14" fill="#7DA8D9" stroke="#5A86B8" stroke-width="1.5"/>
-                <circle cx="11" cy="13" r="1.6" fill="#1F3550"/>
-                <circle cx="21" cy="13" r="1.6" fill="#1F3550"/>
-                <path d="M10 22 Q16 18 22 22" stroke="#1F3550" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button class="pg-face pg-face-neutral" type="button" data-sentiment="neutral" aria-label="Neutral">
-              <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-                <circle cx="16" cy="16" r="14" fill="#B9B5AE" stroke="#8A857C" stroke-width="1.5"/>
-                <circle cx="11" cy="13" r="1.6" fill="#2A2722"/>
-                <circle cx="21" cy="13" r="1.6" fill="#2A2722"/>
-                <line x1="10" y1="21" x2="22" y2="21" stroke="#2A2722" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <button class="pg-face pg-face-happy" type="button" data-sentiment="happy" aria-label="Happy">
-              <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-                <circle cx="16" cy="16" r="14" fill="#F5C84B" stroke="#C29A2A" stroke-width="1.5"/>
-                <circle cx="11" cy="13" r="1.6" fill="#3A2A0A"/>
-                <circle cx="21" cy="13" r="1.6" fill="#3A2A0A"/>
-                <path d="M10 19 Q16 24 22 19" stroke="#3A2A0A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="pg-survey-stage pg-survey-stage--feedback" data-stage="feedback" hidden>
-          <p class="pg-survey-prompt" id="pgSurveyPrompt">Tell us what went wrong (optional)</p>
-          <textarea class="pg-survey-input" id="pgSurveyInput" maxlength="600" rows="3" placeholder="What didn't work for you? Anything we should know?"></textarea>
-          <div class="pg-survey-actions">
-            <button class="btn btn-primary small" id="pgSurveySubmit" type="button">Send feedback</button>
-            <button class="btn btn-ghost small" id="pgSurveySkip" type="button">Skip</button>
-          </div>
-        </div>
-        <div class="pg-survey-stage pg-survey-stage--thanks" data-stage="thanks" hidden>
-          <p class="pg-survey-thanks">Thanks — noted.</p>
-        </div>
-      </aside>
 
       <div class="totals-card" id="totalsCard"></div>
       <!-- [Items 1-3] reveal-actions-row removed entirely. Was: Shop The

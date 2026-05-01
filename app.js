@@ -6665,6 +6665,10 @@
     const active = document.querySelector('.st-tab.active')?.dataset?.st || 'homes';
     showSavedPane(active);
     updateSavedTabBadge();
+    // [feat-pre-ai-bridge Item 2] Feedback survey — eligibility check
+    // happens on every Saved-tab render. shouldShowFeedbackSurvey
+    // gates on the 76-hour cooldown + 20% probability roll.
+    maybeShowFeedbackSurvey();
   }
 
   function showSavedPane(which) {
@@ -6681,6 +6685,184 @@
     else if (which === 'rooms') renderSavedRooms();
     else renderSavedItems();
   }
+
+  // [feat-pre-ai-bridge Item 2 — REWRITE] Feedback survey on Saved tab.
+  // Replaces the prior results-screen post-generation survey (wrong
+  // trigger + wrong placement). Eligibility:
+  //   1. User on Saved tab (renderSaved invokes this directly)
+  //   2. state.user.surveyLastShownAt > 76h ago (or 0 / undefined)
+  //   3. Math.random() < 0.2
+  // On render: timestamp updates to Date.now() and persists. Cooldown
+  // ticks regardless of whether the user dismisses, responds, or
+  // ignores the survey — they won't see it again for at least 76h.
+  // CLOUD SYNC: state.user.surveyLastShownAt is threaded through
+  // user_settings via supabase-client.js (push: survey_last_shown_at
+  // field; pull: hydrates state.user.surveyLastShownAt). Server schema
+  // needs `alter table user_settings add column if not exists
+  // survey_last_shown_at bigint default 0;` — documented in
+  // SUPABASE_SETUP.md. Until that runs, the upsert tolerates the
+  // missing column gracefully (Supabase rejects the unknown field
+  // but the rest of the row writes; localStorage persists the value
+  // for single-device cooldown).
+  const SURVEY_COOLDOWN_MS = 76 * 60 * 60 * 1000;
+  const SURVEY_PROBABILITY = 0.2;
+  let _surveySentimentChosen = null;
+  let _surveyMostRecentRoom = null;
+
+  function shouldShowFeedbackSurvey() {
+    if (!state.user) return false;
+    const lastShown = Number(state.user.surveyLastShownAt) || 0;
+    if (Date.now() - lastShown < SURVEY_COOLDOWN_MS) return false;
+    return Math.random() < SURVEY_PROBABILITY;
+  }
+
+  function maybeShowFeedbackSurvey() {
+    if (!shouldShowFeedbackSurvey()) return;
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    // Reset stage visibility (defensive — same DOM element reused
+    // across cooldown windows; previous open may have left a different
+    // stage active).
+    const promptStage = survey.querySelector('[data-stage="prompt"]');
+    const feedbackStage = survey.querySelector('[data-stage="feedback"]');
+    const thanksStage = survey.querySelector('[data-stage="thanks"]');
+    if (promptStage) promptStage.hidden = false;
+    if (feedbackStage) feedbackStage.hidden = true;
+    if (thanksStage) thanksStage.hidden = true;
+    const ta = document.getElementById('fbSurveyInput');
+    if (ta) ta.value = '';
+    _surveySentimentChosen = null;
+    // Snapshot the most-recent room (if any) so submitted feedback can
+    // include room context. Falls back to 'N/A' in the mailto if the
+    // user has never generated anything.
+    const rooms = state.rooms || [];
+    _surveyMostRecentRoom = rooms.length ? rooms[rooms.length - 1] : null;
+    // Update the cooldown timestamp + persist BEFORE animation. Even
+    // if the user immediately navigates away, the cooldown is locked.
+    if (!state.user) state.user = {};
+    state.user.surveyLastShownAt = Date.now();
+    save();
+    survey.hidden = false;
+    requestAnimationFrame(() => survey.classList.add('open'));
+    trackEvent('survey_shown', {
+      surface: 'saved_tab',
+      room_type: _surveyMostRecentRoom?.type || null
+    });
+  }
+
+  function dismissFeedbackSurvey(reason /* 'close' | 'happy' | 'submitted' | 'skip' */) {
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    survey.classList.remove('open');
+    setTimeout(() => { survey.hidden = true; }, 280);
+    if (reason === 'close') {
+      trackEvent('survey_dismissed', {
+        surface: 'saved_tab',
+        sentiment: _surveySentimentChosen,
+        room_type: _surveyMostRecentRoom?.type || null
+      });
+    }
+  }
+
+  function handleFeedbackSurveyFace(sentiment) {
+    _surveySentimentChosen = sentiment;
+    const hasFeedback = sentiment === 'sad' || sentiment === 'neutral';
+    trackEvent('survey_response', {
+      surface: 'saved_tab',
+      sentiment,
+      hasFeedback,
+      room_type: _surveyMostRecentRoom?.type || null
+    });
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    if (sentiment === 'happy') {
+      survey.querySelector('[data-stage="prompt"]').hidden = true;
+      survey.querySelector('[data-stage="thanks"]').hidden = false;
+      setTimeout(() => dismissFeedbackSurvey('happy'), 1200);
+      return;
+    }
+    // Sad / neutral: reveal optional feedback textbox.
+    survey.querySelector('[data-stage="prompt"]').hidden = true;
+    survey.querySelector('[data-stage="feedback"]').hidden = false;
+    const promptEl = document.getElementById('fbSurveyPrompt');
+    if (promptEl) {
+      promptEl.textContent = sentiment === 'sad'
+        ? 'Tell us what went wrong (optional)'
+        : 'What could be better? (optional)';
+    }
+    setTimeout(() => {
+      const ta = document.getElementById('fbSurveyInput');
+      if (ta) ta.focus();
+    }, 80);
+  }
+
+  function submitFeedbackSurveyFeedback() {
+    const ta = document.getElementById('fbSurveyInput');
+    const text = (ta?.value || '').trim().slice(0, 600);
+    const sentiment = _surveySentimentChosen || 'unspecified';
+    trackEvent('survey_feedback_submitted', {
+      surface: 'saved_tab',
+      sentiment,
+      textLength: text.length,
+      room_type: _surveyMostRecentRoom?.type || null
+    });
+    const subject = `Furnish feedback (${sentiment})`;
+    const bodyLines = [
+      `Sentiment: ${sentiment}`,
+      '',
+      `Most recent room: ${_surveyMostRecentRoom?.type || 'N/A'}`,
+      `Submitted at: ${new Date().toISOString()}`,
+      '',
+      'User feedback:',
+      text || '(no additional comment)'
+    ];
+    const body = bodyLines.join('\n');
+    const mailto = 'mailto:support@furnish.live?subject='
+      + encodeURIComponent(subject)
+      + '&body='
+      + encodeURIComponent(body);
+    // Open the user's mail client via transient anchor + click —
+    // matches the user's last gesture so browsers don't pop-up-block.
+    const a = document.createElement('a');
+    a.href = mailto;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    const survey = document.getElementById('feedbackSurvey');
+    if (!survey) return;
+    survey.querySelector('[data-stage="feedback"]').hidden = true;
+    survey.querySelector('[data-stage="thanks"]').hidden = false;
+    setTimeout(() => dismissFeedbackSurvey('submitted'), 1400);
+  }
+
+  function skipFeedbackSurveyFeedback() {
+    // Sad/neutral with Skip on the textbox. Sentiment was already
+    // recorded by handleFeedbackSurveyFace; just dismiss without
+    // firing survey_feedback_submitted.
+    dismissFeedbackSurvey('skip');
+  }
+
+  // Wire up survey controls. Idempotent — DOM is static in
+  // index.html, not re-rendered, so a single bind on app boot is
+  // sufficient. All elements .?-checked since the IIFE runs even on
+  // screens where #feedbackSurvey hasn't rendered yet.
+  (function wireFeedbackSurvey() {
+    const close = document.getElementById('fbSurveyClose');
+    if (close) close.addEventListener('click', () => dismissFeedbackSurvey('close'));
+    document.querySelectorAll('.fb-face').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = btn.dataset.sentiment;
+        if (s === 'sad' || s === 'neutral' || s === 'happy') {
+          handleFeedbackSurveyFace(s);
+        }
+      });
+    });
+    const submit = document.getElementById('fbSurveySubmit');
+    if (submit) submit.addEventListener('click', submitFeedbackSurveyFeedback);
+    const skip = document.getElementById('fbSurveySkip');
+    if (skip) skip.addEventListener('click', skipFeedbackSurveyFeedback);
+  })();
 
   function renderSavedRooms() {
     const grid = $('#savedRoomsGrid');
@@ -9185,14 +9367,6 @@
     // match Section C spec. CSS keyframes do the actual motion; this
     // function only adds/removes class flags at the right moments.
     runRevealChoreography();
-
-    // [feat-pre-ai-bridge Item 2] Post-generation sentiment survey.
-    // Fires once per session (in-memory dedup, NOT persisted —
-    // resets on app reload). Delayed past the reveal choreography
-    // (~3300ms total) so the survey doesn't compete with the
-    // image fade-in / overlay flash / totals-card slide-up. Bails
-    // out cleanly if the user navigates away mid-delay.
-    maybePostGenSurvey(room);
   }
 
   // [B2-15 / Dim 11 D.2 + B2-21 / Dim 11 D.8]
@@ -9238,180 +9412,6 @@
       setTimeout(() => totalsCard?.classList.remove('entering'), 460);
     }, 2700);
   }
-
-  // [feat-pre-ai-bridge Item 2] Post-generation sentiment survey.
-  // Fires once per session (in-memory dedup). State machine: prompt
-  // (3 faces) → on sad/neutral, reveals optional feedback textbox →
-  // on submit, opens mailto with sentiment + room + timestamp body.
-  // Happy path skips the textbox and dismisses immediately.
-  // _sessionSurveyShown is a module-level closure variable, not a
-  // state.* field — guarantees it's NEVER persisted to localStorage
-  // (so app reload = fresh survey opportunity, matching spec).
-  let _sessionSurveyShown = false;
-  let _surveyRoomRef = null;
-  let _surveySentimentChosen = null;
-
-  function maybePostGenSurvey(room) {
-    if (_sessionSurveyShown) return;
-    if (!room) return;
-    _sessionSurveyShown = true;
-    _surveyRoomRef = room;
-    _surveySentimentChosen = null;
-    // Delay past the reveal choreography (~3300ms) so the survey
-    // doesn't compete with image fade-in / overlay flash / totals-
-    // card slide-up. Bail if user navigates away mid-delay.
-    setTimeout(() => {
-      const resultsActive = document.querySelector('.screen[data-screen="results"].active');
-      if (!resultsActive) return;
-      openPostGenSurvey();
-    }, 3800);
-  }
-
-  function openPostGenSurvey() {
-    const survey = document.getElementById('postGenSurvey');
-    if (!survey) return;
-    // Reset stage visibility (defensive — same DOM element reused
-    // across rooms within a session, but session-flag dedup means
-    // this only fires once anyway).
-    survey.querySelector('[data-stage="prompt"]').hidden = false;
-    survey.querySelector('[data-stage="feedback"]').hidden = true;
-    survey.querySelector('[data-stage="thanks"]').hidden = true;
-    const ta = document.getElementById('pgSurveyInput');
-    if (ta) ta.value = '';
-    survey.hidden = false;
-    // RAF to let display:flex paint before the slide-up class triggers
-    // the transition.
-    requestAnimationFrame(() => survey.classList.add('open'));
-    trackEvent('survey_shown', {
-      roomId: _surveyRoomRef?.id || null,
-      room_type: _surveyRoomRef?.type || null
-    });
-  }
-
-  function dismissPostGenSurvey(reason /* 'close' | 'happy' | 'submitted' | 'skip' */) {
-    const survey = document.getElementById('postGenSurvey');
-    if (!survey) return;
-    survey.classList.remove('open');
-    // Wait for the slide-down transition to finish before display:none
-    // so the user sees the exit animation.
-    setTimeout(() => { survey.hidden = true; }, 280);
-    if (reason === 'close') {
-      trackEvent('survey_dismissed', {
-        sentiment: _surveySentimentChosen,
-        roomId: _surveyRoomRef?.id || null,
-        room_type: _surveyRoomRef?.type || null
-      });
-    }
-  }
-
-  function handlePostGenSurveyFace(sentiment) {
-    _surveySentimentChosen = sentiment;
-    const hasFeedback = sentiment === 'sad' || sentiment === 'neutral';
-    trackEvent('survey_response', {
-      sentiment,
-      hasFeedback,
-      roomId: _surveyRoomRef?.id || null,
-      room_type: _surveyRoomRef?.type || null
-    });
-    if (sentiment === 'happy') {
-      // Happy path: brief thanks beat, then dismiss.
-      const survey = document.getElementById('postGenSurvey');
-      if (!survey) return;
-      survey.querySelector('[data-stage="prompt"]').hidden = true;
-      survey.querySelector('[data-stage="thanks"]').hidden = false;
-      setTimeout(() => dismissPostGenSurvey('happy'), 1200);
-      return;
-    }
-    // Sad / neutral: reveal optional feedback textbox.
-    const survey = document.getElementById('postGenSurvey');
-    if (!survey) return;
-    survey.querySelector('[data-stage="prompt"]').hidden = true;
-    survey.querySelector('[data-stage="feedback"]').hidden = false;
-    const promptEl = document.getElementById('pgSurveyPrompt');
-    if (promptEl) {
-      promptEl.textContent = sentiment === 'sad'
-        ? 'Tell us what went wrong (optional)'
-        : 'What could be better? (optional)';
-    }
-    setTimeout(() => {
-      const ta = document.getElementById('pgSurveyInput');
-      if (ta) ta.focus();
-    }, 80);
-  }
-
-  function submitPostGenSurveyFeedback() {
-    const ta = document.getElementById('pgSurveyInput');
-    const text = (ta?.value || '').trim().slice(0, 600);
-    const sentiment = _surveySentimentChosen || 'unspecified';
-    trackEvent('survey_feedback_submitted', {
-      sentiment,
-      textLength: text.length,
-      roomId: _surveyRoomRef?.id || null,
-      room_type: _surveyRoomRef?.type || null
-    });
-    // Build mailto: sentiment + room type + timestamp + user text.
-    // URL-encode to handle newlines, spaces, and special characters.
-    const subject = `Furnish feedback (${sentiment})`;
-    const bodyLines = [
-      `Sentiment: ${sentiment}`,
-      '',
-      `Room type: ${_surveyRoomRef?.type || 'unknown'}`,
-      `Generated at: ${new Date().toISOString()}`,
-      '',
-      'User feedback:',
-      text || '(no additional comment)'
-    ];
-    const body = bodyLines.join('\n');
-    const mailto = 'mailto:support@furnish.live?subject='
-      + encodeURIComponent(subject)
-      + '&body='
-      + encodeURIComponent(body);
-    // Open the user's mail client. Use a transient anchor + click so
-    // the navigation happens via the user's last gesture (the Send
-    // click), satisfying browser pop-up rules. window.open also works
-    // in modern browsers for mailto: but the anchor approach is more
-    // reliable across in-app webviews.
-    const a = document.createElement('a');
-    a.href = mailto;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    // Show the brief thanks beat then dismiss. Same pattern as happy.
-    const survey = document.getElementById('postGenSurvey');
-    if (!survey) return;
-    survey.querySelector('[data-stage="feedback"]').hidden = true;
-    survey.querySelector('[data-stage="thanks"]').hidden = false;
-    setTimeout(() => dismissPostGenSurvey('submitted'), 1400);
-  }
-
-  function skipPostGenSurveyFeedback() {
-    // User picked sad/neutral but tapped Skip on the textbox path.
-    // Sentiment was already recorded by handlePostGenSurveyFace; just
-    // dismiss without firing survey_feedback_submitted.
-    dismissPostGenSurvey('skip');
-  }
-
-  // Wire up survey controls. Idempotent — safe even if elements
-  // missing or re-bound (single addEventListener per element across
-  // the IIFE's lifetime; event delegation not needed since the survey
-  // DOM is static in index.html, not re-rendered).
-  (function wirePostGenSurvey() {
-    const close = document.getElementById('pgSurveyClose');
-    if (close) close.addEventListener('click', () => dismissPostGenSurvey('close'));
-    document.querySelectorAll('.pg-face').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const s = btn.dataset.sentiment;
-        if (s === 'sad' || s === 'neutral' || s === 'happy') {
-          handlePostGenSurveyFace(s);
-        }
-      });
-    });
-    const submit = document.getElementById('pgSurveySubmit');
-    if (submit) submit.addEventListener('click', submitPostGenSurveyFeedback);
-    const skip = document.getElementById('pgSurveySkip');
-    if (skip) skip.addEventListener('click', skipPostGenSurveyFeedback);
-  })();
 
   function showFirstAhaHint() {
     // [feat-pre-launch-bundle followups Item 2] Guard against the
