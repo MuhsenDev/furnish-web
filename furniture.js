@@ -452,8 +452,8 @@ window.ONBOARDING_QUESTIONS = [
     headline: 'What are we redesigning?',
     image_kind: 'icon',
     options: [
-      { id:'just_furniture',  label:'Just the furniture. Keep my walls and floors.', svg:'scope-furniture' },
-      { id:'furniture_decor', label:'Furniture and decor. Accessories, art, plants.',svg:'scope-furniture-decor' },
+      { id:'just_furniture',  label:'Just the furniture',  svg:'scope-furniture' },
+      { id:'furniture_decor', label:'Furniture and Decor', svg:'scope-furniture-decor' },
       { id:'whole_room',      label:'The whole room. Everything.',                   svg:'scope-whole-room' },
       { id:'surprise_me',     label:'Surprise me. Go full transformation.',          svg:'scope-surprise' }
     ],
