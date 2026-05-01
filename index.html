@@ -966,37 +966,16 @@
       <!-- [Item 11] "How does this feel?" aha-feedback prompt removed. -->
 
 
-      <!-- [Model A] Primary affiliate CTA — restored to "Shop the Whole Room"
-           semantics. Free for everyone. The Reshuffle button is unhidden below
-           so both actions are accessible.
-           [Dim 14 Top 3 #1] "Different Style?" CTA added beside it as the
-           highest-leverage edge-case fix in Batch 1. Per Reforge Strategies
-           For At-Risk Users — Strategy Two: Use Case Transition. The "no
-           items liked" failure mode produces ~20–30% of redesigns with zero
-           shop clicks; the 1-tap style pivot transforms that from a churn
-           event into a continued session. -->
       <div class="totals-card" id="totalsCard"></div>
-      <!-- [Batch 4 — Dim 08 Top 3 #1] Reveal-moment "Share This Room" CTA.
-           Per Reforge Social Viral Loops Lesson 4: the experience-vs-
-           expectation delta peaks IMMEDIATELY after reveal. The header
-           share-icon at index.html:800 fires too late. Three CTAs at the
-           emotional peak: Shop / Share / Different Style. Lifecycle-aware
-           default format chosen by FurnishDefaultShareFormat. -->
-      <div class="totals-card" id="totalsCard"></div>
-      <div class="reveal-actions-row">
-        <button class="btn btn-primary big shop-all-btn" id="shopAllBtn">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M3 4h3l2.5 12h11l2-8H7"/><circle cx="10" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>
-          Shop The Whole Room
-        </button>
-        <button class="btn btn-ghost reveal-share-btn" id="revealShareBtn" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8 11l8-4M8 13l8 4"/></svg>
-          Share This Room
-        </button>
-        <button class="btn btn-ghost different-style-btn" id="differentStyleBtn" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/><path d="M12 9v6"/></svg>
-          Different Style?
-        </button>
-      </div>
+      <!-- [Items 1-3] reveal-actions-row removed entirely. Was: Shop The
+           Whole Room (#shopAllBtn) + Share This Room (#revealShareBtn) +
+           Different Style? (#differentStyleBtn). Bookmark + share-icon
+           in the topbar at lines 921-922 stay as discreet alternatives.
+           [Item 6] Bonus: duplicate <div class="totals-card" id="totalsCard">
+           that previously sat between the comment block and reveal-actions-
+           row (rendering as an empty white rectangle since renderResults
+           populated only the first totalsCard) is also removed. -->
+
 
       <!-- [Dim 10 Rec 5 — Affiliate Disclosure V2] Per Hassan's locked
            Affiliate-Maximalist decision, FTC compliance is the floor; trust
@@ -1053,9 +1032,9 @@
       <!-- [Reforge Retention — Habit Moment frequency / return-loop salience]
            This is the highest-leverage habit-forming action on the results
            screen: it loops the user back to the gallery to start the next
-           design. Visually peer-level with "Shop The Whole Room" but using
-           a complementary palette (light gradient vs dark brown) so they
-           don't compete for primary attention. -->
+           design. Standalone visual treatment now that the prior
+           reveal-actions-row CTAs (Shop / Share / Different Style) were
+           removed. -->
       <div class="results-explore">
         <button class="btn-explore-more" data-go="home" type="button">
           <span class="bem-shine" aria-hidden="true"></span>
@@ -1628,22 +1607,9 @@
     </div>
   </div>
 
-  <!-- [Dim 14 Top 3 #1 — Different Style modal] Opens from #differentStyleBtn
-       on the reveal screen. 6 alternative style chips, ordered by adjacency
-       to the user's current style. Tapping a chip re-runs pickItemsForRoom()
-       with the new style override (no AI compute call — pure local re-pick)
-       and pushes a new version on the same room. ~2 seconds total. Per
-       Reforge Strategies For At-Risk Users → Use Case Transition. -->
-  <div class="modal" id="differentStyleModal" aria-hidden="true">
-    <div class="modal-card different-style-card">
-      <button class="modal-close" id="differentStyleClose" aria-label="Close">×</button>
-      <h3>Try a different style?</h3>
-      <p class="muted small">Same room, same items pool — different aesthetic. Your original is saved.</p>
-      <div class="different-style-grid" id="differentStyleGrid">
-        <!-- 6 chip buttons rendered by openStylePivotModal() in app.js -->
-      </div>
-    </div>
-  </div>
+  <!-- [Item 3] Different Style modal removed (#differentStyleBtn no
+       longer in DOM — modal is unreachable). -->
+
 
   <script src="supabase-config.js"></script>
   <script src="supabase-client.js"></script>

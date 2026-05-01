@@ -845,7 +845,7 @@ html[data-theme="dark"] .user-pill {
 }
 .totals-card .total-label { color: var(--muted); font-size: 13px; }
 .totals-card .total-value { font-size: 22px; font-weight: 700; color: var(--deep); }
-.shop-all-btn { margin-bottom: 14px; }
+/* [Item 1] .shop-all-btn rule removed — button gone. */
 
 /* ================================================================
    Bottom navigation (Home / Saved / Profile)
@@ -5672,10 +5672,9 @@ html[data-theme="dark"] .sp-strip .sp-card .mc-sub   { color: #C7B493; }
    make it read as an inviting destination — not an escape hatch.
    ============================================================ */
 .results-explore {
-  /* Bottom margin reserves clearance for the .sticky-shop-all CTA
-     (bottom: 72px desktop / 64px mobile, ~48px tall). Without this,
-     the sticky button overlaps Explore More Designs at max scroll. */
-  margin: 18px 0 140px;
+  /* [Item 1] Bottom margin reduced — clearance for the now-removed
+     sticky-shop-all CTA is no longer needed. Standard breathing room. */
+  margin: 18px 0 32px;
 }
 @media (max-width: 480px) {
   .results-explore { margin-bottom: 120px; }
@@ -7603,78 +7602,12 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
   background: var(--cream);
 }
 
-/* [IDX-13 — Reveal actions row + Different Style? button]
-   Two-column layout for primary affiliate CTA + secondary style-pivot.
-   The Reforge At-Risk Strategy Two: Use Case Transition fix for the
-   "no items liked" failure mode. */
-.reveal-actions-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-}
-.different-style-btn {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-/* [FOUR_FIX_PASS — Fix 3] Footer button row: equal-width grid at ≥540px.
-   Previous flex layout gave .shop-all-btn (flex:1 1 auto) shrink priority,
-   compressing it below content width and wrapping "Shop / The Whole / Room"
-   into 3 cramped lines. Grid 1fr columns + nowrap text guarantees
-   proportional equal columns that grow rather than shrink-wrap.
-   Reforge Visual Design + Conversion Optimization: visual weight aligned
-   with revenue impact — primary CTA gets equal-or-greater treatment as
-   secondaries, never less. Mobile (<540px) keeps stacked column with
-   shop-all first per spec ordering. */
-@media (min-width: 540px) {
-  .reveal-actions-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    align-items: stretch;
-  }
-  .reveal-actions-row > .btn { white-space: nowrap; min-width: 0; }
-  .reveal-actions-row .different-style-btn { width: auto; min-width: 0; }
-}
-
-/* Different Style modal */
-.different-style-card {
-  max-width: 460px;
-  padding: 24px 20px;
-}
-.different-style-card h3 {
-  margin: 0 0 6px;
-  color: var(--ink);
-}
-.different-style-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 16px;
-}
-@media (min-width: 480px) {
-  .different-style-grid { grid-template-columns: repeat(3, 1fr); }
-}
-.different-style-chip {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 13px;
-  color: var(--ink);
-  cursor: pointer;
-  text-align: center;
-  font-weight: 500;
-  transition: all 120ms ease;
-}
-.different-style-chip:hover {
-  background: var(--beige);
-  border-color: var(--tan);
-}
-.different-style-chip:active { transform: scale(0.97); }
-.dsc-label { display: block; }
+/* [Items 1-3] reveal-actions-row + Different Style modal CSS removed
+   (.reveal-actions-row, .different-style-btn, .different-style-card,
+   .different-style-card h3, .different-style-grid + media query,
+   .different-style-chip + :hover + :active, .dsc-label, plus the
+   responsive grid override at 540px). All selectors orphan after the
+   buttons + modal HTML deletion. */
 
 /* [IDX-11 + CSS-3 — Paywall roadmap link + modal]
    Replaces "[coming soon]" bullets per Conflict 3 lock. Roadmap is
@@ -8354,41 +8287,10 @@ html[data-theme="dark"] .hts-chip {
 }
 .items-expander:hover .ie-arrow { transform: translateY(2px); }
 
-/* [B3 / Dim 03 R-Bottom2] Sticky shop-all CTA on scroll. */
-.sticky-shop-all {
-  position: fixed;
-  bottom: 72px;          /* sits just above bottom-nav; reviews bar is hidden on results */
-  left: 50%;
-  transform: translateX(-50%) translateY(120%);
-  z-index: 60;
-  width: min(440px, calc(100% - 32px));
-  padding: 14px 18px;
-  border-radius: 999px;
-  box-shadow: var(--shadow-3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-weight: 600;
-  font-size: 15px;
-  transition: transform 320ms var(--ease-premium), opacity 220ms ease;
-  opacity: 0;
-  pointer-events: none;
-}
-.sticky-shop-all.visible {
-  transform: translateX(-50%) translateY(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-.sticky-shop-all .ssa-meta {
-  font-weight: 500;
-  opacity: 0.85;
-  font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
-}
-@media (max-width: 480px) {
-  .sticky-shop-all { bottom: 64px; padding: 12px 16px; font-size: 14px; }
-}
+/* [Item 1] .sticky-shop-all + .ssa-meta CSS block removed
+   (.sticky-shop-all base, .visible state, .ssa-meta sub-element, +
+   responsive 480px override). The wireStickyShopAllCTA function is
+   gone with it. */
 
 /* [B3 / Dim 04 R8] Promise-Fit micro-survey card. */
 .promise-fit-survey {
@@ -8556,18 +8458,7 @@ html[data-theme="dark"] .promise-fit-survey .pfs-btn { background: var(--beige);
    BATCH 4 — Dim 05 Retention + Dim 07 Personalization + Dim 08 Social
    ============================================================ */
 
-/* [B4 / Dim 08 Top 3 #1] Reveal-moment Share CTA — sits beside the
-   primary "Shop The Whole Room" + the secondary "Different Style?"
-   button. Per Reforge Social Viral Loops Lesson 4: share at peak emotion. */
-.reveal-share-btn {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-@media (min-width: 540px) {
-  .reveal-share-btn { flex: 0 0 auto; min-width: 160px; }
-}
+/* [Item 2] .reveal-share-btn CSS removed (button gone). */
 
 /* [B4 / Dim 08] Share modal format-chip selector.
    Per Reforge UGC Loop Variations Lesson 5: branching factor × influence
