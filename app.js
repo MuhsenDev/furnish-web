@@ -6408,6 +6408,14 @@
   // happens at the AI-generation entry points only (analyzeBtn, template tap).
 
   function showTemplateTip() {
+    // [feat-pre-launch-bundle followups Item 2] Guard against the
+    // setTimeout firing AFTER the user has already navigated away from
+    // home. The .home-ctas elements stay in the DOM (just hidden via
+    // .screen.active toggle), so a hidden-element getBoundingClientRect
+    // returns 0,0,0,0 — which positioned the tip at top:12 left:12, the
+    // exact "stuck top-left" symptom. Bail out unless home is active.
+    const homeActive = document.querySelector('.screen[data-screen="home"].active');
+    if (!homeActive) return;
     const tmplBtn = document.querySelector('.home-ctas [data-go="templates"]');
     if (!tmplBtn) return;
     // Remove any prior instance
@@ -8265,6 +8273,11 @@
     trackEvent('tutorial_started', { totalSteps: TUTORIAL_STEPS.length });
     const overlay = $('#frtOverlay');
     if (!overlay) return;
+    // [feat-pre-launch-bundle followups Item 2] Clear the inline
+    // display:none endTutorial set on the previous run so the CSS
+    // fade-in transition can run again. Idempotent — '' restores
+    // default cascade (effectively block via the .frt-overlay rule).
+    overlay.style.display = '';
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
     showTutorialStep(0);
@@ -8363,6 +8376,34 @@
     if (overlay) {
       overlay.classList.remove('open', 'frt-emphasized');
       overlay.setAttribute('aria-hidden', 'true');
+      // [feat-pre-launch-bundle followups Item 2] Hard-hide the overlay
+      // instantly. The CSS-driven opacity transition (280ms fade) was
+      // leaving the dark spotlight backdrop visible on top of the next
+      // screen during navigation — the "tutorial pop-up stuck top-left"
+      // symptom Hassan reported. display:none kills it on the same tick.
+      // runFirstRedesignTutorialOnCurrentScreen restores display before
+      // the next open so the fade-in animation still works.
+      overlay.style.display = 'none';
+    }
+    // [feat-pre-launch-bundle followups Item 2] Clear inline coords on
+    // the spotlight + tip so a stale rectangle from the LAST tutorial
+    // step doesn't pin them top-left when this overlay element is
+    // reopened (or, in the navigation-mid-tutorial path, isn't visually
+    // residual under the next screen).
+    const spot = $('#frtSpotlight');
+    if (spot) {
+      spot.style.top = '';
+      spot.style.left = '';
+      spot.style.width = '';
+      spot.style.height = '';
+    }
+    const tip = $('#frtTip');
+    if (tip) {
+      tip.style.top = '';
+      tip.style.left = '';
+      tip.style.bottom = '';
+      tip.style.width = '';
+      tip.classList.remove('frt-tip-above');
     }
     clearTimeout(_tutorialSkipTimer);
     if (_tutorialReposition) {
@@ -9144,6 +9185,13 @@
   }
 
   function showFirstAhaHint() {
+    // [feat-pre-launch-bundle followups Item 2] Guard against the
+    // setTimeout firing AFTER the user has already navigated away from
+    // results. Same root cause as showTemplateTip — hidden #priceTags
+    // elements would still match and a getBoundingClientRect would
+    // return 0,0,0,0, positioning the coach-mark top-left.
+    const resultsActive = document.querySelector('.screen[data-screen="results"].active');
+    if (!resultsActive) return;
     // Highlight the first price tag + show a floating coach mark.
     const tag = document.querySelector('#priceTags .price-tag');
     if (!tag) return;
@@ -9555,15 +9603,20 @@
   }
 
   document.getElementById('rearrangeBtn').addEventListener('click', () => {
-    // [Model A — D10 override] Rearrange is FREE for everyone. The AI
-    // re-layout call must stay minimal-cost (server-side concern) since this
-    // doesn't decrement the generation quota. Until the real AI re-layout
-    // pipeline lands (DEFERRED.md), this remains a UI-only stub: tags become
-    // draggable and the new layout is saved per-room. No Pro gate, no paywall.
-    trackEvent('rearrange_clicked', { roomId: currentRoomIdSafe() });
-    toast('Drag any price tag to reposition it. Tap done to save.');
-    // Existing rearrange-mode toggling is wired separately via attachTagDrag —
-    // keeping this handler simple to avoid duplicate behavior.
+    // [feat-pre-launch-bundle followups Item 3] Coming-Soon lock. The
+    // previous handler enabled price-tag drag mode (a UI-only stub for
+    // the future AI re-layout feature). Now the button is visually
+    // dimmed + carries a "Coming soon" pill; the click is a no-op apart
+    // from a brief toast and an analytics ping so we can measure intent
+    // (button taps signal demand for the real feature once it ships).
+    // The legacy rearrange_clicked event is preserved for funnel
+    // continuity; rearrange_coming_soon_seen distinguishes post-lock
+    // taps in cohort analysis. The rearrangeMode global + attachTagDrag
+    // wiring stay in the codebase but become dormant — no entry point
+    // fires them now.
+    trackEvent('rearrange_clicked', { roomId: currentRoomIdSafe(), locked: true });
+    trackEvent('rearrange_coming_soon_seen', { roomId: currentRoomIdSafe() });
+    toast('Coming soon');
   });
 
   let activeAnchorColor = null;

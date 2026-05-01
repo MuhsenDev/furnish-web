@@ -1433,6 +1433,46 @@ html[data-theme="dark"] .bs-actions { background: var(--surface); border-top-col
 }
 .rearrange-btn.active .rb-icon { background: var(--cream); color: var(--brown); }
 
+/* [feat-pre-launch-bundle followups Item 3] Coming-Soon lock on the
+   results-screen Rearrange furniture button. Subtle treatment per
+   Hassan's spec: small inline pill + dimmed button, no big banner.
+   Dashed border softens to muted-tan, label opacity drops to 0.65,
+   icon-rotate hover effect suppressed (no false interactivity cue). */
+.rearrange-btn-locked {
+  opacity: 0.7;
+  border-color: rgba(139, 111, 71, 0.30);
+  cursor: default;
+}
+.rearrange-btn-locked .rb-label {
+  color: var(--brown-2);
+}
+.rearrange-btn-locked:hover .rb-icon {
+  transform: none;
+}
+.rearrange-btn-locked:hover {
+  background: transparent;
+}
+.rb-soon {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(139, 111, 71, 0.12);
+  color: var(--brown-2);
+  border-radius: 999px;
+  vertical-align: 1px;
+}
+html[data-theme="dark"] .rearrange-btn-locked {
+  border-color: rgba(216, 176, 126, 0.28);
+}
+html[data-theme="dark"] .rb-soon {
+  background: rgba(216, 176, 126, 0.18);
+  color: var(--brown-2);
+}
+
 /* Rearrange-active state on the room visual */
 .ba-slider.rearranging .ba-after { clip-path: none !important; }
 .ba-slider.rearranging .ba-before { opacity: 0.05; }
@@ -2843,24 +2883,16 @@ html[data-theme="dark"] .qoc-face {
   border-color: var(--tan);
 }
 
-.quiz-option-card.selected .qoc-label::before {
-  content: '✓';
-  position: absolute; top: -30px; left: 14px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brown); color: var(--cream);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
-  /* [feat-pre-launch-bundle Theme 4 Bug 16] Was 0 3px 10px rgba(0,0,0,0.35).
-     The checkmark badge sits at top:-30px relative to .qoc-label — for
-     .q-text cards (text-only options) the .qoc-label is position:static,
-     so the badge anchors to the card itself and floats above its top
-     edge. The 0.35-opacity blur 10px shadow then bled visibly down ONTO
-     the card top, reading as a dark line / artifact. Tightened to a
-     subtle 0 1px 3px rgba(0,0,0,0.18) — keeps badge elevation but
-     contains the cast on the card surface. */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
-  animation: heartPulse 420ms var(--ease-spring);
-}
+/* [feat-pre-launch-bundle followups Item 1] Circular checkmark badge
+   on selected quiz cards removed entirely. Was a brown 28×28 circle
+   with '✓' positioned top:-30 left:14 — read as a "circle artifact in
+   top-left" once Bug 16 (Theme 4) had already softened its shadow.
+   Selection state is already communicated unambiguously via the
+   .selected rules above (brown border, scale(0.97), 4px brown ring,
+   --shadow-lg). The badge was redundant visual feedback. Removing
+   it kills the artifact in both .q-text (badge floated above card
+   top) and photo-card (badge floated above the .qoc-label band)
+   contexts. heartPulse keyframe stays in styles.css — used elsewhere. */
 
 /* ================================================================
    Add-profile lock + paywall
@@ -3535,24 +3567,16 @@ html[data-theme="dark"] .yesno-btn[aria-selected="true"] .yesno-emoji { backgrou
   text-shadow: 0 2px 6px rgba(0,0,0,0.55);
   letter-spacing: 0.01em;
 }
-.quiz-option-card.selected .qoc-label::before {
-  content: '✓';
-  position: absolute; top: -30px; left: 14px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brown); color: var(--cream);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
-  /* [feat-pre-launch-bundle Theme 4 Bug 16] Was 0 3px 10px rgba(0,0,0,0.35).
-     The checkmark badge sits at top:-30px relative to .qoc-label — for
-     .q-text cards (text-only options) the .qoc-label is position:static,
-     so the badge anchors to the card itself and floats above its top
-     edge. The 0.35-opacity blur 10px shadow then bled visibly down ONTO
-     the card top, reading as a dark line / artifact. Tightened to a
-     subtle 0 1px 3px rgba(0,0,0,0.18) — keeps badge elevation but
-     contains the cast on the card surface. */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
-  animation: heartPulse 420ms var(--ease-spring);
-}
+/* [feat-pre-launch-bundle followups Item 1] Circular checkmark badge
+   on selected quiz cards removed entirely. Was a brown 28×28 circle
+   with '✓' positioned top:-30 left:14 — read as a "circle artifact in
+   top-left" once Bug 16 (Theme 4) had already softened its shadow.
+   Selection state is already communicated unambiguously via the
+   .selected rules above (brown border, scale(0.97), 4px brown ring,
+   --shadow-lg). The badge was redundant visual feedback. Removing
+   it kills the artifact in both .q-text (badge floated above card
+   top) and photo-card (badge floated above the .qoc-label band)
+   contexts. heartPulse keyframe stays in styles.css — used elsewhere. */
 
 /* ================================================================
    Add-profile lock + paywall
@@ -3836,24 +3860,16 @@ html[data-theme="dark"] .paywall-card {
   text-shadow: 0 2px 6px rgba(0,0,0,0.55);
   letter-spacing: 0.01em;
 }
-.quiz-option-card.selected .qoc-label::before {
-  content: '✓';
-  position: absolute; top: -30px; left: 14px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brown); color: var(--cream);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
-  /* [feat-pre-launch-bundle Theme 4 Bug 16] Was 0 3px 10px rgba(0,0,0,0.35).
-     The checkmark badge sits at top:-30px relative to .qoc-label — for
-     .q-text cards (text-only options) the .qoc-label is position:static,
-     so the badge anchors to the card itself and floats above its top
-     edge. The 0.35-opacity blur 10px shadow then bled visibly down ONTO
-     the card top, reading as a dark line / artifact. Tightened to a
-     subtle 0 1px 3px rgba(0,0,0,0.18) — keeps badge elevation but
-     contains the cast on the card surface. */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
-  animation: heartPulse 420ms var(--ease-spring);
-}
+/* [feat-pre-launch-bundle followups Item 1] Circular checkmark badge
+   on selected quiz cards removed entirely. Was a brown 28×28 circle
+   with '✓' positioned top:-30 left:14 — read as a "circle artifact in
+   top-left" once Bug 16 (Theme 4) had already softened its shadow.
+   Selection state is already communicated unambiguously via the
+   .selected rules above (brown border, scale(0.97), 4px brown ring,
+   --shadow-lg). The badge was redundant visual feedback. Removing
+   it kills the artifact in both .q-text (badge floated above card
+   top) and photo-card (badge floated above the .qoc-label band)
+   contexts. heartPulse keyframe stays in styles.css — used elsewhere. */
 
 /* ================================================================
    Add-profile lock + paywall
