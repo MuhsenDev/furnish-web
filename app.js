@@ -511,6 +511,93 @@
   // analytics event so navigation paths can be cohort-analyzed.
   let _previousScreen = null;
   let _screenEnteredAt = null;
+
+  // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Single source of
+  // truth for "user has already seen this hint" state. Replaces a mix of
+  // session-scoped flags (state._tourShown, state._templateTipShown) and
+  // per-hint persistent flags (state.user.firstRedesignTutorialSeen,
+  // state.user.budgetSliderTutorialSeen) with a unified array on
+  // state.user. Legacy flags still respected on read for backward-compat
+  // with existing localStorage payloads — new writes go to seenHints.
+  // Hint IDs registered: 'first_aha_pricetag', 'template_tip',
+  // 'tutorial_trio', 'budget_slider'. Photo tip is INTENTIONALLY not
+  // here — it has its own persist-dismiss key (_photoTipDismissed) that
+  // implements the same semantic without needing the auto-clear-on-
+  // navigation behavior (it's an inline card, not an overlay/coachmark).
+  // CLOUD SYNC: state.user.seenHints stays local-only until the
+  // user_settings table gets a column + supabase-client.js mappers
+  // thread it through. Same deferred-sync pattern as Theme 1
+  // furnitureMode / Theme 2 tellUsMoreEntries / preGenerationContext.
+  function hasSeenHint(id) {
+    if (!state.user) return false;
+    if (Array.isArray(state.user.seenHints) && state.user.seenHints.includes(id)) {
+      return true;
+    }
+    // Legacy persistent flags — treat as already-seen if set.
+    if (id === 'tutorial_trio'  && state.user.firstRedesignTutorialSeen) return true;
+    if (id === 'budget_slider'  && state.user.budgetSliderTutorialSeen) return true;
+    // Legacy session flags — treat as already-seen for THIS session only.
+    // Per the new lifecycle spec they shouldn't be session-only anymore;
+    // reading them keeps any in-flight session consistent until the next
+    // navigation marks them properly persistent.
+    if (id === 'first_aha_pricetag' && state._tourShown) return true;
+    if (id === 'template_tip'       && state._templateTipShown) return true;
+    return false;
+  }
+  function markHintSeen(id) {
+    if (!state.user) state.user = {};
+    if (!Array.isArray(state.user.seenHints)) state.user.seenHints = [];
+    if (!state.user.seenHints.includes(id)) {
+      state.user.seenHints.push(id);
+      save();
+      trackEvent('hint_marked_seen', { hintId: id });
+    }
+  }
+  // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Sweep visible
+  // hint elements from the DOM and mark each as seen. Called at the
+  // top of showScreen BEFORE the screen swap, so the hint elements
+  // anchored to the leaving screen are still in the DOM tree. Per spec:
+  // navigating away from a hint = it's done forever for this user.
+  function dismissVisibleHintsOnNavigation() {
+    // 1. First-aha price-tag coachmark (.coach-mark, body-appended).
+    const coachMarks = document.querySelectorAll('.coach-mark');
+    if (coachMarks.length) {
+      coachMarks.forEach(el => {
+        // Drop the pulse on whatever price tag was being highlighted.
+        document.querySelectorAll('.price-tag.coach-pulse').forEach(p => p.classList.remove('coach-pulse'));
+        el.remove();
+      });
+      markHintSeen('first_aha_pricetag');
+    }
+    // 2. Template tip tooltip (.template-tip, body-appended).
+    const templateTips = document.querySelectorAll('.template-tip');
+    if (templateTips.length) {
+      templateTips.forEach(el => {
+        document.querySelectorAll('.tt-pulse').forEach(p => p.classList.remove('tt-pulse'));
+        el.remove();
+      });
+      markHintSeen('template_tip');
+    }
+    // 3. First-redesign tutorial trio (#frtOverlay, persistent in HTML).
+    //    endTutorial(false) handles state.user.firstRedesignTutorialSeen,
+    //    detaches reposition handlers, and hides the overlay. Only invoke
+    //    if the overlay is currently open.
+    const frt = document.getElementById('frtOverlay');
+    if (frt && frt.classList.contains('open') && typeof endTutorial === 'function') {
+      try { endTutorial(false); } catch (_) {}
+      // endTutorial sets firstRedesignTutorialSeen which our legacy-
+      // flag bridge in hasSeenHint maps to the 'tutorial_trio' id —
+      // but mirror it into seenHints for consistency.
+      markHintSeen('tutorial_trio');
+    }
+    // 4. Explore-welcome card (.explore-welcome, hero-prepended). Already
+    //    one-shot via state._showExploreWelcome — sweeping it on nav just
+    //    cleans up DOM if user navigates while it's animating in.
+    document.querySelectorAll('.explore-welcome').forEach(el => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 220);
+    });
+  }
   // [Boot splash] Tracks whether showScreen has been called yet so the
   // splash hide is idempotent and the OAuth-callback fallback timer in
   // boot() can no-op when the backend-ready handler beat it to the punch.
@@ -606,6 +693,14 @@
         delete state._justGeneratedRoomId;
         save();
       }
+    }
+    // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Sweep any
+    // visible hint elements on the leaving screen and mark each as
+    // seen. Per spec: navigating away from a hint = first-time-only,
+    // never re-shows. Only fires when actually leaving (not on the
+    // initial showScreen call where _previousScreen is null).
+    if (_previousScreen && _previousScreen !== name) {
+      dismissVisibleHintsOnNavigation();
     }
     const prev = _previousScreen;
     $$('.screen').forEach(el => el.classList.toggle('active', el.dataset.screen === name));
@@ -4486,11 +4581,12 @@
     runLifecycleScheduler();
 
     // First-time home visit: explain what templates are for.
-    // One-shot via state._templateTipShown. Dismisses on tap or 10s timeout.
+    // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Migrated from
+    // session-only state._templateTipShown to persistent hasSeenHint/
+    // markHintSeen. Hint fires once-per-user across sessions; auto-
+    // clears + marks seen on navigation away from home.
     // Skipped for non-Pro users who'll be paywalled instead (tip would be noise).
-    if (!state._templateTipShown && isPro()) {
-      state._templateTipShown = true;
-      save();
+    if (!hasSeenHint('template_tip') && isPro()) {
       setTimeout(showTemplateTip, 650);
     }
   }
@@ -6314,9 +6410,15 @@
     // Pulse the button for a beat
     tmplBtn.classList.add('tt-pulse');
     const dismiss = () => {
+      // Defensive: tip may already be removed by showScreen's hint
+      // sweep if the user navigated away mid-display.
+      if (!tip.isConnected) return;
       tip.classList.add('out');
-      tmplBtn.classList.remove('tt-pulse');
+      if (tmplBtn.isConnected) tmplBtn.classList.remove('tt-pulse');
       setTimeout(() => tip.remove(), 220);
+      // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Mark seen on
+      // explicit dismiss (× click, backdrop tap, or 10s auto-timeout).
+      markHintSeen('template_tip');
     };
     tip.querySelector('.tt-close').addEventListener('click', dismiss);
     tip.addEventListener('click', e => { if (e.target === tip) dismiss(); });
@@ -8904,9 +9006,11 @@
     // the coachmark land AFTER the reveal choreography settles (Frame 7
     // ends at 3300ms in the Section C spec). Pulse-against-settled-user
     // converts higher than pulse-against-loading-user.
-    if (isFirstResultsForProfile && !state._tourShown) {
-      state._tourShown = true;
-      save();
+    // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Migrated from
+    // session-only state._tourShown to persistent hasSeenHint/markHintSeen.
+    // Hint now fires once-per-user (across sessions/devices when sync
+    // lands), auto-clears + marks seen on navigation away from results.
+    if (isFirstResultsForProfile && !hasSeenHint('first_aha_pricetag')) {
       setTimeout(() => showFirstAhaHint(), 3500);
     }
 
@@ -9030,9 +9134,18 @@
     coach.style.top  = (rect.bottom + 12 + window.scrollY) + 'px';
     coach.style.left = Math.max(12, Math.min(window.innerWidth - 280, rect.left - 20)) + 'px';
     const dismiss = () => {
-      tag.classList.remove('coach-pulse');
+      // Defensive: tag/coach may already be removed if user navigated
+      // away (showScreen sweep ran first). isConnected check avoids
+      // ghost classList/animation calls on detached nodes.
+      if (tag.isConnected) tag.classList.remove('coach-pulse');
+      if (!coach.isConnected) return;
       coach.classList.add('out');
       setTimeout(() => coach.remove(), 240);
+      // [feat-pre-launch-bundle Theme 4 — Hints lifecycle] Mark seen on
+      // any explicit dismiss (Got-it click or 8s auto-timeout). The
+      // showScreen sweep marks seen on navigation-away as a separate
+      // path; markHintSeen is idempotent so double-calls are safe.
+      markHintSeen('first_aha_pricetag');
     };
     coach.querySelector('.cm-ok').addEventListener('click', dismiss);
     setTimeout(dismiss, 8000);
@@ -10724,11 +10837,22 @@
   // assets/tip-example.jpg lands, flip examplePath in PHOTO_TIP_CONFIG
   // and the image renders without component changes (per Hassan's
   // explicit ask: "config edit, no component changes").
+  // [feat-pre-launch-bundle Theme 4] Single-line .copy expanded into a
+  // 5-item .tips array; the renderer fills <ul id="photoTipList"> with
+  // one <li> per tip. Existing persist-dismiss key + analytics events
+  // unchanged — same system, more guidance.
   const PHOTO_TIP_CONFIG = Object.freeze({
     enabled: true,
-    copy: 'Brightly lit, full-room view works best.',
+    title: 'Photo tips',
+    tips: Object.freeze([
+      'Bright daylight is ideal — open the curtains',
+      'Make sure the entire room fits in frame — back up to capture corners',
+      'Avoid heavy shadows or harsh backlighting',
+      'Hold the phone steady, around chest height',
+      'Avoid wide-angle / panoramic distortion'
+    ]),
     examplePath: null,  // set to 'assets/tip-example.jpg' when ready
-    dismissKey: '_photoTipDismissed',  // session-scoped flag
+    dismissKey: '_photoTipDismissed',  // persisted on state.user
   });
   window.FurnishPhotoTipConfig = PHOTO_TIP_CONFIG;
 
@@ -10737,9 +10861,18 @@
     if (!tip) return;
     if (!PHOTO_TIP_CONFIG.enabled) { tip.hidden = true; return; }
     if (state.user?.[PHOTO_TIP_CONFIG.dismissKey]) { tip.hidden = true; return; }
-    const copyEl = document.getElementById('photoTipCopy');
+    const listEl = document.getElementById('photoTipList');
+    const titleEl = tip.querySelector('.photo-tip-title');
     const exampleEl = document.getElementById('photoTipExample');
-    if (copyEl) copyEl.textContent = PHOTO_TIP_CONFIG.copy;
+    if (titleEl) titleEl.textContent = PHOTO_TIP_CONFIG.title;
+    if (listEl) {
+      listEl.innerHTML = '';
+      PHOTO_TIP_CONFIG.tips.forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        listEl.appendChild(li);
+      });
+    }
     if (exampleEl) {
       if (PHOTO_TIP_CONFIG.examplePath) {
         exampleEl.innerHTML = `<img src="${PHOTO_TIP_CONFIG.examplePath}" alt="Example: brightly lit full-room view">`;

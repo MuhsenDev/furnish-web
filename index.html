@@ -871,12 +871,22 @@
              one example. Config-driven: when assets/tip-example.jpg lands,
              flip examplePath in PHOTO_TIP_CONFIG (app.js) and the image
              renders without component changes. Dismissible per session. -->
+        <!-- [feat-pre-launch-bundle Theme 4] Photo tip card expanded from
+             a single line to a 5-tip bulleted list. The .photo-tip-body
+             container holds a title + <ul id="photoTipList">; the
+             renderer in app.js fills the list from PHOTO_TIP_CONFIG.tips.
+             Existing dismiss-once persistence (state.user._photoTipDismissed)
+             is preserved — this is a separate system from the
+             auto-clear-on-navigation hints handled in the same theme. -->
         <div class="photo-tip" id="photoTip" data-dismissible="true" hidden>
           <div class="photo-tip-example" id="photoTipExample" aria-hidden="true">
             <!-- Image renders here when PHOTO_TIP_CONFIG.examplePath is set;
                  falls back to a quiet text marker until then. -->
           </div>
-          <p class="photo-tip-copy" id="photoTipCopy">Brightly lit, full-room view works best.</p>
+          <div class="photo-tip-body">
+            <strong class="photo-tip-title">Photo tips</strong>
+            <ul class="photo-tip-list" id="photoTipList"></ul>
+          </div>
           <button class="photo-tip-dismiss" id="photoTipDismiss" aria-label="Dismiss tip" type="button">×</button>
         </div>
 

@@ -2850,7 +2850,15 @@ html[data-theme="dark"] .qoc-face {
   background: var(--brown); color: var(--cream);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  /* [feat-pre-launch-bundle Theme 4 Bug 16] Was 0 3px 10px rgba(0,0,0,0.35).
+     The checkmark badge sits at top:-30px relative to .qoc-label — for
+     .q-text cards (text-only options) the .qoc-label is position:static,
+     so the badge anchors to the card itself and floats above its top
+     edge. The 0.35-opacity blur 10px shadow then bled visibly down ONTO
+     the card top, reading as a dark line / artifact. Tightened to a
+     subtle 0 1px 3px rgba(0,0,0,0.18) — keeps badge elevation but
+     contains the cast on the card surface. */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
   animation: heartPulse 420ms var(--ease-spring);
 }
 
@@ -3534,7 +3542,15 @@ html[data-theme="dark"] .yesno-btn[aria-selected="true"] .yesno-emoji { backgrou
   background: var(--brown); color: var(--cream);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  /* [feat-pre-launch-bundle Theme 4 Bug 16] Was 0 3px 10px rgba(0,0,0,0.35).
+     The checkmark badge sits at top:-30px relative to .qoc-label — for
+     .q-text cards (text-only options) the .qoc-label is position:static,
+     so the badge anchors to the card itself and floats above its top
+     edge. The 0.35-opacity blur 10px shadow then bled visibly down ONTO
+     the card top, reading as a dark line / artifact. Tightened to a
+     subtle 0 1px 3px rgba(0,0,0,0.18) — keeps badge elevation but
+     contains the cast on the card surface. */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
   animation: heartPulse 420ms var(--ease-spring);
 }
 
@@ -3827,7 +3843,15 @@ html[data-theme="dark"] .paywall-card {
   background: var(--brown); color: var(--cream);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+  /* [feat-pre-launch-bundle Theme 4 Bug 16] Was 0 3px 10px rgba(0,0,0,0.35).
+     The checkmark badge sits at top:-30px relative to .qoc-label — for
+     .q-text cards (text-only options) the .qoc-label is position:static,
+     so the badge anchors to the card itself and floats above its top
+     edge. The 0.35-opacity blur 10px shadow then bled visibly down ONTO
+     the card top, reading as a dark line / artifact. Tightened to a
+     subtle 0 1px 3px rgba(0,0,0,0.18) — keeps badge elevation but
+     contains the cast on the card surface. */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
   animation: heartPulse 420ms var(--ease-spring);
 }
 
@@ -7718,7 +7742,10 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
    lands, it slots into .photo-tip-example without component changes. */
 .photo-tip {
   display: flex;
-  align-items: center;
+  /* [feat-pre-launch-bundle Theme 4] flex-start so the icon hugs the
+     top of the now-multi-line tip list (was align-items: center, which
+     looked off when the body grew to 5 lines). */
+  align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
   margin: 20px 0;
@@ -7730,8 +7757,8 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
 .photo-tip[hidden] { display: none; }
 .photo-tip-example {
   flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   background: var(--cream);
   display: flex;
@@ -7739,6 +7766,9 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
   justify-content: center;
   color: var(--brown);
   overflow: hidden;
+  /* Slight top offset so the icon vertically aligns with the title row
+     when the list pushes the body taller. */
+  margin-top: 2px;
 }
 .photo-tip-example img {
   width: 100%;
@@ -7746,13 +7776,52 @@ html[data-theme="dark"] .affiliate-disclosure-v2 {
   object-fit: cover;
 }
 .photo-tip-icon { color: var(--brown); }
-.photo-tip-copy {
+/* [feat-pre-launch-bundle Theme 4] Body wrapper for title + tip list.
+   Replaces the old .photo-tip-copy single-line <p>. The list uses
+   custom dot bullets (color tinted to --brown-2) instead of browser
+   default discs so the visual hierarchy stays warm-tan. */
+.photo-tip-body {
   flex: 1 1 auto;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.photo-tip-title {
   font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.photo-tip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.photo-tip-list li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 12.5px;
   line-height: 1.45;
   color: var(--brown-2);
 }
+.photo-tip-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brown);
+  opacity: 0.7;
+}
+html[data-theme="dark"] .photo-tip-title { color: var(--ink); }
+html[data-theme="dark"] .photo-tip-list li { color: var(--brown-2); }
+html[data-theme="dark"] .photo-tip-list li::before { background: var(--brown-2); }
 .photo-tip-dismiss {
   flex: 0 0 auto;
   background: transparent;
