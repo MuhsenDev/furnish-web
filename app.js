@@ -2844,14 +2844,9 @@
     trackEvent('paywall_roadmap_viewed');
   });
 
-  // [More Pro perks dropdown] Native <details> toggle event. Fires
-  // analytics on each expand/collapse so dashboards can measure
-  // dropdown engagement (high open-rate = users want more disclosure;
-  // low rate = the headline 5 bullets cover the decision).
-  document.getElementById('paywallMorePerks')?.addEventListener('toggle', (e) => {
-    const opened = e.target.open;
-    trackEvent(opened ? 'paywall_more_perks_opened' : 'paywall_more_perks_closed');
-  });
+  // [feat-paywall-restructure Item 4] More-Pro-perks <details> dropdown
+  // merged into the primary .paywall-list — no expand/collapse left to
+  // measure. paywall_more_perks_opened/_closed analytics retired with it.
   document.getElementById('paywallRoadmapClose')?.addEventListener('click', () => {
     const m = document.getElementById('paywallRoadmapModal');
     if (!m) return;

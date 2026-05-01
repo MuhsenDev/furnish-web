@@ -1216,61 +1216,45 @@
             <span class="paywall-price-amount">Coming soon for Pro</span>
           </div>
 
-          <!-- [Compute-quality routing] Pro feature list — anchored on what
-               Pro actually delivers under the new model.
-               [Batch 5 — Dim 06 Section C] Reordered per Packaging Strategy
-               Matrix: HD (loop-aligned, drives shares→acquisition→affiliate)
-               first; multi-profile (clean Use-Case Persona segmentation) #2;
-               advanced price filters (Add-on quadrant for power users) #3;
-               premium AI (legibility-weak Add-on, demoted) #4; templates #5.
-               [Conflict 3 lock — "coming soon" bullets stripped, moved to
-               Roadmap link in footer.] -->
+          <!-- [feat-paywall-restructure Item 4] Primary perks list — was
+               3 headline bullets + a "More Pro perks" <details> dropdown
+               of 5 more. Merged into a single flat list now that pricing
+               is gone (founding-member rate + cancel-anytime bullets had
+               nowhere to live; real-time push alerts on price drops kept
+               but the Free/Pro split parenthetical stripped — Free no
+               longer advertises price-drop alerts as a tier feature).
+               Coming-soon items keep their clock-icon + tag treatment.
+               The chevron SVG that used to indicate the dropdown is now
+               a decorative element below the list — visual flow cue
+               toward the CTA. -->
           <ul class="paywall-list">
             <li><span class="bullet">✓</span> <strong>HD downloads</strong> — no watermark, share-ready for Instagram &amp; Pinterest</li>
             <li><span class="bullet">✓</span> A separate style profile for every person in your home</li>
             <li><span class="bullet">✓</span> Premium AI quality — sharper, more accurate redesigns</li>
+            <li><span class="bullet">✓</span> <strong>Real-time push alerts</strong> — every price drop the moment it happens</li>
+            <li>
+              <span class="bullet pmp-bullet-soon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+              </span>
+              <span class="pmp-text">Multi-room batch design <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Design every room in one pass.</span></span>
+            </li>
+            <li>
+              <span class="bullet pmp-bullet-soon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+              </span>
+              <span class="pmp-text">Style that learns over time <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Saves, swaps, and price-drop taps feed your AI for sharper picks every redesign.</span></span>
+            </li>
           </ul>
 
-          <!-- [More Pro perks dropdown] Native <details> element so the
-               toggle is fully keyboard-navigable + screen-reader-aware
-               with zero JS. Lists every remaining Pro perk + the
-               currently-deferred coming-soon items. Per Conflict 3 lock,
-               coming-soon items get a clearly-labeled tag (disclosure-
-               only — we're not pricing them as available features). -->
-          <details class="paywall-more-perks" id="paywallMorePerks">
-            <summary class="paywall-more-perks-summary">
-              <span class="pmp-label">More Pro perks</span>
-              <svg class="pmp-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </summary>
-            <ul class="paywall-more-perks-list">
-              <li>
-                <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Founding-member rate</strong> — locks in your price for life</span>
-              </li>
-              <li>
-                <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Real-time push alerts</strong> — every price drop the moment it happens (Free tier sees the top picks; Pro sees them all)</span>
-              </li>
-              <li>
-                <span class="bullet" aria-hidden="true">✓</span>
-                <span class="pmp-text"><strong>Cancel anytime</strong> before day 7 — no charge; we'll notify you a day before your trial ends</span>
-              </li>
-              <li>
-                <span class="bullet pmp-bullet-soon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
-                </span>
-                <span class="pmp-text">Multi-room batch design <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Design every room in one pass.</span></span>
-              </li>
-              <li>
-                <span class="bullet pmp-bullet-soon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
-                </span>
-                <span class="pmp-text">Style that learns over time <span class="pmp-soon-tag">Coming soon</span><br><span class="pmp-sub muted">Saves, swaps, and price-drop taps feed your AI for sharper picks every redesign.</span></span>
-              </li>
-            </ul>
-          </details>
+          <!-- [feat-paywall-restructure Item 4] Drop-banner chevron from
+               the retired More-Perks summary, repurposed as a decorative
+               visual flow indicator pointing from the perks list toward
+               the CTA below. Pure ornament — no toggle behavior. -->
+          <div class="paywall-perks-flow" aria-hidden="true">
+            <svg class="pmp-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
 
           <div class="paywall-actions">
             <button class="btn btn-primary big" id="paywallCta">Notify me when Pro launches</button>

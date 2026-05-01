@@ -3901,8 +3901,12 @@ html[data-theme="dark"] .paywall-card {
   letter-spacing: -0.005em;
 }
 
-/* Extend stagger animation for the 5th paywall list item. */
+/* Extend stagger animation for items 5 + 6 of the paywall list.
+   [feat-paywall-restructure Item 4] List grew from 3 to 6 items when the
+   More-Perks dropdown was merged in — extra delays so the last two
+   bullets don't pop in flat with the earlier ones. */
 .paywall-list li:nth-child(5) { animation-delay: 460ms; }
+.paywall-list li:nth-child(6) { animation-delay: 530ms; }
 
 /* ---------- Sign-in ---------- */
 .signin-card {
@@ -9041,82 +9045,17 @@ html[data-theme="dark"] .legal-doc .legal-meta {
    removed alongside the renovation-cost anchor element. Reattach with
    real pricing UI at Stripe cutover. */
 
-/* More Pro perks dropdown — native <details> styling.
-   Lives between .paywall-list (the 5 headline bullets) and
-   .paywall-urgency (the founding-member callout). Visual language
-   matches the rest of the Pro card — same .bullet check pattern as
-   .paywall-list, same color palette, no new tokens. Coming-soon
-   items get a tag per Conflict 3 lock so they read as disclosure,
-   not entitlements being priced. */
-.paywall-more-perks {
-  margin: 4px 0 14px;
-  border-top: 1px dashed rgba(139, 111, 71, 0.20);
-  padding-top: 10px;
-}
-.paywall-more-perks-summary {
-  list-style: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 4px;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--brown, #8b6f47);
-  letter-spacing: 0.02em;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.paywall-more-perks-summary::-webkit-details-marker { display: none; }
-.paywall-more-perks-summary::marker { content: ''; }
-.paywall-more-perks-summary:hover { color: var(--deep, #5c4128); }
-.paywall-more-perks-summary:focus-visible {
-  outline: 2px solid rgba(139, 111, 71, 0.55);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
+/* [feat-paywall-restructure Item 4] Pro-perks coming-soon items + sub-text.
+   Originally lived inside the More-Pro-perks <details> dropdown
+   (.paywall-more-perks*). With the dropdown gone and items merged into
+   the primary .paywall-list, these classes are now scoped to descend
+   from .paywall-list. Same visual treatment — clock-icon bullet, dashed
+   border, "Coming soon" pill, italic sub-line — just no longer hidden
+   behind a toggle. */
 .pmp-chevron {
   transition: transform 220ms ease;
 }
-.paywall-more-perks[open] .pmp-chevron {
-  transform: rotate(180deg);
-}
-.paywall-more-perks-list {
-  list-style: none;
-  padding: 8px 0 4px;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.paywall-more-perks-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--ink, #2b2218);
-  text-align: left;
-  background: rgba(244, 232, 208, 0.45);
-  border: 1px solid rgba(139, 111, 71, 0.14);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-.paywall-more-perks-list .bullet {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(139, 111, 71, 0.18);
-  color: var(--brown, #8b6f47);
-  font-size: 11px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-}
-.paywall-more-perks-list .pmp-bullet-soon {
+.paywall-list .pmp-bullet-soon {
   background: rgba(139, 111, 71, 0.10);
   color: var(--muted, #8a7a66);
 }
@@ -9142,51 +9081,35 @@ html[data-theme="dark"] .legal-doc .legal-meta {
   color: var(--muted, #6e5d48);
   line-height: 1.4;
 }
-.paywall-more-perks-list li:has(.pmp-bullet-soon) {
+.paywall-list li:has(.pmp-bullet-soon) {
   opacity: 0.92;
   background: rgba(244, 232, 208, 0.30);
   border-style: dashed;
 }
-/* Open animation — staggered fade-in for each list item so the
-   reveal feels intentional, not abrupt. */
-@keyframes pmpItemFadeIn {
-  0% { opacity: 0; transform: translateY(-4px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.paywall-more-perks[open] .paywall-more-perks-list li {
-  animation: pmpItemFadeIn 240ms ease-out both;
-}
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(2) { animation-delay: 40ms; }
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(3) { animation-delay: 80ms; }
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(4) { animation-delay: 120ms; }
-.paywall-more-perks[open] .paywall-more-perks-list li:nth-child(5) { animation-delay: 160ms; }
 @media (prefers-reduced-motion: reduce) {
-  .paywall-more-perks[open] .paywall-more-perks-list li,
-  .pmp-chevron { animation: none; transition: none; }
+  .pmp-chevron { transition: none; }
 }
 
-/* Dark-mode treatment. */
-html[data-theme="dark"] .paywall-more-perks {
-  border-top-color: rgba(216, 176, 126, 0.18);
+/* Decorative chevron beneath the merged perks list — the old More-Perks
+   drop-banner arrow, repurposed as a static visual flow cue pointing
+   the eye toward the CTA below. Pure ornament. */
+.paywall-perks-flow {
+  display: flex;
+  justify-content: center;
+  margin: -4px 0 12px;
+  color: var(--brown, #8b6f47);
+  opacity: 0.55;
 }
-/* [DM-FIX] Same var(--cream)-as-text trap. Migrated to --ink / --brown-2
-   / --deep based on role (body / accent / heading). .pmp-sub alpha 0.65
-   lifted to solid --muted for legibility. */
-html[data-theme="dark"] .paywall-more-perks-summary {
+html[data-theme="dark"] .paywall-perks-flow {
   color: var(--brown-2);
 }
-html[data-theme="dark"] .paywall-more-perks-list li {
-  background: rgba(216, 176, 126, 0.08);
-  border-color: rgba(216, 176, 126, 0.16);
-  color: var(--ink);
-}
-html[data-theme="dark"] .paywall-more-perks-list li strong {
-  color: var(--deep);
-}
-html[data-theme="dark"] .paywall-more-perks-list li:has(.pmp-bullet-soon) {
+
+/* Dark-mode treatment for coming-soon perks (was scoped to
+   .paywall-more-perks-list — rescoped to .paywall-list). */
+html[data-theme="dark"] .paywall-list li:has(.pmp-bullet-soon) {
   background: rgba(216, 176, 126, 0.05);
 }
-html[data-theme="dark"] .paywall-more-perks-list .bullet {
+html[data-theme="dark"] .paywall-list .pmp-bullet-soon {
   background: rgba(216, 176, 126, 0.18);
   color: var(--brown-2);
 }
