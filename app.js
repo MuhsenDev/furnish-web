@@ -547,9 +547,20 @@
     //   - Currently on results (_previousScreen === 'results')
     //   - Navigating away (name !== 'results')
     //   - state._justGeneratedRoomId is still set (the just-generated
-    //     room hasn't been claimed by save-to-home or save-to-saved-
-    //     rooms yet)
-    //   - Room exists in state.rooms and isn't already claimed
+    //     room hasn't been consumed by a prior exit-intent fire)
+    //   - Room exists in state.rooms
+    //   - Room is not yet explicitly user-saved (savedToHome /
+    //     savedToSavedRooms flags both falsy)
+    //
+    // [Save-Home modal regression fix] The gate previously checked
+    // isRoomClaimed(roomId), but that always returns TRUE for just-
+    // generated rooms because recordHomeProgressRoom (called during
+    // analyze + template flows BEFORE the user reaches results)
+    // auto-populates activeHome.designedRooms[type].roomId for My Home
+    // progress tracking. The flag conflated auto-progress with explicit
+    // user-save semantics. Now we read the explicit-save flags
+    // (savedToHome / savedToSavedRooms) which the modal sets only on
+    // explicit user action.
     //
     // Modal fires via setTimeout so navigation completes first; modal
     // appears OVER the new screen as a final "save before leaving?"
@@ -558,12 +569,14 @@
     if (_previousScreen === 'results' && name !== 'results' && state._justGeneratedRoomId) {
       const justRoomId = state._justGeneratedRoomId;
       const justRoom = (state.rooms || []).find(r => r.id === justRoomId);
-      if (justRoom && typeof isRoomClaimed === 'function' && !isRoomClaimed(justRoomId)) {
+      const alreadySaved = !!(justRoom && (justRoom.savedToHome || justRoom.savedToSavedRooms));
+      if (justRoom && !alreadySaved) {
         delete state._justGeneratedRoomId;
         save();
         setTimeout(() => openPostGenerationSaveSurface(justRoom), 350);
-      } else if (state._justGeneratedRoomId) {
-        // Room is claimed or missing — clear flag without firing modal.
+      } else {
+        // Room is missing OR already explicitly saved — clear flag
+        // without firing modal so it doesn't linger forever.
         delete state._justGeneratedRoomId;
         save();
       }
@@ -5346,7 +5359,13 @@
   // Save to Saved Rooms.
   function openPostGenerationSaveSurface(room) {
     if (!room) return;
-    if (isRoomClaimed(room.id)) return; // already saved/claimed
+    // [Save-Home modal regression fix] Was: isRoomClaimed(room.id)
+    // early-return. That check returned TRUE for every just-generated
+    // room because recordHomeProgressRoom auto-populates
+    // activeHome.designedRooms[type].roomId during generation. Switched
+    // to the explicit-save flags so the modal only suppresses on real
+    // user-save action.
+    if (room.savedToHome || room.savedToSavedRooms) return;
     closePostGenerationSaveSurface();
     const ROOM_LABELS = (window.ROOM_TYPES || []).reduce((acc, r) => { acc[r.id] = r.label; return acc; }, {});
     const label = ROOM_LABELS[room.type] || room.type;
@@ -5392,12 +5411,19 @@
           generatedAt: room.timestamp || room.createdAt || Date.now(),
           source: 'save_surface'
         });
+        // [Save-Home modal regression fix] Mark this room as explicitly
+        // saved-to-home by user action. Distinct from activeHome.designedRooms
+        // auto-population by recordHomeProgressRoom during generation —
+        // that auto-marks the slot for My Home progress tracking, but
+        // doesn't represent an explicit user save. The exit-intent gate
+        // in showScreen reads this flag to decide whether to re-prompt.
+        room.savedToHome = true;
         // Update the legacy homeProgress array for backward-compat
         const hp = getHomeProgress();
         if (!hp.designedRooms.includes(room.type)) {
           hp.designedRooms.push(room.type);
-          save();
         }
+        save();
         trackEvent('save_to_home_selected', {
           room_type: room.type,
           overwrote_previous: !!result.overwroteRoomId
@@ -5420,6 +5446,10 @@
         source: 'save_surface',
         reason: 'standalone'
       });
+      // [Save-Home modal regression fix] Mark explicit user save to
+      // Saved Rooms — same rationale as savedToHome above. Suppresses
+      // the modal from re-firing on subsequent exit-intent navigations.
+      room.savedToSavedRooms = true;
       save();
       trackEvent('save_to_saved_rooms_selected', { room_type: room.type });
       toast(`${label} saved to your Saved Rooms.`);
