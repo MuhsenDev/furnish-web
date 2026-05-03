@@ -1,0 +1,132 @@
+/*
+  Furnish marketing site, global styles.
+  Imports the design-token layer first so Tailwind utilities
+  resolve against the app-inherited palette. Adds a thin reset
+  layer plus the prefers-reduced-motion override required by
+  Document 2 Section 5.1.3 and Section 10.4.
+*/
+
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body-m);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Display serif for headings, Document 2 Section 2.4. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--color-deep);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  /* Designed focus rings on every interactive element, Document 2
+     Section 10.2. Replaces the default browser blue. */
+  :where(a, button, [role='button'], input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Skip-to-content link, Document 2 Section 10.6. Hidden until
+     focused via Tab. */
+  .skip-to-content {
+    position: absolute;
+    top: -40px;
+    left: 8px;
+    padding: 8px 16px;
+    background: var(--color-accent);
+    color: var(--color-cream);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-weight: 600;
+    z-index: 100;
+    transition: top 200ms var(--ease-premium);
+  }
+
+  .skip-to-content:focus {
+    top: 8px;
+  }
+
+  /* Selection styling matches the warm palette. */
+  ::selection {
+    background: var(--color-tan);
+    color: var(--color-deep);
+  }
+}
+
+@layer utilities {
+  /* All-caps eyebrow label per Document 2 Section 2.3. Wide tracking,
+     small size, used as section markers. */
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: var(--text-body-s);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  /* Image overlay utility for text-on-imagery, Document 2 Section
+     1.3.4. Replaces text-shadow with a gradient overlay. */
+  .img-overlay-dark {
+    position: relative;
+  }
+  .img-overlay-dark::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(43, 30, 24, 0) 40%,
+      rgba(43, 30, 24, 0.4) 100%
+    );
+    pointer-events: none;
+  }
+}
+
+/*
+  Reduced-motion override. Document 2 Section 5.1.3 and Section
+  10.4 mandate that every non-essential animation degrades to
+  instant when the user prefers reduced motion. This is the
+  blanket fallback. Components opt OUT of this rule individually
+  if a specific animation is essential.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
