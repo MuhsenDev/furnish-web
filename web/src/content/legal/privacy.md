@@ -12,7 +12,7 @@ by Document 8 §4:
 1. What data Furnish collects
 2. How that data is used
 3. Data retention periods (photos auto-delete 30 days post-redesign)
-4. Third-party data sharing (retailers, Plausible, Skimlinks, Supabase)
+4. Third-party data sharing (retailers, Vercel, Skimlinks, Supabase)
 5. User rights (access, deletion, portability)
 6. Cookies and tracking
 7. Children's privacy (COPPA)
@@ -32,21 +32,28 @@ In the meantime, the high-level data flow is:
   by emailing hello@furnish.live.
 - **Waitlist email addresses** submitted on furnish.live are stored
   in Supabase. Used only to notify you when Furnish launches.
-- **Aggregate site usage** is collected by Plausible analytics
-  (page views, outbound clicks, scroll depth). No personal data is
-  attached. No cookies are set.
+- **Aggregate site usage** is collected by Vercel Analytics
+  (page views, outbound clicks, custom events) and Vercel Speed
+  Insights (Core Web Vitals: LCP, INP, CLS). No personal data is
+  attached. No cookies are set. No cross-site tracking.
 
 ## Cookies and third-party tracking
 
 Furnish uses the following third-party services. Their tracking
 behavior differs and is disclosed below.
 
-### Plausible analytics
+### Vercel Analytics + Speed Insights
 
-Plausible is privacy-respecting. It does NOT set cookies. It does
-NOT track individual users across sessions. It does NOT collect
-personal data. IP addresses are hashed and discarded. Plausible
-runs site-wide.
+Vercel Analytics is privacy-respecting. It does NOT set cookies.
+It does NOT track individual users across sessions. It does NOT
+collect personal data. Visitor IP addresses are not stored.
+Vercel Analytics runs site-wide.
+
+Vercel Speed Insights collects Real User Monitoring data on Core
+Web Vitals (LCP, INP, CLS) so we can see how the site performs
+on real visitor devices. It uses a sample of pageviews and stores
+no personal information. Read the full Vercel Analytics privacy
+notice at vercel.com/docs/analytics/privacy-policy.
 
 ### Skimlinks (affiliate tracking on blog pages only)
 
@@ -95,7 +102,8 @@ our server.
   providers when launch lands).
 - We do NOT set advertising cookies.
 - We do NOT use Google Analytics, Facebook Pixel, or any other
-  cookie-setting analytics on furnish.live.
+  cookie-setting third-party analytics on furnish.live. Vercel
+  Analytics (our only analytics provider) is cookieless.
 
 ## Your rights
 

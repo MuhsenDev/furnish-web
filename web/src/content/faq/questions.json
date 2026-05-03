@@ -137,7 +137,7 @@
         {
           "id": "what-data-do-you-collect",
           "question": "What data do you collect?",
-          "answer": "Account data (email, sign-in provider), preferences (style, density, budget), the photos you upload for redesign, and aggregate analytics on app usage via Plausible. Plausible does not set cookies. Full breakdown lives in our Privacy Policy.",
+          "answer": "Account data (email, sign-in provider), preferences (style, density, budget), the photos you upload for redesign, and aggregate analytics on app usage via Vercel Analytics. Vercel Analytics does not set cookies. Full breakdown lives in our Privacy Policy.",
           "showOnPages": ["/faq"]
         },
         {

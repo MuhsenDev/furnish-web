@@ -135,7 +135,7 @@ Internal files are documented in `src/lib/motion/index.ts`.
 - [x] Security headers (X-Frame-Options, X-Content-Type-Options,
       Referrer-Policy, Permissions-Policy)
 - [x] Sitemap (/sitemap.xml) and robots (/robots.txt) auto-generated
-- [x] Plausible analytics script in root layout
+- [x] Vercel Analytics + Speed Insights wired in root layout
 - [x] i18n architecture (English-only at v1, ready for future
       locales)
 - [x] All visible nav, footer, common, 404 strings keyed in JSON
@@ -157,7 +157,8 @@ See `.env.example`. At minimum:
 - `NEXT_PUBLIC_APP_STORE_URL`. Required when APP_LAUNCHED=true.
 - `NEXT_PUBLIC_SITE_URL`. Canonical site origin. Default
   `https://furnish.live`.
-- `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Defaults to `furnish.live`.
+- (No analytics env var.) Vercel Analytics + Speed Insights are
+  toggled on in the Vercel dashboard under Project Settings.
 - `NEXT_PUBLIC_SKIMLINKS_SITE_ID`. Empty pre-approval; set after
   Skimlinks approves Furnish (see "Skimlinks switch" below).
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (server-only).

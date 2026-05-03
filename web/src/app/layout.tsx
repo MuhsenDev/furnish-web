@@ -1,21 +1,30 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Inter } from 'next/font/google';
-import Script from 'next/script';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import '../styles/globals.css';
 import { Nav } from '@/components/shared/Nav';
 import { Footer } from '@/components/shared/Footer';
 import { t } from '@/lib/i18n';
 
 /*
-  Root layout. Wires nav, footer, fonts, Plausible analytics, and
-  default metadata across every route.
+  Root layout. Wires nav, footer, fonts, Vercel Analytics plus
+  Speed Insights, and default metadata across every route.
 
   Per Document 2 Section 11, only Fraunces (display) preloads.
   Inter (body) is fetched on first paint without preload.
 
-  Plausible is added per Document 4 Section 11. The
-  outbound-links variant auto-tracks every external link click,
-  needed for Skimlinks attribution per Document 10.
+  Vercel Analytics:
+    - Tracks page views and custom events
+    - No cookies, no cross-site tracking
+    - Activated in Vercel project settings (Analytics > Enable)
+
+  Vercel Speed Insights:
+    - Real User Monitoring of Core Web Vitals (LCP, INP, CLS)
+    - Activated in Vercel project settings (Speed Insights > Enable)
+
+  Both components no-op when running locally without the
+  dashboard toggle on. They only collect on the production deploy.
 */
 
 const fraunces = Fraunces({
@@ -35,8 +44,6 @@ const inter = Inter({
 });
 
 const SITE_URL = 'https://furnish.live';
-const PLAUSIBLE_DOMAIN =
-  process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || 'furnish.live';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -93,12 +100,8 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
-        <Script
-          defer
-          data-domain={PLAUSIBLE_DOMAIN}
-          src="https://plausible.io/js/script.outbound-links.js"
-          strategy="afterInteractive"
-        />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
