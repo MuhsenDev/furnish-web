@@ -59,7 +59,7 @@ export async function createCompareSlider(
 
   const clamp = (p: number): number => Math.max(0, Math.min(100, p));
 
-  const applyPosition = (percent: number, animate: boolean): void => {
+  const applyPosition = (percent: number, animate: boolean = false): void => {
     const clamped = clamp(percent);
     position = clamped;
     handleEl.setAttribute('aria-valuenow', String(Math.round(clamped)));

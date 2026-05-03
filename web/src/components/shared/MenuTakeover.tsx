@@ -77,10 +77,10 @@ export function MenuTakeover({ open, onClose }: MenuTakeoverProps) {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
-      const focusable: HTMLElement[] = [
-        ...linksRef.current.filter(Boolean),
+      const focusable: HTMLElement[] = ([
+        ...linksRef.current,
         closeBtnRef.current,
-      ].filter((el): el is HTMLElement => el != null);
+      ] as (HTMLElement | null)[]).filter((el): el is HTMLElement => el != null);
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];

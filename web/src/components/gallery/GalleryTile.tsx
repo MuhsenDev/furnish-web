@@ -19,6 +19,7 @@
 */
 
 import * as React from 'react';
+import { useRef } from 'react';
 import Image from 'next/image';
 import { ImagePlus, Eye } from 'lucide-react';
 import { Card, CardCaption } from '@/components/Card';
@@ -55,7 +56,7 @@ export function GalleryTile({
   showCycler = true,
   className,
 }: GalleryTileProps) {
-  const imageWrapperRef = React.useRef<HTMLDivElement>(null);
+  const imageWrapperRef = useRef<HTMLButtonElement>(null);
   const total = images.length;
   const current = images[currentIndex];
 
@@ -92,7 +93,7 @@ export function GalleryTile({
       className={cn('flex flex-col gallery-card', className)}
     >
       <button
-        ref={imageWrapperRef as React.RefObject<HTMLButtonElement>}
+        ref={imageWrapperRef}
         type="button"
         onClick={handleImageClick}
         className={cn(
