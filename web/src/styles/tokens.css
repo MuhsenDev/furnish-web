@@ -102,8 +102,46 @@
 
   /* "ease-out-quart" curve, slow-in fast-finish. Default for hover
      and slide-in animations across the site. Document 2 Section
-     5.1.2 names this as the brand easing. */
+     5.1.2 names this as the brand easing. Aliased to furnish-out
+     below; --ease-premium kept for backward compatibility with
+     anywhere the early Phase 1 code references it. */
   --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ============================================================
+     EASING, full curve set per Document 3 Section 2.1
+     ============================================================
+     Five named curves. JS animations register the same five with
+     GSAP's CustomEase via src/lib/motion/eases.ts. Keep both sides
+     synced if either changes. */
+
+  /* Default (80% of animations). */
+  --ease-furnish-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Symmetric, "decided" at both ends. */
+  --ease-furnish-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Slight overshoot. RARE. Delight only. */
+  --ease-furnish-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Anticipatory. "Wow" reveals. */
+  --ease-furnish-anticipate: cubic-bezier(0.7, -0.4, 0.4, 1.4);
+
+  /* Micro-interactions, hover, focus. */
+  --ease-furnish-quick: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ============================================================
+     DURATION tokens per Document 3 Section 3.1
+     ============================================================
+     Mobile getters in src/lib/motion/durations.ts apply a 0.75x
+     multiplier. Reduced-motion sets all durations to 0 in JS and
+     in the global @media (prefers-reduced-motion) override. */
+  --duration-instant: 100ms;
+  --duration-quick: 200ms;
+  --duration-base: 400ms;
+  --duration-medium: 600ms;
+  --duration-long: 800ms;
+  --duration-extended: 1200ms;
+  --duration-loader: 2000ms;
 
   /* ============================================================
      TYPOGRAPHY, inherited from the app

@@ -1,0 +1,147 @@
+/*
+  Motion 6, hover states per Document 3 Section 9.
+
+  CSS-only. No JS. No GSAP. Hovers are micro-interactions and need
+  to feel instant, not "loading." Imported into globals.css.
+
+  All hover transforms gate on @media (hover: hover) and (pointer: fine)
+  so touch devices skip them entirely (no sticky :hover state on
+  taps).
+
+  Reduced motion override at the bottom of this file zeroes out the
+  transforms but keeps the color/background changes (those carry
+  semantic information about state, not just decoration).
+*/
+
+/* Card hover lift. Used by the <Card> component when interactive=true. */
+.card-hover {
+  transition:
+    transform var(--duration-quick) var(--ease-furnish-quick),
+    box-shadow var(--duration-quick) var(--ease-furnish-quick);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-2);
+  }
+}
+
+/* Primary button hover. Slight scale, slightly darker bg. */
+.btn-primary-hover {
+  transition:
+    transform var(--duration-quick) var(--ease-furnish-quick),
+    background-color var(--duration-quick) var(--ease-furnish-quick);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary-hover:hover {
+    transform: scale(1.02);
+    background-color: color-mix(in srgb, var(--color-accent) 92%, black);
+  }
+}
+
+.btn-primary-hover:active {
+  transform: scale(0.98);
+}
+
+/* Secondary button hover. Background fills with low-opacity ink. */
+.btn-secondary-hover {
+  transition:
+    background-color var(--duration-quick) var(--ease-furnish-quick),
+    border-color var(--duration-quick) var(--ease-furnish-quick);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary-hover:hover {
+    background-color: rgba(43, 30, 24, 0.06);
+  }
+}
+
+/* Inline body-link underline reveal. Underline animates from left
+   to right with scaleX. */
+.link-underline {
+  position: relative;
+  text-decoration: none;
+}
+
+.link-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-quick) var(--ease-furnish-quick);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link-underline:hover::after {
+    transform: scaleX(1);
+  }
+}
+
+/* Hero CTA arrow slide-in. Used on the primary CTA in the hero. */
+.cta-arrow {
+  display: inline-block;
+  margin-left: 0.5rem;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition:
+    opacity var(--duration-quick) var(--ease-furnish-quick),
+    transform var(--duration-quick) var(--ease-furnish-quick);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary-hover:hover .cta-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Sample gallery card label fade. Reveals "Style: ..." metadata
+   on hover over editorial gallery cards. Pairs with EditorialImage. */
+.gallery-card-label {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 1rem;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(43, 30, 24, 0.7) 100%
+  );
+  color: var(--color-cream);
+  opacity: 0;
+  transition: opacity var(--duration-quick) var(--ease-furnish-quick);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gallery-card:hover .gallery-card-label {
+    opacity: 1;
+  }
+}
+
+/* Reduced-motion override. Section 9.6: instant state changes,
+   no transforms. Color and background changes still happen so
+   state semantics survive. */
+@media (prefers-reduced-motion: reduce) {
+  .card-hover,
+  .btn-primary-hover,
+  .btn-secondary-hover,
+  .link-underline::after,
+  .cta-arrow,
+  .gallery-card-label {
+    transition: none;
+  }
+  .card-hover:hover,
+  .btn-primary-hover:hover {
+    transform: none;
+  }
+  .link-underline::after {
+    transform: scaleX(1);
+  }
+}

@@ -7,6 +7,7 @@
 */
 
 @import './tokens.css';
+@import '../lib/motion/hover.css';
 
 @tailwind base;
 @tailwind components;

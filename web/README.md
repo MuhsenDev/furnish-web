@@ -7,8 +7,9 @@ The site inherits and extends, but does NOT introduce new brand.
 
 ## Status
 
-Phase 1A through 1F complete. See `../web-context/` and the 11
-brand documents for full project context.
+Phase 1A through 1F complete (Document 2: Visual Design System).
+Phase 3A through 3E complete (Document 3: Animation System).
+See the 11 brand documents for full project context.
 
 ## Setup
 
@@ -66,7 +67,7 @@ Hard rules:
 6. Accessibility floors are non-negotiable: WCAG AA contrast,
    designed focus rings, prefers-reduced-motion respect.
 
-## Phase 1 deliverables
+## Phase 1 deliverables (Document 2)
 
 - [x] Design tokens extracted from `../styles.css`
 - [x] Tailwind config wired to CSS variables
@@ -74,14 +75,43 @@ Hard rules:
 - [x] `<FullBleedImage>`, `<EditorialImage>`, `<CompareImage>` (stub)
 - [x] Motion library scaffold (`getGsap()`, `useReducedMotion()`)
 - [x] Holding-page smoke test at `/`
+
+## Phase 3 deliverables (Document 3, Animation System)
+
+- [x] Five custom GSAP eases (`furnishOut`, `furnishInOut`,
+      `furnishBack`, `furnishAnticipate`, `furnishQuick`)
+- [x] Seven duration tokens with mobile multiplier (0.75x)
+- [x] Updated `getGsap()` with ScrollTrigger, Flip, CustomEase
+- [x] Hooks: `useScrollReveal`, `useStaggeredReveal`,
+      `useHeroSequence`, `useCompareSlider`, `useReducedMotion`
+- [x] Motion 1: loader sequence (`playLoaderSequence`)
+- [x] Motion 2: hero reveal (`playHeroReveal`)
+- [x] Motion 3: scroll-triggered reveals (`setupScrollReveal`)
+- [x] Motion 4: compare slider (`createCompareSlider`)
+- [x] Motion 5: menu takeover (`openMenu`, `closeMenu`)
+- [x] Motion 6: hover states (CSS-only, in `hover.css`)
+- [x] Motion 7: page transitions (Phase 2 stub)
+- [x] Motion 8: lightbox (`openLightbox`, `closeLightbox`)
+- [x] Motion 9: number counter (`animateNumber`)
+- [x] Motion 10: form interactions (`createSubmitButton`)
+- [x] Production `<CompareSlider>` React component
 - [ ] Lighthouse 95+ accessibility (run after `npm install`)
 - [ ] Lighthouse 90+ performance (run after `npm install`)
+- [ ] 60fps verification (Chrome DevTools, run after `npm install`)
 
-Lighthouse runs are pending the dependency install.
+## Public motion API
+
+Components import only from `@/lib/motion`. Never from internal
+files. Example:
+
+```tsx
+import { useScrollReveal, useReducedMotion } from '@/lib/motion';
+```
+
+Internal files are documented in `src/lib/motion/index.ts`.
 
 ## Next phase
 
-Document 3 (Animation System) builds on the motion library scaffold
-with the full timeline specifications: loader sequence, hero reveal,
-scroll triggers, compare slider GSAP Flip implementation, full-screen
-menu takeover, hover delight, and page transitions.
+Document 4 (Site Architecture) defines the routing structure and
+which pages get built. Documents 5+ build individual pages, each
+consuming motion primitives from `@/lib/motion`.
