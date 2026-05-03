@@ -85,6 +85,18 @@
 }
 
 @layer utilities {
+  /* Fade-in keyframe for image swaps (gallery tile cycle, lightbox
+     style navigation). 300ms feels right per Document 6 §3.3.
+     Pairs with key={image.id} on Next/Image so each style change
+     remounts and re-animates. */
+  @keyframes furnishFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .furnish-fade-in {
+    animation: furnishFadeIn var(--duration-base) var(--ease-furnish-out);
+  }
+
   /* All-caps eyebrow label per Document 2 Section 2.3. Wide tracking,
      small size, used as section markers. */
   .eyebrow {

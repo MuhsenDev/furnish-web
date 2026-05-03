@@ -30,9 +30,16 @@ import nav from '@/content/i18n/en/nav.json';
 import footer from '@/content/i18n/en/footer.json';
 import notFound from '@/content/i18n/en/not-found.json';
 import home from '@/content/i18n/en/home.json';
+import gallery from '@/content/i18n/en/gallery.json';
 
 export type Locale = 'en';
-export type Namespace = 'common' | 'nav' | 'footer' | 'not-found' | 'home';
+export type Namespace =
+  | 'common'
+  | 'nav'
+  | 'footer'
+  | 'not-found'
+  | 'home'
+  | 'gallery';
 
 export const DEFAULT_LOCALE: Locale = 'en';
 export const SUPPORTED_LOCALES: readonly Locale[] = ['en'] as const;
@@ -44,6 +51,7 @@ const messages: Record<Locale, Record<Namespace, Record<string, string>>> = {
     footer,
     'not-found': notFound,
     home,
+    gallery,
   },
 };
 

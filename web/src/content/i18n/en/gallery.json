@@ -1,0 +1,32 @@
+{
+  "heroEyebrow": "Sample gallery",
+  "heroHeadline": "Real rooms. Designed by Furnish.",
+  "heroSubheadline": "36 rooms across 9 room types and 4 styles. Every one of these started with a single photo and finished as something the customer could shop, piece by piece.",
+  "heroCounter": "36 rooms, growing weekly.",
+
+  "filterAllRooms": "All rooms",
+  "filterAllStyles": "All styles",
+  "filterClear": "Clear filters",
+  "filterRoomLabel": "Filter by room",
+  "filterStyleLabel": "Filter by style",
+
+  "cyclerPrevAria": "Previous style",
+  "cyclerNextAria": "Next style",
+  "cyclerShuffleAria": "Shuffle styles",
+  "cyclerCounterFormat": "{current} of {total}",
+
+  "tileViewLargerHint": "View larger",
+  "tileDesignedIn": "Designed in 8 seconds",
+  "tilePlaceholderCaption": "Coming soon",
+
+  "lightboxCloseAria": "Close lightbox",
+  "lightboxPrevAria": "Previous style in this room",
+  "lightboxNextAria": "Next style in this room",
+  "lightboxDesignedIn": "Designed in 8 seconds",
+  "lightboxMobileCloseHint": "Tap to close",
+
+  "ctaEyebrow": "Ready to design yours?",
+  "ctaHeadline": "Your room. Your style. Designed in seconds.",
+  "ctaSubheadline": "Take a photo of any room. Furnish handles the rest.",
+  "ctaSecondary": "See how it works"
+}

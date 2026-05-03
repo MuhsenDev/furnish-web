@@ -39,6 +39,14 @@ export type AnalyticsEvent =
   /* Waitlist outcomes */
   | 'waitlist_success'
   | 'waitlist_error'
+  /* Gallery (Document 6 Section 3.9) */
+  | 'gallery_filter_room_apply'
+  | 'gallery_filter_style_apply'
+  | 'gallery_filter_clear'
+  | 'gallery_tile_cycle_next'
+  | 'gallery_tile_cycle_prev'
+  | 'gallery_tile_shuffle'
+  | 'gallery_tile_open'
   /* Misc */
   | 'compare_slider_engaged'
   | 'gallery_card_click';
