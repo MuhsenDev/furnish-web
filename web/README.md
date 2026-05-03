@@ -7,9 +7,12 @@ The site inherits and extends, but does NOT introduce new brand.
 
 ## Status
 
-Phases 1 through 8 complete (Documents 2 through 8). Phase 9
-hardening complete (Document 9: Tech Stack and Deployment).
-See the 11 brand documents for full project context.
+All 11 phases complete. Site is feature-complete, engineered,
+deployed-ready, monetization-ready, and pre-launch-verified.
+Awaiting Hassan's GO signal for hard launch (Document 11 §5).
+
+The 11 locked specifications live in [`docs/specs/`](docs/specs/).
+Start there for the full project context.
 
 ## Setup
 
