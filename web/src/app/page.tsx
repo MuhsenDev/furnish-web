@@ -1,38 +1,107 @@
 /*
-  Phase 1 holding page. Phase 1F intentionally stops short of the
-  hero motion sequence (Document 3 specifies the choreography).
-  This page exists so the foundation can be smoke-tested in dev,
-  not as the launch hero.
+  Home page composition per Document 5.
+
+  8 sections plus footer. Each section is a separate React component
+  under @/components/home. Top to bottom:
+    1. Hero
+    2. ValueProp
+    3. GalleryPreview
+    4. HomeCompareSlider
+    5. HowItWorks
+    6. ComparisonTable
+    7. FounderNote
+    8. FinalCTA
+  Footer comes from the root layout.
+
+  Pre-launch / post-launch differentiation lives inside each component
+  via the APP_LAUNCHED flag from @/lib/flags. The page composition
+  itself is identical across both states.
 */
 
-import { Container } from '@/components/Container';
-import { Button } from '@/components/Button';
-import { SectionDivider } from '@/components/SectionDivider';
+import type { Metadata } from 'next';
+import { Hero } from '@/components/home/Hero';
+import { ValueProp } from '@/components/home/ValueProp';
+import { GalleryPreview } from '@/components/home/GalleryPreview';
+import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
+import { HowItWorks } from '@/components/home/HowItWorks';
+import { ComparisonTable } from '@/components/home/ComparisonTable';
+import { FounderNote } from '@/components/home/FounderNote';
+import { FinalCTA } from '@/components/home/FinalCTA';
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: 'Furnish. Take a photo. Design your room. Shop it all.',
+  description:
+    'AI redesigns any room from a single photo and lets you shop every piece. Save 95%+ versus traditional interior designers. Built for renters, homeowners, and everyone tired of empty rooms.',
+  alternates: { canonical: 'https://furnish.live/' },
+  openGraph: {
+    title: 'Furnish',
+    description:
+      'AI redesigns any room from a single photo and lets you shop every piece.',
+    url: 'https://furnish.live/',
+    images: [
+      {
+        url: '/images/og/og-default.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Furnish, AI redesigns any room from a photo',
+      },
+    ],
+  },
+};
+
+/* JSON-LD structured data per Document 4 §10.3. WebSite plus
+   Organization schemas. Renders as a script tag inline. */
+function HomeStructuredData() {
+  const data = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': 'https://furnish.live/#website',
+        url: 'https://furnish.live/',
+        name: 'Furnish',
+        description:
+          'AI redesigns any room from a single photo and lets you shop every piece in it.',
+        publisher: { '@id': 'https://furnish.live/#organization' },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: 'https://furnish.live/blog?q={search_term_string}',
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@type': 'Organization',
+        '@id': 'https://furnish.live/#organization',
+        name: 'Furnish',
+        url: 'https://furnish.live/',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://furnish.live/images/og/og-default.jpg',
+        },
+      },
+    ],
+  };
+
   return (
-    <Container width="default" className="py-section-y">
-      <p className="eyebrow mb-4">Phase 1 foundation</p>
-      <h1 className="font-display text-display-l tracking-display-tight leading-display-tight text-deep">
-        Take a photo.
-        <br />
-        Furnish does
-        <br />
-        the rest.
-      </h1>
-      <p className="mt-6 max-w-narrow text-body-xl text-ink">
-        Furnish is an app that fully designs any room from a single photo, and
-        lets you shop every piece in it.
-      </p>
-      <div className="mt-10 flex gap-4">
-        <Button variant="primary">Get the App</Button>
-        <Button variant="secondary">See Examples</Button>
-      </div>
-      <SectionDivider className="mt-section-y" />
-      <p className="mt-section-y-tight text-body-m text-muted">
-        This page is a foundation smoke test. The launch hero arrives in
-        Document 3 with the full motion choreography.
-      </p>
-    </Container>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
+}
+
+export default function HomePage() {
+  return (
+    <>
+      <HomeStructuredData />
+      <Hero />
+      <ValueProp />
+      <GalleryPreview />
+      <HomeCompareSlider />
+      <HowItWorks />
+      <ComparisonTable />
+      <FounderNote />
+      <FinalCTA />
+    </>
   );
 }

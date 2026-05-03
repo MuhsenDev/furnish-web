@@ -21,15 +21,27 @@ declare global {
 }
 
 export type AnalyticsEvent =
+  /* Site-wide */
   | 'cta_click'
   | 'menu_open'
   | 'menu_link_click'
-  | 'compare_slider_engaged'
-  | 'waitlist_submit'
+  | 'scroll_depth'
+  /* Home-page-specific (Document 5 Section 12) */
+  | 'home_hero_cta_click'
+  | 'home_secondary_cta_click'
+  | 'home_gallery_preview_click'
+  | 'home_compare_slider_interaction'
+  | 'home_how_it_works_section_view'
+  | 'home_comparison_table_view'
+  | 'home_founder_note_view'
+  | 'home_final_cta_click'
+  | 'home_email_waitlist_submit'
+  /* Waitlist outcomes */
   | 'waitlist_success'
   | 'waitlist_error'
-  | 'gallery_card_click'
-  | 'scroll_depth';
+  /* Misc */
+  | 'compare_slider_engaged'
+  | 'gallery_card_click';
 
 /*
   Fire a custom Plausible event. Safe to call before the script
