@@ -152,7 +152,39 @@ See `.env.example`. At minimum:
 - `NEXT_PUBLIC_APP_LAUNCHED` (default false). Toggles waitlist vs
   App Store CTA, plus enables /app and /ios redirects.
 - `NEXT_PUBLIC_APP_STORE_URL`. Required when APP_LAUNCHED=true.
+- `NEXT_PUBLIC_SITE_URL`. Canonical site origin. Default
+  `https://furnish.live`.
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Defaults to `furnish.live`.
+- `NEXT_PUBLIC_SKIMLINKS_SITE_ID`. Empty pre-approval; set after
+  Skimlinks approves Furnish (see "Skimlinks switch" below).
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (server-only).
+  Required for waitlist persistence. Without them, the API logs
+  signups to Vercel function logs only.
+
+## Skimlinks switch (post-approval)
+
+Furnish ships pre-Skimlinks-approval with affiliate links as plain
+retailer URLs. The Skimlinks SDK is gated on
+`NEXT_PUBLIC_SKIMLINKS_SITE_ID` and only loads on `/blog/*` routes.
+
+When Hassan receives the Skimlinks approval email with a `siteId`:
+
+1. Vercel project → Settings → Environment Variables
+2. Add `NEXT_PUBLIC_SKIMLINKS_SITE_ID` = `<siteId from approval email>`
+3. Apply to Production
+4. Redeploy (Vercel auto-redeploys on env var change, or trigger
+   manually from the Deployments tab)
+5. Visit any blog post in a private window
+6. DevTools → Network: confirm a request to
+   `s.skimresources.com/js/<siteId>.skimlinks.js` returns 200
+7. Click any retailer link in the post
+8. Verify the URL passes through `go.skimresources.com` before
+   landing at the retailer
+9. Wait 24-48 hours; click a real link and (optionally) make a
+   small test purchase
+10. Verify the click appears in the Skimlinks dashboard
+
+To turn Skimlinks off: clear the env var and redeploy.
 
 ## Next phase
 

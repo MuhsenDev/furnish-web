@@ -277,6 +277,12 @@ export function HowWeMakeMoneySection() {
           <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
             {t('about', 'howWeMakeMoneyBody3')}
           </p>
+          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
+            {t('about', 'howWeMakeMoneyBody4')}
+          </p>
+          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
+            {t('about', 'howWeMakeMoneyBody5')}
+          </p>
         </div>
       </Container>
     </section>
