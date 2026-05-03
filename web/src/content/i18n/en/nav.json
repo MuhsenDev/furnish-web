@@ -1,0 +1,11 @@
+{
+  "menuTrigger": "Menu",
+  "menuClose": "Close menu",
+  "menuAriaLabel": "Site navigation",
+  "linkHome": "Home",
+  "linkHowItWorks": "How It Works",
+  "linkGallery": "Gallery",
+  "linkBlog": "Blog",
+  "linkAbout": "About",
+  "logoAriaLabel": "Furnish, home"
+}

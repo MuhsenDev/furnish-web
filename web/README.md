@@ -9,6 +9,7 @@ The site inherits and extends, but does NOT introduce new brand.
 
 Phase 1A through 1F complete (Document 2: Visual Design System).
 Phase 3A through 3E complete (Document 3: Animation System).
+Phase 4A through 4I complete (Document 4: Site Architecture).
 See the 11 brand documents for full project context.
 
 ## Setup
@@ -110,8 +111,43 @@ import { useScrollReveal, useReducedMotion } from '@/lib/motion';
 
 Internal files are documented in `src/lib/motion/index.ts`.
 
+## Phase 4 deliverables (Document 4, Site Architecture)
+
+- [x] All 8 page templates plus dynamic blog route plus 404
+- [x] Nav with full-screen MenuTakeover, persistent CTA pill
+- [x] Footer (Brand, Site, Legal columns)
+- [x] Redirects in next.config.mjs (/about-us, /contact, /help,
+      /work, /gallery/all, /android, plus /app and /ios when
+      app launched)
+- [x] Security headers (X-Frame-Options, X-Content-Type-Options,
+      Referrer-Policy, Permissions-Policy)
+- [x] Sitemap (/sitemap.xml) and robots (/robots.txt) auto-generated
+- [x] Plausible analytics script in root layout
+- [x] i18n architecture (English-only at v1, ready for future
+      locales)
+- [x] All visible nav, footer, common, 404 strings keyed in JSON
+- [x] 404 page fully built with brand-correct copy
+- [x] Image directories under public/images/{hero, gallery,
+      before-after, blog, about, og, products}/
+
+Note on i18n: App Router does NOT support the legacy i18n config
+field. The architecture lives in src/lib/i18n.ts and
+src/content/i18n/<locale>/. See the i18n module header for the
+migration path when more locales launch.
+
+## Required environment variables
+
+See `.env.example`. At minimum:
+
+- `NEXT_PUBLIC_APP_LAUNCHED` (default false). Toggles waitlist vs
+  App Store CTA, plus enables /app and /ios redirects.
+- `NEXT_PUBLIC_APP_STORE_URL`. Required when APP_LAUNCHED=true.
+- `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Defaults to `furnish.live`.
+
 ## Next phase
 
-Document 4 (Site Architecture) defines the routing structure and
-which pages get built. Documents 5+ build individual pages, each
-consuming motion primitives from `@/lib/motion`.
+Document 5 builds the home page in full (hero with sequential
+reveal, before/after compare slider, comparison block, founder
+note, dual-state CTAs). Documents 6 through 8 build gallery,
+blog, and static pages. Document 9 finalizes deployment.
+Document 10 wires Skimlinks. Document 11 sequences the launch.
