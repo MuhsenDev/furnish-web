@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Per Document 9 §12.5. Runs on every PR. Branch protection on main
+# requires these checks to pass before merge.
+jobs:
+  verify:
+    name: Typecheck, lint, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Em-dash audit
+        working-directory: web
+        run: |
+          # Document 1 brand rule. No em dashes anywhere in any output.
+          # Search src and content for U+2014. Fail if any found.
+          if grep -RIn $'\xe2\x80\x94' src/ 2>/dev/null; then
+            echo "::error::Em dash found in source. See Document 1 brand rule."
+            exit 1
+          fi
+          echo "Em-dash audit clean."
+
+      - name: Typecheck
+        working-directory: web
+        run: pnpm typecheck
+
+      - name: Lint
+        working-directory: web
+        run: pnpm lint
+
+      - name: Build
+        working-directory: web
+        run: pnpm build

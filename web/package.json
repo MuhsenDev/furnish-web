@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "description": "Marketing site for Furnish (furnish.live). See ../CLAUDE.md and ../VOICE.md for source-of-truth brand context.",
+  "engines": {
+    "node": ">=20.0.0 <21.0.0"
+  },
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

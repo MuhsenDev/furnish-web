@@ -7,20 +7,30 @@ The site inherits and extends, but does NOT introduce new brand.
 
 ## Status
 
-Phase 1A through 1F complete (Document 2: Visual Design System).
-Phase 3A through 3E complete (Document 3: Animation System).
-Phase 4A through 4I complete (Document 4: Site Architecture).
+Phases 1 through 8 complete (Documents 2 through 8). Phase 9
+hardening complete (Document 9: Tech Stack and Deployment).
 See the 11 brand documents for full project context.
 
 ## Setup
 
+Requires Node 20 LTS (pinned in `.nvmrc`) and pnpm (locked in
+`packageManager`).
+
 ```bash
 cd web
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open `http://localhost:3000`.
+
+## Scripts
+
+- `pnpm dev` Local development server
+- `pnpm build` Production build
+- `pnpm start` Run the production build
+- `pnpm lint` Next ESLint
+- `pnpm typecheck` TypeScript strict-mode check
 
 ## Stack
 
