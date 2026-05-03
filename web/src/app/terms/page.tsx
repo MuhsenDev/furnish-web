@@ -1,5 +1,13 @@
+/*
+  Terms page per Document 8 §5.
+  Same pattern as /privacy: LegalPage template renders the markdown
+  at src/content/legal/terms.md. Hassan pastes the Termly or
+  iubenda generated body.
+*/
+
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+import { notFound } from 'next/navigation';
+import { LegalPage, loadLegalDocument } from '@/components/static/LegalPage';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -11,15 +19,11 @@ export const metadata: Metadata = {
     description: 'The terms governing your use of Furnish.',
     url: 'https://furnish.live/terms',
   },
+  robots: { index: true, follow: true },
 };
 
 export default function TermsPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Legal"
-      title="Terms of Service."
-      description="Acceptable use, account termination, disclaimers, governing law. Generated alongside the Privacy Policy and reviewed before launch."
-      arrivesIn="Document 8 (Static Pages Spec)"
-    />
-  );
+  const doc = loadLegalDocument('terms');
+  if (!doc) notFound();
+  return <LegalPage document={doc} />;
 }

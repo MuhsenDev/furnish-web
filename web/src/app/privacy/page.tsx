@@ -1,5 +1,13 @@
+/*
+  Privacy page per Document 8 §4.
+  Renders the LegalPage template with content from
+  src/content/legal/privacy.md. Hassan replaces the placeholder
+  body with the Termly or iubenda generated text.
+*/
+
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+import { notFound } from 'next/navigation';
+import { LegalPage, loadLegalDocument } from '@/components/static/LegalPage';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -11,15 +19,12 @@ export const metadata: Metadata = {
     description: 'How Furnish collects, uses, and protects your data.',
     url: 'https://furnish.live/privacy',
   },
+  /* App Store reviewers and search engines need access. */
+  robots: { index: true, follow: true },
 };
 
 export default function PrivacyPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Legal"
-      title="Privacy Policy."
-      description="How Furnish collects, uses, and protects your data. Generated alongside the Terms of Service and reviewed before launch."
-      arrivesIn="Document 8 (Static Pages Spec)"
-    />
-  );
+  const doc = loadLegalDocument('privacy');
+  if (!doc) notFound();
+  return <LegalPage document={doc} />;
 }

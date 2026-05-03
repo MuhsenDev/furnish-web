@@ -1,0 +1,263 @@
+{
+  "categories": [
+    {
+      "id": "getting-started",
+      "name": "Getting started",
+      "icon": "play-circle",
+      "questions": [
+        {
+          "id": "how-do-i-use-furnish",
+          "question": "How do I use Furnish?",
+          "answer": "Take a photo of any room with the Furnish app. Answer a short visual quiz about your style. Furnish redesigns the room in your style with every piece shoppable. The whole flow takes about a minute.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        },
+        {
+          "id": "what-rooms-work",
+          "question": "What kinds of rooms work with Furnish?",
+          "answer": "Empty, half-empty, or fully lived-in. Furnish handles all three. The app does best with a single well-lit photo where the major walls and floor are visible. Cluttered rooms work too; Furnish redesigns rather than just rearranges.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        },
+        {
+          "id": "do-i-need-an-account",
+          "question": "Do I need an account?",
+          "answer": "Not to try Furnish. You can run a redesign without signing up. Saving rooms, tracking prices, and syncing across devices does require an account. We support Apple and Google sign-in plus email.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "can-i-redesign-multiple-rooms",
+          "question": "Can I redesign multiple rooms?",
+          "answer": "Yes. Each room is its own redesign with its own profile, style, and shoppable list. There is no per-room limit on the free tier at launch.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "what-photo-is-best",
+          "question": "What kind of photo gets the best results?",
+          "answer": "Stand in one corner so two adjacent walls are visible. Daylight beats fluorescent. Hold the camera at eye level. Avoid heavy shadows. The app shows a quick guide on first capture.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        }
+      ]
+    },
+    {
+      "id": "design-and-ai",
+      "name": "Design and AI",
+      "icon": "sparkles",
+      "questions": [
+        {
+          "id": "what-ai-powers-furnish",
+          "question": "What AI powers Furnish?",
+          "answer": "Furnish uses Google's Gemini family of models for the redesign step plus a controlled vocabulary of style, vibe, and density tags that we built ourselves. The model never sees your photo without those guardrails.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        },
+        {
+          "id": "is-the-redesign-photoreal",
+          "question": "Is the redesign photo-realistic?",
+          "answer": "Yes. The output is a photo-realistic image of your actual room with new furniture and decor composited in. It is not a 3D render. It is not a moodboard. It is your room, redesigned.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "how-many-styles",
+          "question": "How many styles can I choose from?",
+          "answer": "Ten at launch: Scandinavian, Mid-century Modern, Industrial, Bohemian, Farmhouse, Contemporary, Art Deco, Minimalist, Traditional, and Eclectic. The quiz narrows them based on your taste.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "can-i-keep-existing-furniture",
+          "question": "Can I keep furniture I already own?",
+          "answer": "Yes. Before generation you choose Keep, Replace, or Blank Slate. Keep preserves your existing pieces and layers in accents and decor. Replace swaps furniture entirely. Blank Slate treats the photo as an empty room.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "can-i-iterate",
+          "question": "Can I generate more than one redesign per room?",
+          "answer": "Yes. Iterate as many times as you want. Each version saves so you can compare side by side. There is no per-room iteration cap on the free tier at launch.",
+          "showOnPages": ["/faq"]
+        }
+      ]
+    },
+    {
+      "id": "shopping-and-retailers",
+      "name": "Shopping and retailers",
+      "icon": "shopping-bag",
+      "questions": [
+        {
+          "id": "where-do-products-come-from",
+          "question": "Where do the products come from?",
+          "answer": "Real retailers. Furnish picks the best match for each piece across IKEA, Wayfair, West Elm, CB2, Article, Pottery Barn, Amazon, Target, Etsy, and Rugs USA at launch. We add more as the catalog grows.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        },
+        {
+          "id": "do-i-have-to-buy-everything",
+          "question": "Do I have to buy everything in the redesign?",
+          "answer": "No. Buy nothing, buy one piece, buy them all over months. Save the room and pick pieces up over time. Some users save up for the sofa for six months and call that a win.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "are-prices-accurate",
+          "question": "Are the prices accurate?",
+          "answer": "Furnish pulls prices from retailer pages and refreshes them periodically. Prices can change between when you save a room and when you buy. We track price changes and notify you when something drops.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "do-you-make-money-on-purchases",
+          "question": "Do you make money when I buy?",
+          "answer": "Yes. When you click through to a retailer and buy, Furnish may earn a small affiliate commission. The price you pay does not change. Our recommendations are not influenced by commission rates.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "can-i-pick-different-retailers",
+          "question": "Can I pick a different retailer for the same piece?",
+          "answer": "Yes. Tap any item in the redesign to see alternatives across retailers. Furnish surfaces the closest matches at different price points so you can pick the one that fits your budget and your timeline.",
+          "showOnPages": ["/faq"]
+        }
+      ]
+    },
+    {
+      "id": "privacy-and-photos",
+      "name": "Privacy and photos",
+      "icon": "shield",
+      "questions": [
+        {
+          "id": "what-happens-to-my-photo",
+          "question": "What happens to my photo?",
+          "answer": "Your photo is uploaded over HTTPS to generate the redesign. The original photo auto-deletes from our servers 30 days after the redesign completes. The redesigned image stays in your account so you can shop later.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        },
+        {
+          "id": "do-you-train-on-my-photo",
+          "question": "Do you use my photo to train AI?",
+          "answer": "No. Your photo is used to generate your redesign. It is not used to train any model. Read more in our Privacy Policy.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "who-can-see-my-rooms",
+          "question": "Who can see my rooms?",
+          "answer": "Only you, by default. Saved rooms are private to your account. If you choose to share a room with a partner or post one publicly, that is your call.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "what-data-do-you-collect",
+          "question": "What data do you collect?",
+          "answer": "Account data (email, sign-in provider), preferences (style, density, budget), the photos you upload for redesign, and aggregate analytics on app usage via Plausible. Plausible does not set cookies. Full breakdown lives in our Privacy Policy.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "can-i-delete-my-data",
+          "question": "Can I delete my data?",
+          "answer": "Yes. Delete your account from Settings inside the app. Your photos, rooms, and preferences are removed within 30 days. We also support GDPR and CCPA data export and deletion requests by email at hello@furnish.live.",
+          "showOnPages": ["/faq"]
+        }
+      ]
+    },
+    {
+      "id": "pricing-and-refunds",
+      "name": "Pricing and refunds",
+      "icon": "circle-dollar-sign",
+      "questions": [
+        {
+          "id": "is-furnish-free",
+          "question": "Is Furnish free?",
+          "answer": "Free at launch. You can run unlimited redesigns, save rooms, and shop without paying anything. Premium features may arrive later, but the core experience stays free.",
+          "showOnPages": ["/faq", "/how-it-works"]
+        },
+        {
+          "id": "are-there-hidden-fees",
+          "question": "Are there hidden fees?",
+          "answer": "No. Furnish is free to use. The only money that changes hands is when you click through to a retailer and buy a piece. Retailer prices are the prices you see on retailer sites.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "what-about-iap",
+          "question": "Will there be in-app purchases later?",
+          "answer": "Possibly. We are exploring a Pro tier with deeper iteration tools, multi-room collections, and priority support. The basic experience stays free.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "do-you-offer-refunds-for-furniture",
+          "question": "Do you offer refunds on the furniture I buy?",
+          "answer": "We do not. Furniture purchases are between you and the retailer. Each retailer has its own return policy; Furnish links to it on every product page so you can review before buying.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "is-there-a-trial",
+          "question": "Is there a trial or freemium tier?",
+          "answer": "Furnish is free to download and use at launch. There is nothing to trial because there is nothing to pay for. We will tell you clearly if anything ever requires payment.",
+          "showOnPages": ["/faq"]
+        }
+      ]
+    },
+    {
+      "id": "app-and-devices",
+      "name": "App and devices",
+      "icon": "smartphone",
+      "questions": [
+        {
+          "id": "what-platforms",
+          "question": "What platforms does Furnish run on?",
+          "answer": "iPhone first. Android arrives within a few months of the iOS launch. A web version follows after that.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "minimum-ios",
+          "question": "What is the minimum iOS version?",
+          "answer": "iOS 16. The app runs on iPhone X and newer. Older devices may work but are not officially supported.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "does-it-work-offline",
+          "question": "Does Furnish work offline?",
+          "answer": "Saved rooms and your wishlist are viewable offline. Generating a new redesign requires an internet connection because the AI runs on our servers, not your phone.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "how-much-storage",
+          "question": "How much storage does the app use?",
+          "answer": "Roughly 80 to 120 MB depending on how many rooms you save. We aggressively cache only what you use and clear out anything older than 30 days unless you have explicitly saved it.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "can-i-export-rooms",
+          "question": "Can I export a redesign or share it?",
+          "answer": "Yes. Tap Share inside any saved room to export the redesign image plus the shoppable item list. The export works as an image or as a text summary you can paste anywhere.",
+          "showOnPages": ["/faq"]
+        }
+      ]
+    },
+    {
+      "id": "company-and-legal",
+      "name": "Company and legal",
+      "icon": "building",
+      "questions": [
+        {
+          "id": "who-built-furnish",
+          "question": "Who built Furnish?",
+          "answer": "Hassan Muhsen, an 18-year-old founder based in Garden City, Michigan. The full story is on the About page.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "where-is-furnish-based",
+          "question": "Where is Furnish based?",
+          "answer": "Garden City, Michigan, United States. Our terms are governed by Michigan law.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "is-furnish-funded",
+          "question": "Is Furnish funded?",
+          "answer": "Bootstrapped at launch. No outside investors. Hassan funds the build directly. We may raise later if it accelerates the roadmap, but staying user-first stays the priority.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "how-does-furnish-make-money",
+          "question": "How does Furnish make money?",
+          "answer": "Affiliate commissions when you click through to a retailer and buy. The price you pay does not change. Our editorial picks are not influenced by commission rates. Learn more on our About page.",
+          "showOnPages": ["/faq"]
+        },
+        {
+          "id": "how-do-i-contact-support",
+          "question": "How do I contact support?",
+          "answer": "Email hello@furnish.live. We are a small team and respond within a couple of business days. There is no chatbot. There is no phone tree. Just email and a real reply.",
+          "showOnPages": ["/faq"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "heroEyebrow": "About",
+  "heroHeadline": "Built so anyone can have the room they imagine.",
+  "heroSubheadline": "Aspiration is achievable. Furnish closes the gap between the room you have and the room you have been imagining.",
+
+  "founderEyebrow": "The person behind Furnish",
+  "founderHeadline": "Built by Hassan Muhsen.",
+  "founderParagraph1": "I'm 18, based in Garden City, Michigan. I started building apps in high school because I kept noticing problems no one was solving, and I'd rather build than wait for someone else to do it. I got my mortgage loan officer license while still in school for the same reason: I wanted real skills, real ownership, real work, not a resume.",
+  "founderParagraph2": "Furnish is my second app. The first was a smaller thing, a useful one, that taught me how to ship something real. This one is the big swing. I'm doing it because I kept watching people I know hit the same wall: a beautiful new house, an empty room, no idea where to start, no budget for a designer.",
+  "founderParagraph3": "Furnish came from watching people I know struggle to make their homes feel finished. Empty rooms. Pinterest paralysis. Quotes from interior designers that cost more than a car payment. I wanted to make this accessible to everyone, not just people with $5,000 to spend on a designer they barely talk to.",
+  "founderParagraph4": "Furnish is for the new homeowner staring at empty walls. The renter tired of mismatched IKEA furniture. The real estate agent trying to help clients see what's possible. Anyone who wants their home to feel like theirs, without the gatekeeping, the cost, or the wait.",
+  "founderSignoff": "Hassan",
+
+  "visionEyebrow": "Vision",
+  "visionStatement": "Beautiful homes should not be a privilege.",
+  "visionBody": "A finished, considered room is a quiet kind of dignity. We build Furnish so that dignity is not gated by income, geography, or whether you happen to know a designer.",
+
+  "missionEyebrow": "Mission",
+  "missionStatement": "Make every home feel like the one you imagined.",
+  "missionBody": "We turn the room you have into the room you have been imagining, and we make every piece in it real and shoppable. No middleman, no gatekeeping, no eight-week wait.",
+
+  "valuesEyebrow": "What we hold to",
+  "valuesHeadline": "Four things we get right, every time.",
+  "value1Title": "Real, not generic.",
+  "value1Body": "Every redesign is your actual room, not a stock template. The pieces in it are real products you can buy today.",
+  "value2Title": "Shoppable, not aspirational.",
+  "value2Body": "If you cannot click and buy a piece in a Furnish room, the room is not done. We close the loop.",
+  "value3Title": "Fast, not slow.",
+  "value3Body": "A designer takes weeks. Furnish takes about a minute. Time is the cheapest gift we can give you.",
+  "value4Title": "Independent, not pushed.",
+  "value4Body": "Our picks are not paid placements. Affiliate commissions do not change which piece we surface for your room.",
+
+  "howWeMakeMoneyEyebrow": "How we make money",
+  "howWeMakeMoneyHeadline": "Affiliate commissions, no hidden fees.",
+  "howWeMakeMoneyBody1": "Furnish is free to use. When you click through from a Furnish room or a Furnish blog post and buy a piece from a retailer, the retailer pays Furnish a small commission. The price you pay does not change.",
+  "howWeMakeMoneyBody2": "Our recommendations are not influenced by commission rates. We pick the piece that fits your room. If we like a piece from a retailer with no affiliate program, we still link to it. If a retailer pays a higher commission for an inferior piece, we still pick the better one.",
+  "howWeMakeMoneyBody3": "Every blog post and every redesign that contains affiliate links is labeled. We follow FTC guidelines and Skimlinks publisher rules. Transparency is the trade.",
+
+  "roadmapEyebrow": "What is coming next",
+  "roadmapHeadline": "The short list of what is on deck.",
+  "roadmapItem1": "Multi-language support starting with Spanish, French, and Arabic.",
+  "roadmapItem2": "Android, after iOS lands and stabilizes.",
+  "roadmapItem3": "More retailers in the catalog, especially independents.",
+  "roadmapItem4": "Multi-room collections so a whole home can read as one.",
+  "roadmapItem5": "Real designer collaborations as an opt-in tier for users who want a human in the loop.",
+  "roadmapNote": "We will not commit to dates here. We will tell you when something ships.",
+
+  "contactEyebrow": "Get in touch",
+  "contactHeadline": "Questions, partnerships, press, anything.",
+  "contactBody": "We answer email. There is no contact form. There is no chatbot. Send a real message and you will get a real reply within a couple of business days.",
+  "contactEmailLabel": "hello@furnish.live",
+  "contactEmailHref": "mailto:hello@furnish.live",
+
+  "founderPhotoAlt": "Hassan Muhsen, founder of Furnish"
+}

@@ -1,0 +1,48 @@
+{
+  "heroEyebrow": "How it works",
+  "heroHeadline": "From your photo to your dream room. In seconds.",
+  "heroSubheadline": "Furnish takes a single photo of any room and redesigns it in your style, with every piece real and shoppable. Here is how that actually happens.",
+
+  "stepsEyebrow": "The flow",
+  "step1Number": "1",
+  "step1Headline": "Snap any room. Empty, half-empty, or fully lived-in.",
+  "step1Body1": "Open Furnish, point your camera at a room, and tap. Empty bedroom with bare walls? Half-finished living room with a couch and not much else? A kitchen that has been the same for a decade? All three work. Furnish does not need a clean slate; it works with whatever you have.",
+  "step1Body2": "The capture flow shows a quick guide on first use: stand in one corner so two adjacent walls are visible, hold the camera at eye level, and let in as much daylight as you can. That is the entire ask. No measurements. No wide-angle lens tricks. The closer the photo is to how you actually see the room, the better the redesign.",
+  "step1Body3": "If you upload from your camera roll instead of capturing fresh, that works too. Furnish accepts standard JPEG and HEIC photos at any modern phone resolution.",
+
+  "step2Number": "2",
+  "step2Headline": "A short visual quiz captures your style.",
+  "step2Body1": "Before generating, Furnish asks you about nine quick questions. The whole quiz takes around 90 seconds. You tap pictures, not words. No design jargon. No lectures on the difference between transitional and contemporary.",
+  "step2Body2": "The quiz captures three things: the vibe you want (calm-grounded, energized-creative, cozy-protected, elevated-hotel, inspired-artist), the materials you gravitate toward (warm woods, soft fabrics, metal and glass, stone and ceramic, vintage patina, sleek modern), and how busy you want the room to feel (clean, a little personality, lived-in rich, maximalist).",
+  "step2Body3": "Your answers map onto a controlled vocabulary that Furnish uses to filter the AI's output. So your room gets your style, not a generic template that anyone could land on.",
+
+  "step3Number": "3",
+  "step3Headline": "A photo-realistic redesign of your actual room.",
+  "step3Body1": "Furnish sends your photo plus your quiz answers to our servers. The AI redesigns the room while keeping the architecture exactly as photographed: same walls, same windows, same floor, same camera angle. Every piece in the room is real and shoppable.",
+  "step3Body2": "The whole generation step takes about eight seconds. You watch a brief progress moment and then the redesign appears. From there, every item in the room is tappable. Tap the sofa to see where to buy it. Tap the lamp. Tap the rug. The shopping list builds itself.",
+  "step3Body3": "Save the room. Iterate as many times as you like. Send it to a partner. Pick pieces up over the next six months as your budget allows. Furnish is yours to use as fast or as slowly as you need.",
+
+  "technologyEyebrow": "What is under the hood",
+  "technologyHeadline": "Google's Gemini AI plus our own design vocabulary.",
+  "technologyBody1": "Furnish uses Google's Gemini family of AI models for the redesign step. We do not train custom models. We do not pretend to. Gemini is among the strongest image-aware models available, and we get to focus on the part that actually changes how rooms turn out: the prompt and the controlled vocabulary that frames it.",
+  "technologyBody2": "Around the model we built a tagged catalog of real furniture across every room type and a controlled vocabulary of styles, vibes, and density tags. Every redesign passes through these guardrails. That is why a Furnish kitchen looks like a kitchen, a Furnish bedroom looks like a bedroom, and the result feels intentional rather than randomly assembled.",
+  "technologyBody3": "Your photo never trains anything. It is processed for your redesign and then auto-deleted from our servers 30 days later. Read the Privacy Policy for the full data flow.",
+
+  "comparisonEyebrow": "How we compare",
+  "comparisonHeadline": "Furnish next to the alternatives.",
+  "comparisonRow1Label": "Designs your actual room",
+  "comparisonRow2Label": "Real, shoppable products",
+  "comparisonRow3Label": "AI-powered, instant",
+  "comparisonRow4Label": "Time to first design",
+  "comparisonRow5Label": "Cost per room",
+  "comparisonFootnote": "Read the full breakdown on the home page.",
+  "comparisonHomeLink": "See the home page comparison",
+
+  "miniFaqEyebrow": "Quick answers",
+  "miniFaqHeadline": "The questions we hear most.",
+  "miniFaqAllLink": "See the full FAQ",
+
+  "ctaEyebrow": "Ready to design yours?",
+  "ctaHeadline": "Take a photo. Furnish does the rest.",
+  "ctaSubheadline": "Snap any room. Furnish redesigns it in your style and shows you every piece, real and shoppable."
+}
