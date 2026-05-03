@@ -47,6 +47,11 @@ export type AnalyticsEvent =
   | 'gallery_tile_cycle_prev'
   | 'gallery_tile_shuffle'
   | 'gallery_tile_open'
+  /* Blog (Document 7) */
+  | 'blog_post_view'
+  | 'blog_product_card_click'
+  | 'blog_cta_click'
+  | 'blog_related_post_click'
   /* Misc */
   | 'compare_slider_engaged'
   | 'gallery_card_click';

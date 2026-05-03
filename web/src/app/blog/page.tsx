@@ -1,25 +1,26 @@
+/*
+  Blog index page. Server component. Reads all posts at build time
+  and passes them to BlogIndex.
+*/
+
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+import { BlogIndex } from '@/components/blog/BlogIndex';
+import { getAllBlogPosts } from '@/lib/blog';
 
 export const metadata: Metadata = {
-  title: 'Blog',
+  title: 'The Furnish Edit',
   description:
-    'The Furnish Edit. Design ideas, room inspiration, and shopping guides for real homes at real budgets.',
+    'Design ideas, room inspiration, and shopping guides for real homes at real budgets.',
   alternates: { canonical: 'https://furnish.live/blog' },
   openGraph: {
-    title: 'Blog | Furnish',
-    description: 'The Furnish Edit. Design ideas and shopping guides.',
+    title: 'The Furnish Edit | Furnish',
+    description:
+      'Design ideas, room inspiration, and shopping guides for real homes at real budgets.',
     url: 'https://furnish.live/blog',
   },
 };
 
-export default function BlogIndexPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Blog"
-      title="The Furnish Edit."
-      description="Design ideas, room inspiration, and shopping guides. Five posts go live at launch and grow from there."
-      arrivesIn="Document 7 (Blog Content Plan)"
-    />
-  );
+export default async function BlogIndexPage() {
+  const posts = await getAllBlogPosts();
+  return <BlogIndex posts={posts} />;
 }

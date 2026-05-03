@@ -31,6 +31,7 @@ import footer from '@/content/i18n/en/footer.json';
 import notFound from '@/content/i18n/en/not-found.json';
 import home from '@/content/i18n/en/home.json';
 import gallery from '@/content/i18n/en/gallery.json';
+import blog from '@/content/i18n/en/blog.json';
 
 export type Locale = 'en';
 export type Namespace =
@@ -39,7 +40,8 @@ export type Namespace =
   | 'footer'
   | 'not-found'
   | 'home'
-  | 'gallery';
+  | 'gallery'
+  | 'blog';
 
 export const DEFAULT_LOCALE: Locale = 'en';
 export const SUPPORTED_LOCALES: readonly Locale[] = ['en'] as const;
@@ -52,6 +54,7 @@ const messages: Record<Locale, Record<Namespace, Record<string, string>>> = {
     'not-found': notFound,
     home,
     gallery,
+    blog,
   },
 };
 
