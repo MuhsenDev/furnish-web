@@ -40,16 +40,31 @@ export function FounderNote() {
       className="py-section-y"
       aria-labelledby="founder-note-heading"
     >
-      <Container width="narrow">
-        <div className="text-center" data-reveal>
-          {/* Subtle decorative Lottie flourish above the eyebrow.
-              Low-key warm-tinted to fit the brand palette. */}
+      {/* "Be you" Lottie expanded to a full-bleed strip across the
+          page per Hassan's call. The .lottie's native background is
+          near-black (#010101); the strip wrapper matches that color
+          so the lottie blends seamlessly with empty space on either
+          side of its square aspect. */}
+      <Container width="bleed">
+        <div
+          className={cn(
+            'bg-[#010101]',
+            'h-64 sm:h-80 lg:h-96',
+            'overflow-hidden',
+            'flex items-center justify-center',
+            'mb-14 sm:mb-20',
+          )}
+        >
           <LottieAsset
             src="/Animations/Lottie/Animation.web.lottie"
-            className="mx-auto mb-6 h-16 w-16"
-            tint="warm"
+            className="h-full aspect-square"
             ariaLabel=""
           />
+        </div>
+      </Container>
+
+      <Container width="narrow">
+        <div className="text-center" data-reveal>
           <p className="eyebrow">{t('home', 'founderEyebrow')}</p>
           <h2
             id="founder-note-heading"

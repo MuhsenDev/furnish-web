@@ -2,31 +2,30 @@
 
 /*
   ApartmentScene — three.js + react-three-fiber canvas that loads
-  modern_apartment.glb (~11 MB) and progressively reveals furniture
-  as the user scrolls through the parent section.
+  modern_apartment.glb and runs a two-phase scroll-driven camera +
+  furniture animation:
 
-  Lazy-loaded by ApartmentScrollSection via dynamic({ssr:false}) so
-  the three.js bundle (~190 KB gz) and the .glb itself (~11 MB) stay
-  off the critical path.
+    Phase 1 (scroll 0 .. 0.5):
+      Camera orbits the apartment 1.25 full revolutions ("360+")
+      while the room stays empty. Architecture (walls / floor /
+      ceiling) is visible from the start; furniture and decor are
+      scaled to zero.
 
-  Mesh categorization:
-  - Walks the loaded scene tree, collects every Mesh, computes
-    bounding-box volume per mesh.
-  - Sorted descending by volume.
-  - Top 15% (clamped 3..8) treated as architecture: walls, floor,
-    ceiling, structural pieces. Always visible from frame 1.
-  - The rest are revealed in volume-descending order across scroll
-    progress 0..1. Larger furniture appears first; small decor last.
+    Phase 2 (scroll 0.5 .. 1.0):
+      Camera dollies from the orbit-end position into the middle
+      of the apartment using a Vercel-curve lerp. As it moves in,
+      furniture and decor drop in one by one (scale 0 → original,
+      Y position drops from origY+0.6 to origY) in volume-
+      descending order. By the time the section leaves the
+      viewport, the camera is inside the living-room area and
+      every mesh is in place.
 
-  Reveal animation:
-  - Scale 0 → original (Vercel curve, 1 - (1-t)^5 quintic out)
-  - Y position drops from origY+0.6 to origY (drops in from above)
-  - mesh.visible toggles at the start/end of the reveal band so we
-    don't pay for backfaced/zero-scale meshes outside their window.
+  Camera autofits to the loaded model's bounding box so the same
+  code works regardless of how the .glb was exported (units, scale,
+  origin).
 
-  Camera autofits to the loaded model's bounding box on mount, so
-  the same code works regardless of how the .glb was exported in
-  Blender/Sketchfab terms (units, origin, etc.).
+  Background: solid black per Hassan's call. White text on the
+  surrounding section. No HDR / environment map.
 */
 
 import * as React from 'react';
@@ -38,10 +37,20 @@ const APARTMENT_URL = '/Animations/Sketchfab/modern_apartment.glb';
 
 /* Approximates the Vercel curve cubic-bezier(0.16, 1, 0.3, 1) with
    a quintic ease-out. Visually indistinguishable from the cubic-
-   bezier and trivial to evaluate in a useFrame loop. */
+   bezier and trivial to evaluate per-frame. */
 function vercelEase(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
+
+/* Camera-path constants, expressed as multiples of the model's
+   max bounding-box dimension so the scene framing is correct
+   regardless of model scale. */
+const ORBIT_TURNS = 1.25; // 1.25 * 360° = 450°, "360+" per brief
+const ORBIT_DISTANCE_MULT = 0.95; // distance from scene center
+const ORBIT_HEIGHT_MULT = 0.25; // elevation above scene center
+const INTERIOR_OFFSET_X_MULT = 0.05;
+const INTERIOR_OFFSET_Y_MULT = 0.08;
+const INTERIOR_OFFSET_Z_MULT = 0.05;
 
 interface RevealMeshState {
   mesh: THREE.Mesh;
@@ -59,8 +68,7 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
   const { scene } = useGLTF(APARTMENT_URL);
   const { camera } = useThree();
 
-  /* Categorize once, store reveal-mesh state. */
-  const { revealMeshes, sceneCenter, sceneSize } = React.useMemo(() => {
+  const { revealMeshes, sceneCenter, sceneSize, maxDim } = React.useMemo(() => {
     const all: {
       mesh: THREE.Mesh;
       volume: number;
@@ -88,18 +96,15 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
       });
     });
 
-    /* Compute the scene's bounding box BEFORE we scale any meshes
-       to zero, so the camera autofit uses the model's natural
-       extent. */
+    /* Compute scene bbox before scaling any meshes to zero. */
     const sceneBox = new THREE.Box3().setFromObject(scene);
     const center = sceneBox.getCenter(new THREE.Vector3());
     const size = sceneBox.getSize(new THREE.Vector3());
 
-    /* Sort descending by volume. */
     all.sort((a, b) => b.volume - a.volume);
 
-    /* Architecture: top 15% of meshes (clamped to [3, 8]). Always
-       visible. */
+    /* Top 15% (clamped 3..8) treated as architecture; always
+       visible. The rest reveal during phase 2. */
     const archCount = Math.min(8, Math.max(3, Math.floor(all.length * 0.15)));
     const arch = all.slice(0, archCount);
     const reveal = all.slice(archCount);
@@ -142,65 +147,102 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
       })),
       sceneCenter: center,
       sceneSize: size,
+      maxDim: Math.max(size.x, size.y, size.z),
     };
   }, [scene]);
 
-  /* Autofit camera to the model. Position is at a 30°-ish elevated
-     three-quarter angle so the viewer sees a clean perspective into
-     the room, not just a top-down or eye-level shot. */
+  /* Set near/far on first mount so the model isn't clipped at any
+     point along the camera path. Camera position is driven by
+     useFrame, not here. */
   React.useEffect(() => {
-    const maxDim = Math.max(sceneSize.x, sceneSize.y, sceneSize.z);
-    const distance = Math.max(maxDim * 1.4, 1);
-    camera.position.set(
-      sceneCenter.x + distance * 0.7,
-      sceneCenter.y + distance * 0.55,
-      sceneCenter.z + distance * 0.7,
-    );
-    camera.lookAt(sceneCenter);
-    /* Update near/far so the model isn't clipped. */
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       const persp = camera as THREE.PerspectiveCamera;
-      persp.near = Math.max(0.01, maxDim * 0.01);
-      persp.far = Math.max(100, maxDim * 10);
+      persp.near = Math.max(0.01, maxDim * 0.005);
+      persp.far = Math.max(100, maxDim * 20);
       persp.updateProjectionMatrix();
     }
-  }, [camera, sceneCenter, sceneSize]);
+  }, [camera, maxDim]);
 
-  /* Signal load complete on first mount. By the time this component
-     renders, useGLTF has resolved the suspense, so the .glb is in
-     memory and meshes are categorized. */
   React.useEffect(() => {
     onLoaded?.();
   }, [onLoaded]);
 
+  /* Cached vectors so we don't allocate per frame. */
+  const orbitEndPos = React.useMemo(() => new THREE.Vector3(), []);
+  const interiorPos = React.useMemo(() => new THREE.Vector3(), []);
+  const lerped = React.useMemo(() => new THREE.Vector3(), []);
+
   useFrame(() => {
     const progress = scrollRef.current;
-    const N = revealMeshes.length;
-    if (N === 0) return;
 
-    /* Each mesh's reveal threshold is its index / N (0..1).
-       REVEAL_BAND controls how long the per-mesh animation takes
-       (in scroll-progress units). 0.6 / N keeps reveals overlapped
-       so the room fills coherently rather than as a stuttery
-       single-file march. */
-    const REVEAL_BAND = 0.6 / N;
+    const orbitDistance = maxDim * ORBIT_DISTANCE_MULT;
+    const orbitHeight = maxDim * ORBIT_HEIGHT_MULT;
+    const orbitTotalAngle = Math.PI * 2 * ORBIT_TURNS;
 
-    for (const state of revealMeshes) {
-      const { mesh, origY, origScale, index } = state;
-      const threshold = index / N;
-      const local = (progress - threshold) / REVEAL_BAND;
-      const eased = vercelEase(Math.max(0, Math.min(1, local)));
+    if (progress < 0.5) {
+      /* Phase 1: orbit. Camera circles the apartment while the
+         room stays empty. */
+      const phase1 = progress / 0.5;
+      const angle = phase1 * orbitTotalAngle;
 
-      if (eased > 0.001) {
-        if (!mesh.visible) mesh.visible = true;
-        mesh.scale.set(
-          origScale.x * eased,
-          origScale.y * eased,
-          origScale.z * eased,
-        );
-        mesh.position.y = origY + (1 - eased) * 0.6;
-      } else if (mesh.visible) {
-        mesh.visible = false;
+      camera.position.set(
+        sceneCenter.x + Math.cos(angle) * orbitDistance,
+        sceneCenter.y + orbitHeight,
+        sceneCenter.z + Math.sin(angle) * orbitDistance,
+      );
+      camera.lookAt(sceneCenter);
+
+      /* Make sure all reveal meshes stay hidden during phase 1.
+         Toggling visible to false is cheaper than re-zeroing scale
+         every frame. */
+      for (const state of revealMeshes) {
+        if (state.mesh.visible) state.mesh.visible = false;
+      }
+    } else {
+      /* Phase 2: dolly camera from orbit-end position into the
+         middle of the apartment, while furniture drops in. */
+      const phase2 = (progress - 0.5) / 0.5;
+      const eased = vercelEase(phase2);
+
+      orbitEndPos.set(
+        sceneCenter.x + Math.cos(orbitTotalAngle) * orbitDistance,
+        sceneCenter.y + orbitHeight,
+        sceneCenter.z + Math.sin(orbitTotalAngle) * orbitDistance,
+      );
+      interiorPos.set(
+        sceneCenter.x + maxDim * INTERIOR_OFFSET_X_MULT,
+        sceneCenter.y + maxDim * INTERIOR_OFFSET_Y_MULT,
+        sceneCenter.z + maxDim * INTERIOR_OFFSET_Z_MULT,
+      );
+
+      lerped.lerpVectors(orbitEndPos, interiorPos, eased);
+      camera.position.copy(lerped);
+      camera.lookAt(sceneCenter);
+
+      /* Furniture reveals across phase 2. Each mesh has a
+         threshold = index / N; once phase2 passes the threshold,
+         the mesh animates in over the next REVEAL_BAND of phase
+         progress. Larger furniture (lower index) reveals first. */
+      const N = revealMeshes.length;
+      const REVEAL_BAND = N > 0 ? 0.5 / N : 1;
+
+      for (const state of revealMeshes) {
+        const { mesh, origY, origScale, index } = state;
+        const threshold = index / Math.max(1, N);
+        const local = (phase2 - threshold) / REVEAL_BAND;
+        const e = vercelEase(Math.max(0, Math.min(1, local)));
+
+        if (e > 0.001) {
+          if (!mesh.visible) mesh.visible = true;
+          mesh.scale.set(
+            origScale.x * e,
+            origScale.y * e,
+            origScale.z * e,
+          );
+          mesh.position.y = origY + (1 - e) * 0.6;
+        } else if (mesh.visible) {
+          mesh.visible = false;
+        }
       }
     }
   });
@@ -228,20 +270,19 @@ export function ApartmentScene({
         alpha: false,
         powerPreference: 'low-power',
       }}
-      camera={{ position: [4, 3, 4], fov: 45, near: 0.1, far: 200 }}
+      /* Initial camera; Phase-1 orbit math overrides this on the
+         first frame. fov 55 widens the room when camera is inside
+         during phase 2. */
+      camera={{ position: [0, 0, 5], fov: 55, near: 0.1, far: 200 }}
     >
-      {/* Solid espresso background fills any gaps the model doesn't
-          cover, matching the section's bg-deep. */}
-      <color attach="background" args={['#3D2817']} />
+      {/* Solid black background per Hassan's brief. */}
+      <color attach="background" args={['#000000']} />
 
-      {/* Lighting: ambient floor + warm hemisphere + key from the
-          "window" + cool fill from opposite. No external HDR, no
-          environment-map round-trip to drei's CDN. */}
-      <ambientLight intensity={0.5} color="#FFE4B5" />
+      <ambientLight intensity={0.55} color="#FFE4B5" />
       <hemisphereLight
-        intensity={0.55}
+        intensity={0.45}
         color="#FFF5E1"
-        groundColor="#3D2817"
+        groundColor="#1a1a1a"
       />
       <directionalLight
         position={[10, 10, 5]}
@@ -250,7 +291,7 @@ export function ApartmentScene({
       />
       <directionalLight
         position={[-5, 8, -3]}
-        intensity={0.4}
+        intensity={0.45}
         color="#A07E54"
       />
 
@@ -261,8 +302,4 @@ export function ApartmentScene({
   );
 }
 
-/* Preload the .glb when this module is loaded. Since the module
-   itself is dynamic-imported in ApartmentScrollSection, this runs
-   after the dynamic chunk arrives, which is when we WANT to start
-   the model fetch. */
 useGLTF.preload(APARTMENT_URL);

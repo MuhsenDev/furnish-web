@@ -27,7 +27,9 @@ export interface HeroTargets {
   eyebrowEl: HTMLElement;
   headlineLines: HTMLElement[];
   subheadEl: HTMLElement;
-  primaryCtaEl: HTMLElement;
+  /* Optional. Pre-launch hero variants drop the primary CTA in
+     favor of an inline waitlist form. */
+  primaryCtaEl?: HTMLElement | null;
   secondaryCtaEl?: HTMLElement | null;
 }
 
@@ -108,12 +110,14 @@ export async function playHeroReveal(
     1.2,
   );
 
-  tl.fromTo(
-    primaryCtaEl,
-    { opacity: 0, scale: 0.95 },
-    { opacity: 1, scale: 1, duration: ctaDur, ease: 'furnishOut' },
-    1.4,
-  );
+  if (primaryCtaEl) {
+    tl.fromTo(
+      primaryCtaEl,
+      { opacity: 0, scale: 0.95 },
+      { opacity: 1, scale: 1, duration: ctaDur, ease: 'furnishOut' },
+      1.4,
+    );
+  }
 
   if (secondaryCtaEl) {
     tl.fromTo(

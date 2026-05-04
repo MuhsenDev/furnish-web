@@ -116,13 +116,13 @@ export function useHeroSequence<T extends HTMLElement = HTMLElement>(): RefObjec
     const primaryCtaEl = root.querySelector<HTMLElement>('[data-hero-cta-primary]');
     const secondaryCtaEl = root.querySelector<HTMLElement>('[data-hero-cta-secondary]');
 
-    /* imageEl is now optional. The text-forward hero (no room photo)
-       still animates the rest of the targets. */
+    /* imageEl and primaryCtaEl are both optional. Text-forward
+       hero variants drop the photo; pre-launch variants drop the
+       primary CTA in favor of an inline waitlist form. */
     if (
       !eyebrowEl ||
       headlineLines.length === 0 ||
-      !subheadEl ||
-      !primaryCtaEl
+      !subheadEl
     ) {
       if (process.env.NODE_ENV === 'development') {
         console.warn(

@@ -5,41 +5,40 @@
   apartment scroll-fill experience. Inserted between Hero and
   ValueProp.
 
-  Behavior:
-  - Section background: deep espresso so the warm-lit room glows
-    against it.
-  - Tagline above the canvas in display serif.
+  Layout:
+  - Section background: solid black per Hassan's call ("let the
+    background be black with white text"). Tailwind `bg-black` is
+    a deliberate exception to the brand "no pure black" rule;
+    Hassan explicitly overrode it for this section.
+  - Tagline text in white above the canvas.
   - Canvas wrapper: 16:10 aspect, max-w-5xl, centered.
-  - As the user scrolls the section through the viewport, an
-    IntersectionObserver tracks visibility and a scroll handler
-    computes a 0..1 progress through the section. The progress
-    drives mesh reveals inside the Canvas (see ApartmentScene).
-  - Loading: a small Loading-screen Lottie overlays the canvas
-    until the .glb finishes downloading. Two phases of "loading"
-    are covered by the same Lottie:
-      1) The dynamic JS chunk for ApartmentScene downloads (~190 KB
-         gz of three + r3f + drei plus a few KB for the scene code).
-      2) The .glb model downloads (~11 MB raw, browser-compressed).
-    The Lottie hides only when ApartmentMeshes signals onLoaded
-    AFTER both are complete.
+
+  Scroll progress is computed from the section's bounding rect vs.
+  viewport, in a passive scroll listener. The progress (0..1) drives
+  the two-phase animation in ApartmentScene:
+    - 0..0.5: orbit camera around the empty apartment
+    - 0.5..1: dolly into the middle of the room while furniture
+      drops in
+
+  Loading state: previously a Loading-screen Lottie overlaid the
+  canvas during the .glb fetch. Hassan removed the Lottie because
+  its colors couldn't be repaletted to brand. The canvas now sits
+  on bg-black during load; user sees a solid black canvas area
+  briefly, then the model fades in once useGLTF resolves. Hassan
+  will replace the loader Lottie himself when he picks an asset.
 
   Cropping safety:
   - No overflow:hidden on the section.
-  - Canvas wrapper uses aspect ratio + max-width, never 100vh,
-    so iOS Safari URL-bar viewport oddities can't crop it.
+  - Canvas wrapper uses aspect ratio + max-width, never 100vh.
 */
 
 import * as React from 'react';
 import dynamic from 'next/dynamic';
 import { Container } from '@/components/Container';
-import { LottieAsset } from '@/components/shared/LottieAsset';
 import { cn } from '@/lib/utils';
 
 const ApartmentScene = dynamic(
   () => import('./ApartmentScene').then((m) => m.ApartmentScene),
-  /* Loading is null because the outer overlay (controlled by
-     sceneLoaded state below) covers both chunk-loading and
-     glb-loading phases with the same Lottie. */
   { ssr: false, loading: () => null },
 );
 
@@ -47,7 +46,11 @@ export function ApartmentScrollSection() {
   const sectionRef = React.useRef<HTMLDivElement>(null);
   const scrollRef = React.useRef(0);
   const [inView, setInView] = React.useState(false);
-  const [sceneLoaded, setSceneLoaded] = React.useState(false);
+
+  /* sceneLoaded was previously used to fade out the loading
+     Lottie. Lottie removed; flag kept for potential future use
+     (e.g. opacity fade-in on the canvas itself once ready). */
+  const [, setSceneLoaded] = React.useState(false);
 
   React.useEffect(() => {
     const el = sectionRef.current;
@@ -63,10 +66,6 @@ export function ApartmentScrollSection() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const winH = window.innerHeight;
-      /* Progress is 0 when the section's top edge first crosses the
-         bottom of the viewport, 1 when the section's bottom edge
-         leaves the top. Linear over the (winH + sectionH) total
-         distance. */
       const total = winH + rect.height;
       const scrolled = winH - rect.top;
       scrollRef.current = Math.max(0, Math.min(1, scrolled / total));
@@ -88,7 +87,7 @@ export function ApartmentScrollSection() {
       ref={sectionRef}
       aria-label="Furnish 3D apartment"
       className={cn(
-        'relative bg-deep',
+        'relative bg-black',
         'min-h-screen',
         'flex flex-col items-center justify-center',
         'py-20 sm:py-24 lg:py-32',
@@ -97,7 +96,7 @@ export function ApartmentScrollSection() {
       <p
         className={cn(
           'text-center font-display italic',
-          'text-display-m text-cream/70',
+          'text-display-m text-white',
           'mb-10 sm:mb-14',
         )}
       >
@@ -109,7 +108,7 @@ export function ApartmentScrollSection() {
           className={cn(
             'mx-auto w-full max-w-5xl',
             'aspect-[16/10]',
-            'relative rounded-sm',
+            'relative',
           )}
         >
           <ApartmentScene
@@ -117,26 +116,6 @@ export function ApartmentScrollSection() {
             inView={inView}
             onLoaded={() => setSceneLoaded(true)}
           />
-
-          {/* Loading overlay. Covers both chunk-load and .glb-load
-              phases. Fades out via Tailwind opacity transition once
-              the scene signals ready. */}
-          <div
-            className={cn(
-              'absolute inset-0 flex items-center justify-center',
-              'pointer-events-none',
-              'transition-opacity duration-700 ease-vercel',
-              sceneLoaded ? 'opacity-0' : 'opacity-100',
-            )}
-            aria-hidden={sceneLoaded}
-          >
-            <LottieAsset
-              src="/Animations/Lottie/Loading-screen.web.lottie"
-              className="h-24 w-24"
-              tint="warm"
-              ariaLabel="Loading 3D apartment"
-            />
-          </div>
         </div>
       </Container>
     </section>

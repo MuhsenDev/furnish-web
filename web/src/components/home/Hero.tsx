@@ -4,23 +4,27 @@
   Home page Hero, text-forward.
 
   No room photo. No portrait. The headline is the entire visual
-  weight. Centered, generous whitespace, single column. Matches the
-  Linear / Apple "premium product page" pattern.
+  weight. Centered, generous whitespace, single column. Linear /
+  Apple "premium product page" pattern.
 
-  Layout:
-  - Section is min-h-[90vh] (or min-h-screen on lg) with vertically
-    centered content. A subtle Lottie arrow sits pinned to the
-    bottom of the section as a scroll-down indicator.
-  - Content column max-w-4xl, centered.
-  - Headline 3 lines, leading-[1.05] (loosened from the previous
-    too-tight 0.92), each line nowrap so it doesn't break in
-    awkward places on tablet widths.
-  - Eyebrow (the locked tagline) above the headline.
-  - Subheadline below.
-  - 2 CTAs centered horizontally.
-  - Sub-CTA caption.
-  - Pre-launch only: a small Hello-welcome Lottie above the
-    waitlist form as warm accent.
+  Pre-launch variant (current shipped state):
+  - Headline + supporting text + secondary CTA only
+  - Below the secondary CTA: a generous Hello-welcome Lottie (now
+    big, no warm-tint filter, green-screen layer stripped from the
+    .lottie file so it sits transparently on the cream background)
+  - Below the Lottie: an arrow Lottie pointing DOWN at the waitlist
+    form
+  - Below the arrow: the inline waitlist form (which has its own
+    "Join the Waitlist" submit button — that's the one Hassan kept)
+
+  Removed in this iteration: the duplicate primary CTA above the
+  waitlist form (Hassan's note: "remove the 'Join' button"). The
+  waitlist form's own submit button IS the call to action; the
+  arrow points the user at it.
+
+  Post-launch variant: keeps the App Store CTA where the primary
+  CTA used to be. The Lottie + arrow + waitlist block isn't
+  rendered post-launch.
 */
 
 import * as React from 'react';
@@ -52,12 +56,6 @@ const secondaryCtaClasses = cn(
 
 export function Hero() {
   const heroRef = useHeroSequence<HTMLElement>();
-
-  const primaryCtaText = APP_LAUNCHED
-    ? t('common', 'ctaAppStore')
-    : t('common', 'ctaWaitlist');
-
-  const primaryCtaHref = APP_LAUNCHED ? APP_STORE_URL : '#waitlist';
 
   return (
     <section
@@ -115,16 +113,22 @@ export function Hero() {
             {t('home', 'heroSubheadline')}
           </p>
 
+          {/* CTAs row.
+              Post-launch: App Store CTA + secondary "See How It
+              Works".
+              Pre-launch: secondary CTA only. The "Join the Waitlist"
+              CTA used to live here too but was removed; the waitlist
+              form's own submit button below is the call to action. */}
           <div
             className={cn(
               'mt-8 flex flex-col gap-3',
               'sm:flex-row sm:items-center sm:justify-center',
             )}
           >
-            {APP_LAUNCHED ? (
+            {APP_LAUNCHED && (
               <Link
                 data-hero-cta-primary
-                href={primaryCtaHref}
+                href={APP_STORE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() =>
@@ -132,29 +136,13 @@ export function Hero() {
                 }
                 className={primaryCtaClasses}
               >
-                {primaryCtaText}
+                {t('common', 'ctaAppStore')}
                 <ArrowRight
                   size={18}
                   strokeWidth={1.5}
                   className="cta-arrow"
                 />
               </Link>
-            ) : (
-              <a
-                data-hero-cta-primary
-                href="#waitlist"
-                onClick={() =>
-                  track('home_hero_cta_click', { cta_text: 'waitlist' })
-                }
-                className={primaryCtaClasses}
-              >
-                {primaryCtaText}
-                <ArrowRight
-                  size={18}
-                  strokeWidth={1.5}
-                  className="cta-arrow"
-                />
-              </a>
             )}
             <a
               data-hero-cta-secondary
@@ -172,45 +160,46 @@ export function Hero() {
               : t('home', 'heroSubCtaPreLaunch')}
           </p>
 
-          {/* Pre-launch waitlist with Hello-welcome Lottie accent. */}
+          {/* Pre-launch only: Hello-welcome Lottie (big, no tint),
+              arrow Lottie pointing at the waitlist form, and the
+              waitlist form itself. */}
           {!APP_LAUNCHED && (
             <div
               id="waitlist"
               className={cn(
-                'mt-10 mx-auto max-w-md',
+                'mt-12 mx-auto max-w-md',
                 'scroll-mt-24',
-                'flex flex-col items-center gap-3',
+                'flex flex-col items-center',
               )}
             >
+              {/* Hello-welcome — sized big now per Hassan. The
+                  .lottie file had its green-screen background layer
+                  stripped so it sits cleanly on the cream BG. No
+                  CSS tint applied because the source colors are now
+                  on-brand against cream. */}
               <LottieAsset
                 src="/Animations/Lottie/Hello-welcome.web.lottie"
-                className="h-14 w-14"
+                className="h-40 w-40 sm:h-48 sm:w-48"
+                ariaLabel=""
+              />
+
+              {/* Arrow pointing down at the waitlist form. Sized
+                  bigger than the previous bottom-of-section cue
+                  since this one is functional, not decorative. */}
+              <LottieAsset
+                src="/Animations/Lottie/Arrow%201.lottie"
+                className="-mt-2 h-14 w-14 opacity-80"
                 tint="warm"
                 ariaLabel=""
               />
-              <div className="w-full">
+
+              <div className="mt-2 w-full">
                 <EmailWaitlist location="hero" />
               </div>
             </div>
           )}
         </div>
       </Container>
-
-      {/* Scroll-down cue. Sits pinned to the bottom of the section
-          regardless of content height. Tiny, decorative, low-key. */}
-      <div
-        className={cn(
-          'pb-8 flex justify-center pointer-events-none',
-          'opacity-60',
-        )}
-        aria-hidden="true"
-      >
-        <LottieAsset
-          src="/Animations/Lottie/Arrow%201.lottie"
-          className="h-10 w-10"
-          tint="warm"
-        />
-      </div>
     </section>
   );
 }
