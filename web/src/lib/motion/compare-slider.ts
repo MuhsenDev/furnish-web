@@ -9,13 +9,17 @@
   Interactions:
     - On viewport entry: auto-demo runs 50 to 80 to 50 over 1.6s
       (1.2s on mobile)
-    - Drag (mouse or touch via pointer events): handle follows
-      cursor 1:1, no easing
-    - Click anywhere on container: handle tweens to click position
+    - Press-and-drag (mouse or touch via pointer events): position
+      tracks the cursor while the pointer is down AND has moved past
+      a small threshold. Click without drag does nothing.
     - Keyboard: ArrowLeft/Right move 5%, PageDown/Up move 25%
 
-  Reduced motion: no auto-demo, no smooth tween on click. Drag
-  still works (drag is interaction, not animation).
+  Click-to-jump was removed deliberately: it caused accidental snaps
+  when users tapped the slider while scrolling. Drag is the only
+  pointer affordance now.
+
+  Reduced motion: no auto-demo. Drag still works (drag is interaction,
+  not animation).
 */
 
 import { getGsap } from './gsap-loader';
@@ -84,46 +88,51 @@ export async function createCompareSlider(
   /* Initial paint, no animation. */
   applyPosition(initialPosition, false);
 
-  /* Pointer-event drag. Pointer events unify mouse and touch so we
-     don't need separate handlers. */
+  /* Press-and-drag. Pointer events unify mouse and touch so a single
+     handler set covers both. Drag is armed on pointerdown anywhere
+     in the container, but position only updates after the pointer
+     moves past a 4px threshold. That keeps stationary clicks
+     (including accidental taps while scrolling) from snapping the
+     slider. */
+  const DRAG_THRESHOLD_PX = 4;
+  let pointerDownAt: { x: number; y: number; id: number } | null = null;
+
   const onPointerDown = (e: PointerEvent): void => {
-    isDragging = true;
-    handleEl.setPointerCapture(e.pointerId);
+    pointerDownAt = { x: e.clientX, y: e.clientY, id: e.pointerId };
   };
 
   const onPointerMove = (e: PointerEvent): void => {
-    if (!isDragging) return;
+    if (!pointerDownAt) return;
+    if (!isDragging) {
+      const dx = Math.abs(e.clientX - pointerDownAt.x);
+      const dy = Math.abs(e.clientY - pointerDownAt.y);
+      if (dx + dy < DRAG_THRESHOLD_PX) return;
+      isDragging = true;
+      try {
+        containerEl.setPointerCapture(e.pointerId);
+      } catch {
+        /* setPointerCapture can throw on some browsers if the pointer
+           id is not currently active. Safe to ignore. */
+      }
+    }
     const rect = containerEl.getBoundingClientRect();
     const percent = ((e.clientX - rect.left) / rect.width) * 100;
     applyPosition(percent, false);
   };
 
   const onPointerUp = (e: PointerEvent): void => {
+    pointerDownAt = null;
     if (!isDragging) return;
     isDragging = false;
-    if (handleEl.hasPointerCapture(e.pointerId)) {
-      handleEl.releasePointerCapture(e.pointerId);
+    if (containerEl.hasPointerCapture(e.pointerId)) {
+      containerEl.releasePointerCapture(e.pointerId);
     }
   };
 
-  handleEl.addEventListener('pointerdown', onPointerDown);
-  handleEl.addEventListener('pointermove', onPointerMove);
-  handleEl.addEventListener('pointerup', onPointerUp);
-  handleEl.addEventListener('pointercancel', onPointerUp);
-
-  /* Click on container jumps the slider to the click x. Suppressed
-     while a drag is in flight to avoid the post-drag click event. */
-  const onContainerClick = (e: MouseEvent): void => {
-    if (isDragging) return;
-    /* If the click landed on the handle itself, ignore. The drag
-       handler already owns those events. */
-    if (e.target === handleEl || handleEl.contains(e.target as Node)) return;
-    const rect = containerEl.getBoundingClientRect();
-    const percent = ((e.clientX - rect.left) / rect.width) * 100;
-    applyPosition(percent, true);
-  };
-
-  containerEl.addEventListener('click', onContainerClick);
+  containerEl.addEventListener('pointerdown', onPointerDown);
+  containerEl.addEventListener('pointermove', onPointerMove);
+  containerEl.addEventListener('pointerup', onPointerUp);
+  containerEl.addEventListener('pointercancel', onPointerUp);
 
   /* Keyboard: arrows for fine, page-up/down for coarse. Only fires
      when the handle has focus. */
@@ -185,12 +194,11 @@ export async function createCompareSlider(
   }
 
   const destroy = (): void => {
-    handleEl.removeEventListener('pointerdown', onPointerDown);
-    handleEl.removeEventListener('pointermove', onPointerMove);
-    handleEl.removeEventListener('pointerup', onPointerUp);
-    handleEl.removeEventListener('pointercancel', onPointerUp);
+    containerEl.removeEventListener('pointerdown', onPointerDown);
+    containerEl.removeEventListener('pointermove', onPointerMove);
+    containerEl.removeEventListener('pointerup', onPointerUp);
+    containerEl.removeEventListener('pointercancel', onPointerUp);
     handleEl.removeEventListener('keydown', onKeyDown);
-    containerEl.removeEventListener('click', onContainerClick);
     if (scrollTriggerInstance) {
       scrollTriggerInstance.kill();
       scrollTriggerInstance = null;
