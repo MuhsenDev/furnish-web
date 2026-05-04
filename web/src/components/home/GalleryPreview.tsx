@@ -22,6 +22,7 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 import { Card, CardCaption } from '@/components/Card';
 import { useScrollReveal } from '@/lib/motion';
@@ -103,11 +104,15 @@ const TILES: GalleryTile[] = [
   },
 ];
 
+/* Upgraded CTA: filled accent style with arrow icon and a hover
+   shimmer. Was a plain bordered transparent button; reads more
+   premium as a primary call to action. */
 const galleryCtaClasses = cn(
-  'btn-secondary-hover',
-  'inline-flex items-center justify-center gap-2',
-  'rounded-sm border border-[rgba(43,30,24,0.16)] bg-transparent',
-  'px-7 py-3.5 text-body-m font-semibold text-ink',
+  'btn-primary-hover group/cta',
+  'inline-flex items-center justify-center gap-3',
+  'rounded-sm bg-[var(--color-accent)] text-cream',
+  'px-9 py-4 text-body-m font-semibold tracking-wide',
+  'shadow-1 hover:shadow-2',
 );
 
 export function GalleryPreview() {
@@ -123,7 +128,7 @@ export function GalleryPreview() {
   return (
     <section ref={sectionRef} className="py-section-y" aria-labelledby="gallery-preview-heading">
       <Container width="default">
-        <div className="text-center" data-reveal>
+        <div className="mx-auto max-w-3xl text-center" data-reveal>
           <p className="eyebrow">{t('home', 'galleryEyebrow')}</p>
           <h2
             id="gallery-preview-heading"
@@ -137,7 +142,15 @@ export function GalleryPreview() {
           </h2>
         </div>
 
-        <div className="mt-section-y-tight grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Tighter responsive gap progression so tiles feel
+            grouped on small screens and breathe on large. */}
+        <div
+          className={cn(
+            'mt-section-y-tight grid',
+            'gap-5 sm:gap-6 lg:gap-8',
+            'sm:grid-cols-2 lg:grid-cols-3',
+          )}
+        >
           {TILES.map((tile) => (
             <Link
               key={tile.index}
@@ -154,7 +167,7 @@ export function GalleryPreview() {
                     alt={tile.alt}
                     fill
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className="object-cover"
+                    className="object-cover transition-transform duration-500 ease-premium group-hover:scale-[1.03]"
                   />
                 </div>
                 <CardCaption
@@ -166,14 +179,29 @@ export function GalleryPreview() {
           ))}
         </div>
 
-        <div className="mt-section-y-tight flex justify-center" data-reveal>
+        <div
+          className="mt-section-y-tight flex flex-col items-center gap-3"
+          data-reveal
+        >
           <Link
             href="/gallery"
             onClick={() => track('home_gallery_preview_click', { room_index: 0, target: 'see_full_gallery' })}
             className={galleryCtaClasses}
           >
             {t('home', 'galleryCta')}
+            <ArrowRight
+              size={18}
+              strokeWidth={1.5}
+              className={cn(
+                'cta-arrow',
+                'transition-transform duration-500 ease-premium',
+                'group-hover/cta:translate-x-1',
+              )}
+            />
           </Link>
+          <p className="text-body-s text-muted">
+            {t('home', 'galleryDesignedIn')}
+          </p>
         </div>
       </Container>
     </section>

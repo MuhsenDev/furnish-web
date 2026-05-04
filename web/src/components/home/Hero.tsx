@@ -160,40 +160,46 @@ export function Hero() {
               : t('home', 'heroSubCtaPreLaunch')}
           </p>
 
-          {/* Pre-launch only: Hello-welcome Lottie (big, no tint),
-              arrow Lottie pointing at the waitlist form, and the
-              waitlist form itself. */}
+          {/* Pre-launch only: HUGE Hello-welcome Lottie + 3x arrow
+              + waitlist form. Container widened to max-w-4xl so the
+              Hello has room to be ~4-5x its previous size; the
+              waitlist form inside is constrained back to max-w-md
+              for usability. */}
           {!APP_LAUNCHED && (
             <div
               id="waitlist"
               className={cn(
-                'mt-12 mx-auto max-w-md',
+                'mt-12 mx-auto max-w-4xl',
                 'scroll-mt-24',
                 'flex flex-col items-center',
               )}
             >
-              {/* Hello-welcome — sized big now per Hassan. The
-                  .lottie file had its green-screen background layer
-                  stripped so it sits cleanly on the cream BG. No
-                  CSS tint applied because the source colors are now
-                  on-brand against cream. */}
+              {/* Hello-welcome.
+                  - Green-screen layer stripped from the .lottie.
+                  - Text fills recolored to brand ink so the "Haloo"
+                    text is visible against the cream hero BG.
+                  - Sized 4-5x its previous footprint via
+                    aspect-square + responsive max-widths. */}
               <LottieAsset
                 src="/Animations/Lottie/Hello-welcome.web.lottie"
-                className="h-40 w-40 sm:h-48 sm:w-48"
+                className={cn(
+                  'w-full',
+                  'max-w-[28rem] sm:max-w-[40rem] lg:max-w-[52rem]',
+                  'aspect-square',
+                )}
                 ariaLabel=""
               />
 
-              {/* Arrow pointing down at the waitlist form. Sized
-                  bigger than the previous bottom-of-section cue
-                  since this one is functional, not decorative. */}
+              {/* Arrow pointing down at the waitlist form. 3x the
+                  previous size per Hassan. */}
               <LottieAsset
                 src="/Animations/Lottie/Arrow%201.lottie"
-                className="-mt-2 h-14 w-14 opacity-80"
+                className="-mt-4 h-40 w-40 sm:-mt-6 sm:h-44 sm:w-44 opacity-80"
                 tint="warm"
                 ariaLabel=""
               />
 
-              <div className="mt-2 w-full">
+              <div className="mt-4 w-full max-w-md">
                 <EmailWaitlist location="hero" />
               </div>
             </div>

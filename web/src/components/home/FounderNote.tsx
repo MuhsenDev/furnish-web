@@ -13,7 +13,6 @@
 
 import * as React from 'react';
 import { Container } from '@/components/Container';
-import { LottieAsset } from '@/components/shared/LottieAsset';
 import { useScrollReveal } from '@/lib/motion';
 import { useInView } from '@/lib/use-in-view';
 import { t } from '@/lib/i18n';
@@ -40,29 +39,6 @@ export function FounderNote() {
       className="py-section-y"
       aria-labelledby="founder-note-heading"
     >
-      {/* "Be you" Lottie expanded to a full-bleed strip across the
-          page per Hassan's call. The .lottie's native background is
-          near-black (#010101); the strip wrapper matches that color
-          so the lottie blends seamlessly with empty space on either
-          side of its square aspect. */}
-      <Container width="bleed">
-        <div
-          className={cn(
-            'bg-[#010101]',
-            'h-64 sm:h-80 lg:h-96',
-            'overflow-hidden',
-            'flex items-center justify-center',
-            'mb-14 sm:mb-20',
-          )}
-        >
-          <LottieAsset
-            src="/Animations/Lottie/Animation.web.lottie"
-            className="h-full aspect-square"
-            ariaLabel=""
-          />
-        </div>
-      </Container>
-
       <Container width="narrow">
         <div className="text-center" data-reveal>
           <p className="eyebrow">{t('home', 'founderEyebrow')}</p>

@@ -100,15 +100,20 @@ function CellValue({
   }
 
   /* String value: emphasize the Furnish column when the row is
-     marked emphasize (cost, time). Other columns get standard
-     body weight. */
+     marked emphasize (cost, time). Previously this used
+     `text-display-m` (a heading size) inside the table cell, which
+     made "8 seconds" and "Free" balloon to ~3x the height of every
+     other row and broke the table's visual rhythm. Now uses the
+     same body-l size as the rest, but in display font, accent
+     color, and slightly heavier — visually distinguished without
+     the table-busting size jump. */
   const accent = isFurnish && emphasize;
   return (
     <span
       className={cn(
         'block text-center',
         accent
-          ? 'font-display text-display-m text-[var(--color-accent)] tracking-display-tight'
+          ? 'font-display font-semibold text-body-l text-[var(--color-accent)] tracking-display-tight'
           : isFurnish
             ? 'font-semibold text-deep'
             : 'text-ink/80',

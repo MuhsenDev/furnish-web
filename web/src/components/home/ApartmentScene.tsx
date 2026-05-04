@@ -2,30 +2,32 @@
 
 /*
   ApartmentScene — three.js + react-three-fiber canvas that loads
-  modern_apartment.glb and runs a two-phase scroll-driven camera +
-  furniture animation:
+  modern_apartment.glb and runs a two-phase scroll-driven camera
+  animation:
 
     Phase 1 (scroll 0 .. 0.5):
-      Camera orbits the apartment 1.25 full revolutions ("360+")
-      while the room stays empty. Architecture (walls / floor /
-      ceiling) is visible from the start; furniture and decor are
-      scaled to zero.
+      Camera orbits the fully-furnished apartment 1.25 revolutions
+      ("360+"). Every mesh is visible at its original position from
+      frame 1 — no categorization, no scale-zero tricks. Empty
+      rooms previously appeared because the categorization heuristic
+      was hiding things it shouldn't.
 
     Phase 2 (scroll 0.5 .. 1.0):
-      Camera dollies from the orbit-end position into the middle
-      of the apartment using a Vercel-curve lerp. As it moves in,
-      furniture and decor drop in one by one (scale 0 → original,
-      Y position drops from origY+0.6 to origY) in volume-
-      descending order. By the time the section leaves the
-      viewport, the camera is inside the living-room area and
-      every mesh is in place.
+      Camera dollies from the orbit-end position into the middle of
+      the apartment using a Vercel-curve lerp. As it arrives, the
+      smaller meshes (bottom 40% by bounding-box volume) play a
+      subtle bell-curve "settle" bounce on Y: lift slightly, drop
+      back to original. The animation is staggered across the items
+      so the room feels like it's exhaling into final position.
 
-  Camera autofits to the loaded model's bounding box so the same
-  code works regardless of how the .glb was exported (units, scale,
-  origin).
+  DRACO is enabled in useGLTF(url, true) because gltf-transform
+  output is typically draco-compressed; without the decoder the
+  scene loads as empty meshes.
 
-  Background: solid black per Hassan's call. White text on the
-  surrounding section. No HDR / environment map.
+  Camera autofits to model bbox, so the same code works regardless
+  of how the .glb was exported (units, scale, origin).
+
+  Background: solid black per Hassan's brief override.
 */
 
 import * as React from 'react';
@@ -35,27 +37,19 @@ import * as THREE from 'three';
 
 const APARTMENT_URL = '/Animations/Sketchfab/modern_apartment.glb';
 
-/* Approximates the Vercel curve cubic-bezier(0.16, 1, 0.3, 1) with
-   a quintic ease-out. Visually indistinguishable from the cubic-
-   bezier and trivial to evaluate per-frame. */
 function vercelEase(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
 
-/* Camera-path constants, expressed as multiples of the model's
-   max bounding-box dimension so the scene framing is correct
-   regardless of model scale. */
-const ORBIT_TURNS = 1.25; // 1.25 * 360° = 450°, "360+" per brief
-const ORBIT_DISTANCE_MULT = 0.95; // distance from scene center
-const ORBIT_HEIGHT_MULT = 0.25; // elevation above scene center
-const INTERIOR_OFFSET_X_MULT = 0.05;
-const INTERIOR_OFFSET_Y_MULT = 0.08;
-const INTERIOR_OFFSET_Z_MULT = 0.05;
+const ORBIT_TURNS = 1.25;
+const ORBIT_DISTANCE_MULT = 0.95;
+const ORBIT_HEIGHT_MULT = 0.25;
+const INTERIOR_HEIGHT_MULT = 0.08;
+const SETTLE_PEAK = 0.35;
 
-interface RevealMeshState {
+interface SettleMeshState {
   mesh: THREE.Mesh;
   origY: number;
-  origScale: THREE.Vector3;
   index: number;
 }
 
@@ -65,15 +59,16 @@ interface ApartmentMeshesProps {
 }
 
 function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
-  const { scene } = useGLTF(APARTMENT_URL);
+  /* DRACO enabled. Without `true` here, draco-compressed .glb files
+     either load as empty or throw silently. */
+  const { scene } = useGLTF(APARTMENT_URL, true);
   const { camera } = useThree();
 
-  const { revealMeshes, sceneCenter, sceneSize, maxDim } = React.useMemo(() => {
+  const { settleMeshes, sceneCenter, sceneSize, maxDim } = React.useMemo(() => {
     const all: {
       mesh: THREE.Mesh;
       volume: number;
       origY: number;
-      origScale: THREE.Vector3;
       name: string;
     }[] = [];
 
@@ -91,47 +86,40 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
         mesh,
         volume,
         origY: mesh.position.y,
-        origScale: mesh.scale.clone(),
         name: mesh.name || '(unnamed)',
       });
+
+      /* Make every mesh visible from the start. The previous
+         "hide reveal meshes" pass was eating walls/floor on this
+         model. */
+      mesh.visible = true;
     });
 
-    /* Compute scene bbox before scaling any meshes to zero. */
     const sceneBox = new THREE.Box3().setFromObject(scene);
     const center = sceneBox.getCenter(new THREE.Vector3());
     const size = sceneBox.getSize(new THREE.Vector3());
 
+    /* Sort descending by volume; smaller meshes get the settle
+       animation in phase 2. Top 60% are background (no animation,
+       always at origY). Bottom 40% bounce. */
     all.sort((a, b) => b.volume - a.volume);
-
-    /* Top 15% (clamped 3..8) treated as architecture; always
-       visible. The rest reveal during phase 2. */
-    const archCount = Math.min(8, Math.max(3, Math.floor(all.length * 0.15)));
-    const arch = all.slice(0, archCount);
-    const reveal = all.slice(archCount);
-
-    arch.forEach(({ mesh }) => {
-      mesh.visible = true;
-    });
-    reveal.forEach(({ mesh }) => {
-      mesh.visible = false;
-      mesh.scale.setScalar(0);
-    });
+    const settleStart = Math.floor(all.length * 0.6);
+    const settleable = all.slice(settleStart);
 
     if (typeof window !== 'undefined') {
       // eslint-disable-next-line no-console
-      console.log('[ApartmentScene] Mesh categorization:', {
+      console.log('[ApartmentScene] Mesh inventory:', {
         total: all.length,
-        archCount,
-        revealCount: reveal.length,
+        settleableCount: settleable.length,
         sceneBox: {
           center: [center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2)],
           size: [size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2)],
         },
-        architecture: arch.map((s) => ({
+        background: all.slice(0, settleStart).map((s) => ({
           name: s.name,
           volume: s.volume.toFixed(3),
         })),
-        reveal: reveal.map((s) => ({
+        settleable: settleable.map((s) => ({
           name: s.name,
           volume: s.volume.toFixed(3),
         })),
@@ -139,10 +127,9 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     }
 
     return {
-      revealMeshes: reveal.map<RevealMeshState>((s, i) => ({
+      settleMeshes: settleable.map<SettleMeshState>((s, i) => ({
         mesh: s.mesh,
         origY: s.origY,
-        origScale: s.origScale,
         index: i,
       })),
       sceneCenter: center,
@@ -151,9 +138,6 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     };
   }, [scene]);
 
-  /* Set near/far on first mount so the model isn't clipped at any
-     point along the camera path. Camera position is driven by
-     useFrame, not here. */
   React.useEffect(() => {
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       const persp = camera as THREE.PerspectiveCamera;
@@ -167,7 +151,6 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     onLoaded?.();
   }, [onLoaded]);
 
-  /* Cached vectors so we don't allocate per frame. */
   const orbitEndPos = React.useMemo(() => new THREE.Vector3(), []);
   const interiorPos = React.useMemo(() => new THREE.Vector3(), []);
   const lerped = React.useMemo(() => new THREE.Vector3(), []);
@@ -180,8 +163,8 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     const orbitTotalAngle = Math.PI * 2 * ORBIT_TURNS;
 
     if (progress < 0.5) {
-      /* Phase 1: orbit. Camera circles the apartment while the
-         room stays empty. */
+      /* Phase 1: orbit. Apartment is fully visible, fully
+         furnished. Camera circles. */
       const phase1 = progress / 0.5;
       const angle = phase1 * orbitTotalAngle;
 
@@ -192,15 +175,12 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
       );
       camera.lookAt(sceneCenter);
 
-      /* Make sure all reveal meshes stay hidden during phase 1.
-         Toggling visible to false is cheaper than re-zeroing scale
-         every frame. */
-      for (const state of revealMeshes) {
-        if (state.mesh.visible) state.mesh.visible = false;
+      /* Settle meshes pinned at origY during phase 1. */
+      for (const state of settleMeshes) {
+        state.mesh.position.y = state.origY;
       }
     } else {
-      /* Phase 2: dolly camera from orbit-end position into the
-         middle of the apartment, while furniture drops in. */
+      /* Phase 2: dolly camera from orbit-end into the middle. */
       const phase2 = (progress - 0.5) / 0.5;
       const eased = vercelEase(phase2);
 
@@ -210,39 +190,30 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
         sceneCenter.z + Math.sin(orbitTotalAngle) * orbitDistance,
       );
       interiorPos.set(
-        sceneCenter.x + maxDim * INTERIOR_OFFSET_X_MULT,
-        sceneCenter.y + maxDim * INTERIOR_OFFSET_Y_MULT,
-        sceneCenter.z + maxDim * INTERIOR_OFFSET_Z_MULT,
+        sceneCenter.x,
+        sceneCenter.y + maxDim * INTERIOR_HEIGHT_MULT,
+        sceneCenter.z,
       );
 
       lerped.lerpVectors(orbitEndPos, interiorPos, eased);
       camera.position.copy(lerped);
       camera.lookAt(sceneCenter);
 
-      /* Furniture reveals across phase 2. Each mesh has a
-         threshold = index / N; once phase2 passes the threshold,
-         the mesh animates in over the next REVEAL_BAND of phase
-         progress. Larger furniture (lower index) reveals first. */
-      const N = revealMeshes.length;
-      const REVEAL_BAND = N > 0 ? 0.5 / N : 1;
+      /* Settle bounce: bell-curve Y-offset on smaller meshes,
+         staggered. lift→drop→settle so items appear to "drop" into
+         place, but the start and end positions match origY (no
+         teleport). */
+      const N = settleMeshes.length;
+      const REVEAL_BAND = N > 0 ? 0.5 : 1;
 
-      for (const state of revealMeshes) {
-        const { mesh, origY, origScale, index } = state;
-        const threshold = index / Math.max(1, N);
+      for (const state of settleMeshes) {
+        const { mesh, origY, index } = state;
+        const threshold = (index / Math.max(1, N)) * 0.6;
         const local = (phase2 - threshold) / REVEAL_BAND;
-        const e = vercelEase(Math.max(0, Math.min(1, local)));
-
-        if (e > 0.001) {
-          if (!mesh.visible) mesh.visible = true;
-          mesh.scale.set(
-            origScale.x * e,
-            origScale.y * e,
-            origScale.z * e,
-          );
-          mesh.position.y = origY + (1 - e) * 0.6;
-        } else if (mesh.visible) {
-          mesh.visible = false;
-        }
+        const localClamp = Math.max(0, Math.min(1, local));
+        /* sin curve from 0 → 1 → 0 over the band. */
+        const yOff = Math.sin(localClamp * Math.PI) * SETTLE_PEAK;
+        mesh.position.y = origY + yOff;
       }
     }
   });
@@ -270,28 +241,24 @@ export function ApartmentScene({
         alpha: false,
         powerPreference: 'low-power',
       }}
-      /* Initial camera; Phase-1 orbit math overrides this on the
-         first frame. fov 55 widens the room when camera is inside
-         during phase 2. */
       camera={{ position: [0, 0, 5], fov: 55, near: 0.1, far: 200 }}
     >
-      {/* Solid black background per Hassan's brief. */}
       <color attach="background" args={['#000000']} />
 
-      <ambientLight intensity={0.55} color="#FFE4B5" />
+      <ambientLight intensity={0.6} color="#FFE4B5" />
       <hemisphereLight
-        intensity={0.45}
+        intensity={0.5}
         color="#FFF5E1"
         groundColor="#1a1a1a"
       />
       <directionalLight
         position={[10, 10, 5]}
-        intensity={1.4}
+        intensity={1.5}
         color="#FFFAEA"
       />
       <directionalLight
         position={[-5, 8, -3]}
-        intensity={0.45}
+        intensity={0.5}
         color="#A07E54"
       />
 
@@ -302,4 +269,4 @@ export function ApartmentScene({
   );
 }
 
-useGLTF.preload(APARTMENT_URL);
+useGLTF.preload(APARTMENT_URL, true);

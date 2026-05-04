@@ -1,18 +1,19 @@
 /*
   Home page composition per Document 5, with the 3D
-  ApartmentScrollSection inserted between Hero and ValueProp.
-  As the user scrolls through the section, an empty room
-  progressively fills with furniture. Nine sections plus footer:
+  ApartmentScrollSection inserted between Hero and ValueProp,
+  and the BeYouStrip Lottie banner between GalleryPreview and
+  HomeCompareSlider. Ten sections plus footer:
 
     1. Hero (text-forward, no photo)
-    2. ApartmentScrollSection (3D apartment that fills as you scroll)
+    2. ApartmentScrollSection (3D apartment, scroll-driven camera)
     3. ValueProp
     4. GalleryPreview
-    5. HomeCompareSlider
-    6. HowItWorks
-    7. ComparisonTable
-    8. FounderNote
-    9. FinalCTA
+    5. BeYouStrip (full-bleed Be You Lottie banner)
+    6. HomeCompareSlider
+    7. HowItWorks
+    8. ComparisonTable
+    9. FounderNote
+    10. FinalCTA
 
   Footer comes from the root layout.
 
@@ -26,6 +27,7 @@ import { Hero } from '@/components/home/Hero';
 import { ApartmentScrollSection } from '@/components/home/ApartmentScrollSection';
 import { ValueProp } from '@/components/home/ValueProp';
 import { GalleryPreview } from '@/components/home/GalleryPreview';
+import { BeYouStrip } from '@/components/home/BeYouStrip';
 import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
 import { HowItWorks } from '@/components/home/HowItWorks';
 import { ComparisonTable } from '@/components/home/ComparisonTable';
@@ -102,6 +104,7 @@ export default function HomePage() {
       <ApartmentScrollSection />
       <ValueProp />
       <GalleryPreview />
+      <BeYouStrip />
       <HomeCompareSlider />
       <HowItWorks />
       <ComparisonTable />
