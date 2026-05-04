@@ -12,8 +12,11 @@
   /gallery page with the full lightbox); v1 home page links to the
   gallery page on click.
 
-  Image paths follow Document 4 §8.8 naming: gallery-{idx}-{room}-
-  {style}.jpg. Hassan curates the 9 from his existing AI generations.
+  Image paths follow the gallery.ts naming convention:
+  gallery-{room}-{style}-01.png (single source of truth shared with
+  the /gallery page so home preview tiles never drift from gallery
+  curation). Hassan picks the first listed style per room from
+  gallery.ts to populate this preview.
 */
 
 import * as React from 'react';
@@ -37,63 +40,63 @@ interface GalleryTile {
 const TILES: GalleryTile[] = [
   {
     index: 1,
-    src: '/images/gallery/gallery-1-living-room-scandinavian.jpg',
+    src: '/images/gallery/gallery-living-scandinavian-01.png',
     alt: 'Scandinavian living room with warm woods and a neutral palette, designed by Furnish',
     room: 'Living Room',
     style: 'Scandinavian · Warm Woods',
   },
   {
     index: 2,
-    src: '/images/gallery/gallery-2-bedroom-mid-century.jpg',
+    src: '/images/gallery/gallery-bedroom-mid-century-01.png',
     alt: 'Mid-century modern bedroom with layered textiles and moody lighting, designed by Furnish',
     room: 'Bedroom',
     style: 'Mid-century Modern',
   },
   {
     index: 3,
-    src: '/images/gallery/gallery-3-kitchen-farmhouse.jpg',
+    src: '/images/gallery/gallery-kitchen-farmhouse-01.png',
     alt: 'Farmhouse kitchen with white cabinetry and herb plants on the counter, designed by Furnish',
     room: 'Kitchen',
     style: 'Farmhouse',
   },
   {
     index: 4,
-    src: '/images/gallery/gallery-4-bathroom-contemporary.jpg',
+    src: '/images/gallery/gallery-bathroom-contemporary-01.png',
     alt: 'Contemporary spa-style bathroom with stone surfaces, designed by Furnish',
     room: 'Bathroom',
     style: 'Contemporary',
   },
   {
     index: 5,
-    src: '/images/gallery/gallery-5-home-office-industrial.jpg',
+    src: '/images/gallery/gallery-home-office-industrial-01.png',
     alt: 'Industrial home office with leather chair and a mid-century desk, designed by Furnish',
     room: 'Home Office',
     style: 'Industrial',
   },
   {
     index: 6,
-    src: '/images/gallery/gallery-6-dining-room-art-deco.jpg',
+    src: '/images/gallery/gallery-dining-art-deco-01.png',
     alt: 'Art-deco dining room with a statement chandelier in jewel tones, designed by Furnish',
     room: 'Dining Room',
     style: 'Art Deco',
   },
   {
     index: 7,
-    src: '/images/gallery/gallery-7-nursery-bohemian.jpg',
+    src: '/images/gallery/gallery-nursery-bohemian-01.png',
     alt: 'Bohemian nursery with soft layered textiles, designed by Furnish',
     room: 'Nursery',
     style: 'Bohemian',
   },
   {
     index: 8,
-    src: '/images/gallery/gallery-8-walk-in-closet-contemporary.jpg',
+    src: '/images/gallery/gallery-walk-in-closet-contemporary-01.png',
     alt: 'Walk-in closet with brass hardware and built-in shelving, designed by Furnish',
     room: 'Walk-in Closet',
     style: 'Premium Contemporary',
   },
   {
     index: 9,
-    src: '/images/gallery/gallery-9-laundry-room-modern-farmhouse.jpg',
+    src: '/images/gallery/gallery-laundry-farmhouse-01.png',
     alt: 'Modern farmhouse laundry room with organized storage and warm wood accents, designed by Furnish',
     room: 'Laundry Room',
     style: 'Modern Farmhouse',
