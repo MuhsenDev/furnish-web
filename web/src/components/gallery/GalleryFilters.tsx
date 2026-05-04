@@ -41,19 +41,26 @@ export interface GalleryFiltersProps {
 
 const pillBase = cn(
   'shrink-0 inline-flex items-center justify-center',
-  'rounded-full px-4 py-2 text-body-s font-semibold',
-  'transition-colors duration-200 ease-premium',
+  'rounded-full px-5 py-2.5 text-body-s font-semibold',
+  'transition-all duration-300 ease-premium',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
+  'focus-visible:ring-offset-2 focus-visible:ring-offset-cream',
 );
 
 const pillActive = cn(
-  'bg-[var(--color-accent)] text-cream border border-[var(--color-accent)]',
+  'bg-[var(--color-accent)] text-cream',
+  'border border-[var(--color-accent)]',
+  'shadow-1',
 );
 
 const pillInactive = cn(
   'bg-surface text-ink',
   'border border-[rgba(43,30,24,0.16)]',
-  'hover:border-[rgba(43,30,24,0.32)]',
+  /* Inactive hover: warm tint background, accent border, deeper
+     text. More visual feedback than just a slightly darker border. */
+  'hover:border-[var(--color-accent)]/50',
+  'hover:bg-[var(--color-accent)]/[0.06]',
+  'hover:text-deep',
 );
 
 export function GalleryFilters({

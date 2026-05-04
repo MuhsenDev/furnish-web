@@ -2,32 +2,26 @@
 
 /*
   ApartmentScene — three.js + react-three-fiber canvas that loads
-  modern_apartment.glb and runs a two-phase scroll-driven camera
-  animation:
+  modern_apartment.glb and runs a scroll-driven camera + furniture
+  animation, ALWAYS from inside the home.
 
-    Phase 1 (scroll 0 .. 0.5):
-      Camera orbits the fully-furnished apartment 1.25 revolutions
-      ("360+"). Every mesh is visible at its original position from
-      frame 1 — no categorization, no scale-zero tricks. Empty
-      rooms previously appeared because the categorization heuristic
-      was hiding things it shouldn't.
+  Hassan called out that the previous orbit-then-dolly camera spent
+  most of its time outside the house, making the furniture-drop
+  animation invisible. This rewrite keeps the camera fixed at an
+  interior eye-level position and rotates the lookAt direction so
+  the user sees the apartment from inside, panning around 1.25
+  revolutions over the section's scroll. Items drop from above into
+  their resting positions across the same scroll range, in volume-
+  descending order.
 
-    Phase 2 (scroll 0.5 .. 1.0):
-      Camera dollies from the orbit-end position into the middle of
-      the apartment using a Vercel-curve lerp. As it arrives, the
-      smaller meshes (bottom 40% by bounding-box volume) play a
-      subtle bell-curve "settle" bounce on Y: lift slightly, drop
-      back to original. The animation is staggered across the items
-      so the room feels like it's exhaling into final position.
+  DRACO is enabled in useGLTF(url, true) — gltf-transform output is
+  typically draco-compressed and the decoder is required for the
+  scene to actually load.
 
-  DRACO is enabled in useGLTF(url, true) because gltf-transform
-  output is typically draco-compressed; without the decoder the
-  scene loads as empty meshes.
+  Camera autofits to model bbox so the same code works regardless
+  of how the .glb was exported.
 
-  Camera autofits to model bbox, so the same code works regardless
-  of how the .glb was exported (units, scale, origin).
-
-  Background: solid black per Hassan's brief override.
+  Background: solid black per Hassan's earlier brief override.
 */
 
 import * as React from 'react';
@@ -41,13 +35,13 @@ function vercelEase(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
 
-const ORBIT_TURNS = 1.25;
-const ORBIT_DISTANCE_MULT = 0.95;
-const ORBIT_HEIGHT_MULT = 0.25;
-const INTERIOR_HEIGHT_MULT = 0.08;
-const SETTLE_PEAK = 0.35;
+const PAN_TURNS = 1.25; // 1.25 full revolutions over scroll 0..1
+const INTERIOR_FLOOR_OFFSET_MULT = 0.15; // camera below scene center
+const INTERIOR_LOOK_DOWN_MULT = 0.05; // slight downward gaze
+const DROP_HEIGHT = 0.6; // world units items drop from
+const DROP_REVEAL_END = 0.85; // last item finishes by this scroll progress
 
-interface SettleMeshState {
+interface DropMeshState {
   mesh: THREE.Mesh;
   origY: number;
   index: number;
@@ -59,12 +53,11 @@ interface ApartmentMeshesProps {
 }
 
 function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
-  /* DRACO enabled. Without `true` here, draco-compressed .glb files
-     either load as empty or throw silently. */
+  /* DRACO enabled. Without it the .glb loads as empty meshes. */
   const { scene } = useGLTF(APARTMENT_URL, true);
   const { camera } = useThree();
 
-  const { settleMeshes, sceneCenter, sceneSize, maxDim } = React.useMemo(() => {
+  const { dropMeshes, sceneCenter, sceneSize, maxDim } = React.useMemo(() => {
     const all: {
       mesh: THREE.Mesh;
       volume: number;
@@ -88,10 +81,6 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
         origY: mesh.position.y,
         name: mesh.name || '(unnamed)',
       });
-
-      /* Make every mesh visible from the start. The previous
-         "hide reveal meshes" pass was eating walls/floor on this
-         model. */
       mesh.visible = true;
     });
 
@@ -99,35 +88,42 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     const center = sceneBox.getCenter(new THREE.Vector3());
     const size = sceneBox.getSize(new THREE.Vector3());
 
-    /* Sort descending by volume; smaller meshes get the settle
-       animation in phase 2. Top 60% are background (no animation,
-       always at origY). Bottom 40% bounce. */
+    /* Sort descending by volume. Top 30% are architecture (walls,
+       floor, ceiling, big structural pieces) — always at origY,
+       no drop animation. The remaining 70% drop in over scroll
+       progress. */
     all.sort((a, b) => b.volume - a.volume);
-    const settleStart = Math.floor(all.length * 0.6);
-    const settleable = all.slice(settleStart);
+    const archCount = Math.max(3, Math.floor(all.length * 0.3));
+    const arch = all.slice(0, archCount);
+    const dropping = all.slice(archCount);
+
+    /* Initial state for dropping meshes: lifted by DROP_HEIGHT.
+       They settle to origY as scroll progresses. Architecture stays
+       at origY throughout. */
+    arch.forEach(({ mesh, origY }) => {
+      mesh.position.y = origY;
+    });
+    dropping.forEach(({ mesh, origY }) => {
+      mesh.position.y = origY + DROP_HEIGHT;
+    });
 
     if (typeof window !== 'undefined') {
       // eslint-disable-next-line no-console
       console.log('[ApartmentScene] Mesh inventory:', {
         total: all.length,
-        settleableCount: settleable.length,
+        archCount,
+        droppingCount: dropping.length,
         sceneBox: {
           center: [center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2)],
           size: [size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2)],
         },
-        background: all.slice(0, settleStart).map((s) => ({
-          name: s.name,
-          volume: s.volume.toFixed(3),
-        })),
-        settleable: settleable.map((s) => ({
-          name: s.name,
-          volume: s.volume.toFixed(3),
-        })),
+        arch: arch.slice(0, 10).map((s) => ({ name: s.name, vol: s.volume.toFixed(3) })),
+        dropping: dropping.slice(0, 15).map((s) => ({ name: s.name, vol: s.volume.toFixed(3) })),
       });
     }
 
     return {
-      settleMeshes: settleable.map<SettleMeshState>((s, i) => ({
+      dropMeshes: dropping.map<DropMeshState>((s, i) => ({
         mesh: s.mesh,
         origY: s.origY,
         index: i,
@@ -151,70 +147,52 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     onLoaded?.();
   }, [onLoaded]);
 
-  const orbitEndPos = React.useMemo(() => new THREE.Vector3(), []);
+  /* Cached interior position vector. Camera always sits here. */
   const interiorPos = React.useMemo(() => new THREE.Vector3(), []);
-  const lerped = React.useMemo(() => new THREE.Vector3(), []);
+  const lookTarget = React.useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    const progress = scrollRef.current;
+    const t = scrollRef.current;
 
-    const orbitDistance = maxDim * ORBIT_DISTANCE_MULT;
-    const orbitHeight = maxDim * ORBIT_HEIGHT_MULT;
-    const orbitTotalAngle = Math.PI * 2 * ORBIT_TURNS;
+    /* Interior camera position: at scene center horizontally,
+       slightly below the geometric center vertically (closer to
+       floor / human eye height inside a tall room). */
+    interiorPos.set(
+      sceneCenter.x,
+      sceneCenter.y - sceneSize.y * INTERIOR_FLOOR_OFFSET_MULT,
+      sceneCenter.z,
+    );
 
-    if (progress < 0.5) {
-      /* Phase 1: orbit. Apartment is fully visible, fully
-         furnished. Camera circles. */
-      const phase1 = progress / 0.5;
-      const angle = phase1 * orbitTotalAngle;
+    /* LookAt direction rotates around the camera over scroll. The
+       lookTarget is one unit away from the camera in the chosen
+       direction; lookAt() only cares about the direction, not the
+       distance. Y offset gives a slight downward gaze so the floor
+       and lower furniture are visible. */
+    const angle = t * Math.PI * 2 * PAN_TURNS;
+    lookTarget.set(
+      interiorPos.x + Math.cos(angle),
+      interiorPos.y - sceneSize.y * INTERIOR_LOOK_DOWN_MULT,
+      interiorPos.z + Math.sin(angle),
+    );
 
-      camera.position.set(
-        sceneCenter.x + Math.cos(angle) * orbitDistance,
-        sceneCenter.y + orbitHeight,
-        sceneCenter.z + Math.sin(angle) * orbitDistance,
-      );
-      camera.lookAt(sceneCenter);
+    camera.position.copy(interiorPos);
+    camera.lookAt(lookTarget);
 
-      /* Settle meshes pinned at origY during phase 1. */
-      for (const state of settleMeshes) {
-        state.mesh.position.y = state.origY;
-      }
-    } else {
-      /* Phase 2: dolly camera from orbit-end into the middle. */
-      const phase2 = (progress - 0.5) / 0.5;
-      const eased = vercelEase(phase2);
+    /* Items drop in waves. Each item has a threshold = its index
+       fraction times DROP_REVEAL_END. Earlier indexes (larger
+       volume) drop first; later indexes (smaller decor) drop last.
+       The reveal band per item is wide enough that drops overlap
+       across multiple items at any moment, so the room "fills" in
+       a continuous wave rather than a staccato file. */
+    const N = dropMeshes.length;
+    if (N === 0) return;
+    const REVEAL_BAND = 0.35;
 
-      orbitEndPos.set(
-        sceneCenter.x + Math.cos(orbitTotalAngle) * orbitDistance,
-        sceneCenter.y + orbitHeight,
-        sceneCenter.z + Math.sin(orbitTotalAngle) * orbitDistance,
-      );
-      interiorPos.set(
-        sceneCenter.x,
-        sceneCenter.y + maxDim * INTERIOR_HEIGHT_MULT,
-        sceneCenter.z,
-      );
-
-      lerped.lerpVectors(orbitEndPos, interiorPos, eased);
-      camera.position.copy(lerped);
-      camera.lookAt(sceneCenter);
-
-      /* Settle bounce: bell-curve Y-offset on smaller meshes,
-         staggered. lift→drop→settle so items appear to "drop" into
-         place, but the start and end positions match origY (no
-         teleport). */
-      const N = settleMeshes.length;
-      const REVEAL_BAND = N > 0 ? 0.5 : 1;
-
-      for (const state of settleMeshes) {
-        const { mesh, origY, index } = state;
-        const threshold = (index / Math.max(1, N)) * 0.6;
-        const local = (phase2 - threshold) / REVEAL_BAND;
-        const localClamp = Math.max(0, Math.min(1, local));
-        /* sin curve from 0 → 1 → 0 over the band. */
-        const yOff = Math.sin(localClamp * Math.PI) * SETTLE_PEAK;
-        mesh.position.y = origY + yOff;
-      }
+    for (const state of dropMeshes) {
+      const threshold = (state.index / N) * DROP_REVEAL_END;
+      const local = (t - threshold) / REVEAL_BAND;
+      const eased = vercelEase(Math.max(0, Math.min(1, local)));
+      state.mesh.position.y = state.origY + (1 - eased) * DROP_HEIGHT;
     }
   });
 
@@ -241,13 +219,15 @@ export function ApartmentScene({
         alpha: false,
         powerPreference: 'low-power',
       }}
-      camera={{ position: [0, 0, 5], fov: 55, near: 0.1, far: 200 }}
+      /* Wider fov for the interior view so we see more of the room
+         around us as the camera pans. */
+      camera={{ position: [0, 0, 0], fov: 65, near: 0.1, far: 200 }}
     >
       <color attach="background" args={['#000000']} />
 
       <ambientLight intensity={0.6} color="#FFE4B5" />
       <hemisphereLight
-        intensity={0.5}
+        intensity={0.55}
         color="#FFF5E1"
         groundColor="#1a1a1a"
       />

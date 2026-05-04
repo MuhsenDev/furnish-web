@@ -1,30 +1,25 @@
 'use client';
 
 /*
-  Home page Hero, text-forward.
+  Home page Hero, 2-column on desktop:
 
-  No room photo. No portrait. The headline is the entire visual
-  weight. Centered, generous whitespace, single column. Linear /
-  Apple "premium product page" pattern.
+    Desktop (lg+):
+      Left column (col-span-6): eyebrow + 3-line headline + subhead +
+        secondary CTA + sub-CTA caption + (pre-launch) arrow + waitlist
+        form. Left-aligned text.
+      Right column (col-span-6): the "Hallo" Hello-welcome Lottie at
+        as-big-as-possible size without obstructing the left column.
 
-  Pre-launch variant (current shipped state):
-  - Headline + supporting text + secondary CTA only
-  - Below the secondary CTA: a generous Hello-welcome Lottie (now
-    big, no warm-tint filter, green-screen layer stripped from the
-    .lottie file so it sits transparently on the cream background)
-  - Below the Lottie: an arrow Lottie pointing DOWN at the waitlist
-    form
-  - Below the arrow: the inline waitlist form (which has its own
-    "Join the Waitlist" submit button — that's the one Hassan kept)
+    Mobile (below lg):
+      Stacked, text-first per Hassan's earlier preference. Order:
+        text + CTAs + sub-CTA → Hallo Lottie → arrow → waitlist form.
+      The Hallo is sized smaller on mobile so it doesn't dominate
+      before the user has read the headline.
 
-  Removed in this iteration: the duplicate primary CTA above the
-  waitlist form (Hassan's note: "remove the 'Join' button"). The
-  waitlist form's own submit button IS the call to action; the
-  arrow points the user at it.
-
-  Post-launch variant: keeps the App Store CTA where the primary
-  CTA used to be. The Lottie + arrow + waitlist block isn't
-  rendered post-launch.
+  The primary "Join the Waitlist" CTA was previously dropped (the
+  waitlist form's own submit button is the call to action). The arrow
+  Lottie on the LEFT column points down at the form directly below
+  it.
 */
 
 import * as React from 'react';
@@ -70,140 +65,158 @@ export function Hero() {
         width="default"
         className="flex flex-1 items-center pt-24 pb-10 lg:pt-12 lg:pb-12"
       >
-        {/* Single centered column. */}
-        <div className="mx-auto w-full max-w-4xl text-center">
-          <p data-hero-eyebrow className="eyebrow">
-            {t('common', 'tagline')}
-          </p>
-
-          <h1
-            className={cn(
-              'mt-5 font-display text-deep',
-              'tracking-display-tight leading-[1.05]',
-              'text-display-l lg:text-display-xl',
-            )}
-          >
-            <span
-              data-hero-headline-line
-              className="block whitespace-nowrap"
-            >
-              {t('home', 'heroLine1')}
-            </span>
-            <span
-              data-hero-headline-line
-              className="block whitespace-nowrap"
-            >
-              {t('home', 'heroLine2')}
-            </span>
-            <span
-              data-hero-headline-line
-              className="block whitespace-nowrap"
-            >
-              {t('home', 'heroLine3')}
-            </span>
-          </h1>
-
-          <p
-            data-hero-subhead
-            className={cn(
-              'mx-auto mt-6 max-w-2xl text-body-xl text-ink',
-              'opacity-90',
-            )}
-          >
-            {t('home', 'heroSubheadline')}
-          </p>
-
-          {/* CTAs row.
-              Post-launch: App Store CTA + secondary "See How It
-              Works".
-              Pre-launch: secondary CTA only. The "Join the Waitlist"
-              CTA used to live here too but was removed; the waitlist
-              form's own submit button below is the call to action. */}
+        <div
+          className={cn(
+            'w-full grid items-center',
+            'grid-cols-1 lg:grid-cols-12',
+            'gap-8 lg:gap-10 xl:gap-14',
+          )}
+        >
+          {/* LEFT column on desktop: text + CTAs + waitlist. Mobile
+              order-1 so it appears first (text-first preference). */}
           <div
             className={cn(
-              'mt-8 flex flex-col gap-3',
-              'sm:flex-row sm:items-center sm:justify-center',
+              'order-1 lg:order-1 lg:col-span-6',
+              'text-center lg:text-left',
             )}
           >
-            {APP_LAUNCHED && (
-              <Link
-                data-hero-cta-primary
-                href={APP_STORE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() =>
-                  track('home_hero_cta_click', { cta_text: 'app_store' })
-                }
-                className={primaryCtaClasses}
-              >
-                {t('common', 'ctaAppStore')}
-                <ArrowRight
-                  size={18}
-                  strokeWidth={1.5}
-                  className="cta-arrow"
-                />
-              </Link>
-            )}
-            <a
-              data-hero-cta-secondary
-              href="#how-it-works"
-              onClick={() => track('home_secondary_cta_click')}
-              className={secondaryCtaClasses}
-            >
-              {t('home', 'heroCtaSecondary')}
-            </a>
-          </div>
+            <p data-hero-eyebrow className="eyebrow">
+              {t('common', 'tagline')}
+            </p>
 
-          <p className="mt-4 text-body-s text-muted">
-            {APP_LAUNCHED
-              ? t('home', 'heroSubCtaPostLaunch')
-              : t('home', 'heroSubCtaPreLaunch')}
-          </p>
-
-          {/* Pre-launch only: HUGE Hello-welcome Lottie + 3x arrow
-              + waitlist form. Container widened to max-w-4xl so the
-              Hello has room to be ~4-5x its previous size; the
-              waitlist form inside is constrained back to max-w-md
-              for usability. */}
-          {!APP_LAUNCHED && (
-            <div
-              id="waitlist"
+            <h1
               className={cn(
-                'mt-12 mx-auto max-w-4xl',
-                'scroll-mt-24',
-                'flex flex-col items-center',
+                'mt-5 font-display text-deep',
+                'tracking-display-tight leading-[1.05]',
+                /* On lg+ the headline lives in a 6-column slice so
+                   we cap the size at display-l (instead of bumping to
+                   display-xl) to avoid awkward mid-phrase wrapping. */
+                'text-display-l',
               )}
             >
-              {/* Hello-welcome.
-                  - Green-screen layer stripped from the .lottie.
-                  - Text fills recolored to brand ink so the "Haloo"
-                    text is visible against the cream hero BG.
-                  - Sized 4-5x its previous footprint via
-                    aspect-square + responsive max-widths. */}
-              <LottieAsset
-                src="/Animations/Lottie/Hello-welcome.web.lottie"
-                className={cn(
-                  'w-full',
-                  'max-w-[28rem] sm:max-w-[40rem] lg:max-w-[52rem]',
-                  'aspect-square',
-                )}
-                ariaLabel=""
-              />
+              <span
+                data-hero-headline-line
+                className="block whitespace-nowrap"
+              >
+                {t('home', 'heroLine1')}
+              </span>
+              <span
+                data-hero-headline-line
+                className="block whitespace-nowrap"
+              >
+                {t('home', 'heroLine2')}
+              </span>
+              <span
+                data-hero-headline-line
+                className="block whitespace-nowrap"
+              >
+                {t('home', 'heroLine3')}
+              </span>
+            </h1>
 
-              {/* Arrow pointing down at the waitlist form. 3x the
-                  previous size per Hassan. */}
-              <LottieAsset
-                src="/Animations/Lottie/Arrow%201.lottie"
-                className="-mt-4 h-40 w-40 sm:-mt-6 sm:h-44 sm:w-44 opacity-80"
-                tint="warm"
-                ariaLabel=""
-              />
+            <p
+              data-hero-subhead
+              className={cn(
+                'mt-6 max-w-2xl text-body-xl text-ink',
+                'mx-auto lg:mx-0',
+                'opacity-90',
+              )}
+            >
+              {t('home', 'heroSubheadline')}
+            </p>
 
-              <div className="mt-4 w-full max-w-md">
-                <EmailWaitlist location="hero" />
-              </div>
+            <div
+              className={cn(
+                'mt-8 flex flex-col gap-3',
+                'sm:flex-row sm:items-center',
+                'sm:justify-center lg:justify-start',
+              )}
+            >
+              {APP_LAUNCHED && (
+                <Link
+                  data-hero-cta-primary
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() =>
+                    track('home_hero_cta_click', { cta_text: 'app_store' })
+                  }
+                  className={primaryCtaClasses}
+                >
+                  {t('common', 'ctaAppStore')}
+                  <ArrowRight
+                    size={18}
+                    strokeWidth={1.5}
+                    className="cta-arrow"
+                  />
+                </Link>
+              )}
+              <a
+                data-hero-cta-secondary
+                href="#how-it-works"
+                onClick={() => track('home_secondary_cta_click')}
+                className={secondaryCtaClasses}
+              >
+                {t('home', 'heroCtaSecondary')}
+              </a>
             </div>
-          )}
+
+            <p className="mt-4 text-body-s text-muted">
+              {APP_LAUNCHED
+                ? t('home', 'heroSubCtaPostLaunch')
+                : t('home', 'heroSubCtaPreLaunch')}
+            </p>
+
+            {/* Pre-launch waitlist block: arrow Lottie pointing down
+                at the form. Centered on mobile (below the headline +
+                CTAs), left-aligned on desktop (under the LEFT column
+                content). */}
+            {!APP_LAUNCHED && (
+              <div
+                id="waitlist"
+                className={cn(
+                  'mt-10 scroll-mt-24',
+                  'flex flex-col items-center',
+                  'lg:items-start',
+                  'mx-auto lg:mx-0',
+                  'max-w-md',
+                )}
+              >
+                <LottieAsset
+                  src="/Animations/Lottie/Arrow%201.lottie"
+                  className="-mt-2 h-32 w-32 sm:h-36 sm:w-36 opacity-80"
+                  tint="warm"
+                  ariaLabel=""
+                />
+                <div className="mt-2 w-full">
+                  <EmailWaitlist location="hero" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT column on desktop: HALLO Lottie. Mobile order-2 so
+              it appears below the text content. */}
+          <div
+            className={cn(
+              'order-2 lg:order-2 lg:col-span-6',
+              'flex justify-center lg:justify-end',
+            )}
+          >
+            <LottieAsset
+              src="/Animations/Lottie/Hello-welcome.web.lottie"
+              className={cn(
+                'w-full',
+                /* Sized big but constrained so it doesn't obstruct
+                   the LEFT column on desktop. On mobile it goes
+                   smaller because it's competing with text below. */
+                'max-w-[22rem] sm:max-w-[30rem]',
+                'lg:max-w-[36rem] xl:max-w-[42rem]',
+                'aspect-square',
+              )}
+              ariaLabel=""
+            />
+          </div>
         </div>
       </Container>
     </section>
