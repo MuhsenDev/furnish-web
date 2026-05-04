@@ -22,7 +22,7 @@ import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
-const BEFORE_SRC = '/images/before-after/ba-1-living-room-empty.jpg';
+const BEFORE_SRC = '/images/before-after/ba-1-living-room-empty-v2.jpg';
 const AFTER_SRC = '/images/before-after/ba-1-living-room-scandinavian.jpg';
 
 export function HomeCompareSlider() {
