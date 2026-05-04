@@ -1,31 +1,29 @@
 'use client';
 
 /*
-  Home page Hero per Document 5 Section 1, updated to swap the static
-  hero image for a signature 3D animated portrait per Hassan's call.
+  Home page Hero per Document 5 Section 1.
 
   Layout:
     Desktop (lg+): 5/7 grid. Headline + CTAs in the left 5 columns,
-                   3D portrait in the right 7 columns. Both columns
-                   center-aligned vertically over the full viewport
-                   height.
-    Mobile:        Stacked. Headline + CTAs + waitlist on top. The
-                   3D portrait fills the natural vertical space below
-                   (about 60vh) where the room photo used to live.
+                   curated room photo in the right 7 columns. Both
+                   columns center-aligned vertically over the full
+                   viewport height.
+    Mobile:        Stacked, text-first. Headline + CTAs + waitlist
+                   on top. The hero room photo fills the natural
+                   vertical space below.
 
-  The 3D portrait is dynamically imported with ssr:false so the
-  three.js bundle never reaches the SSR HTML and so the chunk loads
-  off the critical path. A cream-colored placeholder fills the
-  portrait slot while the chunk streams in. The Hero reveal
-  choreography (useHeroSequence) targets [data-hero-image] which is
-  set on the portrait wrapper, so the existing fade-in still works.
+  The 3D portrait used to live here in the v1 build of this commit
+  series, but Hassan moved it to its own dedicated PortraitSection
+  between Hero and GalleryPreview. The hero is back to a curated room
+  photo (hero-1, Scandinavian living, bright morning) which the
+  user-facing brand wants on the home page.
 
-  Copy is locked. 3-line headline ("Take a photo. / Furnish does /
-  the rest."), subheadline, two CTAs side-by-side, sub-CTA below.
+  Hero image is locked at hero-1 for initial build. Hassan curates
+  the actual image into public/images/hero/.
 */
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
@@ -36,20 +34,7 @@ import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 
-/* Lazy-load the 3D portrait. ssr:false because three.js touches
-   `window` and a `<canvas>` element on construction; rendering it on
-   the server would either bail or ship dead HTML. The placeholder
-   matches the cream hero background so there's no flash while the
-   chunk streams in. */
-const HeroPortrait = dynamic(
-  () => import('./HeroPortrait').then((m) => m.HeroPortrait),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-full w-full bg-cream" aria-hidden="true" />
-    ),
-  },
-);
+const HERO_IMAGE_SRC = '/images/hero/hero-1-scandinavian-living-morning.jpg';
 
 const primaryCtaClasses = cn(
   'btn-primary-hover',
@@ -193,20 +178,46 @@ export function Hero() {
             )}
           </div>
 
-          {/* Portrait column. Desktop: right 7 of 12 columns, full
-              viewport height. Mobile: stacked below text, ~60vh
-              tall. The data-hero-image attribute lets useHeroSequence
-              fade the portrait in along with the rest of the hero. */}
+          {/* Image column. Desktop: right 7 of 12 columns. Mobile:
+              stacked below text in a ~60vh slot. The data-hero-image
+              attribute lets useHeroSequence fade the image in along
+              with the rest of the hero choreography. */}
           <div
             data-hero-image
             className={cn(
               'order-2 lg:col-span-7',
-              'relative flex items-center justify-center',
+              'relative overflow-hidden rounded-sm',
               'h-[60vh] sm:h-[70vh] lg:h-screen',
               'pb-12 lg:pb-0',
             )}
           >
-            <HeroPortrait />
+            <Image
+              src={HERO_IMAGE_SRC}
+              alt={t('home', 'heroImageAlt')}
+              fill
+              priority
+              sizes="(min-width: 1024px) 60vw, 100vw"
+              className="object-cover"
+            />
+            {/* Bottom gradient on mobile so the image fades into the
+                cream background of the next section. */}
+            <div
+              aria-hidden="true"
+              className={cn(
+                'absolute inset-x-0 bottom-0 h-16 lg:hidden',
+                'bg-gradient-to-b from-transparent to-cream',
+              )}
+            />
+            {/* Image attribution per Document 5 §1.10. */}
+            <p
+              className={cn(
+                'absolute bottom-3 right-3 sm:bottom-4 sm:right-4',
+                'text-body-s text-cream/70',
+                'pointer-events-none',
+              )}
+            >
+              {t('home', 'heroAttribution')}
+            </p>
           </div>
         </div>
       </Container>

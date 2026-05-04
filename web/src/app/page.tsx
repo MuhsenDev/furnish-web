@@ -1,16 +1,18 @@
 /*
-  Home page composition per Document 5.
+  Home page composition per Document 5, with the dedicated 3D
+  PortraitSection inserted between Hero and ValueProp per Hassan's
+  call. Nine sections plus footer, top to bottom:
 
-  8 sections plus footer. Each section is a separate React component
-  under @/components/home. Top to bottom:
-    1. Hero
-    2. ValueProp
-    3. GalleryPreview
-    4. HomeCompareSlider
-    5. HowItWorks
-    6. ComparisonTable
-    7. FounderNote
-    8. FinalCTA
+    1. Hero (room photo right column)
+    2. PortraitSection (dedicated, deep-espresso background)
+    3. ValueProp
+    4. GalleryPreview
+    5. HomeCompareSlider
+    6. HowItWorks
+    7. ComparisonTable
+    8. FounderNote
+    9. FinalCTA
+
   Footer comes from the root layout.
 
   Pre-launch / post-launch differentiation lives inside each component
@@ -20,6 +22,7 @@
 
 import type { Metadata } from 'next';
 import { Hero } from '@/components/home/Hero';
+import { PortraitSection } from '@/components/home/PortraitSection';
 import { ValueProp } from '@/components/home/ValueProp';
 import { GalleryPreview } from '@/components/home/GalleryPreview';
 import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
@@ -95,6 +98,7 @@ export default function HomePage() {
     <>
       <HomeStructuredData />
       <Hero />
+      <PortraitSection />
       <ValueProp />
       <GalleryPreview />
       <HomeCompareSlider />
