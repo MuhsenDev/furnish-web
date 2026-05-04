@@ -68,7 +68,11 @@ const config: Config = {
         3: 'var(--shadow-3)',
       },
       transitionTimingFunction: {
+        /* Vercel curve. Maps to --ease-premium / --ease-furnish-out
+           which both resolve to cubic-bezier(0.16, 1, 0.3, 1). */
         premium: 'var(--ease-premium)',
+        vercel: 'var(--ease-premium)',
+        'vercel-in': 'var(--ease-vercel-in)',
       },
       maxWidth: {
         narrow: 'var(--container-narrow)',

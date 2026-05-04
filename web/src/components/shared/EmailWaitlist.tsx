@@ -121,7 +121,7 @@ export function EmailWaitlist({
           className={cn(
             'flex-1 rounded-sm border px-4 py-3',
             'text-body-m',
-            'transition-colors duration-200',
+            'transition-colors duration-200 ease-premium',
             'focus:border-[var(--color-accent)] focus:outline-none',
             inputClasses,
           )}

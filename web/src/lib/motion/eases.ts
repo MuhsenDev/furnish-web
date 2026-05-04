@@ -30,7 +30,11 @@ type CustomEaseConstructor = typeof CustomEaseType;
   side changes.
 */
 export const FURNISH_EASES = {
-  furnishOut: '0.22, 1, 0.36, 1',
+  /* Default (80% of animations). The Vercel curve. Replaced the
+     original brand curve (0.22, 1, 0.36, 1) in 2026-05 so the site
+     reads more "expensive" / deliberate. Mirrors
+     --ease-furnish-out / --ease-premium in tokens.css. */
+  furnishOut: '0.16, 1, 0.3, 1',
   furnishInOut: '0.65, 0, 0.35, 1',
   furnishBack: '0.34, 1.56, 0.64, 1',
   furnishAnticipate: '0.7, -0.4, 0.4, 1.4',

@@ -1,40 +1,39 @@
 'use client';
 
 /*
-  Home page Hero per Document 5 Section 1.
+  Home page Hero, text-forward.
+
+  No room photo. No portrait. The headline is the entire visual
+  weight. Centered, generous whitespace, single column. Matches the
+  Linear / Apple "premium product page" pattern.
 
   Layout:
-    Desktop (lg+): 5/7 grid. Headline + CTAs in the left 5 columns,
-                   curated room photo in the right 7 columns. Both
-                   columns center-aligned vertically over the full
-                   viewport height.
-    Mobile:        Stacked, text-first. Headline + CTAs + waitlist
-                   on top. The hero room photo fills the natural
-                   vertical space below.
-
-  The 3D portrait used to live here in the v1 build of this commit
-  series, but Hassan moved it to its own dedicated PortraitSection
-  between Hero and GalleryPreview. The hero is back to a curated room
-  photo (hero-1, Scandinavian living, bright morning) which the
-  user-facing brand wants on the home page.
-
-  Hero image is locked at hero-1 for initial build. Hassan curates
-  the actual image into public/images/hero/.
+  - Section is min-h-[90vh] (or min-h-screen on lg) with vertically
+    centered content. A subtle Lottie arrow sits pinned to the
+    bottom of the section as a scroll-down indicator.
+  - Content column max-w-4xl, centered.
+  - Headline 3 lines, leading-[1.05] (loosened from the previous
+    too-tight 0.92), each line nowrap so it doesn't break in
+    awkward places on tablet widths.
+  - Eyebrow (the locked tagline) above the headline.
+  - Subheadline below.
+  - 2 CTAs centered horizontally.
+  - Sub-CTA caption.
+  - Pre-launch only: a small Hello-welcome Lottie above the
+    waitlist form as warm accent.
 */
 
 import * as React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 import { EmailWaitlist } from '@/components/shared/EmailWaitlist';
+import { LottieAsset } from '@/components/shared/LottieAsset';
 import { useHeroSequence } from '@/lib/motion';
 import { t } from '@/lib/i18n';
 import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
-
-const HERO_IMAGE_SRC = '/images/hero/hero-1-scandinavian-living-morning.jpg';
 
 const primaryCtaClasses = cn(
   'btn-primary-hover',
@@ -64,163 +63,154 @@ export function Hero() {
     <section
       ref={heroRef}
       className={cn(
-        'relative overflow-hidden bg-cream',
+        'relative bg-cream',
         'min-h-[90vh] lg:min-h-screen',
+        'flex flex-col',
       )}
     >
-      <Container width="default" className="relative">
-        <div
-          className={cn(
-            'grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10 xl:gap-14',
-            'pt-12 lg:pt-0',
-            'lg:min-h-screen',
-          )}
-        >
-          {/* Text column. Desktop: left 5 of 12 columns, vertically
-              centered. Mobile: full-width on top. */}
-          <div
+      <Container
+        width="default"
+        className="flex flex-1 items-center pt-24 pb-10 lg:pt-12 lg:pb-12"
+      >
+        {/* Single centered column. */}
+        <div className="mx-auto w-full max-w-4xl text-center">
+          <p data-hero-eyebrow className="eyebrow">
+            {t('common', 'tagline')}
+          </p>
+
+          <h1
             className={cn(
-              'order-1 lg:col-span-5',
-              'flex flex-col justify-center',
+              'mt-5 font-display text-deep',
+              'tracking-display-tight leading-[1.05]',
+              'text-display-l lg:text-display-xl',
             )}
           >
-            <h1
-              className={cn(
-                'font-display text-deep',
-                'tracking-display-tight leading-display-tight',
-                'text-display-l lg:text-display-xl',
-              )}
+            <span
+              data-hero-headline-line
+              className="block whitespace-nowrap"
             >
-              <span data-hero-headline-line className="block">
-                {t('home', 'heroLine1')}
-              </span>
-              <span data-hero-headline-line className="block">
-                {t('home', 'heroLine2')}
-              </span>
-              <span data-hero-headline-line className="block">
-                {t('home', 'heroLine3')}
-              </span>
-            </h1>
-
-            <p data-hero-eyebrow className="eyebrow mt-6">
-              {t('common', 'tagline')}
-            </p>
-
-            <p
-              data-hero-subhead
-              className={cn(
-                'mt-3 max-w-lg text-body-xl text-ink',
-                'opacity-90',
-              )}
+              {t('home', 'heroLine1')}
+            </span>
+            <span
+              data-hero-headline-line
+              className="block whitespace-nowrap"
             >
-              {t('home', 'heroSubheadline')}
-            </p>
+              {t('home', 'heroLine2')}
+            </span>
+            <span
+              data-hero-headline-line
+              className="block whitespace-nowrap"
+            >
+              {t('home', 'heroLine3')}
+            </span>
+          </h1>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              {APP_LAUNCHED ? (
-                <Link
-                  data-hero-cta-primary
-                  href={primaryCtaHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() =>
-                    track('home_hero_cta_click', { cta_text: 'app_store' })
-                  }
-                  className={primaryCtaClasses}
-                >
-                  {primaryCtaText}
-                  <ArrowRight
-                    size={18}
-                    strokeWidth={1.5}
-                    className="cta-arrow"
-                  />
-                </Link>
-              ) : (
-                <a
-                  data-hero-cta-primary
-                  href="#waitlist"
-                  onClick={() =>
-                    track('home_hero_cta_click', { cta_text: 'waitlist' })
-                  }
-                  className={primaryCtaClasses}
-                >
-                  {primaryCtaText}
-                  <ArrowRight
-                    size={18}
-                    strokeWidth={1.5}
-                    className="cta-arrow"
-                  />
-                </a>
-              )}
-              <a
-                data-hero-cta-secondary
-                href="#how-it-works"
-                onClick={() => track('home_secondary_cta_click')}
-                className={secondaryCtaClasses}
+          <p
+            data-hero-subhead
+            className={cn(
+              'mx-auto mt-6 max-w-2xl text-body-xl text-ink',
+              'opacity-90',
+            )}
+          >
+            {t('home', 'heroSubheadline')}
+          </p>
+
+          <div
+            className={cn(
+              'mt-8 flex flex-col gap-3',
+              'sm:flex-row sm:items-center sm:justify-center',
+            )}
+          >
+            {APP_LAUNCHED ? (
+              <Link
+                data-hero-cta-primary
+                href={primaryCtaHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() =>
+                  track('home_hero_cta_click', { cta_text: 'app_store' })
+                }
+                className={primaryCtaClasses}
               >
-                {t('home', 'heroCtaSecondary')}
+                {primaryCtaText}
+                <ArrowRight
+                  size={18}
+                  strokeWidth={1.5}
+                  className="cta-arrow"
+                />
+              </Link>
+            ) : (
+              <a
+                data-hero-cta-primary
+                href="#waitlist"
+                onClick={() =>
+                  track('home_hero_cta_click', { cta_text: 'waitlist' })
+                }
+                className={primaryCtaClasses}
+              >
+                {primaryCtaText}
+                <ArrowRight
+                  size={18}
+                  strokeWidth={1.5}
+                  className="cta-arrow"
+                />
               </a>
-            </div>
+            )}
+            <a
+              data-hero-cta-secondary
+              href="#how-it-works"
+              onClick={() => track('home_secondary_cta_click')}
+              className={secondaryCtaClasses}
+            >
+              {t('home', 'heroCtaSecondary')}
+            </a>
+          </div>
 
-            <p className="mt-4 text-body-s text-muted">
-              {APP_LAUNCHED
-                ? t('home', 'heroSubCtaPostLaunch')
-                : t('home', 'heroSubCtaPreLaunch')}
-            </p>
+          <p className="mt-4 text-body-s text-muted">
+            {APP_LAUNCHED
+              ? t('home', 'heroSubCtaPostLaunch')
+              : t('home', 'heroSubCtaPreLaunch')}
+          </p>
 
-            {/* Inline waitlist form, pre-launch only. Anchored with
-                id="waitlist" so the primary CTA's #waitlist hash
-                scrolls here. */}
-            {!APP_LAUNCHED && (
-              <div id="waitlist" className="mt-6 scroll-mt-24">
+          {/* Pre-launch waitlist with Hello-welcome Lottie accent. */}
+          {!APP_LAUNCHED && (
+            <div
+              id="waitlist"
+              className={cn(
+                'mt-10 mx-auto max-w-md',
+                'scroll-mt-24',
+                'flex flex-col items-center gap-3',
+              )}
+            >
+              <LottieAsset
+                src="/Animations/Lottie/Hello-welcome.web.lottie"
+                className="h-14 w-14"
+                tint="warm"
+                ariaLabel=""
+              />
+              <div className="w-full">
                 <EmailWaitlist location="hero" />
               </div>
-            )}
-          </div>
-
-          {/* Image column. Desktop: right 7 of 12 columns. Mobile:
-              stacked below text in a ~60vh slot. The data-hero-image
-              attribute lets useHeroSequence fade the image in along
-              with the rest of the hero choreography. */}
-          <div
-            data-hero-image
-            className={cn(
-              'order-2 lg:col-span-7',
-              'relative overflow-hidden rounded-sm',
-              'h-[60vh] sm:h-[70vh] lg:h-screen',
-              'pb-12 lg:pb-0',
-            )}
-          >
-            <Image
-              src={HERO_IMAGE_SRC}
-              alt={t('home', 'heroImageAlt')}
-              fill
-              priority
-              sizes="(min-width: 1024px) 60vw, 100vw"
-              className="object-cover"
-            />
-            {/* Bottom gradient on mobile so the image fades into the
-                cream background of the next section. */}
-            <div
-              aria-hidden="true"
-              className={cn(
-                'absolute inset-x-0 bottom-0 h-16 lg:hidden',
-                'bg-gradient-to-b from-transparent to-cream',
-              )}
-            />
-            {/* Image attribution per Document 5 §1.10. */}
-            <p
-              className={cn(
-                'absolute bottom-3 right-3 sm:bottom-4 sm:right-4',
-                'text-body-s text-cream/70',
-                'pointer-events-none',
-              )}
-            >
-              {t('home', 'heroAttribution')}
-            </p>
-          </div>
+            </div>
+          )}
         </div>
       </Container>
+
+      {/* Scroll-down cue. Sits pinned to the bottom of the section
+          regardless of content height. Tiny, decorative, low-key. */}
+      <div
+        className={cn(
+          'pb-8 flex justify-center pointer-events-none',
+          'opacity-60',
+        )}
+        aria-hidden="true"
+      >
+        <LottieAsset
+          src="/Animations/Lottie/Arrow%201.lottie"
+          className="h-10 w-10"
+          tint="warm"
+        />
+      </div>
     </section>
   );
 }

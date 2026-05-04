@@ -116,8 +116,9 @@ export function useHeroSequence<T extends HTMLElement = HTMLElement>(): RefObjec
     const primaryCtaEl = root.querySelector<HTMLElement>('[data-hero-cta-primary]');
     const secondaryCtaEl = root.querySelector<HTMLElement>('[data-hero-cta-secondary]');
 
+    /* imageEl is now optional. The text-forward hero (no room photo)
+       still animates the rest of the targets. */
     if (
-      !imageEl ||
       !eyebrowEl ||
       headlineLines.length === 0 ||
       !subheadEl ||

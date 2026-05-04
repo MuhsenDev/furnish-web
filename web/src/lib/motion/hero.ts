@@ -21,7 +21,9 @@ import { getGsap } from './gsap-loader';
 import { getDurationSec, isMobile } from './durations';
 
 export interface HeroTargets {
-  imageEl: HTMLElement;
+  /* Optional. Text-forward hero variants omit the image; the
+     reveal still runs on the remaining targets. */
+  imageEl?: HTMLElement | null;
   eyebrowEl: HTMLElement;
   headlineLines: HTMLElement[];
   subheadEl: HTMLElement;
@@ -70,12 +72,14 @@ export async function playHeroReveal(
 
   const tl = gsap.timeline();
 
-  tl.fromTo(
-    imageEl,
-    { opacity: 0 },
-    { opacity: 1, duration: imageDur, ease: 'furnishOut' },
-    0,
-  );
+  if (imageEl) {
+    tl.fromTo(
+      imageEl,
+      { opacity: 0 },
+      { opacity: 1, duration: imageDur, ease: 'furnishOut' },
+      0,
+    );
+  }
 
   tl.fromTo(
     eyebrowEl,

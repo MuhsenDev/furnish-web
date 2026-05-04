@@ -100,22 +100,32 @@
      EASING, inherited from the app
      ============================================================ */
 
-  /* "ease-out-quart" curve, slow-in fast-finish. Default for hover
-     and slide-in animations across the site. Document 2 Section
-     5.1.2 names this as the brand easing. Aliased to furnish-out
-     below; --ease-premium kept for backward compatibility with
-     anywhere the early Phase 1 code references it. */
-  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  /* The "Vercel curve". Slow start, sharp middle, very slow finish.
+     Slow-then-fast-then-slow. Default for hover, slide-in, and
+     scroll reveal across the site. The original brand curve from
+     Document 2 §5.1.2 (cubic-bezier(0.22, 1, 0.36, 1)) was upgraded
+     to this in 2026-05 because Hassan flagged the site didn't feel
+     "expensive" enough. The Vercel curve has a sharper deceleration
+     that reads as more deliberate / premium. Both --ease-premium
+     and --ease-furnish-out resolve to this curve so all consumers
+     migrate at once. */
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* ============================================================
-     EASING, full curve set per Document 3 Section 2.1
+     EASING, full curve set per Document 3 Section 2.1 (with the
+     §5.1.2 default curve upgraded to the Vercel curve)
      ============================================================
      Five named curves. JS animations register the same five with
      GSAP's CustomEase via src/lib/motion/eases.ts. Keep both sides
      synced if either changes. */
 
-  /* Default (80% of animations). */
-  --ease-furnish-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Default (80% of animations). The Vercel curve. */
+  --ease-furnish-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Inverse of the Vercel curve. Slow-then-fast on the way in.
+     Used when an element should feel like it's anticipating
+     departure. */
+  --ease-vercel-in: cubic-bezier(0.7, 0, 0.84, 0);
 
   /* Symmetric, "decided" at both ends. */
   --ease-furnish-in-out: cubic-bezier(0.65, 0, 0.35, 1);

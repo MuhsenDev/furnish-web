@@ -13,6 +13,7 @@
 
 import * as React from 'react';
 import { Container } from '@/components/Container';
+import { LottieAsset } from '@/components/shared/LottieAsset';
 import { useScrollReveal } from '@/lib/motion';
 import { useInView } from '@/lib/use-in-view';
 import { t } from '@/lib/i18n';
@@ -41,6 +42,14 @@ export function FounderNote() {
     >
       <Container width="narrow">
         <div className="text-center" data-reveal>
+          {/* Subtle decorative Lottie flourish above the eyebrow.
+              Low-key warm-tinted to fit the brand palette. */}
+          <LottieAsset
+            src="/Animations/Lottie/Animation.web.lottie"
+            className="mx-auto mb-6 h-16 w-16"
+            tint="warm"
+            ariaLabel=""
+          />
           <p className="eyebrow">{t('home', 'founderEyebrow')}</p>
           <h2
             id="founder-note-heading"

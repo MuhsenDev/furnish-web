@@ -1,10 +1,11 @@
 /*
-  Home page composition per Document 5, with the dedicated 3D
-  PortraitSection inserted between Hero and ValueProp per Hassan's
-  call. Nine sections plus footer, top to bottom:
+  Home page composition per Document 5, with the 3D
+  ApartmentScrollSection inserted between Hero and ValueProp.
+  As the user scrolls through the section, an empty room
+  progressively fills with furniture. Nine sections plus footer:
 
-    1. Hero (room photo right column)
-    2. PortraitSection (dedicated, deep-espresso background)
+    1. Hero (text-forward, no photo)
+    2. ApartmentScrollSection (3D apartment that fills as you scroll)
     3. ValueProp
     4. GalleryPreview
     5. HomeCompareSlider
@@ -22,7 +23,7 @@
 
 import type { Metadata } from 'next';
 import { Hero } from '@/components/home/Hero';
-import { PortraitSection } from '@/components/home/PortraitSection';
+import { ApartmentScrollSection } from '@/components/home/ApartmentScrollSection';
 import { ValueProp } from '@/components/home/ValueProp';
 import { GalleryPreview } from '@/components/home/GalleryPreview';
 import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
@@ -98,7 +99,7 @@ export default function HomePage() {
     <>
       <HomeStructuredData />
       <Hero />
-      <PortraitSection />
+      <ApartmentScrollSection />
       <ValueProp />
       <GalleryPreview />
       <HomeCompareSlider />
