@@ -26,7 +26,7 @@ import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /* Toggle to true once Hassan supplies the founder photo. */
-const PHOTO_AVAILABLE = false;
+const PHOTO_AVAILABLE = true;
 const FOUNDER_PHOTO_SRC = '/images/about/founder.jpg';
 
 /* ---- AboutHero ---- */
