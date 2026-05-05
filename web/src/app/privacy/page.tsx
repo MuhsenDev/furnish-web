@@ -10,12 +10,13 @@ import { notFound } from 'next/navigation';
 import { LegalPage, loadLegalDocument } from '@/components/static/LegalPage';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description:
-    'How Furnish collects, uses, and protects your data. Photo storage, AI processing, analytics, and your rights.',
+  /* Absolute title — overrides the layout's "%s | Furnish"
+     template so the literal title matches the spec exactly. */
+  title: { absolute: 'Privacy Policy — Furnish' },
+  description: 'How Furnish collects, uses, and protects your data.',
   alternates: { canonical: 'https://furnish.live/privacy' },
   openGraph: {
-    title: 'Privacy Policy | Furnish',
+    title: 'Privacy Policy — Furnish',
     description: 'How Furnish collects, uses, and protects your data.',
     url: 'https://furnish.live/privacy',
   },

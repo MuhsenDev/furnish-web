@@ -1,126 +1,162 @@
 ---
 title: "Privacy Policy"
-lastUpdated: "2026-05-03"
+lastUpdated: "2026-05-05"
 ---
 
-This document is being finalized through a legal compliance service
-(Termly or iubenda) and will be reviewed by counsel before launch.
+**Effective Date: May 5, 2026**
 
-The full Privacy Policy will cover the following sections required
-by Document 8 §4:
+This Privacy Policy explains how Furnish ("we," "us," or "our")
+collects, uses, and protects information when you visit
+furnish.live or interact with our pre-launch waitlist. Furnish is
+operated by Further Fetched LLC, a Michigan limited liability
+company. Our contact email is **hello@furnish.live**.
 
-1. What data Furnish collects
-2. How that data is used
-3. Data retention periods (photos auto-delete 30 days post-redesign)
-4. Third-party data sharing (retailers, Vercel, Skimlinks, Supabase)
-5. User rights (access, deletion, portability)
-6. Cookies and tracking
-7. Children's privacy (COPPA)
-8. International transfers
-9. Policy update notification process
-10. Contact information
-
-In the meantime, the high-level data flow is:
+The Furnish iOS app is not yet released. Today, the only data the
+website collects from you is the email address you submit to join
+the waitlist, plus anonymous, cookieless usage measurements
+described below. Sections about photo uploads and account data
+apply only to the future iOS app and are included so you know what
+to expect.
 
 ## What we collect
 
-- **Photos you upload to the Furnish iOS app** are processed for your
-  redesign and auto-deleted from our servers 30 days after the
-  redesign completes.
-- **Account data** (email, sign-in provider, preferences) lives in
-  our Supabase database. Deletable from Settings inside the app or
-  by emailing hello@furnish.live.
-- **Waitlist email addresses** submitted on furnish.live are stored
-  in Supabase. Used only to notify you when Furnish launches.
-- **Aggregate site usage** is collected by Vercel Analytics
-  (page views, outbound clicks, custom events) and Vercel Speed
-  Insights (Core Web Vitals: LCP, INP, CLS). No personal data is
-  attached. No cookies are set. No cross-site tracking.
+**Waitlist email addresses.** When you submit your email to join
+the waitlist, we store that email address in our database (hosted
+by Supabase). We do not collect your name, location, IP address,
+or any other personal information at signup.
 
-## Cookies and third-party tracking
+**Anonymous site analytics.** We use Vercel Web Analytics and
+Vercel Speed Insights to understand aggregate site usage (page
+views, outbound clicks, Core Web Vitals like LCP, INP, and CLS).
+Vercel Analytics is cookieless and does not track individual users
+across sessions; visitor IP addresses are not stored. No personal
+data is attached to these measurements.
 
-Furnish uses the following third-party services. Their tracking
-behavior differs and is disclosed below.
+**Future iOS app data (not yet collected).** When the Furnish iOS
+app launches, it will collect the photos you upload, the designs
+the AI generates, and account information you provide (email,
+sign-in provider, style preferences). Photos uploaded for redesign
+will be auto-deleted from our servers 30 days after the redesign
+completes. We will update this Privacy Policy with the full
+details before the app is released.
 
-### Vercel Analytics + Speed Insights
+## How we use it
 
-Vercel Analytics is privacy-respecting. It does NOT set cookies.
-It does NOT track individual users across sessions. It does NOT
-collect personal data. Visitor IP addresses are not stored.
-Vercel Analytics runs site-wide.
+- To notify you by email when Furnish launches on iOS
+- To respond to questions or requests you send to
+  hello@furnish.live
+- To understand aggregate site usage so we can improve the
+  experience (which pages load slowly, which content interests
+  visitors, etc.)
+- To comply with legal obligations
 
-Vercel Speed Insights collects Real User Monitoring data on Core
-Web Vitals (LCP, INP, CLS) so we can see how the site performs
-on real visitor devices. It uses a sample of pageviews and stores
-no personal information. Read the full Vercel Analytics privacy
-notice at vercel.com/docs/analytics/privacy-policy.
+We do not use your email for marketing automation, drip campaigns,
+or any purpose other than the launch announcement. We do not sell
+your data to anyone, ever. We do not use your data to train AI
+models.
 
-### Skimlinks (affiliate tracking on blog pages only)
+## Who we share it with
 
-Skimlinks is the affiliate network we use to earn commissions
-when readers click through to retailers and buy a product. It runs
-ONLY on `/blog/*` routes; it does NOT load on the home page,
-gallery, or any other surface.
+Furnish uses a small set of vendors to operate the site. Each one
+processes data under its own published privacy policy:
 
-When you click a retailer link in a blog post, Skimlinks sets a
-tracking cookie in your browser. The cookie:
+- **Vercel** (vercel.com) hosts the website and provides the
+  analytics described above. Vercel processes server logs and
+  anonymous performance metrics on our behalf.
+- **Supabase** (supabase.com) is our database. Your waitlist email
+  is stored there until you request deletion or until 30 days
+  after the app launches (see Retention below).
+- **Skimlinks** (skimlinks.com) is the affiliate network we use on
+  blog content. It is loaded only on `/blog/*` pages. When you
+  click a retailer link in a blog post, Skimlinks may set a
+  cookie in your browser to attribute the resulting purchase back
+  to Furnish. The cookie is owned by Skimlinks, not us; it is
+  used solely for affiliate attribution and does not collect
+  personal information about you. You can opt out via Skimlinks'
+  consumer opt-out at skimlinks.com or by blocking third-party
+  cookies in your browser.
+- **Google Workspace** receives email you send to
+  hello@furnish.live. We use it for email forwarding and inbox
+  management; we do not use any marketing automation tooling.
 
-- Is owned and managed by Skimlinks (skimlinks.com), not Furnish
-- Is used to attribute purchases at the retailer back to Furnish
-- Does not collect or transmit personal information about you
-- Is blocked by browsers in private/incognito mode
-- Can be deleted at any time using your browser's standard cookie
-  controls
-- Can be opted out of via the Skimlinks consumer opt-out at
-  skimlinks.com
+## Cookies and tracking technologies
 
-If you are on a `/blog/*` page and do not want Skimlinks tracking,
-you can:
+We do not set cookies on furnish.live. Vercel Analytics is
+cookieless. The only third-party cookies that may be set are
+Skimlinks cookies, and only when you click an affiliate link
+inside a blog post. Outside of blog pages, no cookies are set by
+us or by any third party we load.
 
-1. Use a browser extension that blocks third-party tracking
-   (uBlock Origin, Privacy Badger, etc.)
-2. Use private/incognito browsing
-3. Adjust your browser's third-party cookie settings
-4. Visit the Skimlinks consumer opt-out page directly
+We do not use Google Analytics, Facebook Pixel, or any other
+ad-tech or cross-site tracking pixel.
 
-We disclose this tracking on every blog post via the FTC
-affiliate disclosure block at the top of the post.
+## Data retention
 
-### Supabase (waitlist plus app account data)
+We retain your waitlist email address until the earliest of:
 
-Supabase is our database provider. It stores your waitlist email
-or your app account data. Supabase does not set tracking cookies
-on furnish.live; it acts as a backend storage service called by
-our server.
+- The date you ask us to delete it
+- 30 days after the Furnish iOS app launches (after which we
+  delete waitlist records that did not convert into accounts)
 
-## What we do not do
-
-- We do NOT sell your data to anyone, ever.
-- We do NOT use your photos to train AI models.
-- We do NOT share your email with third parties beyond what is
-  required to deliver the service (e.g., transactional email
-  providers when launch lands).
-- We do NOT set advertising cookies.
-- We do NOT use Google Analytics, Facebook Pixel, or any other
-  cookie-setting third-party analytics on furnish.live. Vercel
-  Analytics (our only analytics provider) is cookieless.
+Anonymous analytics data is retained according to Vercel's
+standard retention windows; no personal identifiers are ever
+attached.
 
 ## Your rights
 
-Under GDPR and CCPA you have the right to:
+You have rights over the personal data we hold about you,
+including the right to:
 
-- Request a copy of all data we hold about you
-- Request deletion of your data
+- Request a copy of the data we hold (right of access)
 - Request correction of inaccurate data
-- Opt out of data sharing for advertising (we do not share data
-  for advertising; opt-out is moot but available)
-- File a complaint with your local data protection authority
+- Request deletion of your data ("right to be forgotten")
+- Opt out of any data sale or sharing for advertising (we do not
+  sell or share data for advertising, but the opt-out remains
+  available on request)
+- Lodge a complaint with your local data protection authority
 
-Email **hello@furnish.live** with any data request. We respond
-within 30 days as required by GDPR.
+To exercise any of these rights, email **hello@furnish.live** with
+your request. We respond within 30 days as required by GDPR. There
+is no charge for these requests.
+
+California residents have additional rights under the CCPA,
+including a right to know what categories of personal information
+have been collected and a right to non-discrimination for
+exercising any privacy right. We honor those requests using the
+same email channel.
+
+## Children's privacy
+
+Furnish is not directed to children under 13, and we do not
+knowingly collect personal information from anyone under 13. If
+you believe a child has submitted information through the
+website, email hello@furnish.live and we will delete it. This
+policy is intended to comply with the U.S. Children's Online
+Privacy Protection Act (COPPA).
+
+## International users
+
+Furnish is operated from the United States. By using furnish.live,
+you understand that your data is stored and processed in the
+United States, which may have different data-protection rules
+than your country of residence. If you do not consent to U.S.
+data handling, please do not use the site.
+
+## Changes to this policy
+
+We may update this Privacy Policy as the product evolves (notably
+when the iOS app launches). When we do, we will post the updated
+version at this URL and revise the "Effective Date" at the top.
+Material changes will be communicated via email to any waitlist
+subscriber whose email we have on file.
 
 ## Contact
 
 Email **hello@furnish.live** with any questions about how Furnish
-handles your data. We are based in Garden City, Michigan, United
-States.
+handles your data, to exercise any of the rights above, or to
+request deletion of your waitlist email. We are based in Garden
+City, Michigan, United States.
+
+Further Fetched LLC
+hello@furnish.live
+Michigan, USA
