@@ -151,14 +151,18 @@ export function Hero() {
                   />
                 </Link>
               )}
-              <a
+              {/* Was an anchor to the on-page #how-it-works section.
+                  That section was removed from the home page in this
+                  iteration; the link now navigates to the dedicated
+                  /how-it-works route which still exists. */}
+              <Link
                 data-hero-cta-secondary
-                href="#how-it-works"
+                href="/how-it-works"
                 onClick={() => track('home_secondary_cta_click')}
                 className={secondaryCtaClasses}
               >
                 {t('home', 'heroCtaSecondary')}
-              </a>
+              </Link>
             </div>
 
             <p className="mt-4 text-body-s text-muted">

@@ -157,7 +157,14 @@ export function GalleryPreview() {
               href="/gallery"
               data-reveal
               onClick={() => onTileClick(tile.index, tile.room)}
-              className="group gallery-card"
+              className={cn(
+                'group gallery-card',
+                /* Mobile only shows the first 3 tiles (Living
+                   Room, Bedroom, Kitchen). Tablet and up show all
+                   9. Users on mobile click "See the full gallery"
+                   to see the rest. */
+                tile.index > 3 && 'hidden sm:block',
+              )}
               aria-label={`${tile.room}, ${tile.style}`}
             >
               <Card variant="image" interactive>

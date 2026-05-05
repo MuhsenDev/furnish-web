@@ -1,35 +1,36 @@
 /*
-  Home page composition per Document 5, with the 3D
-  ApartmentScrollSection inserted between Hero and ValueProp,
-  and the BeYouStrip Lottie banner between GalleryPreview and
-  HomeCompareSlider. Ten sections plus footer:
+  Home page composition.
+
+  Hassan trimmed the layout in this iteration:
+  - Removed ValueProp (was the "How it works" 3-numbered-column block).
+  - Removed HowItWorks (the standalone /how-it-works section was
+    duplicating ValueProp's content; the dedicated /how-it-works
+    page still exists for users who want the full walkthrough).
+  - Removed BeYouStrip (the Be You Lottie banner).
+  - Moved ComparisonTable up to take HowItWorks's old slot, so
+    "Designed for you. Not for designers." surfaces higher in the
+    flow.
+
+  Final composition: 7 sections plus footer.
 
     1. Hero (text-forward, no photo)
-    2. ApartmentScrollSection (3D apartment, scroll-driven camera)
-    3. ValueProp
-    4. GalleryPreview
-    5. BeYouStrip (full-bleed Be You Lottie banner)
-    6. HomeCompareSlider
-    7. HowItWorks
-    8. ComparisonTable
-    9. FounderNote
-    10. FinalCTA
+    2. ApartmentScrollSection (3D apartment, scroll-driven drops)
+    3. GalleryPreview (mobile shows 3 tiles, desktop shows 9)
+    4. HomeCompareSlider
+    5. ComparisonTable ("Designed for you. Not for designers.")
+    6. FounderNote
+    7. FinalCTA
 
-  Footer comes from the root layout.
-
-  Pre-launch / post-launch differentiation lives inside each component
-  via the APP_LAUNCHED flag from @/lib/flags. The page composition
-  itself is identical across both states.
+  Pre-launch / post-launch differentiation lives inside each
+  component via the APP_LAUNCHED flag from @/lib/flags. The page
+  composition itself is identical across both states.
 */
 
 import type { Metadata } from 'next';
 import { Hero } from '@/components/home/Hero';
 import { ApartmentScrollSection } from '@/components/home/ApartmentScrollSection';
-import { ValueProp } from '@/components/home/ValueProp';
 import { GalleryPreview } from '@/components/home/GalleryPreview';
-import { BeYouStrip } from '@/components/home/BeYouStrip';
 import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
-import { HowItWorks } from '@/components/home/HowItWorks';
 import { ComparisonTable } from '@/components/home/ComparisonTable';
 import { FounderNote } from '@/components/home/FounderNote';
 import { FinalCTA } from '@/components/home/FinalCTA';
@@ -102,11 +103,8 @@ export default function HomePage() {
       <HomeStructuredData />
       <Hero />
       <ApartmentScrollSection />
-      <ValueProp />
       <GalleryPreview />
-      <BeYouStrip />
       <HomeCompareSlider />
-      <HowItWorks />
       <ComparisonTable />
       <FounderNote />
       <FinalCTA />

@@ -72,12 +72,22 @@ export function FinalCTA() {
         sizes="100vw"
         className="absolute inset-0 object-cover"
       />
-      {/* Heavy dark gradient overlay so light text reads. */}
+      {/* Layered overlays for legibility. The previous gradient at
+          /55 /40 /70 left bright areas of the image showing through
+          enough to wash out the cream headline. Now layered:
+          (1) ink (brand near-black) at 65% darkens the whole image,
+          (2) a deep-warm vertical gradient on top of that for the
+              cinematic vignette feel.
+          Cream text now sits on a dark backdrop with high contrast. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-ink/65"
+      />
       <div
         aria-hidden="true"
         className={cn(
           'absolute inset-0',
-          'bg-gradient-to-b from-deep/55 via-deep/40 to-deep/70',
+          'bg-gradient-to-b from-deep/30 via-transparent to-deep/55',
         )}
       />
 
