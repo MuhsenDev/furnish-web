@@ -404,7 +404,28 @@ function Room({
         'flex flex-col items-center',
       )}
     >
-      <div className="relative w-full aspect-[3/2]">
+      {/* Card frame around the illustration. Slightly darker cream
+          than the section background (--color-editorial-accent-bg
+          = #F5EBDC vs --color-cream = #FAF3E7), with the same
+          shadow-1 ambient lift and rounded-[var(--radius)] (16px)
+          used by the standard image Card variant elsewhere on the
+          site. The padding inset (p-3 sm:p-4) matches Card's image
+          variant so the SVG sits inside the frame with breathing
+          room. The lift+glow ceremony composes inside this frame —
+          glow extends past the frame's rounded edges naturally
+          because we don't set overflow-hidden, so an active room
+          briefly halos out into the surrounding cream. */}
+      <div
+        className={cn(
+          'relative w-full',
+          'rounded-[var(--radius)]',
+          'bg-[var(--color-editorial-accent-bg)]',
+          'border border-[rgba(43,30,24,0.08)]',
+          'shadow-1',
+          'p-3 sm:p-4',
+        )}
+      >
+        <div className="relative w-full aspect-[3/2]">
         {/* Bronze warm glow beneath the room. Sits at z=0 so the
             room's SVG stacks on top of it. Width 110% / height 70%
             with bottom alignment makes the glow puddle out from
@@ -456,16 +477,14 @@ function Room({
             aria-hidden="true"
           />
         </motion.div>
+        </div>
       </div>
 
-      <p
-        className={cn(
-          'mt-5 text-body-s font-semibold tracking-wider uppercase',
-          'text-cream/70',
-        )}
-      >
-        {label}
-      </p>
+      {/* Label sits OUTSIDE the card, in the eyebrow style used
+          across the site for section eyebrows ("EVERY ROOM",
+          "SEE THE MAGIC", etc.) — uppercase, tracked-out, muted
+          warm brown. */}
+      <p className="eyebrow mt-5">{label}</p>
     </div>
   );
 }
@@ -547,21 +566,35 @@ export function RoomShowcaseSection() {
       ref={sectionRef}
       aria-label="Furnish room showcase"
       aria-live="off"
-      className={cn('relative bg-deep', 'py-section-y')}
+      className={cn('relative bg-cream', 'py-section-y')}
     >
+      {/* Visual treatment refactored to match the rest of the home
+          page (hero, compare slider, gallery preview): cream
+          background, espresso headline, muted-brown eyebrow, full-
+          opacity body copy. The earlier dark espresso bg with cream
+          text broke continuity with the surrounding sections.
+
+          NOTE for follow-up: the three room SVGs are full-color
+          isometric illustrations (~10–90 named groups each). A
+          proper recolor to a 2–3 tone brand palette (cream / warm
+          brown / accent tan) requires a programmatic pass over
+          every fill in each .svg file — out of scope for this
+          visual refactor. The cards now frame the illustrations in
+          a way that feels intentional even before the recolor;
+          revisit when there's time to script the fill remap. */}
       <Container width="default">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="eyebrow text-cream/65">Every room</p>
+          <p className="eyebrow">Every room</p>
           <h2
             className={cn(
               'mt-3 font-display tracking-display-tight',
-              'text-cream text-display-l lg:text-display-xl',
-              'leading-display-tight',
+              'text-deep text-display-l lg:text-display-xl',
+              'leading-display',
             )}
           >
             Designed for the way you actually live.
           </h2>
-          <p className="mt-4 text-body-l text-cream/75">
+          <p className="mt-4 text-body-l text-ink opacity-90">
             Take a photo. Pick a style. The AI handles the rest.
           </p>
         </div>
