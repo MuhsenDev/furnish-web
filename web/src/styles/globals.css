@@ -97,6 +97,24 @@
     animation: furnishFadeIn var(--duration-base) var(--ease-furnish-out);
   }
 
+  /* Wordmark wave keyframe for the Hero "Furnish" text overlay so
+     it animates in tandem with the Lottie hand wave. The original
+     Lottie's "Haloo" text had its own bounce/scale animation; that
+     animation was lost when we stripped the letter outlines. This
+     CSS keyframe restores a similar feel: gentle scale + rotation
+     pulse. Period is ~2.4s so it pairs naturally with a typical
+     2-3s hand-wave loop. The reduced-motion media query at the
+     bottom of this file zeros the duration for users who prefer
+     no animation. */
+  @keyframes wordmarkWave {
+    0%, 100% { transform: scale(0.97) rotate(-1.5deg); }
+    50% { transform: scale(1.04) rotate(1.5deg); }
+  }
+  .wordmark-wave {
+    animation: wordmarkWave 2.4s var(--ease-furnish-in-out) infinite;
+    transform-origin: 50% 80%;
+  }
+
   /* All-caps eyebrow label per Document 2 Section 2.3. Wide tracking,
      small size, used as section markers. */
   .eyebrow {

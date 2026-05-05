@@ -139,11 +139,31 @@ export function CompareSlider({
         </div>
       </div>
 
-      {/* Before/after corner labels. */}
-      <span className="eyebrow absolute left-3 top-3 rounded-sm bg-ink/70 px-2 py-1 text-cream">
+      {/* Before/after corner labels — bold, tiny cream cards in
+          the top corners with shadow-1 elevation so they feel like
+          actual labels rather than text floated on the image. */}
+      <span
+        className={cn(
+          'absolute left-3 top-3',
+          'rounded-sm bg-cream',
+          'px-2.5 py-1',
+          'shadow-1',
+          'text-body-s font-bold uppercase',
+          'tracking-[0.12em] text-deep',
+        )}
+      >
         Before
       </span>
-      <span className="eyebrow absolute right-3 top-3 rounded-sm bg-ink/70 px-2 py-1 text-cream">
+      <span
+        className={cn(
+          'absolute right-3 top-3',
+          'rounded-sm bg-cream',
+          'px-2.5 py-1',
+          'shadow-1',
+          'text-body-s font-bold uppercase',
+          'tracking-[0.12em] text-deep',
+        )}
+      >
         After
       </span>
     </div>

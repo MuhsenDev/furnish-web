@@ -173,15 +173,14 @@ export function Hero() {
 
             {/* Pre-launch waitlist block.
 
-                Mobile: arrow Lottie ABOVE the form pointing DOWN at
-                it (Hassan: "the arrow looks perfect on mobile").
-
-                Desktop (lg+): arrow Lottie BELOW the form, FLIPPED
-                180° so it points UP at the form's "Join the waitlist"
-                submit button. The mobile arrow is hidden on lg, the
-                desktop arrow is hidden below lg. Two LottieAsset
-                instances rather than one positioned conditionally —
-                keeps the JSX flat and avoids order-class gymnastics. */}
+                Single arrow ABOVE the form, pointing DOWN at it on
+                both mobile and desktop. The previous iteration had a
+                second arrow BELOW the form, flipped 180°, on desktop
+                — Hassan inverted that. Now mobile centers the arrow
+                (parent's items-center) and desktop right-aligns it
+                via `lg:self-end` so the arrow tip lands over the
+                "Join the Waitlist" submit button (which sits at the
+                right end of the input+button flex row on lg+). */}
             {!APP_LAUNCHED && (
               <div
                 id="waitlist"
@@ -193,38 +192,20 @@ export function Hero() {
                   'max-w-md',
                 )}
               >
-                {/* Mobile-only arrow above form, pointing down. */}
                 <LottieAsset
                   src="/Animations/Lottie/Arrow%201.lottie"
                   className={cn(
-                    'lg:hidden',
                     '-mt-2 h-32 w-32 sm:h-36 sm:w-36',
                     'opacity-80',
-                  )}
-                  tint="warm"
-                  ariaLabel=""
-                />
-
-                <div className="mt-2 lg:mt-0 w-full">
-                  <EmailWaitlist location="hero" />
-                </div>
-
-                {/* Desktop-only arrow below form, flipped to point
-                    UP at the "Join the Waitlist" submit button.
-                    Aligned to the right of the form column so the
-                    arrow tip lands over the button (which sits at
-                    the right end of the input+button flex row). */}
-                <LottieAsset
-                  src="/Animations/Lottie/Arrow%201.lottie"
-                  className={cn(
-                    'hidden lg:block',
-                    'mt-2 h-28 w-28 xl:h-32 xl:w-32',
-                    'rotate-180 opacity-80',
                     'lg:self-end lg:-translate-x-2 xl:-translate-x-4',
                   )}
                   tint="warm"
                   ariaLabel=""
                 />
+
+                <div className="mt-2 w-full">
+                  <EmailWaitlist location="hero" />
+                </div>
               </div>
             )}
           </div>
@@ -261,6 +242,12 @@ export function Hero() {
                   'text-center',
                   'font-display tracking-display-tight',
                   'pointer-events-none',
+                  /* `wordmark-wave` keyframe lives in globals.css; it
+                     pulses scale + rotation so the text feels alive
+                     in tandem with the Lottie hand wave (which was
+                     stripped of its original "Haloo" text animation
+                     when we removed the letter outlines). */
+                  'wordmark-wave',
                 )}
                 style={{
                   color: 'var(--color-deep)',
