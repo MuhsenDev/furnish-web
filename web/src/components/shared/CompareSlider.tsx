@@ -49,15 +49,40 @@ export function CompareSlider({
   className,
 }: CompareSliderProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const beforeImgRef = React.useRef<HTMLImageElement>(null);
-  const afterImgRef = React.useRef<HTMLImageElement>(null);
+  /* Refs renamed to describe their RENDER ROLE rather than the
+     content they hold, because the rendering swaps which image
+     sits on top vs beneath relative to the motion library's API.
+
+     The motion library applies the clipPath to whatever ref is
+     passed as `afterImgRef`. Originally that meant the AFTER image
+     was clipped on top, with BEFORE underneath full-bleed — which
+     made the LEFT half of the slider show AFTER and the RIGHT
+     half show BEFORE at position=50. That was reversed from what
+     the corner labels promise ("Before" on left, "After" on
+     right).
+
+     Fix: put BEFORE on top getting clipped, AFTER beneath full-
+     bleed. So we map:
+       motion-lib `beforeImgRef` (un-clipped, full-bleed) -> our
+         AFTER content image (`bgImageRef` here)
+       motion-lib `afterImgRef` (clipped, on top) -> our BEFORE
+         content image (`clipImageRef` here)
+
+     End result at position=50:
+       LEFT 50% of frame: BEFORE content visible (top BEFORE not
+         clipped on the left; left half of clipped image shows)
+       RIGHT 50% of frame: AFTER content visible (top BEFORE clipped
+         from right; full-bleed AFTER shows through)
+     Matches the corner labels. */
+  const bgImageRef = React.useRef<HTMLImageElement>(null);
+  const clipImageRef = React.useRef<HTMLImageElement>(null);
   const handleRef = React.useRef<HTMLDivElement>(null);
 
   useCompareSlider(
     {
       containerRef,
-      beforeImgRef,
-      afterImgRef,
+      beforeImgRef: bgImageRef,
+      afterImgRef: clipImageRef,
       handleRef,
     },
     {
@@ -75,24 +100,26 @@ export function CompareSlider({
         className,
       )}
     >
-      {/* Before image, full bleed beneath. */}
+      {/* AFTER image, full bleed beneath. The right side of the
+          slider always shows this. */}
       <Image
-        ref={beforeImgRef}
-        src={before.src}
-        alt={before.alt}
+        ref={bgImageRef}
+        src={after.src}
+        alt={after.alt}
         fill
         sizes="100vw"
         className="absolute inset-0 h-full w-full object-cover"
         priority
       />
 
-      {/* After image, clipped by inset() based on slider position.
-          Initial inline style is overwritten by createCompareSlider
+      {/* BEFORE image, on top, clipped by inset() based on slider
+          position. The left side of the slider reveals this.
+          Initial inline style is overwritten by the motion library
           on mount. */}
       <Image
-        ref={afterImgRef}
-        src={after.src}
-        alt={after.alt}
+        ref={clipImageRef}
+        src={before.src}
+        alt={before.alt}
         fill
         sizes="100vw"
         className="absolute inset-0 h-full w-full object-cover"

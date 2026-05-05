@@ -1,33 +1,37 @@
 'use client';
 
 /*
-  Home page Hero, 2-column on desktop:
+  Home page Hero, 2-column on desktop.
 
-    Desktop (lg+):
-      Left column (col-span-6): eyebrow + 3-line headline + subhead +
-        secondary CTA + sub-CTA caption + (pre-launch) arrow + waitlist
-        form. Left-aligned text.
-      Right column (col-span-6): the "Hallo" Hello-welcome Lottie at
-        as-big-as-possible size without obstructing the left column.
+  Desktop (lg+): left column = eyebrow + headline + subhead + CTAs.
+  Right column = hand-wave Lottie + "Furnish" wordmark + a second
+  mirrored hand at the bottom-right.
 
-    Mobile (below lg):
-      Stacked, text-first per Hassan's earlier preference. Order:
-        text + CTAs + sub-CTA → Hallo Lottie → arrow → waitlist form.
-      The Hallo is sized smaller on mobile so it doesn't dominate
-      before the user has read the headline.
+  Mobile: stacked, text-first. Same content, just stacked.
 
-  The primary "Join the Waitlist" CTA was previously dropped (the
-  waitlist form's own submit button is the call to action). The arrow
-  Lottie on the LEFT column points down at the form directly below
-  it.
+  CTAs in this iteration:
+  - Removed the inline EmailWaitlist form from the hero entirely.
+  - Removed the arrow Lottie pointing at the form.
+  - Added a primary "Join the Waitlist" button next to the secondary
+    "See How It Works". Both render side-by-side on sm+, stacked
+    on mobile.
+  - Pre-launch: the primary CTA opens a WaitlistModal that explains
+    how the waitlist works and collects the email. Post-launch:
+    the primary CTA links to the App Store as before.
+
+  Right column visual: the Lottie has had its "Haloo" letter
+  outlines stripped from the .lottie file. The "Furnish" wordmark
+  is overlaid as HTML text in display serif. A second instance of
+  the same Lottie sits at the bottom-right with `scaleX(-1)` so a
+  second hand waves from the opposite direction.
 */
 
 import * as React from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
-import { EmailWaitlist } from '@/components/shared/EmailWaitlist';
 import { LottieAsset } from '@/components/shared/LottieAsset';
+import { WaitlistModal } from '@/components/shared/WaitlistModal';
 import { useHeroSequence } from '@/lib/motion';
 import { t } from '@/lib/i18n';
 import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
@@ -51,6 +55,7 @@ const secondaryCtaClasses = cn(
 
 export function Hero() {
   const heroRef = useHeroSequence<HTMLElement>();
+  const [waitlistOpen, setWaitlistOpen] = React.useState(false);
 
   return (
     <section
@@ -72,8 +77,7 @@ export function Hero() {
             'gap-8 lg:gap-10 xl:gap-14',
           )}
         >
-          {/* LEFT column on desktop: text + CTAs + waitlist. Mobile
-              order-1 so it appears first (text-first preference). */}
+          {/* LEFT column: text + CTAs. */}
           <div
             className={cn(
               'order-1 lg:order-1 lg:col-span-6',
@@ -88,28 +92,16 @@ export function Hero() {
               className={cn(
                 'mt-5 font-display text-deep',
                 'tracking-display-tight leading-[1.05]',
-                /* On lg+ the headline lives in a 6-column slice so
-                   we cap the size at display-l (instead of bumping to
-                   display-xl) to avoid awkward mid-phrase wrapping. */
                 'text-display-l',
               )}
             >
-              <span
-                data-hero-headline-line
-                className="block whitespace-nowrap"
-              >
+              <span data-hero-headline-line className="block whitespace-nowrap">
                 {t('home', 'heroLine1')}
               </span>
-              <span
-                data-hero-headline-line
-                className="block whitespace-nowrap"
-              >
+              <span data-hero-headline-line className="block whitespace-nowrap">
                 {t('home', 'heroLine2')}
               </span>
-              <span
-                data-hero-headline-line
-                className="block whitespace-nowrap"
-              >
+              <span data-hero-headline-line className="block whitespace-nowrap">
                 {t('home', 'heroLine3')}
               </span>
             </h1>
@@ -125,6 +117,10 @@ export function Hero() {
               {t('home', 'heroSubheadline')}
             </p>
 
+            {/* CTAs: primary "Join the Waitlist" + secondary "See
+                How It Works" side-by-side on sm+, stacked on mobile.
+                Pre-launch primary opens the WaitlistModal; post-
+                launch links to the App Store. */}
             <div
               className={cn(
                 'mt-8 flex flex-col gap-3',
@@ -132,7 +128,7 @@ export function Hero() {
                 'sm:justify-center lg:justify-start',
               )}
             >
-              {APP_LAUNCHED && (
+              {APP_LAUNCHED ? (
                 <Link
                   data-hero-cta-primary
                   href={APP_STORE_URL}
@@ -150,11 +146,25 @@ export function Hero() {
                     className="cta-arrow"
                   />
                 </Link>
+              ) : (
+                <button
+                  type="button"
+                  data-hero-cta-primary
+                  onClick={() => {
+                    track('home_hero_cta_click', { cta_text: 'waitlist' });
+                    setWaitlistOpen(true);
+                  }}
+                  className={primaryCtaClasses}
+                >
+                  {t('home', 'waitlistButton')}
+                  <ArrowRight
+                    size={18}
+                    strokeWidth={1.5}
+                    className="cta-arrow"
+                  />
+                </button>
               )}
-              {/* Was an anchor to the on-page #how-it-works section.
-                  That section was removed from the home page in this
-                  iteration; the link now navigates to the dedicated
-                  /how-it-works route which still exists. */}
+
               <Link
                 data-hero-cta-secondary
                 href="/how-it-works"
@@ -170,74 +180,10 @@ export function Hero() {
                 ? t('home', 'heroSubCtaPostLaunch')
                 : t('home', 'heroSubCtaPreLaunch')}
             </p>
-
-            {/* Pre-launch waitlist block.
-
-                Mobile: arrow ABOVE the form, no rotation, pointing
-                DOWN at the form ("perfect on mobile" per earlier
-                review).
-
-                Desktop (lg+): arrow BELOW the form, FLIPPED 180° so
-                it points back UP at the "Join the Waitlist" submit
-                button sitting at the right end of the form. Right-
-                aligned via `lg:self-end` plus a small leftward
-                translate so the tip lands over the button center.
-
-                Two LottieAsset instances rather than one positioned
-                conditionally — keeps the JSX flat. Visibility:
-                `lg:hidden` on the mobile arrow, `hidden lg:block`
-                on the desktop arrow. */}
-            {!APP_LAUNCHED && (
-              <div
-                id="waitlist"
-                className={cn(
-                  'mt-10 scroll-mt-24',
-                  'flex flex-col items-center',
-                  'lg:items-start',
-                  'mx-auto lg:mx-0',
-                  'max-w-md',
-                )}
-              >
-                {/* Mobile-only arrow above form. */}
-                <LottieAsset
-                  src="/Animations/Lottie/Arrow%201.lottie"
-                  className={cn(
-                    'lg:hidden',
-                    '-mt-2 h-32 w-32 sm:h-36 sm:w-36',
-                    'opacity-80',
-                  )}
-                  tint="warm"
-                  ariaLabel=""
-                />
-
-                <div className="mt-2 lg:mt-0 w-full">
-                  <EmailWaitlist location="hero" />
-                </div>
-
-                {/* Desktop-only arrow below form, flipped to point
-                    UP at the "Join the Waitlist" button. */}
-                <LottieAsset
-                  src="/Animations/Lottie/Arrow%201.lottie"
-                  className={cn(
-                    'hidden lg:block',
-                    'mt-2 h-28 w-28 xl:h-32 xl:w-32',
-                    'rotate-180 opacity-80',
-                    'lg:self-end lg:-translate-x-2 xl:-translate-x-4',
-                  )}
-                  tint="warm"
-                  ariaLabel=""
-                />
-              </div>
-            )}
           </div>
 
-          {/* RIGHT column on desktop: hand-wave Lottie + "Furnish"
-              text overlay. The Lottie's original "Haloo" letter
-              outlines were stripped from the .lottie file (5 layers
-              removed); only the 2 hand precomps remain. The brand
-              wordmark "Furnish" overlays as HTML text in display
-              serif so we get the brand name without redrawing
-              Bezier letterforms. */}
+          {/* RIGHT column: hand-wave Lottie + "Furnish" wordmark
+              overlay + second mirrored hand at bottom-right. */}
           <div
             className={cn(
               'order-2 lg:order-2 lg:col-span-6',
@@ -252,22 +198,21 @@ export function Hero() {
                 'aspect-square',
               )}
             >
+              {/* Primary hand wave (existing). */}
               <LottieAsset
                 src="/Animations/Lottie/Hello-welcome.web.lottie"
                 className="absolute inset-0 h-full w-full"
                 ariaLabel=""
               />
+
+              {/* Furnish wordmark overlay. */}
               <span
                 className={cn(
                   'absolute inset-x-0 bottom-[14%]',
                   'text-center',
                   'font-display tracking-display-tight',
                   'pointer-events-none',
-                  /* `wordmark-wave` keyframe lives in globals.css; it
-                     pulses scale + rotation so the text feels alive
-                     in tandem with the Lottie hand wave (which was
-                     stripped of its original "Haloo" text animation
-                     when we removed the letter outlines). */
+                  /* `wordmark-wave` keyframe in globals.css. */
                   'wordmark-wave',
                 )}
                 style={{
@@ -278,10 +223,40 @@ export function Hero() {
               >
                 Furnish
               </span>
+
+              {/* Second hand at bottom-right, mirrored horizontally
+                  via scaleX(-1) so it waves from the opposite
+                  direction. Smaller so it reads as a secondary
+                  accent rather than competing with the primary. */}
+              <div
+                className={cn(
+                  'absolute bottom-[-4%] right-[-2%]',
+                  'h-[40%] w-[40%]',
+                  'pointer-events-none',
+                )}
+                style={{ transform: 'scaleX(-1)' }}
+                aria-hidden="true"
+              >
+                <LottieAsset
+                  src="/Animations/Lottie/Hello-welcome.web.lottie"
+                  className="h-full w-full"
+                  ariaLabel=""
+                />
+              </div>
             </div>
           </div>
         </div>
       </Container>
+
+      {/* Waitlist modal. Mounted always (when pre-launch); the
+          component returns null when `open` is false so it's free
+          when not displayed. */}
+      {!APP_LAUNCHED && (
+        <WaitlistModal
+          open={waitlistOpen}
+          onClose={() => setWaitlistOpen(false)}
+        />
+      )}
     </section>
   );
 }

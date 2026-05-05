@@ -74,5 +74,8 @@
   "waitlistButton": "Join the Waitlist",
   "waitlistSuccess": "You are on the list. We'll email you when Furnish launches.",
   "waitlistError": "Something went wrong. Please try again.",
-  "waitlistInvalidEmail": "Please enter a valid email."
+  "waitlistInvalidEmail": "Please enter a valid email.",
+  "waitlistModalTitle": "Join the Waitlist",
+  "waitlistModalDescription": "Drop your email and we'll send you one message the moment Furnish goes live on iOS. No marketing, no spam, no follow-ups. Just the launch announcement.",
+  "waitlistModalDismiss": "Close"
 }
