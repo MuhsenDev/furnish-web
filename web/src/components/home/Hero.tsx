@@ -225,36 +225,54 @@ export function Hero() {
             >
               {/* LEFT hand (not mirrored).
 
-                  Placed at the TOP-RIGHT of the Furnish word per
-                  Hassan's spec. The Lottie's canvas is 1000x600
-                  with the visible hand drawn at ~(30%, 51%) of
-                  that canvas. Rendered in a square wrapper with
-                  the default xMidYMid-meet aspect-fitting, the
-                  visible hand lands at ~(30%, 51%) of the wrapper
-                  (60% vertical content band centered, so y maps
-                  20%+51%*60% = 50.8%).
+                  Verified-in-browser positioning (the "silly
+                  mistake" fix): the visible hand actually renders
+                  at (20%, 49%) of the wrapper, not (30%, 51%) as
+                  earlier math assumed. Layer 1 of the Lottie
+                  (animated scale 0->69%) is the rendered hand;
+                  its canvas position is (204, 300) of 1000x600
+                  = (20.4%, 50%). After meet-mode aspect-fit in
+                  the square wrapper, that maps to (20.1%, 48%) of
+                  wrapper.
 
-                  Target: visible hand center at ~(75%, 25%) of
-                  parent (top-right of "Furnish", which sits
-                  centered horizontally and bottom-[18%] from the
-                  bottom).
+                  Target: visible hand at (70%, 35%) of parent —
+                  TOP-RIGHT of the "Furnish" word (wordmark sits
+                  at 56-83% from top vertically, ~30-70% from
+                  left visually since text-center). 35% from top
+                  is well above text top (56%); 70% from left is
+                  just past the right edge of the visible text.
 
-                  With h-[70%] w-[70%] wrapper: (where vh = visible
-                  hand center within wrapper, ~30% horizontal, 51%
-                  vertical):
-                    parent.left = wrapper.left + vh.x * wrapper.w
-                    parent.top  = wrapper.top  + vh.y * wrapper.h
-                  Solving for target (75%, 25%):
-                    wrapper.left = 75 - 0.30 * 70 = 54%   -> right -24%
-                    wrapper.top  = 25 - 0.51 * 70 = -10.7%
-                  So: right-[-24%] top-[-11%] h-[70%] w-[70%]. */}
+                  Math: wrapper.left + 0.20 * 0.70 = 0.70
+                        -> wrapper.left = 56% -> right -26%
+                        wrapper.top + 0.49 * 0.70 = 0.35
+                        -> wrapper.top = 0.7% -> top 1%
+
+                  CSS transform scale(2.0) origin (20%, 49%) doubles
+                  the hand visually without canvas clipping. The
+                  scale anchor at the hand center keeps positioning
+                  math intact (hand stays at 20%, 49% of wrapper
+                  post-scale, just rendered larger). */}
               <div
                 className={cn(
                   'absolute',
-                  'right-[-24%] top-[-11%]',
+                  /* Verified-in-browser: with transform-origin
+                     (20%, 49%) and scale(2.0), the visible hand
+                     stays at element (20%, 49%). To land that
+                     point at parent (85%, 30%) — top-right of the
+                     "Furnish" word (text spans 9.7-89.9% of
+                     parent, with top at 54.9%):
+                       wrapper.left + 0.20 * 0.70 = 0.85
+                       -> wrapper.left = 71% -> right -41%
+                       wrapper.top + 0.49 * 0.70 = 0.30
+                       -> wrapper.top = -4.3% -> top -4% */
+                  'right-[-41%] top-[-4%]',
                   'h-[70%] w-[70%]',
                   'pointer-events-none',
                 )}
+                style={{
+                  transform: 'scale(2.0)',
+                  transformOrigin: '20% 49%',
+                }}
                 aria-hidden="true"
               >
                 <LottieAsset
@@ -264,37 +282,66 @@ export function Hero() {
                 />
               </div>
 
-              {/* RIGHT hand (mirrored via scaleX(-1)).
+              {/* RIGHT hand (mirrored).
 
-                  Placed TO THE RIGHT of "Furnish", elevated above
-                  the text but LOWER than the left hand per
-                  Hassan's spec.
+                  Both scaleX(-1) and scale(2.0) applied with the
+                  SAME origin at (20%, 49%) — the natural hand
+                  position. With this single-origin combo:
+                  - scaleX(-1) origin (20%, 49%): hand at (20%, 49%)
+                    stays at (20%, 49%) but mirrored (since origin
+                    x = hand x).
+                  - scale(2.0) origin (20%, 49%): hand stays at
+                    (20%, 49%), 2x bigger.
 
-                  After scaleX(-1), the visible hand position in
-                  the wrapper flips horizontally: was (30%, 51%),
-                  now (70%, 51%).
+                  So the hand stays anchored at wrapper (20%, 49%)
+                  same as the LEFT hand. Wrapper position math is
+                  identical to LEFT.
 
-                  Target: visible hand at ~(95%, 42%) of parent
-                  (further right than left hand, lower vertically
-                  than left hand's 25%, still above the Furnish
-                  text top at ~53-57%).
+                  Target: visible hand at (90%, 50%) of parent —
+                  to the right and lower than left hand (which is
+                  at 70%, 35%), still above text top (~55%).
 
-                  With h-[70%] w-[70%]:
-                    wrapper.left = 95 - 0.70 * 70 = 46%   -> right -16%
-                    wrapper.top  = 42 - 0.51 * 70 = 6.3%
-                  So: right-[-16%] top-[6%] h-[70%] w-[70%], scaleX(-1).
+                  Math: wrapper.left + 0.20 * 0.70 = 0.90
+                        -> wrapper.left = 76% -> right -6%
+                        wrapper.top + 0.49 * 0.70 = 0.50
+                        -> wrapper.top = 15.7% -> top 16%
 
-                  readyForExtras gate so this defers behind the
-                  left hand for first-paint perf. */}
+                  Note: the previous iteration tried nested divs
+                  with separate scaleX(-1) and scale(2.0) origins,
+                  but the layered transform composition mirrored
+                  the hand to the wrong side of the wrapper. Single
+                  combined transform with shared origin solves it. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute',
-                    'right-[-16%] top-[6%]',
+                    /* For the mirrored hand, origin at element
+                       center (50%, 50%) instead of the hand
+                       position. With scale(-2, 2) + origin (50%,
+                       50%), the hand at (20%, 49%) maps to:
+                         x: 50 + (-2)*(20-50) = 110%
+                         y: 50 + 2*(49-50) = 48%
+                       So hand ends up at element (110%, 48%),
+                       i.e. PAST the element's right edge (which
+                       is what we want — mirrored to the right).
+
+                       Target parent (95%, 50%):
+                         wrapper.left + 1.10 * 0.70 = 0.95
+                         -> wrapper.left = 18% -> right 12%
+                         wrapper.top + 0.48 * 0.70 = 0.50
+                         -> wrapper.top = 16.4% -> top 16%
+
+                       NB: right-[12%] is POSITIVE (wrapper sits
+                       inside parent). Earlier iteration mistakenly
+                       used right-[-52%] which pushed the hand off
+                       screen past the page right edge. */
+                    'right-[12%] top-[16%]',
                     'h-[70%] w-[70%]',
                     'pointer-events-none',
                   )}
-                  style={{ transform: 'scaleX(-1)' }}
+                  style={{
+                    transform: 'scale(-2, 2)',
+                  }}
                   aria-hidden="true"
                 >
                   <LottieAsset
