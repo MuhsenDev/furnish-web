@@ -96,6 +96,13 @@ export function CompareSlider({
       ref={containerRef}
       className={cn(
         'relative w-full overflow-hidden rounded-[var(--radius)] cursor-ew-resize',
+        /* `touch-pan-y` lets the browser handle vertical page scrolls
+           but releases horizontal touch gestures to the slider's
+           pointer listeners. Without it, mobile browsers can
+           interpret a horizontal drag on the slider as a page-pan
+           and steal the gesture, making the handle feel unresponsive
+           or "missing" most touches. */
+        'touch-pan-y',
         aspectClassName,
         className,
       )}
@@ -127,7 +134,26 @@ export function CompareSlider({
         priority
       />
 
-      {/* Vertical drag handle. */}
+      {/* Vertical drag handle.
+
+          Two layers:
+          (1) The 1-px-wide cream divider line spanning top to
+              bottom — pure visual, doesn't widen the hit area.
+          (2) An inner pill at the center — visible round chip with
+              the chevron icon. Sized large enough on mobile to
+              meet WCAG / Apple HIG tap-target minimums (44 pt =
+              ~64 px after device pixel ratio for finger pads).
+
+          The container element below has the actual pointerdown
+          listeners (motion library wires them up). Events on the
+          pill bubble up to the container, so the pill IS
+          interactive even though the listener isn't directly on
+          it. Removed the previous `pointer-events-none` on the
+          pill — it caused taps to fall through to the underlying
+          image with no visual feedback, which mobile users
+          perceived as "the button doesn't register." Now the pill
+          captures the tap directly and the container still gets
+          the bubbled event for drag-tracking. */}
       <div
         ref={handleRef}
         role="slider"
@@ -139,26 +165,29 @@ export function CompareSlider({
         className="absolute top-0 bottom-0 w-px bg-cream/90 cursor-ew-resize focus:outline-none focus-visible:bg-cream"
         style={{ left: `${initialPosition}%`, transform: 'translateX(-50%)' }}
       >
-        {/* Visible handle pill. */}
+        {/* Visible handle pill. Bigger on mobile, smaller on
+            desktop — finger taps need a wider target than mouse
+            clicks. */}
         <div
           className={cn(
             'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
-            'flex h-12 w-12 items-center justify-center',
+            'flex items-center justify-center',
+            'h-16 w-16 sm:h-14 sm:w-14',
             'rounded-full bg-cream shadow-2',
-            'pointer-events-none',
+            'cursor-ew-resize',
           )}
           aria-hidden="true"
         >
           <svg
             viewBox="0 0 24 24"
-            width="20"
-            height="20"
+            width="22"
+            height="22"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="text-deep"
+            className="text-deep pointer-events-none"
           >
             <polyline points="9 18 3 12 9 6" />
             <polyline points="15 6 21 12 15 18" />

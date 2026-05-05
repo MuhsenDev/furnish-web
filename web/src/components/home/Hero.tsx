@@ -226,12 +226,16 @@ export function Hero() {
 
               {/* Second hand at bottom-right, mirrored horizontally
                   via scaleX(-1) so it waves from the opposite
-                  direction. Smaller so it reads as a secondary
-                  accent rather than competing with the primary. */}
+                  direction. Sized close to the first hand
+                  (~85% of the wrapper) per Hassan, so the two
+                  hands read as paired greeters rather than
+                  primary + tiny accent. Slight negative offset on
+                  bottom and right so the hand visually extends
+                  beyond the wrapper edge. */}
               <div
                 className={cn(
-                  'absolute bottom-[-4%] right-[-2%]',
-                  'h-[40%] w-[40%]',
+                  'absolute bottom-[-10%] right-[-8%]',
+                  'h-[85%] w-[85%]',
                   'pointer-events-none',
                 )}
                 style={{ transform: 'scaleX(-1)' }}

@@ -137,14 +137,16 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       />
 
       {/* Dialog card. Stop propagation so clicks inside don't
-          close. */}
+          close. Bumped up a size (max-w-md -> max-w-xl) and given
+          much more generous internal padding so the modal feels
+          intentional rather than smushed. */}
       <div
         className={cn(
-          'relative w-full max-w-md',
+          'relative w-full max-w-xl',
           'rounded-[var(--radius)]',
           'bg-cream shadow-2',
           'border border-[rgba(43,30,24,0.08)]',
-          'p-6 sm:p-8',
+          'p-8 sm:p-12',
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -154,14 +156,14 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
           onClick={onClose}
           aria-label={t('home', 'waitlistModalDismiss')}
           className={cn(
-            'absolute right-3 top-3',
-            'inline-flex h-9 w-9 items-center justify-center',
+            'absolute right-4 top-4',
+            'inline-flex h-10 w-10 items-center justify-center',
             'rounded-full text-ink/70 hover:text-deep',
             'hover:bg-[var(--color-beige)]',
             'transition-colors duration-200 ease-premium',
           )}
         >
-          <X size={18} strokeWidth={1.75} />
+          <X size={20} strokeWidth={1.75} />
         </button>
 
         <h2
@@ -169,25 +171,25 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
           className={cn(
             'font-display text-deep',
             'tracking-display-tight leading-display-tight',
-            'text-display-m',
+            'text-display-l',
           )}
         >
           {t('home', 'waitlistModalTitle')}
         </h2>
 
-        <p className="mt-3 text-body-m text-ink/85 leading-relaxed">
+        <p className="mt-4 text-body-l text-ink/85 leading-relaxed">
           {t('home', 'waitlistModalDescription')}
         </p>
 
         {status === 'success' ? (
           <p
             role="status"
-            className="mt-6 rounded-sm bg-[var(--color-beige)]/60 p-4 text-body-m text-deep"
+            className="mt-8 rounded-sm bg-[var(--color-beige)]/60 p-5 text-body-l text-deep"
           >
             {t('home', 'waitlistSuccess')}
           </p>
         ) : (
-          <form onSubmit={onSubmit} className="mt-6" noValidate>
+          <form onSubmit={onSubmit} className="mt-8" noValidate>
             <input
               ref={inputRef}
               type="email"
@@ -205,7 +207,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 'block w-full',
                 'rounded-sm border bg-surface',
                 'border-[rgba(43,30,24,0.16)]',
-                'px-4 py-3 text-body-m text-ink',
+                'px-5 py-4 text-body-l text-ink',
                 'placeholder:text-muted',
                 'transition-colors duration-200 ease-premium',
                 'focus:border-[var(--color-accent)] focus:outline-none',
@@ -217,10 +219,10 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
               disabled={status === 'loading'}
               className={cn(
                 'btn-primary-hover',
-                'mt-3 w-full',
+                'mt-4 w-full',
                 'inline-flex items-center justify-center',
                 'rounded-sm bg-[var(--color-accent)] text-cream',
-                'px-6 py-3 text-body-m font-semibold',
+                'px-7 py-4 text-body-l font-semibold',
                 'shadow-1',
                 'disabled:opacity-60 disabled:cursor-not-allowed',
               )}
