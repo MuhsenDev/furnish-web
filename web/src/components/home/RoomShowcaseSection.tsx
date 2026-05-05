@@ -54,27 +54,38 @@ import { cn } from '@/lib/utils';
 
 /* === Tunables ============================================ */
 
-/* Items render at their natural SVG positions and STAY there —
-   no jumping. Hassan: "MAKE THEM FIT AND SIT IN THEIR COORDINATED
-   BOXES."
+/* Per-active-turn sequence: ENTRY (items drop in) → HOLD →
+   LIFT (scale only, NO Y movement) → PEAK → RETURN → FADE-OUT
+   (items fade away). Sums to CYCLE_DURATION_MS so the next room's
+   turn begins exactly as this room's items finish fading out.
 
-   The active-room ceremony is now stillness + glow + a barely-
-   perceptible scale up (1.04 at peak). NO Y translation on the
-   room — that read as "jumping" even though items themselves
-   weren't transforming. Inactive rooms also DON'T idle-bob
-   (amplitude 0) — total stillness across the section, just glow
-   intensity changes to indicate which room is "active". */
+   The "no jumping" Hassan asked for refers to the ROOM not
+   translating up — that 80px lift read as "jumping" because the
+   whole card+items rode up together. Items themselves DO drop in
+   from above (the entry animation he's asking back for) — that's
+   a one-shot per-item velocity-pop into place, not a repeated
+   bounce. */
 
-const CYCLE_DURATION_MS = 3500;
-const CYCLE_LIFT_PX = 0; /* NO Y movement — Hassan: no jumping. */
+const ENTRY_ITEM_DURATION_S = 0.6;
+const ENTRY_ITEM_STAGGER_S = 0.06;
+const ENTRY_ITEM_STAGGER_MOBILE_S = 0.04;
+const ENTRY_INITIAL_Y_PX = -160;
+const ENTRY_INITIAL_SCALE = 0.85;
+const ENTRY_OVERSHOOT_SCALE = 1.02;
+const ENTRY_ROOM_TOTAL_BUDGET_S = 0.5;
+
+const CYCLE_DURATION_MS = 4500;
+const CYCLE_LIFT_PX = 0; /* NO Y movement on the room — Hassan: no jumping. */
 const CYCLE_LIFT_SCALE_PEAK = 1.04; /* Subtle "this one is featured" scale */
+const CYCLE_PHASE_ENTRY_MS = 1100;
 const CYCLE_PHASE_HOLD_MS = 200;
 const CYCLE_PHASE_LIFT_MS = 1000;
 const CYCLE_PHASE_PEAK_MS = 700;
-const CYCLE_PHASE_RETURN_MS = 1600;
-/* Total: 3500ms ✓ */
+const CYCLE_PHASE_RETURN_MS = 1100;
+const CYCLE_PHASE_FADE_OUT_MS = 400;
+/* Total: 1100 + 200 + 1000 + 700 + 1100 + 400 = 4500ms ✓ */
 
-/* Idle: total stillness. No bob. */
+/* Idle on inactive rooms: no movement. */
 const IDLE_AMPLITUDE_PX = 0;
 const IDLE_PERIOD_S = 4;
 const IDLE_PHASE_SHIFT_S = 1.3;
@@ -85,9 +96,10 @@ const IDLE_PHASE_SHIFT_S = 1.3;
    content's smaller dimension. */
 const VIEWBOX_TRIM_PADDING_FRACTION = 0.02;
 
-/* The Vercel curve. Used for the lift/return phases of the
-   active ceremony. */
+/* The Vercel curve. Used for the entry deceleration, the
+   lift/return phases of the active ceremony, and the fade-out. */
 const VERCEL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const VERCEL_EASE_CSS = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
 /* === / Tunables ========================================== */
 
@@ -129,6 +141,113 @@ function isStatic(groupId: string): boolean {
     lowered.startsWith('static-') ||
     lowered.startsWith('apart_of_bed') ||
     lowered.startsWith('apart-of-bed')
+  );
+}
+
+/* Rasterize the inline SVG, scan pixel alpha to find the opaque-
+   content bbox, and rewrite the SVG's viewBox to match. This is
+   how we make the room art FILL its card without trailing
+   whitespace — geometric bbox isn't enough because walls/floors
+   are drawn with paths whose bbox extends past the visible art. */
+async function tightenViewBoxToVisualBounds(
+  svg: SVGSVGElement,
+): Promise<void> {
+  /* Capture the natural viewBox (after the inline SVG mounts the
+     viewBox is already what was in the source file). */
+  const vbAttr = svg.getAttribute('viewBox');
+  if (!vbAttr) return;
+  const vb = vbAttr.split(/\s+/).map(Number);
+  if (vb.length !== 4 || !vb.every(Number.isFinite)) return;
+  const [vbX, vbY, vbW, vbH] = vb;
+
+  /* Snapshot the SVG markup; create a fresh standalone SVG of
+     the same content with a fixed pixel size so we can rasterize
+     it. We use a moderate resolution (long-side ≈ 800px) — high
+     enough to find tight bounds, low enough to be cheap. */
+  const longSide = Math.max(vbW, vbH);
+  const scale = 800 / longSide;
+  const cw = Math.max(1, Math.round(vbW * scale));
+  const ch = Math.max(1, Math.round(vbH * scale));
+
+  /* Clone the SVG so we don't disturb the live element. Keep all
+     children (defs, paths, groups). Set explicit width/height for
+     image() rasterization. */
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute('width', String(cw));
+  clone.setAttribute('height', String(ch));
+  clone.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+  /* Inline namespace to be safe across browsers. */
+  if (!clone.getAttribute('xmlns')) {
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+  const xml = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  let imageBitmap: HTMLImageElement | null = null;
+  try {
+    imageBitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = (err) => reject(err);
+      img.src = url;
+    });
+  } catch (_) {
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    URL.revokeObjectURL(url);
+    return;
+  }
+  ctx.drawImage(imageBitmap, 0, 0, cw, ch);
+  URL.revokeObjectURL(url);
+
+  let data: Uint8ClampedArray;
+  try {
+    data = ctx.getImageData(0, 0, cw, ch).data;
+  } catch (_) {
+    /* Tainted canvas (shouldn't happen with same-origin SVG, but
+       guard anyway). */
+    return;
+  }
+
+  /* Scan alpha channel to find tightest opaque bbox. Step by 2px
+     for speed; result is good enough for viewBox trimming. */
+  const ALPHA_THRESHOLD = 20;
+  let minX = cw,
+    minY = ch,
+    maxX = -1,
+    maxY = -1;
+  for (let y = 0; y < ch; y += 2) {
+    for (let x = 0; x < cw; x += 2) {
+      const a = data[(y * cw + x) * 4 + 3];
+      if (a > ALPHA_THRESHOLD) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return;
+
+  /* Convert back to SVG viewBox coords. */
+  const newW = ((maxX - minX) / cw) * vbW;
+  const newH = ((maxY - minY) / ch) * vbH;
+  const newX = vbX + (minX / cw) * vbW;
+  const newY = vbY + (minY / ch) * vbH;
+
+  /* Tiny padding for stroke/anti-alias safety. */
+  const pad = Math.min(newW, newH) * VIEWBOX_TRIM_PADDING_FRACTION;
+  svg.setAttribute(
+    'viewBox',
+    `${newX - pad} ${newY - pad} ${newW + 2 * pad} ${newH + 2 * pad}`,
   );
 }
 
@@ -212,53 +331,44 @@ function Room({
         animatableRef.current = animatable;
         setItemCount(animatable.length);
 
-        /* Tighten the viewBox to the visible-content bbox.
-
-           6.svg in particular has 64 "Unknown-not-visable-*" Sketch
-           artifact groups that artificially expand its viewBox to
-           4592×1866 (aspect 2.46), even though the actual visible
-           kitchen art only occupies the left 1693×1866 (aspect
-           0.91). With the original wide viewBox, the kitchen card
-           rendered the room art tiny in the upper-left with most
-           of the card empty. Trimming the viewBox to just the
-           visible bbox makes the room fill the card.
-
-           Apply to all 3 SVGs uniformly so any future asset edits
-           that introduce hidden-but-named groups get the same
-           treatment. SVGs that already have a tight viewBox
-           (like 2.svg and 7.svg) get a no-op effective change. */
-        const visibleGroups = topLevelNamedGroups.filter((g) => {
-          const id = (g.id || '').toLowerCase();
-          return !id.startsWith('unknown-not-visable');
-        });
-        if (visibleGroups.length > 0) {
-          let minX = Infinity,
-            minY = Infinity,
-            maxX = -Infinity,
-            maxY = -Infinity;
-          for (const g of visibleGroups) {
-            try {
-              const b = g.getBBox();
-              if (b.width === 0 && b.height === 0) continue;
-              if (b.x < minX) minX = b.x;
-              if (b.y < minY) minY = b.y;
-              if (b.x + b.width > maxX) maxX = b.x + b.width;
-              if (b.y + b.height > maxY) maxY = b.y + b.height;
-            } catch (_) {
-              /* getBBox throws if element isn't in render tree yet —
-                 skip silently. */
-            }
-          }
-          if (Number.isFinite(minX) && maxX > minX && maxY > minY) {
-            const w = maxX - minX;
-            const h = maxY - minY;
-            const pad = Math.min(w, h) * VIEWBOX_TRIM_PADDING_FRACTION;
-            svg.setAttribute(
-              'viewBox',
-              `${minX - pad} ${minY - pad} ${w + 2 * pad} ${h + 2 * pad}`,
-            );
+        /* Hide animatable items above their final position so the
+           per-active-turn entry drop animation can play. transform-
+           box: fill-box makes CSS transforms behave relative to the
+           group's own bounding box (not the SVG viewport), which
+           is what we need for a clean translateY. */
+        if (!prefersReducedMotion) {
+          for (const g of animatable) {
+            g.style.transformBox = 'fill-box';
+            g.style.transformOrigin = 'center';
+            g.style.transform = `translateY(${ENTRY_INITIAL_Y_PX}px) scale(${ENTRY_INITIAL_SCALE})`;
+            g.style.opacity = '0';
+            g.style.willChange = 'transform, opacity';
           }
         }
+
+        /* Tighten the viewBox to the actual VISUAL paint area
+           (where opaque pixels sit), not the geometric bbox.
+           Geometric bbox (from getBBox) tends to be looser than
+           the visible content because:
+             - 6.svg has 64 Unknown-not-visable groups that inflate
+               the geometric bounds to aspect 2.46.
+             - walls/floors in each SVG are drawn with paths whose
+               geometric bbox extends to the corners of the natural
+               viewBox even when the visible art is smaller (Hassan:
+               "they still too small" — the room illustrations
+               occupied ~65% of the card area with the rest empty).
+
+           Approach: rasterize the SVG to a hidden canvas at low
+           resolution, scan pixel alpha to find the tightest
+           opaque-content bbox in canvas coords, convert back to
+           SVG-viewport coords, and set that as the new viewBox.
+           This catches walls/floors (they have visible pixels) but
+           ignores the bbox-only contributions from invisible
+           Unknown groups and trailing whitespace.
+
+           Adds a small padding fraction so stroke widths and
+           anti-aliased edges don't get clipped at the card frame. */
+        await tightenViewBoxToVisualBounds(svg as SVGSVGElement);
 
         setSvgLoaded(true);
       } catch (err) {
@@ -273,16 +383,27 @@ function Room({
     };
   }, [src, prefersReducedMotion]);
 
-  /* Per-active-turn lift + glow ceremony, plus idle levitation
-     when inactive. Items inside the SVG don't move — they ride
-     along with the room's translateY transform when this room is
-     active, and bob with the idle levitation when inactive. The
-     items themselves never animate independently (Hassan: "no
-     jumping animation, MAKE THEM FIT AND SIT IN THEIR COORDINATED
-     BOXES"). */
+  /* Per-active-turn sequence:
+       1. ENTRY: each item drops in (Web Animations API, staggered)
+       2. HOLD: brief settle
+       3. LIFT (scale-only — no Y translation): subtle scale up
+       4. PEAK: hold at peak with maximum glow
+       5. RETURN: scale back to baseline
+       6. FADE-OUT: items fade to opacity 0 (room is empty until
+                    its next turn ~9s later)
+
+     When inactive, the room sits at scale 1 with items hidden
+     (opacity 0). NO idle levitation, NO Y movement anywhere —
+     the only motion in the section is the per-turn item drop
+     and the active-room scale pulse. */
   React.useEffect(() => {
     if (prefersReducedMotion) {
       liftControls.set({ y: 0, scale: 1 });
+      const items = animatableRef.current;
+      for (const g of items) {
+        g.style.transform = 'none';
+        g.style.opacity = '1';
+      }
       return;
     }
 
@@ -291,7 +412,9 @@ function Room({
       return;
     }
 
-    if (isActive) {
+    const items = animatableRef.current;
+
+    if (isActive && items.length > 0) {
       let cancelled = false;
       const timeouts: number[] = [];
       const waitMs = (ms: number) =>
@@ -300,16 +423,68 @@ function Room({
           timeouts.push(id);
         });
 
-      const ceremony = async () => {
+      const sequence = async () => {
         try {
-          /* HOLD before the lift, so the cycle handoff between
-             rooms reads as deliberate. */
+          /* === ENTRY: items drop in ===
+             Cancel any leftover animations from the previous turn,
+             reset inline style to the entry-start state, then run
+             the staggered drop. The reset happens at opacity 0 so
+             the snap is invisible. */
+          for (const g of items) {
+            for (const a of g.getAnimations()) a.cancel();
+            g.style.transform = `translateY(${ENTRY_INITIAL_Y_PX}px) scale(${ENTRY_INITIAL_SCALE})`;
+            g.style.opacity = '0';
+          }
+
+          const isMobile =
+            typeof window !== 'undefined' && window.innerWidth < 1024;
+          const baseStagger = isMobile
+            ? ENTRY_ITEM_STAGGER_MOBILE_S
+            : ENTRY_ITEM_STAGGER_S;
+          const cappedStagger = Math.min(
+            baseStagger,
+            ENTRY_ROOM_TOTAL_BUDGET_S / Math.max(items.length, 1),
+          );
+
+          items.forEach((g, i) => {
+            const itemDelayMs = i * cappedStagger * 1000;
+            g.animate(
+              [
+                {
+                  transform: `translateY(${ENTRY_INITIAL_Y_PX}px) scale(${ENTRY_INITIAL_SCALE})`,
+                  opacity: 0,
+                },
+                {
+                  transform: `translateY(0) scale(${ENTRY_OVERSHOOT_SCALE})`,
+                  opacity: 1,
+                  offset: 0.85,
+                },
+                {
+                  transform: 'translateY(0) scale(1)',
+                  opacity: 1,
+                },
+              ],
+              {
+                duration: ENTRY_ITEM_DURATION_S * 1000,
+                easing: VERCEL_EASE_CSS,
+                delay: itemDelayMs,
+                fill: 'forwards',
+              },
+            );
+          });
+
+          /* Wait for the entry phase to play out before starting
+             the scale ceremony. */
+          await waitMs(CYCLE_PHASE_ENTRY_MS);
+          if (cancelled) return;
+
+          /* === HOLD === */
           await waitMs(CYCLE_PHASE_HOLD_MS);
           if (cancelled) return;
 
-          /* LIFT: room translates up + scales up. */
+          /* === LIFT (scale only, no Y) === */
           await liftControls.start({
-            y: -CYCLE_LIFT_PX,
+            y: -CYCLE_LIFT_PX, /* CYCLE_LIFT_PX = 0 */
             scale: CYCLE_LIFT_SCALE_PEAK,
             transition: {
               duration: CYCLE_PHASE_LIFT_MS / 1000,
@@ -318,11 +493,11 @@ function Room({
           });
           if (cancelled) return;
 
-          /* PEAK hold with maximum glow. */
+          /* === PEAK === */
           await waitMs(CYCLE_PHASE_PEAK_MS);
           if (cancelled) return;
 
-          /* RETURN to baseline, smooth. */
+          /* === RETURN === */
           await liftControls.start({
             y: 0,
             scale: 1,
@@ -331,12 +506,25 @@ function Room({
               ease: VERCEL_EASE,
             },
           });
+          if (cancelled) return;
+
+          /* === FADE-OUT === */
+          for (const g of items) {
+            g.animate(
+              [{ opacity: 1 }, { opacity: 0 }],
+              {
+                duration: CYCLE_PHASE_FADE_OUT_MS,
+                easing: VERCEL_EASE_CSS,
+                fill: 'forwards',
+              },
+            );
+          }
         } catch {
           /* controls.start rejects on interrupt — expected. */
         }
       };
 
-      ceremony();
+      sequence();
 
       return () => {
         cancelled = true;
@@ -344,18 +532,9 @@ function Room({
       };
     }
 
-    /* Not active: idle levitation. Phase-shift per index so the
-       three rooms never bob in unison. */
-    liftControls.start({
-      y: [0, -IDLE_AMPLITUDE_PX, 0, IDLE_AMPLITUDE_PX, 0],
-      scale: 1,
-      transition: {
-        duration: IDLE_PERIOD_S,
-        repeat: Infinity,
-        ease: 'easeInOut',
-        delay: index * IDLE_PHASE_SHIFT_S,
-      },
-    });
+    /* Not active: stay at baseline, items remain hidden until
+       this room's next turn comes around. No idle motion. */
+    liftControls.set({ y: 0, scale: 1 });
 
     return undefined;
   }, [
@@ -403,29 +582,26 @@ function Room({
         'flex flex-col items-center',
       )}
     >
-      {/* Card frame around the illustration. Slightly darker cream
-          than the section background (--color-editorial-accent-bg
-          = #F5EBDC vs --color-cream = #FAF3E7), with shadow-1 lift
-          and rounded-[var(--radius)] (16px). Padding shrunk from
-          p-3/p-4 to p-2/p-3 so the illustration fills more of the
-          card frame (Hassan: rooms should be as big as possible
-          without clutter). Glow extends past the frame's rounded
-          edges naturally because overflow stays visible. */}
+      {/* Card frame hugs the illustration tight — sharp corners,
+          no inner padding (Hassan: "outerbox should shrink down
+          tight against the image generation"). Walls + floors of
+          the room art now sit flush to all four edges of the card.
+
+          aspect-[3/2] matches the actual visual-paint aspect of
+          each isometric room (~1.48 measured via pixel-bbox after
+          the viewBox trim). The room art now fills the card
+          edge-to-edge with no internal whitespace. */}
       <div
         className={cn(
           'relative w-full',
-          'rounded-[var(--radius)]',
+          'aspect-[3/2]',
           'bg-[var(--color-editorial-accent-bg)]',
           'border border-[rgba(43,30,24,0.08)]',
           'shadow-1',
-          'p-2 sm:p-3',
+          'overflow-hidden',
         )}
       >
-        {/* aspect-[10/11] (= 0.909) matches each SVG's natural
-            visible-content aspect (0.91 for all 3 after the
-            viewBox trim above). The room art now fills the card
-            edge-to-edge with only ~0.5pp of letterbox margin. */}
-        <div className="relative w-full aspect-[10/11]">
+        <div className="absolute inset-0">
         {/* Bronze warm glow beneath the room. Sits at z=0 so the
             room's SVG stacks on top of it. Width 110% / height 70%
             with bottom alignment makes the glow puddle out from
