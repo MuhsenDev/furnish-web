@@ -223,44 +223,74 @@ export function Hero() {
                 'aspect-square',
               )}
             >
-              {/* Primary hand wave (renders first / always). */}
-              <LottieAsset
-                src="/Animations/Lottie/Hello-welcome.web.lottie"
-                className="absolute inset-0 h-full w-full"
-                ariaLabel=""
-              />
+              {/* LEFT hand (not mirrored).
 
-              {/* Second mirrored hand.
+                  Placed at the TOP-RIGHT of the Furnish word per
+                  Hassan's spec. The Lottie's canvas is 1000x600
+                  with the visible hand drawn at ~(30%, 51%) of
+                  that canvas. Rendered in a square wrapper with
+                  the default xMidYMid-meet aspect-fitting, the
+                  visible hand lands at ~(30%, 51%) of the wrapper
+                  (60% vertical content band centered, so y maps
+                  20%+51%*60% = 50.8%).
 
-                  Sized DRAMATICALLY bigger this iteration —
-                  h/w-[42%] -> h/w-[70%] — so it reads as the
-                  character's other arm at full presence rather
-                  than a small accent. Positioned in the upper-
-                  right with the top edge OVERFLOWING above the
-                  wrapper so the hand bottom sits just clear of
-                  the Furnish text top edge: no overlap.
+                  Target: visible hand center at ~(75%, 25%) of
+                  parent (top-right of "Furnish", which sits
+                  centered horizontally and bottom-[18%] from the
+                  bottom).
 
-                  Math (the wrapper is square, percentages are
-                  relative to that):
-                    Furnish text bottom:  18% from wrapper bottom
-                                          = 82% from top
-                    Furnish text height:  ~25-29% of wrapper
-                                          (clamp 3rem..8rem)
-                    Furnish text top:     ~53-57% from wrapper top
-                    Second hand vertical: top-[-20%] to 50% from
-                                          top (with h-[70%]),
-                                          so bottom at 50% sits
-                                          ~3-7% above text top.
+                  With h-[70%] w-[70%] wrapper: (where vh = visible
+                  hand center within wrapper, ~30% horizontal, 51%
+                  vertical):
+                    parent.left = wrapper.left + vh.x * wrapper.w
+                    parent.top  = wrapper.top  + vh.y * wrapper.h
+                  Solving for target (75%, 25%):
+                    wrapper.left = 75 - 0.30 * 70 = 54%   -> right -24%
+                    wrapper.top  = 25 - 0.51 * 70 = -10.7%
+                  So: right-[-24%] top-[-11%] h-[70%] w-[70%]. */}
+              <div
+                className={cn(
+                  'absolute',
+                  'right-[-24%] top-[-11%]',
+                  'h-[70%] w-[70%]',
+                  'pointer-events-none',
+                )}
+                aria-hidden="true"
+              >
+                <LottieAsset
+                  src="/Animations/Lottie/Hello-welcome.web.lottie"
+                  className="h-full w-full"
+                  ariaLabel=""
+                />
+              </div>
 
-                  Mirrored via scaleX(-1). Right edge slightly
-                  past the wrapper edge so the hand feels grounded
-                  against the column edge, like the first hand
-                  does. */}
+              {/* RIGHT hand (mirrored via scaleX(-1)).
+
+                  Placed TO THE RIGHT of "Furnish", elevated above
+                  the text but LOWER than the left hand per
+                  Hassan's spec.
+
+                  After scaleX(-1), the visible hand position in
+                  the wrapper flips horizontally: was (30%, 51%),
+                  now (70%, 51%).
+
+                  Target: visible hand at ~(95%, 42%) of parent
+                  (further right than left hand, lower vertically
+                  than left hand's 25%, still above the Furnish
+                  text top at ~53-57%).
+
+                  With h-[70%] w-[70%]:
+                    wrapper.left = 95 - 0.70 * 70 = 46%   -> right -16%
+                    wrapper.top  = 42 - 0.51 * 70 = 6.3%
+                  So: right-[-16%] top-[6%] h-[70%] w-[70%], scaleX(-1).
+
+                  readyForExtras gate so this defers behind the
+                  left hand for first-paint perf. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute',
-                    'top-[-20%] right-[-3%]',
+                    'right-[-16%] top-[6%]',
                     'h-[70%] w-[70%]',
                     'pointer-events-none',
                   )}
