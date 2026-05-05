@@ -148,12 +148,13 @@ async function tightenViewBoxToVisualBounds(
   if (vb.length !== 4 || !vb.every(Number.isFinite)) return;
   const [vbX, vbY, vbW, vbH] = vb;
 
-  /* Snapshot the SVG markup; create a fresh standalone SVG of
-     the same content with a fixed pixel size so we can rasterize
-     it. We use a moderate resolution (long-side ≈ 800px) — high
-     enough to find tight bounds, low enough to be cheap. */
+  /* Rasterize at 1500px long-side so we don't miss thin walls
+     or low-alpha anti-aliased edges (was 800; rooms 2 + 3 had
+     their right walls / bottom floors cropped at the lower res
+     because faint paint at the edges fell below the alpha
+     threshold and got excluded from the bbox). */
   const longSide = Math.max(vbW, vbH);
-  const scale = 800 / longSide;
+  const scale = 1500 / longSide;
   const cw = Math.max(1, Math.round(vbW * scale));
   const ch = Math.max(1, Math.round(vbH * scale));
 
@@ -205,15 +206,18 @@ async function tightenViewBoxToVisualBounds(
     return;
   }
 
-  /* Scan alpha channel to find tightest opaque bbox. Step by 2px
-     for speed; result is good enough for viewBox trimming. */
-  const ALPHA_THRESHOLD = 20;
+  /* Scan alpha channel to find tightest opaque bbox. Step by 1px
+     and use the lowest practical alpha threshold (1) so we catch
+     even very faintly-painted walls and floor edges. Lower than 1
+     would catch fully-transparent pixels that the renderer
+     sometimes leaves with stale color data. */
+  const ALPHA_THRESHOLD = 1;
   let minX = cw,
     minY = ch,
     maxX = -1,
     maxY = -1;
-  for (let y = 0; y < ch; y += 2) {
-    for (let x = 0; x < cw; x += 2) {
+  for (let y = 0; y < ch; y += 1) {
+    for (let x = 0; x < cw; x += 1) {
       const a = data[(y * cw + x) * 4 + 3];
       if (a > ALPHA_THRESHOLD) {
         if (x < minX) minX = x;
@@ -225,13 +229,70 @@ async function tightenViewBoxToVisualBounds(
   }
   if (maxX < 0) return;
 
-  /* Convert back to SVG viewBox coords. */
-  const newW = ((maxX - minX) / cw) * vbW;
-  const newH = ((maxY - minY) / ch) * vbH;
-  const newX = vbX + (minX / cw) * vbW;
-  const newY = vbY + (minY / ch) * vbH;
+  /* Convert pixel bbox back to SVG viewBox coords. */
+  let pxBboxX = vbX + (minX / cw) * vbW;
+  let pxBboxY = vbY + (minY / ch) * vbH;
+  let pxBboxW = ((maxX - minX) / cw) * vbW;
+  let pxBboxH = ((maxY - minY) / ch) * vbH;
 
-  /* Tiny padding for stroke/anti-alias safety. */
+  /* Union with the geometric bbox of named groups (excluding
+     unknown-not-visable). Pixel-scan can miss faintly-painted
+     structural elements (walls, floors drawn with thin strokes
+     or near-bg fills) — walls in 6.svg / 7.svg specifically have
+     paths whose painted content barely registers above the alpha
+     threshold but whose geometry IS where the room frame sits.
+     Taking the union catches both the visible paint and the
+     structural geometry; padding then runs over the union. */
+  let geoMinX = Infinity,
+    geoMinY = Infinity,
+    geoMaxX = -Infinity,
+    geoMaxY = -Infinity;
+  const namedCandidates = Array.from(svg.children).filter((el) => {
+    if (el.tagName === 'defs') return false;
+    if (el.tagName !== 'g') return true;
+    const id = (el.id || '').toLowerCase();
+    return !id.startsWith('unknown-not-visable');
+  });
+  for (const el of namedCandidates) {
+    try {
+      const node = el as unknown as SVGGraphicsElement;
+      if (typeof node.getBBox !== 'function') continue;
+      const b = node.getBBox();
+      if (b.width === 0 && b.height === 0) continue;
+      if (b.x < geoMinX) geoMinX = b.x;
+      if (b.y < geoMinY) geoMinY = b.y;
+      if (b.x + b.width > geoMaxX) geoMaxX = b.x + b.width;
+      if (b.y + b.height > geoMaxY) geoMaxY = b.y + b.height;
+    } catch (_) {
+      /* skip */
+    }
+  }
+
+  /* Union with geometric bbox, but CAP each side's extension at
+     25% of the pixel bbox dimension so we don't pull in massive
+     amounts of whitespace from a static-walls path that happens
+     to extend to the SVG corners. The cap lets us reach a wall
+     that's drawn slightly past the painted content, but not the
+     full geometric corner of an oversized SVG. */
+  const MAX_EXT_PCT = 0.25;
+  const maxExtX = pxBboxW * MAX_EXT_PCT;
+  const maxExtY = pxBboxH * MAX_EXT_PCT;
+  let finalMinX = pxBboxX;
+  let finalMinY = pxBboxY;
+  let finalMaxX = pxBboxX + pxBboxW;
+  let finalMaxY = pxBboxY + pxBboxH;
+  if (Number.isFinite(geoMinX)) {
+    finalMinX = Math.max(geoMinX, pxBboxX - maxExtX);
+    finalMinY = Math.max(geoMinY, pxBboxY - maxExtY);
+    finalMaxX = Math.min(geoMaxX, pxBboxX + pxBboxW + maxExtX);
+    finalMaxY = Math.min(geoMaxY, pxBboxY + pxBboxH + maxExtY);
+  }
+  const newX = finalMinX;
+  const newY = finalMinY;
+  const newW = finalMaxX - finalMinX;
+  const newH = finalMaxY - finalMinY;
+
+  /* Padding for stroke/anti-alias safety. */
   const pad = Math.min(newW, newH) * VIEWBOX_TRIM_PADDING_FRACTION;
   svg.setAttribute(
     'viewBox',
