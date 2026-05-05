@@ -55,27 +55,35 @@ import { cn } from '@/lib/utils';
 /* === Tunables ============================================ */
 
 /* Items render at their natural SVG positions and STAY there —
-   no drop-in jumping, no fade-out, no per-item transforms. Hassan:
-   "MAKE THEM FIT AND SIT IN THEIR COORDINATED BOXES." The only
-   movement is the room-level lift+glow ceremony below, which moves
-   the whole room (items ride along inside their coordinated
-   positions). */
+   no jumping. Hassan: "MAKE THEM FIT AND SIT IN THEIR COORDINATED
+   BOXES."
 
-/* Per-active-turn lift + glow ceremony. */
+   The active-room ceremony is now stillness + glow + a barely-
+   perceptible scale up (1.04 at peak). NO Y translation on the
+   room — that read as "jumping" even though items themselves
+   weren't transforming. Inactive rooms also DON'T idle-bob
+   (amplitude 0) — total stillness across the section, just glow
+   intensity changes to indicate which room is "active". */
+
 const CYCLE_DURATION_MS = 3500;
-const CYCLE_LIFT_PX = 80;
-const CYCLE_LIFT_SCALE_PEAK = 1.05;
+const CYCLE_LIFT_PX = 0; /* NO Y movement — Hassan: no jumping. */
+const CYCLE_LIFT_SCALE_PEAK = 1.04; /* Subtle "this one is featured" scale */
 const CYCLE_PHASE_HOLD_MS = 200;
 const CYCLE_PHASE_LIFT_MS = 1000;
 const CYCLE_PHASE_PEAK_MS = 700;
 const CYCLE_PHASE_RETURN_MS = 1600;
-/* Total: 200 + 1000 + 700 + 1600 = 3500ms ✓ */
+/* Total: 3500ms ✓ */
 
-/* Idle levitation on inactive rooms (subtle ±8px bob, same scale
-   as the hand/leg lottie idle motion in the hero). */
-const IDLE_AMPLITUDE_PX = 8;
+/* Idle: total stillness. No bob. */
+const IDLE_AMPLITUDE_PX = 0;
 const IDLE_PERIOD_S = 4;
 const IDLE_PHASE_SHIFT_S = 1.3;
+
+/* Padding around the visible-content bbox after we tighten the
+   viewBox at runtime. A small margin keeps the room art from
+   touching the card edges. Specified as a fraction of the
+   content's smaller dimension. */
+const VIEWBOX_TRIM_PADDING_FRACTION = 0.02;
 
 /* The Vercel curve. Used for the lift/return phases of the
    active ceremony. */
@@ -89,20 +97,25 @@ interface RoomConfig {
   alt: string;
 }
 
+/* Labels read together left-to-right form the section's
+   tagline phrase: "EVERY. SINGLE. STYLE." (Hassan-specified,
+   replacing the prior LIVING ROOM / KITCHEN / BEDROOM labels).
+   Alt text for accessibility still describes the actual room
+   illustration the SVG depicts. */
 const ROOMS: RoomConfig[] = [
   {
     src: '/Animations/SVG/2.svg',
-    label: 'Living Room',
+    label: 'Every.',
     alt: 'Isometric illustration of a designed living room',
   },
   {
     src: '/Animations/SVG/6.svg',
-    label: 'Kitchen',
+    label: 'Single.',
     alt: 'Isometric illustration of a designed kitchen',
   },
   {
     src: '/Animations/SVG/7.svg',
-    label: 'Bedroom',
+    label: 'Style.',
     alt: 'Isometric illustration of a designed bedroom',
   },
 ];
@@ -189,11 +202,7 @@ function Room({
         svgEl.style.height = '100%';
 
         /* Direct child <g id="..."> only — never reach into nested
-           groups (those are clip-path / isolation plumbing). The
-           `animatable` ref is preserved for diagnostics + future
-           per-item effects, but we no longer apply per-item
-           transforms or opacity changes on entry. Items render at
-           their natural SVG positions. */
+           groups (those are clip-path / isolation plumbing). */
         const topLevelNamedGroups = Array.from(
           svg.querySelectorAll(':scope > g[id]'),
         ) as SVGGElement[];
@@ -202,6 +211,54 @@ function Room({
         );
         animatableRef.current = animatable;
         setItemCount(animatable.length);
+
+        /* Tighten the viewBox to the visible-content bbox.
+
+           6.svg in particular has 64 "Unknown-not-visable-*" Sketch
+           artifact groups that artificially expand its viewBox to
+           4592×1866 (aspect 2.46), even though the actual visible
+           kitchen art only occupies the left 1693×1866 (aspect
+           0.91). With the original wide viewBox, the kitchen card
+           rendered the room art tiny in the upper-left with most
+           of the card empty. Trimming the viewBox to just the
+           visible bbox makes the room fill the card.
+
+           Apply to all 3 SVGs uniformly so any future asset edits
+           that introduce hidden-but-named groups get the same
+           treatment. SVGs that already have a tight viewBox
+           (like 2.svg and 7.svg) get a no-op effective change. */
+        const visibleGroups = topLevelNamedGroups.filter((g) => {
+          const id = (g.id || '').toLowerCase();
+          return !id.startsWith('unknown-not-visable');
+        });
+        if (visibleGroups.length > 0) {
+          let minX = Infinity,
+            minY = Infinity,
+            maxX = -Infinity,
+            maxY = -Infinity;
+          for (const g of visibleGroups) {
+            try {
+              const b = g.getBBox();
+              if (b.width === 0 && b.height === 0) continue;
+              if (b.x < minX) minX = b.x;
+              if (b.y < minY) minY = b.y;
+              if (b.x + b.width > maxX) maxX = b.x + b.width;
+              if (b.y + b.height > maxY) maxY = b.y + b.height;
+            } catch (_) {
+              /* getBBox throws if element isn't in render tree yet —
+                 skip silently. */
+            }
+          }
+          if (Number.isFinite(minX) && maxX > minX && maxY > minY) {
+            const w = maxX - minX;
+            const h = maxY - minY;
+            const pad = Math.min(w, h) * VIEWBOX_TRIM_PADDING_FRACTION;
+            svg.setAttribute(
+              'viewBox',
+              `${minX - pad} ${minY - pad} ${w + 2 * pad} ${h + 2 * pad}`,
+            );
+          }
+        }
 
         setSvgLoaded(true);
       } catch (err) {
@@ -364,7 +421,11 @@ function Room({
           'p-2 sm:p-3',
         )}
       >
-        <div className="relative w-full aspect-[3/2]">
+        {/* aspect-[10/11] (= 0.909) matches each SVG's natural
+            visible-content aspect (0.91 for all 3 after the
+            viewBox trim above). The room art now fills the card
+            edge-to-edge with only ~0.5pp of letterbox margin. */}
+        <div className="relative w-full aspect-[10/11]">
         {/* Bronze warm glow beneath the room. Sits at z=0 so the
             room's SVG stacks on top of it. Width 110% / height 70%
             with bottom alignment makes the glow puddle out from
