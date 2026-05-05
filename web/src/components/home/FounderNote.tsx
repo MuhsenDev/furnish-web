@@ -40,41 +40,55 @@ export function FounderNote() {
       aria-labelledby="founder-note-heading"
     >
       <Container width="narrow">
-        <div className="text-center" data-reveal>
-          <p className="eyebrow">{t('home', 'founderEyebrow')}</p>
-          <h2
-            id="founder-note-heading"
-            className={cn(
-              'mt-3 font-display text-deep',
-              'tracking-display-tight leading-display',
-              'text-display-m',
-            )}
-          >
-            {t('home', 'founderHeadline')}
-          </h2>
-        </div>
-
-        <div className="mt-section-y-tight space-y-5">
-          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-            {t('home', 'founderParagraph1')}
-          </p>
-          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-            {t('home', 'founderParagraph2')}
-          </p>
-          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-            {t('home', 'founderParagraph3')}
-          </p>
-        </div>
-
-        <p
-          data-reveal
+        {/* Whole founder note wrapped in a warm beige card so the
+            previously plain text-on-cream section gains visual
+            weight. Generous internal padding gives the prose room
+            to breathe; max-width inherited from Container narrow. */}
+        <div
           className={cn(
-            'mt-8 text-right text-body-l italic',
-            'text-ink/80',
+            'rounded-[var(--radius)]',
+            'bg-[var(--color-beige)]/55',
+            'border border-[rgba(43,30,24,0.06)]',
+            'shadow-1',
+            'p-8 sm:p-10 lg:p-14',
           )}
         >
-          {t('home', 'founderSignoff')}
-        </p>
+          <div className="text-center" data-reveal>
+            <p className="eyebrow">{t('home', 'founderEyebrow')}</p>
+            <h2
+              id="founder-note-heading"
+              className={cn(
+                'mt-3 font-display text-deep',
+                'tracking-display-tight leading-display',
+                'text-display-m',
+              )}
+            >
+              {t('home', 'founderHeadline')}
+            </h2>
+          </div>
+
+          <div className="mt-section-y-tight space-y-5">
+            <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
+              {t('home', 'founderParagraph1')}
+            </p>
+            <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
+              {t('home', 'founderParagraph2')}
+            </p>
+            <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
+              {t('home', 'founderParagraph3')}
+            </p>
+          </div>
+
+          <p
+            data-reveal
+            className={cn(
+              'mt-8 text-right text-body-l italic',
+              'text-ink/80',
+            )}
+          >
+            {t('home', 'founderSignoff')}
+          </p>
+        </div>
       </Container>
     </section>
   );

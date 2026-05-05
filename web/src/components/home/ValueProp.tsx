@@ -53,12 +53,27 @@ export function ValueProp() {
 
         <div
           className={cn(
-            'mt-section-y-tight grid gap-12 sm:gap-8',
+            'mt-section-y-tight grid gap-6 sm:gap-6',
             'sm:grid-cols-3',
           )}
         >
           {COLUMNS.map((col) => (
-            <div key={col.number} data-reveal>
+            /* Each column wrapped in a warm beige card. Adds depth
+               and breaks up the previously empty/text-only stretch
+               of the home page. Subtle shadow on hover for
+               interactivity hint without being clickable. */
+            <div
+              key={col.number}
+              data-reveal
+              className={cn(
+                'rounded-[var(--radius)]',
+                'bg-[var(--color-beige)]/55',
+                'border border-[rgba(43,30,24,0.06)]',
+                'p-7 sm:p-8 lg:p-10',
+                'transition-shadow duration-300 ease-premium',
+                'hover:shadow-1',
+              )}
+            >
               <span
                 className={cn(
                   'block font-display tracking-display-tight',
@@ -70,13 +85,13 @@ export function ValueProp() {
               </span>
               <h3
                 className={cn(
-                  'mt-6 font-sans font-semibold text-deep',
+                  'mt-5 font-sans font-semibold text-deep',
                   'text-body-xl',
                 )}
               >
                 {t('home', col.headlineKey)}
               </h3>
-              <p className="mt-4 text-body-l text-ink">
+              <p className="mt-3 text-body-l text-ink">
                 {t('home', col.bodyKey)}
               </p>
             </div>

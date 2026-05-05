@@ -87,27 +87,49 @@ export function ApartmentScrollSection() {
       ref={sectionRef}
       aria-label="Furnish 3D apartment"
       className={cn(
+        /* Section height shortened from min-h-screen to a more
+           compact min-h-[70vh]; the canvas's aspect ratio
+           determines its actual size and the section gives it
+           breathing room without dominating the page. */
         'relative bg-black',
-        'min-h-screen',
+        'min-h-[70vh]',
         'flex flex-col items-center justify-center',
-        'py-20 sm:py-24 lg:py-32',
+        'py-12 sm:py-16 lg:py-20',
       )}
     >
-      <p
-        className={cn(
-          'text-center font-display italic',
-          'text-display-m text-white',
-          'mb-10 sm:mb-14',
-        )}
-      >
-        From empty to home.
-      </p>
+      {/* Tagline reformatted from a single italic display line to
+          an eyebrow + headline pattern. Reads more structured /
+          intentional. Inline styles for color and font-size because
+          twMerge drops `text-white` when paired with the custom
+          font-size utility (root cause documented in lib/utils.ts;
+          this section was added before that root fix landed and
+          kept the inline style as belt-and-suspenders). */}
+      <div className="text-center mb-8 sm:mb-12">
+        <p
+          className="eyebrow"
+          style={{ color: 'rgba(255, 255, 255, 0.55)' }}
+        >
+          Watch it build
+        </p>
+        <p
+          className="mt-3 font-display tracking-display-tight"
+          style={{
+            color: '#FFFFFF',
+            fontSize: 'var(--text-display-l)',
+            lineHeight: '1.05',
+          }}
+        >
+          From empty to home.
+        </p>
+      </div>
 
       <Container width="default" className="w-full">
         <div
           className={cn(
             'mx-auto w-full max-w-5xl',
-            'aspect-[16/10]',
+            /* 16:9 aspect (was 16:10) so the corner-camera view of
+               the room shows a clean wide panorama. */
+            'aspect-[16/9]',
             'relative',
           )}
         >

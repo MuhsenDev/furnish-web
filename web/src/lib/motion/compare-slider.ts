@@ -88,17 +88,50 @@ export async function createCompareSlider(
   /* Initial paint, no animation. */
   applyPosition(initialPosition, false);
 
-  /* Press-and-drag. Pointer events unify mouse and touch so a single
-     handler set covers both. Drag is armed on pointerdown anywhere
-     in the container, but position only updates after the pointer
-     moves past a 4px threshold. That keeps stationary clicks
-     (including accidental taps while scrolling) from snapping the
-     slider. */
+  /* Press-and-drag with two perf optimizations on top of the threshold:
+
+     1. Cached bounding rect.  Calling getBoundingClientRect() on every
+        pointermove forces a synchronous layout recalc. At 1000+ Hz
+        pointer rates this thrashes layout and is the dominant cause
+        of slider choppiness. Cache the rect on pointerdown and
+        invalidate on scroll/resize.
+
+     2. requestAnimationFrame batching.  pointermove can fire many
+        times per frame on high-DPI / high-Hz pointers. Coalesce all
+        moves between frames into a single applyPosition() call at
+        the next animation frame. The slider visually updates at
+        screen refresh rate (60-120 Hz) regardless of pointer rate.
+
+     The threshold prevents stationary clicks from snapping; rAF +
+     cached rect make the actual drag smooth. */
   const DRAG_THRESHOLD_PX = 4;
   let pointerDownAt: { x: number; y: number; id: number } | null = null;
+  let cachedRect: DOMRect | null = null;
+  let pendingPercent: number | null = null;
+  let rafId: number | null = null;
+
+  const flushPending = (): void => {
+    if (pendingPercent !== null) {
+      applyPosition(pendingPercent, false);
+      pendingPercent = null;
+    }
+    rafId = null;
+  };
+
+  const schedule = (percent: number): void => {
+    pendingPercent = percent;
+    if (rafId === null) {
+      rafId = requestAnimationFrame(flushPending);
+    }
+  };
+
+  const invalidateRect = (): void => {
+    cachedRect = null;
+  };
 
   const onPointerDown = (e: PointerEvent): void => {
     pointerDownAt = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    cachedRect = containerEl.getBoundingClientRect();
   };
 
   const onPointerMove = (e: PointerEvent): void => {
@@ -115,9 +148,11 @@ export async function createCompareSlider(
            id is not currently active. Safe to ignore. */
       }
     }
-    const rect = containerEl.getBoundingClientRect();
-    const percent = ((e.clientX - rect.left) / rect.width) * 100;
-    applyPosition(percent, false);
+    /* Re-fetch rect if invalidated (scroll/resize during drag). */
+    if (!cachedRect) cachedRect = containerEl.getBoundingClientRect();
+    const percent =
+      ((e.clientX - cachedRect.left) / cachedRect.width) * 100;
+    schedule(percent);
   };
 
   const onPointerUp = (e: PointerEvent): void => {
@@ -127,12 +162,27 @@ export async function createCompareSlider(
     if (containerEl.hasPointerCapture(e.pointerId)) {
       containerEl.releasePointerCapture(e.pointerId);
     }
+    /* Flush any pending update so the final position lands without a
+       1-frame delay. */
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+      flushPending();
+    }
   };
 
   containerEl.addEventListener('pointerdown', onPointerDown);
   containerEl.addEventListener('pointermove', onPointerMove);
   containerEl.addEventListener('pointerup', onPointerUp);
   containerEl.addEventListener('pointercancel', onPointerUp);
+  /* Invalidate cached rect on scroll/resize so the slider doesn't
+     drift during page scroll mid-drag. capture:true catches
+     ancestor-scroll events too. */
+  window.addEventListener('scroll', invalidateRect, {
+    passive: true,
+    capture: true,
+  });
+  window.addEventListener('resize', invalidateRect, { passive: true });
 
   /* Keyboard: arrows for fine, page-up/down for coarse. Only fires
      when the handle has focus. */
@@ -199,6 +249,12 @@ export async function createCompareSlider(
     containerEl.removeEventListener('pointerup', onPointerUp);
     containerEl.removeEventListener('pointercancel', onPointerUp);
     handleEl.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('scroll', invalidateRect, true);
+    window.removeEventListener('resize', invalidateRect);
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
     if (scrollTriggerInstance) {
       scrollTriggerInstance.kill();
       scrollTriggerInstance = null;

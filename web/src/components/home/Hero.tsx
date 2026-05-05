@@ -167,10 +167,17 @@ export function Hero() {
                 : t('home', 'heroSubCtaPreLaunch')}
             </p>
 
-            {/* Pre-launch waitlist block: arrow Lottie pointing down
-                at the form. Centered on mobile (below the headline +
-                CTAs), left-aligned on desktop (under the LEFT column
-                content). */}
+            {/* Pre-launch waitlist block.
+
+                Mobile: arrow Lottie ABOVE the form pointing DOWN at
+                it (Hassan: "the arrow looks perfect on mobile").
+
+                Desktop (lg+): arrow Lottie BELOW the form, FLIPPED
+                180° so it points UP at the form's "Join the waitlist"
+                submit button. The mobile arrow is hidden on lg, the
+                desktop arrow is hidden below lg. Two LottieAsset
+                instances rather than one positioned conditionally —
+                keeps the JSX flat and avoids order-class gymnastics. */}
             {!APP_LAUNCHED && (
               <div
                 id="waitlist"
@@ -182,15 +189,34 @@ export function Hero() {
                   'max-w-md',
                 )}
               >
+                {/* Mobile-only arrow above form, pointing down. */}
                 <LottieAsset
                   src="/Animations/Lottie/Arrow%201.lottie"
-                  className="-mt-2 h-32 w-32 sm:h-36 sm:w-36 opacity-80"
+                  className={cn(
+                    'lg:hidden',
+                    '-mt-2 h-32 w-32 sm:h-36 sm:w-36',
+                    'opacity-80',
+                  )}
                   tint="warm"
                   ariaLabel=""
                 />
-                <div className="mt-2 w-full">
+
+                <div className="mt-2 lg:mt-0 w-full">
                   <EmailWaitlist location="hero" />
                 </div>
+
+                {/* Desktop-only arrow below form, flipped to point UP
+                    at the "Join the waitlist" submit button. */}
+                <LottieAsset
+                  src="/Animations/Lottie/Arrow%201.lottie"
+                  className={cn(
+                    'hidden lg:block',
+                    'mt-2 h-28 w-28 xl:h-32 xl:w-32',
+                    'rotate-180 opacity-80',
+                  )}
+                  tint="warm"
+                  ariaLabel=""
+                />
               </div>
             )}
           </div>

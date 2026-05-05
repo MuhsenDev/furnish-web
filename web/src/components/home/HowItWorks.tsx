@@ -103,10 +103,22 @@ export function HowItWorks() {
           />
 
           {STEPS.map((step) => (
+            /* Each step wrapped in a slightly more saturated beige
+               card (--color-beige-2) so the steps read distinct
+               from the ValueProp section above. Surface elevation
+               via shadow-1, hover lifts to shadow-2. */
             <div
               key={step.number}
               data-reveal
-              className="relative bg-cream"
+              className={cn(
+                'relative',
+                'rounded-[var(--radius)]',
+                'bg-[var(--color-beige-2)]/55',
+                'border border-[rgba(43,30,24,0.08)]',
+                'shadow-1 hover:shadow-2',
+                'p-7 sm:p-8 lg:p-10',
+                'transition-shadow duration-300 ease-premium',
+              )}
             >
               <span
                 className={cn(

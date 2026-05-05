@@ -2,17 +2,15 @@
 
 /*
   ApartmentScene — three.js + react-three-fiber canvas that loads
-  modern_apartment.glb and runs a scroll-driven camera + furniture
-  animation, ALWAYS from inside the home.
+  modern_apartment.glb and runs a scroll-driven furniture-drop
+  animation. Camera is FIXED at one corner of the room (no scroll-
+  driven movement). The only thing that animates with scroll is the
+  furniture and decor falling into their resting positions.
 
-  Hassan called out that the previous orbit-then-dolly camera spent
-  most of its time outside the house, making the furniture-drop
-  animation invisible. This rewrite keeps the camera fixed at an
-  interior eye-level position and rotates the lookAt direction so
-  the user sees the apartment from inside, panning around 1.25
-  revolutions over the section's scroll. Items drop from above into
-  their resting positions across the same scroll range, in volume-
-  descending order.
+  Hassan's call: "place the angle from the corner of a room where
+  you can visibly see all of the furniture pop into frame. the only
+  thing that should be moving is the furniture and items falling
+  down."
 
   DRACO is enabled in useGLTF(url, true) — gltf-transform output is
   typically draco-compressed and the decoder is required for the
@@ -35,9 +33,17 @@ function vercelEase(t: number): number {
   return 1 - Math.pow(1 - t, 5);
 }
 
-const PAN_TURNS = 1.25; // 1.25 full revolutions over scroll 0..1
-const INTERIOR_FLOOR_OFFSET_MULT = 0.15; // camera below scene center
-const INTERIOR_LOOK_DOWN_MULT = 0.05; // slight downward gaze
+/* Camera position relative to scene bbox. Corner of the room with
+   a slight elevation so the viewer sees diagonally across to the
+   opposite corner. All values are multiples of the per-axis size. */
+const CAM_OFFSET_X_MULT = 0.45;
+const CAM_OFFSET_Y_MULT = 0.3;
+const CAM_OFFSET_Z_MULT = 0.45;
+/* LookAt point: opposite corner-ish. Camera looks across the room. */
+const LOOK_OFFSET_X_MULT = -0.2;
+const LOOK_OFFSET_Y_MULT = -0.15;
+const LOOK_OFFSET_Z_MULT = -0.2;
+
 const DROP_HEIGHT = 0.6; // world units items drop from
 const DROP_REVEAL_END = 0.85; // last item finishes by this scroll progress
 
@@ -147,43 +153,33 @@ function ApartmentMeshes({ scrollRef, onLoaded }: ApartmentMeshesProps) {
     onLoaded?.();
   }, [onLoaded]);
 
-  /* Cached interior position vector. Camera always sits here. */
-  const interiorPos = React.useMemo(() => new THREE.Vector3(), []);
-  const lookTarget = React.useMemo(() => new THREE.Vector3(), []);
+  /* Static camera position + lookAt — set once on mount, never
+     touched in useFrame. Corner of the room, looking diagonally
+     across. */
+  React.useEffect(() => {
+    camera.position.set(
+      sceneCenter.x + sceneSize.x * CAM_OFFSET_X_MULT,
+      sceneCenter.y + sceneSize.y * CAM_OFFSET_Y_MULT,
+      sceneCenter.z + sceneSize.z * CAM_OFFSET_Z_MULT,
+    );
+    camera.lookAt(
+      sceneCenter.x + sceneSize.x * LOOK_OFFSET_X_MULT,
+      sceneCenter.y + sceneSize.y * LOOK_OFFSET_Y_MULT,
+      sceneCenter.z + sceneSize.z * LOOK_OFFSET_Z_MULT,
+    );
+  }, [camera, sceneCenter, sceneSize]);
 
   useFrame(() => {
     const t = scrollRef.current;
 
-    /* Interior camera position: at scene center horizontally,
-       slightly below the geometric center vertically (closer to
-       floor / human eye height inside a tall room). */
-    interiorPos.set(
-      sceneCenter.x,
-      sceneCenter.y - sceneSize.y * INTERIOR_FLOOR_OFFSET_MULT,
-      sceneCenter.z,
-    );
+    /* Camera is static — only items animate.
 
-    /* LookAt direction rotates around the camera over scroll. The
-       lookTarget is one unit away from the camera in the chosen
-       direction; lookAt() only cares about the direction, not the
-       distance. Y offset gives a slight downward gaze so the floor
-       and lower furniture are visible. */
-    const angle = t * Math.PI * 2 * PAN_TURNS;
-    lookTarget.set(
-      interiorPos.x + Math.cos(angle),
-      interiorPos.y - sceneSize.y * INTERIOR_LOOK_DOWN_MULT,
-      interiorPos.z + Math.sin(angle),
-    );
-
-    camera.position.copy(interiorPos);
-    camera.lookAt(lookTarget);
-
-    /* Items drop in waves. Each item has a threshold = its index
-       fraction times DROP_REVEAL_END. Earlier indexes (larger
-       volume) drop first; later indexes (smaller decor) drop last.
-       The reveal band per item is wide enough that drops overlap
-       across multiple items at any moment, so the room "fills" in
-       a continuous wave rather than a staccato file. */
+       Each item has a threshold = its index fraction times
+       DROP_REVEAL_END. Earlier indexes (larger volume) drop first;
+       later indexes (smaller decor) drop last. The reveal band per
+       item is wide enough that drops overlap across multiple items
+       at any moment, so the room "fills" in a continuous wave
+       rather than a staccato file. */
     const N = dropMeshes.length;
     if (N === 0) return;
     const REVEAL_BAND = 0.35;
