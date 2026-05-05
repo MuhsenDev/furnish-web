@@ -57,6 +57,18 @@ export function Hero() {
   const heroRef = useHeroSequence<HTMLElement>();
   const [waitlistOpen, setWaitlistOpen] = React.useState(false);
 
+  /* Stagger the secondary Lottie elements (mirrored second hand,
+     walking legs) so they mount AFTER the first hand wave has had
+     time to download + parse. Loading three Lottie players at once
+     was contributing to the perceived slow animation start Hassan
+     reported. The first hand renders immediately on mount; the
+     extras pop in 350 ms later. */
+  const [readyForExtras, setReadyForExtras] = React.useState(false);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setReadyForExtras(true), 350);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <section
       ref={heroRef}
@@ -211,14 +223,75 @@ export function Hero() {
                 'aspect-square',
               )}
             >
-              {/* Primary hand wave (existing). */}
+              {/* Primary hand wave (renders first / always). */}
               <LottieAsset
                 src="/Animations/Lottie/Hello-welcome.web.lottie"
                 className="absolute inset-0 h-full w-full"
                 ariaLabel=""
               />
 
-              {/* Furnish wordmark overlay. */}
+              {/* Second mirrored hand. Hassan's spec:
+                    - Off to the right (right side of the wrapper)
+                    - A tiny bit ABOVE the Furnish text
+                  Sized smaller than the primary hand (~42% wrapper)
+                  so it reads as a paired greeter from the right
+                  rather than a duplicate of the primary. Mirrored
+                  via scaleX(-1) so it waves from the opposite
+                  direction. Slightly off the right edge (right-[-3%])
+                  so it feels grounded against the column edge rather
+                  than floating in. Mounted only after readyForExtras
+                  flips so it doesn't compete with the primary hand
+                  for initial parse / paint. */}
+              {readyForExtras && (
+                <div
+                  className={cn(
+                    'absolute',
+                    'top-[48%] right-[-3%]',
+                    'h-[42%] w-[42%]',
+                    'pointer-events-none',
+                  )}
+                  style={{ transform: 'scaleX(-1)' }}
+                  aria-hidden="true"
+                >
+                  <LottieAsset
+                    src="/Animations/Lottie/Hello-welcome.web.lottie"
+                    className="h-full w-full"
+                    ariaLabel=""
+                  />
+                </div>
+              )}
+
+              {/* Walking legs under the Furnish wordmark. Sized ~3x
+                  the previous iteration per Hassan ("make the legs
+                  3x bigger"). At w-[78%] sm:w-[72%] aspect-[3/4]
+                  the legs are nearly the wrapper's full width and
+                  extend below the wrapper so the character feels
+                  like it's actually walking onto the page rather
+                  than caged inside a square. Same readyForExtras
+                  gating as the second hand. */}
+              {readyForExtras && (
+                <div
+                  className={cn(
+                    'absolute left-1/2 -translate-x-1/2',
+                    'top-[80%]',
+                    'w-[78%] sm:w-[72%]',
+                    'aspect-[3/4]',
+                    'pointer-events-none',
+                  )}
+                  aria-hidden="true"
+                >
+                  <LottieAsset
+                    src="/Animations/Lottie/Legs%20Walk.lottie"
+                    className="h-full w-full"
+                    ariaLabel=""
+                  />
+                </div>
+              )}
+
+              {/* Furnish wordmark overlay. RENDERED LAST in the JSX
+                  so it stacks ON TOP of the hand+legs Lotties; the
+                  text always reads cleanly even when overlapping
+                  Lottie elements would otherwise cover it. */}
               <span
                 className={cn(
                   'absolute inset-x-0 bottom-[18%]',
@@ -236,50 +309,6 @@ export function Hero() {
               >
                 Furnish
               </span>
-
-              {/* Second hand at bottom-right, mirrored horizontally
-                  via scaleX(-1). Slightly tamer overflow than the
-                  previous iteration so the desktop layout doesn't
-                  feel chaotic. */}
-              <div
-                className={cn(
-                  'absolute bottom-[-6%] right-[-4%]',
-                  'h-[80%] w-[80%]',
-                  'pointer-events-none',
-                )}
-                style={{ transform: 'scaleX(-1)' }}
-                aria-hidden="true"
-              >
-                <LottieAsset
-                  src="/Animations/Lottie/Hello-welcome.web.lottie"
-                  className="h-full w-full"
-                  ariaLabel=""
-                />
-              </div>
-
-              {/* Walking legs UNDER the Furnish wordmark so the
-                  whole composition reads as a small character:
-                  hands waving up top, "Furnish" as the body, legs
-                  walking at the bottom. Centered horizontally,
-                  positioned below the wordmark with the bottom
-                  edge extending past the wrapper so the legs feel
-                  grounded rather than caged. */}
-              <div
-                className={cn(
-                  'absolute left-1/2 -translate-x-1/2',
-                  'top-[78%]',
-                  'w-[26%] sm:w-[24%]',
-                  'aspect-[3/4]',
-                  'pointer-events-none',
-                )}
-                aria-hidden="true"
-              >
-                <LottieAsset
-                  src="/Animations/Lottie/Legs%20Walk.lottie"
-                  className="h-full w-full"
-                  ariaLabel=""
-                />
-              </div>
             </div>
           </div>
         </div>
