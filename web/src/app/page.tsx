@@ -13,10 +13,13 @@
 
   Final composition: 7 sections plus footer.
 
-    1. Hero (text-forward, no photo)
-    2. ApartmentScrollSection (3D apartment, scroll-driven drops)
-    3. GalleryPreview (mobile shows 3 tiles, desktop shows 9)
-    4. HomeCompareSlider
+    1. Hero (Furnish hand wave + waitlist on right column)
+    2. HomeCompareSlider (before/after slider, surfaced higher
+       per Hassan's call to slot it between the Hero and the 3D
+       apartment showcase)
+    3. ApartmentScrollSection ("Watch it build." 3D apartment
+       with scroll-driven furniture drops)
+    4. GalleryPreview (mobile shows 3 tiles, desktop shows 9)
     5. ComparisonTable ("Designed for you. Not for designers.")
     6. FounderNote
     7. FinalCTA
@@ -102,9 +105,9 @@ export default function HomePage() {
     <>
       <HomeStructuredData />
       <Hero />
+      <HomeCompareSlider />
       <ApartmentScrollSection />
       <GalleryPreview />
-      <HomeCompareSlider />
       <ComparisonTable />
       <FounderNote />
       <FinalCTA />

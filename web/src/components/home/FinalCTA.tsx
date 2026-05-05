@@ -92,21 +92,29 @@ export function FinalCTA() {
       />
 
       <Container width="default" className="relative">
-        <div className="max-w-3xl text-center mx-auto">
-          <p
-            data-reveal
-            className={cn(
-              'eyebrow',
-              'text-cream/80',
-            )}
-          >
+        {/* Centered brand-color card wrapping the entire CTA block.
+            Cream background pops against the dark image overlay so
+            the headline reads cleanly. Text colors switch from
+            on-dark cream tones to on-light deep/ink tones since the
+            backdrop inside the card is now light. */}
+        <div
+          className={cn(
+            'mx-auto max-w-2xl text-center',
+            'rounded-[var(--radius)]',
+            'bg-cream',
+            'border border-[rgba(43,30,24,0.08)]',
+            'shadow-2',
+            'p-8 sm:p-12 lg:p-14',
+          )}
+        >
+          <p data-reveal className="eyebrow">
             {t('home', 'finalCtaEyebrow')}
           </p>
           <h2
             id="final-cta-heading"
             data-reveal
             className={cn(
-              'mt-4 font-display text-cream',
+              'mt-4 font-display text-deep',
               'tracking-display-tight leading-display-tight',
               'text-display-l lg:text-display-xl',
             )}
@@ -140,7 +148,7 @@ export function FinalCTA() {
             )}
           </div>
 
-          <p data-reveal className="mt-6 text-body-m text-cream/85">
+          <p data-reveal className="mt-6 text-body-m text-ink/75">
             {subLine}
           </p>
 
@@ -150,7 +158,7 @@ export function FinalCTA() {
               className="mt-8 scroll-mt-24 flex justify-center"
               data-reveal
             >
-              <EmailWaitlist location="final_cta" scheme="on-dark" />
+              <EmailWaitlist location="final_cta" scheme="on-light" />
             </div>
           )}
         </div>

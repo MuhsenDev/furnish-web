@@ -209,14 +209,18 @@ export function Hero() {
                   <EmailWaitlist location="hero" />
                 </div>
 
-                {/* Desktop-only arrow below form, flipped to point UP
-                    at the "Join the waitlist" submit button. */}
+                {/* Desktop-only arrow below form, flipped to point
+                    UP at the "Join the Waitlist" submit button.
+                    Aligned to the right of the form column so the
+                    arrow tip lands over the button (which sits at
+                    the right end of the input+button flex row). */}
                 <LottieAsset
                   src="/Animations/Lottie/Arrow%201.lottie"
                   className={cn(
                     'hidden lg:block',
                     'mt-2 h-28 w-28 xl:h-32 xl:w-32',
                     'rotate-180 opacity-80',
+                    'lg:self-end lg:-translate-x-2 xl:-translate-x-4',
                   )}
                   tint="warm"
                   ariaLabel=""
@@ -225,27 +229,48 @@ export function Hero() {
             )}
           </div>
 
-          {/* RIGHT column on desktop: HALLO Lottie. Mobile order-2 so
-              it appears below the text content. */}
+          {/* RIGHT column on desktop: hand-wave Lottie + "Furnish"
+              text overlay. The Lottie's original "Haloo" letter
+              outlines were stripped from the .lottie file (5 layers
+              removed); only the 2 hand precomps remain. The brand
+              wordmark "Furnish" overlays as HTML text in display
+              serif so we get the brand name without redrawing
+              Bezier letterforms. */}
           <div
             className={cn(
               'order-2 lg:order-2 lg:col-span-6',
               'flex justify-center lg:justify-end',
             )}
           >
-            <LottieAsset
-              src="/Animations/Lottie/Hello-welcome.web.lottie"
+            <div
               className={cn(
-                'w-full',
-                /* Sized big but constrained so it doesn't obstruct
-                   the LEFT column on desktop. On mobile it goes
-                   smaller because it's competing with text below. */
+                'relative w-full',
                 'max-w-[22rem] sm:max-w-[30rem]',
                 'lg:max-w-[36rem] xl:max-w-[42rem]',
                 'aspect-square',
               )}
-              ariaLabel=""
-            />
+            >
+              <LottieAsset
+                src="/Animations/Lottie/Hello-welcome.web.lottie"
+                className="absolute inset-0 h-full w-full"
+                ariaLabel=""
+              />
+              <span
+                className={cn(
+                  'absolute inset-x-0 bottom-[14%]',
+                  'text-center',
+                  'font-display tracking-display-tight',
+                  'pointer-events-none',
+                )}
+                style={{
+                  color: 'var(--color-deep)',
+                  fontSize: 'clamp(3rem, 11vw, 9rem)',
+                  lineHeight: '1',
+                }}
+              >
+                Furnish
+              </span>
+            </div>
           </div>
         </div>
       </Container>
