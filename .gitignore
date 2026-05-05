@@ -9,6 +9,10 @@ supabase-config.local.js
 .DS_Store
 Thumbs.db
 desktop.ini
+__MACOSX/
+
+# Adobe source files (we ship the .svg exports, not the .ai sources)
+*.ai
 
 # Spike test artifacts (keep on disk for local dev, not in git history)
 node_modules/

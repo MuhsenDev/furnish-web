@@ -63,7 +63,7 @@ const nextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['lucide-react', 'gsap'],
+    optimizePackageImports: ['lucide-react', 'gsap', 'framer-motion'],
   },
 
   async redirects() {

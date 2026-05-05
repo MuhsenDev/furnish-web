@@ -1,28 +1,20 @@
 /*
   Home page composition.
 
-  Hassan trimmed the layout in this iteration:
-  - Removed ValueProp (was the "How it works" 3-numbered-column block).
-  - Removed HowItWorks (the standalone /how-it-works section was
-    duplicating ValueProp's content; the dedicated /how-it-works
-    page still exists for users who want the full walkthrough).
-  - Removed BeYouStrip (the Be You Lottie banner).
-  - Moved ComparisonTable up to take HowItWorks's old slot, so
-    "Designed for you. Not for designers." surfaces higher in the
-    flow.
-
   Final composition: 7 sections plus footer.
 
-    1. Hero (Furnish hand wave + waitlist on right column)
-    2. HomeCompareSlider (before/after slider, surfaced higher
-       per Hassan's call to slot it between the Hero and the 3D
-       apartment showcase)
-    3. ApartmentScrollSection ("Watch it build." 3D apartment
-       with scroll-driven furniture drops)
+    1. Hero (Furnish hand wave + Furnish wordmark + walking legs)
+    2. HomeCompareSlider (before/after slider)
+    3. RoomShowcaseSection (3 SVG isometric rooms with idle
+       levitation + jump+spin cycle, infinite loop)
     4. GalleryPreview (mobile shows 3 tiles, desktop shows 9)
     5. ComparisonTable ("Designed for you. Not for designers.")
     6. FounderNote
     7. FinalCTA
+
+  The previous .glb apartment scroll-fill was retired in favor of
+  the SVG room loop. Three.js dependencies were removed entirely
+  since nothing else in the codebase used them.
 
   Pre-launch / post-launch differentiation lives inside each
   component via the APP_LAUNCHED flag from @/lib/flags. The page
@@ -30,13 +22,34 @@
 */
 
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { Hero } from '@/components/home/Hero';
-import { ApartmentScrollSection } from '@/components/home/ApartmentScrollSection';
 import { GalleryPreview } from '@/components/home/GalleryPreview';
 import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
 import { ComparisonTable } from '@/components/home/ComparisonTable';
 import { FounderNote } from '@/components/home/FounderNote';
 import { FinalCTA } from '@/components/home/FinalCTA';
+
+/* RoomShowcaseSection pulls in framer-motion (~30 KB gz) which we
+   don't want on the critical path. Section is below-the-fold; lazy
+   load it. ssr: false keeps the framer-motion bundle out of the
+   server-rendered HTML too. A simple bg-deep placeholder fills the
+   slot during chunk fetch so layout doesn't shift. */
+const RoomShowcaseSection = dynamic(
+  () =>
+    import('@/components/home/RoomShowcaseSection').then(
+      (m) => m.RoomShowcaseSection,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <section
+        aria-hidden="true"
+        className="bg-deep py-section-y min-h-[60vh]"
+      />
+    ),
+  },
+);
 
 export const metadata: Metadata = {
   title: 'Furnish. Take a photo. Design your room. Shop it all.',
@@ -106,7 +119,7 @@ export default function HomePage() {
       <HomeStructuredData />
       <Hero />
       <HomeCompareSlider />
-      <ApartmentScrollSection />
+      <RoomShowcaseSection />
       <GalleryPreview />
       <ComparisonTable />
       <FounderNote />
