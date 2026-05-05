@@ -48,23 +48,21 @@
 */
 
 import * as React from 'react';
-import { motion, useAnimation, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Container } from '@/components/Container';
 import { cn } from '@/lib/utils';
 
 /* === Tunables ============================================ */
 
-/* Per-active-turn sequence: ENTRY (items drop in) → HOLD →
-   LIFT (scale only, NO Y movement) → PEAK → RETURN → FADE-OUT
-   (items fade away). Sums to CYCLE_DURATION_MS so the next room's
-   turn begins exactly as this room's items finish fading out.
-
-   The "no jumping" Hassan asked for refers to the ROOM not
-   translating up — that 80px lift read as "jumping" because the
-   whole card+items rode up together. Items themselves DO drop in
-   from above (the entry animation he's asking back for) — that's
-   a one-shot per-item velocity-pop into place, not a repeated
-   bounce. */
+/* Per-active-turn sequence: ENTRY (items drop in) → VIEW (still
+   hold so the user can absorb the finished room) → FADE-OUT
+   (items disappear). NO scale "breath" anymore — Hassan: shorten
+   or remove the breath that played after items fully landed. The
+   only motion is now the per-item drop-in and the glow's
+   brightness ramp. The room itself never moves or scales. This
+   also fully resolves the right-wall / bottom-floor clipping that
+   the 1.04 scale was causing on rooms 1 and 2 (the scale was
+   pushing edge content past the overflow-hidden card boundary). */
 
 const ENTRY_ITEM_DURATION_S = 0.6;
 const ENTRY_ITEM_STAGGER_S = 0.06;
@@ -74,21 +72,11 @@ const ENTRY_INITIAL_SCALE = 0.85;
 const ENTRY_OVERSHOOT_SCALE = 1.02;
 const ENTRY_ROOM_TOTAL_BUDGET_S = 0.5;
 
-const CYCLE_DURATION_MS = 4500;
-const CYCLE_LIFT_PX = 0; /* NO Y movement on the room — Hassan: no jumping. */
-const CYCLE_LIFT_SCALE_PEAK = 1.04; /* Subtle "this one is featured" scale */
+const CYCLE_DURATION_MS = 3500;
 const CYCLE_PHASE_ENTRY_MS = 1100;
-const CYCLE_PHASE_HOLD_MS = 200;
-const CYCLE_PHASE_LIFT_MS = 1000;
-const CYCLE_PHASE_PEAK_MS = 700;
-const CYCLE_PHASE_RETURN_MS = 1100;
+const CYCLE_PHASE_VIEW_MS = 2000; /* still hold, no movement, no scale */
 const CYCLE_PHASE_FADE_OUT_MS = 400;
-/* Total: 1100 + 200 + 1000 + 700 + 1100 + 400 = 4500ms ✓ */
-
-/* Idle on inactive rooms: no movement. */
-const IDLE_AMPLITUDE_PX = 0;
-const IDLE_PERIOD_S = 4;
-const IDLE_PHASE_SHIFT_S = 1.3;
+/* Total: 1100 + 2000 + 400 = 3500ms ✓ */
 
 /* Padding around the visible-content bbox after we tighten the
    viewBox at runtime. A small margin keeps the room art from
@@ -280,7 +268,6 @@ function Room({
   const animatableRef = React.useRef<SVGGElement[]>([]);
   const [svgLoaded, setSvgLoaded] = React.useState(false);
   const [itemCount, setItemCount] = React.useState(0);
-  const liftControls = useAnimation();
 
   /* Fetch + inline the SVG once on mount. Set up the initial state
      of each animatable group so it sits offscreen above with 0
@@ -385,20 +372,16 @@ function Room({
 
   /* Per-active-turn sequence:
        1. ENTRY: each item drops in (Web Animations API, staggered)
-       2. HOLD: brief settle
-       3. LIFT (scale-only — no Y translation): subtle scale up
-       4. PEAK: hold at peak with maximum glow
-       5. RETURN: scale back to baseline
-       6. FADE-OUT: items fade to opacity 0 (room is empty until
-                    its next turn ~9s later)
+       2. VIEW: still hold — items sit, glow stays bright, no
+                movement on the room. (Replaced the previous lift+
+                peak+return "breath" Hassan asked to remove.)
+       3. FADE-OUT: items fade to opacity 0.
 
-     When inactive, the room sits at scale 1 with items hidden
-     (opacity 0). NO idle levitation, NO Y movement anywhere —
-     the only motion in the section is the per-turn item drop
-     and the active-room scale pulse. */
+     When inactive, items remain hidden until this room's next
+     turn. The room frame itself never scales or translates.
+     Glow brightness alone signals which room is featured. */
   React.useEffect(() => {
     if (prefersReducedMotion) {
-      liftControls.set({ y: 0, scale: 1 });
       const items = animatableRef.current;
       for (const g of items) {
         g.style.transform = 'none';
@@ -407,10 +390,7 @@ function Room({
       return;
     }
 
-    if (!shouldEnter || !svgLoaded) {
-      liftControls.set({ y: 0, scale: 1 });
-      return;
-    }
+    if (!shouldEnter || !svgLoaded) return;
 
     const items = animatableRef.current;
 
@@ -425,11 +405,7 @@ function Room({
 
       const sequence = async () => {
         try {
-          /* === ENTRY: items drop in ===
-             Cancel any leftover animations from the previous turn,
-             reset inline style to the entry-start state, then run
-             the staggered drop. The reset happens at opacity 0 so
-             the snap is invisible. */
+          /* === ENTRY: items drop in === */
           for (const g of items) {
             for (const a of g.getAnimations()) a.cancel();
             g.style.transform = `translateY(${ENTRY_INITIAL_Y_PX}px) scale(${ENTRY_INITIAL_SCALE})`;
@@ -473,39 +449,8 @@ function Room({
             );
           });
 
-          /* Wait for the entry phase to play out before starting
-             the scale ceremony. */
-          await waitMs(CYCLE_PHASE_ENTRY_MS);
-          if (cancelled) return;
-
-          /* === HOLD === */
-          await waitMs(CYCLE_PHASE_HOLD_MS);
-          if (cancelled) return;
-
-          /* === LIFT (scale only, no Y) === */
-          await liftControls.start({
-            y: -CYCLE_LIFT_PX, /* CYCLE_LIFT_PX = 0 */
-            scale: CYCLE_LIFT_SCALE_PEAK,
-            transition: {
-              duration: CYCLE_PHASE_LIFT_MS / 1000,
-              ease: VERCEL_EASE,
-            },
-          });
-          if (cancelled) return;
-
-          /* === PEAK === */
-          await waitMs(CYCLE_PHASE_PEAK_MS);
-          if (cancelled) return;
-
-          /* === RETURN === */
-          await liftControls.start({
-            y: 0,
-            scale: 1,
-            transition: {
-              duration: CYCLE_PHASE_RETURN_MS / 1000,
-              ease: VERCEL_EASE,
-            },
-          });
+          /* === VIEW: still hold, no scale/lift "breath" === */
+          await waitMs(CYCLE_PHASE_ENTRY_MS + CYCLE_PHASE_VIEW_MS);
           if (cancelled) return;
 
           /* === FADE-OUT === */
@@ -520,7 +465,7 @@ function Room({
             );
           }
         } catch {
-          /* controls.start rejects on interrupt — expected. */
+          /* expected on interrupt */
         }
       };
 
@@ -532,16 +477,11 @@ function Room({
       };
     }
 
-    /* Not active: stay at baseline, items remain hidden until
-       this room's next turn comes around. No idle motion. */
-    liftControls.set({ y: 0, scale: 1 });
-
     return undefined;
   }, [
     isActive,
     shouldEnter,
     svgLoaded,
-    liftControls,
     prefersReducedMotion,
     index,
   ]);
@@ -627,32 +567,15 @@ function Room({
           aria-hidden="true"
         />
 
-        {/* Lift + idle motion wrapper. Sits ABSOLUTE inset-0 inside
-            the aspect-ratio container so it fills the box without
-            its child SVG's intrinsic dimensions pushing the
-            container's height. (Earlier the wrapper was `relative
-            w-full h-full` and the SVG's own viewBox aspect
-            (e.g. 0.91 for 2.svg, 2.46 for 6.svg) was overriding the
-            container's aspect-[3/2], stretching every room to a
-            different shape.)
-
-            Per-item entry transforms compose with this wrapper's
-            transform cleanly because they're on different DOM
-            levels — this div translateY shifts the whole SVG box,
-            <g> elements inside the SVG have their own transforms
-            relative to their fill-box. */}
-        <motion.div
-          animate={liftControls}
-          initial={{ y: 0, scale: 1 }}
-          className="absolute inset-0 will-change-transform"
+        {/* SVG container — fills the card box exactly. No transform
+            wrapper anymore; the room frame never moves or scales,
+            so we just need a static positioning context. */}
+        <div
+          ref={svgContainerRef}
+          className="absolute inset-0"
+          aria-hidden="true"
           style={{ zIndex: 1 }}
-        >
-          <div
-            ref={svgContainerRef}
-            className="absolute inset-0"
-            aria-hidden="true"
-          />
-        </motion.div>
+        />
         </div>
       </div>
 
