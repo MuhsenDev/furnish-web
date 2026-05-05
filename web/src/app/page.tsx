@@ -33,8 +33,9 @@ import { FinalCTA } from '@/components/home/FinalCTA';
 /* RoomShowcaseSection pulls in framer-motion (~30 KB gz) which we
    don't want on the critical path. Section is below-the-fold; lazy
    load it. ssr: false keeps the framer-motion bundle out of the
-   server-rendered HTML too. A simple bg-deep placeholder fills the
-   slot during chunk fetch so layout doesn't shift. */
+   server-rendered HTML too. The placeholder uses the same cream
+   bg as the actual section so there's no color flash when the
+   client chunk loads. */
 const RoomShowcaseSection = dynamic(
   () =>
     import('@/components/home/RoomShowcaseSection').then(
@@ -45,7 +46,7 @@ const RoomShowcaseSection = dynamic(
     loading: () => (
       <section
         aria-hidden="true"
-        className="bg-deep py-section-y min-h-[60vh]"
+        className="bg-cream py-section-y min-h-[60vh]"
       />
     ),
   },

@@ -54,23 +54,14 @@ import { cn } from '@/lib/utils';
 
 /* === Tunables ============================================ */
 
-/* Per-item drop entry. */
-const ENTRY_ITEM_DURATION_S = 0.8;
-const ENTRY_ITEM_STAGGER_S = 0.08;
-const ENTRY_ITEM_STAGGER_MOBILE_S = 0.06; /* Faster on mobile per spec */
-const ENTRY_ROOM_OFFSET_S = 0.5; /* Time between Room 1 entry start and Room 2 entry start. */
-const ENTRY_INITIAL_Y_PX = -200;
-const ENTRY_INITIAL_SCALE = 0.8;
-const ENTRY_OVERSHOOT_SCALE = 1.04;
+/* Items render at their natural SVG positions and STAY there —
+   no drop-in jumping, no fade-out, no per-item transforms. Hassan:
+   "MAKE THEM FIT AND SIT IN THEIR COORDINATED BOXES." The only
+   movement is the room-level lift+glow ceremony below, which moves
+   the whole room (items ride along inside their coordinated
+   positions). */
 
-/* Hard cap on per-room entry duration, in case a room has dozens
-   of items (e.g. 6.svg has 95 named groups, many of which are
-   "Unknown-not-visable-N" Sketch artifacts that still iterate).
-   Without this cap, total entry phase could stretch to 8+ seconds.
-   Effective per-item stagger is min(spec, cap / itemCount). */
-const ENTRY_ROOM_TOTAL_BUDGET_S = 1.6;
-
-/* Lift + glow ceremony (per room when active). */
+/* Per-active-turn lift + glow ceremony. */
 const CYCLE_DURATION_MS = 3500;
 const CYCLE_LIFT_PX = 80;
 const CYCLE_LIFT_SCALE_PEAK = 1.05;
@@ -78,16 +69,17 @@ const CYCLE_PHASE_HOLD_MS = 200;
 const CYCLE_PHASE_LIFT_MS = 1000;
 const CYCLE_PHASE_PEAK_MS = 700;
 const CYCLE_PHASE_RETURN_MS = 1600;
+/* Total: 200 + 1000 + 700 + 1600 = 3500ms ✓ */
 
-/* Idle levitation. */
+/* Idle levitation on inactive rooms (subtle ±8px bob, same scale
+   as the hand/leg lottie idle motion in the hero). */
 const IDLE_AMPLITUDE_PX = 8;
 const IDLE_PERIOD_S = 4;
 const IDLE_PHASE_SHIFT_S = 1.3;
 
-/* The Vercel curve. Used for both entry deceleration and the
-   lift/return phases of the active ceremony. */
+/* The Vercel curve. Used for the lift/return phases of the
+   active ceremony. */
 const VERCEL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const VERCEL_EASE_CSS = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
 /* === / Tunables ========================================== */
 
@@ -132,14 +124,13 @@ interface RoomProps {
   alt: string;
   label: string;
   index: number;
-  /* Flips true once the section enters the viewport. Each room's
-     entry animation starts at `index * ENTRY_ROOM_OFFSET_S` after
-     this becomes true. */
+  /* Flips true once the section enters the viewport. Until then,
+     items stay hidden (opacity 0) and no animation runs. */
   shouldEnter: boolean;
-  /* Flips true after the entry phase has settled. Once true, the
-     parent will alternately set isActive on each room every
-     CYCLE_DURATION_MS. */
-  cycleStarted: boolean;
+  /* True when this room is the one currently performing its
+     entry → lift+glow → fade-out sequence. Exactly one room has
+     isActive=true at any moment after the section comes into
+     view. Flips every CYCLE_DURATION_MS. */
   isActive: boolean;
   prefersReducedMotion: boolean;
 }
@@ -150,7 +141,6 @@ function Room({
   label,
   index,
   shouldEnter,
-  cycleStarted,
   isActive,
   prefersReducedMotion,
 }: RoomProps) {
@@ -159,7 +149,6 @@ function Room({
   const [svgLoaded, setSvgLoaded] = React.useState(false);
   const [itemCount, setItemCount] = React.useState(0);
   const liftControls = useAnimation();
-  const ceremonyTaskRef = React.useRef<number | null>(null);
 
   /* Fetch + inline the SVG once on mount. Set up the initial state
      of each animatable group so it sits offscreen above with 0
@@ -200,7 +189,11 @@ function Room({
         svgEl.style.height = '100%';
 
         /* Direct child <g id="..."> only — never reach into nested
-           groups (those are clip-path / isolation plumbing). */
+           groups (those are clip-path / isolation plumbing). The
+           `animatable` ref is preserved for diagnostics + future
+           per-item effects, but we no longer apply per-item
+           transforms or opacity changes on entry. Items render at
+           their natural SVG positions. */
         const topLevelNamedGroups = Array.from(
           svg.querySelectorAll(':scope > g[id]'),
         ) as SVGGElement[];
@@ -209,21 +202,6 @@ function Room({
         );
         animatableRef.current = animatable;
         setItemCount(animatable.length);
-
-        if (!prefersReducedMotion) {
-          /* Hide each animatable item above its final position so
-             the entry animation can drop it in. transform-box:
-             fill-box makes CSS transforms behave relative to the
-             group's own bounding box (not the SVG viewport),
-             which is what we need for a clean translateY. */
-          for (const g of animatable) {
-            g.style.transformBox = 'fill-box';
-            g.style.transformOrigin = 'center';
-            g.style.transform = `translateY(${ENTRY_INITIAL_Y_PX}px) scale(${ENTRY_INITIAL_SCALE})`;
-            g.style.opacity = '0';
-            g.style.willChange = 'transform, opacity';
-          }
-        }
 
         setSvgLoaded(true);
       } catch (err) {
@@ -238,82 +216,41 @@ function Room({
     };
   }, [src, prefersReducedMotion]);
 
-  /* Trigger the per-item drop-in entry once shouldEnter flips true. */
-  React.useEffect(() => {
-    if (!svgLoaded || !shouldEnter || prefersReducedMotion) return;
-
-    const items = animatableRef.current;
-    if (items.length === 0) return;
-
-    /* Per-item stagger, clamped so a many-item room doesn't take
-       eight seconds to enter. */
-    const isMobile =
-      typeof window !== 'undefined' && window.innerWidth < 1024;
-    const baseStagger = isMobile
-      ? ENTRY_ITEM_STAGGER_MOBILE_S
-      : ENTRY_ITEM_STAGGER_S;
-    const cappedStagger = Math.min(
-      baseStagger,
-      ENTRY_ROOM_TOTAL_BUDGET_S / Math.max(items.length, 1),
-    );
-
-    /* Per-room offset so Room 2 starts after Room 1 begins, etc. */
-    const roomDelayMs = index * ENTRY_ROOM_OFFSET_S * 1000;
-
-    items.forEach((g, i) => {
-      const itemDelayMs = roomDelayMs + i * cappedStagger * 1000;
-      g.animate(
-        [
-          {
-            transform: `translateY(${ENTRY_INITIAL_Y_PX}px) scale(${ENTRY_INITIAL_SCALE})`,
-            opacity: 0,
-          },
-          {
-            transform: `translateY(0) scale(${ENTRY_OVERSHOOT_SCALE})`,
-            opacity: 1,
-            offset: 0.85,
-          },
-          {
-            transform: 'translateY(0) scale(1)',
-            opacity: 1,
-          },
-        ],
-        {
-          duration: ENTRY_ITEM_DURATION_S * 1000,
-          easing: VERCEL_EASE_CSS,
-          delay: itemDelayMs,
-          fill: 'forwards',
-        },
-      );
-    });
-  }, [svgLoaded, shouldEnter, prefersReducedMotion, index]);
-
-  /* Idle levitation + lift+glow ceremony state machine. */
+  /* Per-active-turn lift + glow ceremony, plus idle levitation
+     when inactive. Items inside the SVG don't move — they ride
+     along with the room's translateY transform when this room is
+     active, and bob with the idle levitation when inactive. The
+     items themselves never animate independently (Hassan: "no
+     jumping animation, MAKE THEM FIT AND SIT IN THEIR COORDINATED
+     BOXES"). */
   React.useEffect(() => {
     if (prefersReducedMotion) {
       liftControls.set({ y: 0, scale: 1 });
       return;
     }
 
-    /* Don't levitate before the entry phase has even begun — the
-       items are still tucked up at -200px and we don't want their
-       collective drop-in to also be sliding the whole room. */
-    if (!shouldEnter) {
+    if (!shouldEnter || !svgLoaded) {
       liftControls.set({ y: 0, scale: 1 });
       return;
     }
 
     if (isActive) {
-      /* Lift + glow ceremony. Run imperatively so we can hold at
-         peak and run the return as a separate phase. */
       let cancelled = false;
+      const timeouts: number[] = [];
+      const waitMs = (ms: number) =>
+        new Promise<void>((resolve) => {
+          const id = window.setTimeout(resolve, ms);
+          timeouts.push(id);
+        });
+
       const ceremony = async () => {
         try {
-          await new Promise<void>((resolve) => {
-            const id = window.setTimeout(resolve, CYCLE_PHASE_HOLD_MS);
-            ceremonyTaskRef.current = id;
-          });
+          /* HOLD before the lift, so the cycle handoff between
+             rooms reads as deliberate. */
+          await waitMs(CYCLE_PHASE_HOLD_MS);
           if (cancelled) return;
+
+          /* LIFT: room translates up + scales up. */
           await liftControls.start({
             y: -CYCLE_LIFT_PX,
             scale: CYCLE_LIFT_SCALE_PEAK,
@@ -323,11 +260,12 @@ function Room({
             },
           });
           if (cancelled) return;
-          await new Promise<void>((resolve) => {
-            const id = window.setTimeout(resolve, CYCLE_PHASE_PEAK_MS);
-            ceremonyTaskRef.current = id;
-          });
+
+          /* PEAK hold with maximum glow. */
+          await waitMs(CYCLE_PHASE_PEAK_MS);
           if (cancelled) return;
+
+          /* RETURN to baseline, smooth. */
           await liftControls.start({
             y: 0,
             scale: 1,
@@ -337,21 +275,20 @@ function Room({
             },
           });
         } catch {
-          /* `controls.start` rejects on interrupt — expected. */
+          /* controls.start rejects on interrupt — expected. */
         }
       };
+
       ceremony();
+
       return () => {
         cancelled = true;
-        if (ceremonyTaskRef.current !== null) {
-          window.clearTimeout(ceremonyTaskRef.current);
-          ceremonyTaskRef.current = null;
-        }
+        for (const id of timeouts) window.clearTimeout(id);
       };
     }
 
-    /* Not active: idle levitation. Phase-shift each room so the
-       three never bob in unison. */
+    /* Not active: idle levitation. Phase-shift per index so the
+       three rooms never bob in unison. */
     liftControls.start({
       y: [0, -IDLE_AMPLITUDE_PX, 0, IDLE_AMPLITUDE_PX, 0],
       scale: 1,
@@ -367,7 +304,7 @@ function Room({
   }, [
     isActive,
     shouldEnter,
-    cycleStarted,
+    svgLoaded,
     liftControls,
     prefersReducedMotion,
     index,
@@ -400,21 +337,23 @@ function Room({
       role="img"
       aria-label={`${label} design ${index + 1} of ${ROOMS.length}: ${alt}`}
       className={cn(
-        'mx-auto w-full max-w-[300px] lg:max-w-[400px]',
+        /* Bumped from max-w-[300px] lg:max-w-[400px] to give each
+           room significantly more presence on desktop. With 3
+           columns and reduced grid gaps, each cell is now ~440px
+           wide on a 1200px container — the rooms read as the
+           centerpiece of this section instead of small thumbnails. */
+        'mx-auto w-full max-w-[340px] lg:max-w-[480px]',
         'flex flex-col items-center',
       )}
     >
       {/* Card frame around the illustration. Slightly darker cream
           than the section background (--color-editorial-accent-bg
-          = #F5EBDC vs --color-cream = #FAF3E7), with the same
-          shadow-1 ambient lift and rounded-[var(--radius)] (16px)
-          used by the standard image Card variant elsewhere on the
-          site. The padding inset (p-3 sm:p-4) matches Card's image
-          variant so the SVG sits inside the frame with breathing
-          room. The lift+glow ceremony composes inside this frame —
-          glow extends past the frame's rounded edges naturally
-          because we don't set overflow-hidden, so an active room
-          briefly halos out into the surrounding cream. */}
+          = #F5EBDC vs --color-cream = #FAF3E7), with shadow-1 lift
+          and rounded-[var(--radius)] (16px). Padding shrunk from
+          p-3/p-4 to p-2/p-3 so the illustration fills more of the
+          card frame (Hassan: rooms should be as big as possible
+          without clutter). Glow extends past the frame's rounded
+          edges naturally because overflow stays visible. */}
       <div
         className={cn(
           'relative w-full',
@@ -422,7 +361,7 @@ function Room({
           'bg-[var(--color-editorial-accent-bg)]',
           'border border-[rgba(43,30,24,0.08)]',
           'shadow-1',
-          'p-3 sm:p-4',
+          'p-2 sm:p-3',
         )}
       >
         <div className="relative w-full aspect-[3/2]">
@@ -493,20 +432,16 @@ export function RoomShowcaseSection() {
   const reduced = useReducedMotion() ?? false;
   const sectionRef = React.useRef<HTMLElement>(null);
   const [hasEnteredView, setHasEnteredView] = React.useState(false);
-  const [cycleStarted, setCycleStarted] = React.useState(false);
   const [activeIdx, setActiveIdx] = React.useState(0);
 
   /* IntersectionObserver — flip hasEnteredView the first time the
-     section comes into view, then disconnect. Pre-mount delays in
-     React (esp. in dev with Strict Mode double-invocation) make
-     the timing of `useEffect`-based entry feel inconsistent;
-     gating by viewport intersection guarantees the entry plays
-     when the user actually sees the section. */
+     section comes into view, then disconnect. The cycle starts
+     immediately after that flip (no separate entry phase wait —
+     each room's items only appear during its own active turn,
+     not on first scroll-in). */
   React.useEffect(() => {
     if (!sectionRef.current) return;
 
-    /* Reduced motion + SSR fallback: just flip immediately so the
-       static layout shows from page load. */
     if (
       reduced ||
       typeof window === 'undefined' ||
@@ -533,33 +468,16 @@ export function RoomShowcaseSection() {
     return () => observer.disconnect();
   }, [reduced]);
 
-  /* After all 3 rooms have completed their entry, start the
-     cycle. Wait the entry phase out: ENTRY_ROOM_OFFSET * (N-1)
-     for the room-stagger, plus one full per-item entry duration,
-     plus a short breath. */
+  /* Active-room cycle. activeIdx advances every CYCLE_DURATION_MS,
+     which equals the full per-room sequence (entry → ceremony →
+     fade-out). Loops forever until unmount or reduced-motion. */
   React.useEffect(() => {
     if (reduced || !hasEnteredView) return;
-    const entryPhaseMs =
-      ENTRY_ROOM_OFFSET_S * (ROOMS.length - 1) * 1000 +
-      ENTRY_ITEM_DURATION_S * 1000 +
-      ENTRY_ROOM_TOTAL_BUDGET_S * 1000 +
-      400; /* breath */
-    const startTimer = window.setTimeout(() => {
-      setCycleStarted(true);
-    }, entryPhaseMs);
-    return () => window.clearTimeout(startTimer);
-  }, [reduced, hasEnteredView]);
-
-  /* Active-room cycle. Each room takes its turn for CYCLE_DURATION_MS,
-     then the next one takes over. Loops forever until unmount or
-     reduced-motion preference change. */
-  React.useEffect(() => {
-    if (reduced || !cycleStarted) return;
     const interval = window.setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % ROOMS.length);
     }, CYCLE_DURATION_MS);
     return () => window.clearInterval(interval);
-  }, [reduced, cycleStarted]);
+  }, [reduced, hasEnteredView]);
 
   return (
     <section
@@ -582,7 +500,14 @@ export function RoomShowcaseSection() {
           visual refactor. The cards now frame the illustrations in
           a way that feels intentional even before the recolor;
           revisit when there's time to script the fill remap. */}
-      <Container width="default">
+      {/* Container "wide" (1440px) instead of "default" (1200px) so
+          the 3 rooms read as a generous gallery rather than a
+          cramped strip. This matches the "wide" token's documented
+          use case ("Gallery grids" per Document 2 §4.2) — the
+          three-room showcase IS a gallery. The section header
+          inside still centers in max-w-3xl so the headline doesn't
+          spread too wide. */}
+      <Container width="wide">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow">Every room</p>
           <h2
@@ -603,8 +528,13 @@ export function RoomShowcaseSection() {
           className={cn(
             'mt-12 sm:mt-16 lg:mt-20',
             'grid grid-cols-1 lg:grid-cols-3',
-            'gap-14 lg:gap-10 xl:gap-12',
-            'items-center',
+            /* Tighter gutters so the rooms can be larger without
+               the section feeling cluttered (Hassan: rooms should
+               be as big as possible). On mobile we keep gap-10 for
+               vertical breathing between stacked cards; on lg the
+               horizontal gap drops to gap-6 / xl:gap-8. */
+            'gap-10 lg:gap-6 xl:gap-8',
+            'items-center justify-items-center',
           )}
         >
           {ROOMS.map((room, idx) => (
@@ -615,8 +545,7 @@ export function RoomShowcaseSection() {
               label={room.label}
               index={idx}
               shouldEnter={hasEnteredView}
-              cycleStarted={cycleStarted}
-              isActive={cycleStarted && idx === activeIdx}
+              isActive={hasEnteredView && idx === activeIdx}
               prefersReducedMotion={reduced}
             />
           ))}
