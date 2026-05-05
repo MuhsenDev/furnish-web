@@ -233,20 +233,45 @@ export function Hero() {
                   parks the hand right at parent x ≈ 5% (just past
                   the visible left edge of the text).
 
-                  Target visible hand at parent (5%, 57%):
+                  Target visible hand at parent (5%, 50%):
                     wrapper.left + 0.20 * 0.70 = 0.05
                       -> wrapper.left = -9% -> left -9%
-                    wrapper.top  + 0.49 * 0.70 = 0.57
-                      -> wrapper.top = 22.7% -> top 23%
 
-                  CSS transform scale(2.0) origin (20%, 49%) doubles
-                  the hand visually without canvas clipping. The
-                  origin at the hand center keeps the post-scale
-                  math intact (hand stays at element (20%, 49%)). */}
+                  Y position is breakpoint-conditional because the
+                  wordmark text scales with viewport width
+                  (clamp(3rem, 11vw, 8rem)) and so its parent-%
+                  Y range is different on mobile vs desktop:
+
+                    mobile  (<lg): font 48px, text Y range 67.7-82.0%
+                    desktop (lg+): font 128px, text Y range 56.8-82.6%
+
+                  Pixel-sampled the hand canvas across a full
+                  animation cycle: the hand-wave isn't a small
+                  static glyph — it sweeps through canvas y 35%-61%
+                  (a 26pp range). After scale(2.0) origin (20%, 49%)
+                  that becomes element y 21%-73% (a 52pp range),
+                  so the hand bbox's peak parent-y extent is
+                  wrapper.top + 51pp (= 0.73 * 70).
+
+                  Mobile (top-[23%]): peak hand bot = 23 + 51 = 74%.
+                  Mobile text top is at 67.7% (smaller font), so
+                  74% > 67.7%... but the hand bbox edges are mostly
+                  empty alpha, and at most frames the hand bot is
+                  only ~64%. Hassan rates mobile as perfect, so we
+                  keep top-[23%].
+
+                  Desktop (lg:top-[3%]): peak hand bot = 3 + 51 =
+                  54%, ~7px clear of desktop text top 55.3%. This
+                  is much higher than the corner of "Furnish" but
+                  it's the only Y position that satisfies "neither
+                  hand touching ANY text" across the full animation
+                  cycle. Hand center moves to parent y ≈ 36%, hand
+                  visually waves above the text rather than from
+                  the corner. */}
               <div
                 className={cn(
                   'absolute',
-                  'left-[-9%] top-[23%]',
+                  'left-[-9%] top-[23%] lg:top-[3%]',
                   'h-[70%] w-[70%]',
                   'pointer-events-none',
                 )}
@@ -297,23 +322,28 @@ export function Hero() {
                   className={cn(
                     'absolute',
                     /* RIGHT hand: just past the right edge of the
-                       Furnish wordmark, vertically lower than the
-                       left hand so the composition has a clear
-                       diagonal. With scale(-2, 2) + default origin
-                       (50%, 50%), hand at element (20%, 49%) maps
-                       to (110%, 48%) — past the wrapper's right
-                       edge.
+                       Furnish wordmark. With scale(-2, 2) + default
+                       origin (50%, 50%), hand at element (20%, 49%)
+                       maps to (110%, 48%) — past the wrapper's
+                       right edge.
 
-                       Target parent (98%, 62%):
-                         wrapper.left + 1.10 * 0.70 = 0.98
-                         -> wrapper.left = 21% -> right 9%
-                         wrapper.top  + 0.48 * 0.70 = 0.62
-                         -> wrapper.top = 28.4% -> top 28%
+                       X: wrapper.left + 1.10 * 0.70 = 0.98
+                          -> wrapper.left = 21% -> right 9%
 
-                       Lower than LEFT hand (which is at y=57%) —
-                       62% > 57% so the right hand reads "to the
-                       right and slightly lower" per Hassan's spec. */
-                    'right-[9%] top-[28%]',
+                       Y is breakpoint-conditional, same reasoning
+                       as the LEFT hand: the hand-wave sweep is
+                       wide enough that the hand bbox extends ~51pp
+                       below the wrapper.top. To clear desktop text
+                       top (55.3%) at every animation frame:
+
+                       Desktop lg:top-[4%]: peak hand bot = 4 + 51
+                       = 55%, ≈1.5px clear of text top. RIGHT hand
+                       sits 1pp lower than LEFT (which is at
+                       lg:top-[3%]) so the "RIGHT lower than LEFT"
+                       spec from earlier iterations is preserved.
+
+                       Mobile keeps top-[28%] (Hassan: perfect). */
+                    'right-[9%] top-[28%] lg:top-[4%]',
                     'h-[70%] w-[70%]',
                     'pointer-events-none',
                   )}

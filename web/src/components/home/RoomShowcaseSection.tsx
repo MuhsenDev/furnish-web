@@ -177,9 +177,19 @@ function Room({
           filter:
             'drop-shadow(0 18px 40px rgba(196, 154, 117, 0.25)) drop-shadow(0 6px 14px rgba(43, 30, 24, 0.20))',
         }}
-        className="will-change-transform"
+        /* `w-full` is REQUIRED here. The parent <div> has
+           `flex flex-col items-center`, so without an explicit
+           width on this motion.div the cross-axis sizing falls
+           back to min-content (= 0 for a wrapper around a fill-
+           image), and the entire 3-room composition collapses to
+           0x0. Was the bug shipped in commit 7a32915. */
+        className="w-full will-change-transform"
       >
-        <div className="relative aspect-square w-full">
+        {/* The room SVGs (1560x1040) are 3:2, NOT square. Earlier
+            iteration used `aspect-square` which both squished the
+            illustration AND was the second contributor to the 0x0
+            collapse (in combination with the missing w-full above). */}
+        <div className="relative aspect-[3/2] w-full">
           <Image
             src={src}
             alt={alt}
