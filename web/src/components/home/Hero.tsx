@@ -255,17 +255,27 @@ export function Hero() {
               <div
                 className={cn(
                   'absolute',
-                  /* Verified-in-browser: with transform-origin
-                     (20%, 49%) and scale(2.0), the visible hand
-                     stays at element (20%, 49%). To land that
-                     point at parent (85%, 30%) — top-right of the
-                     "Furnish" word (text spans 9.7-89.9% of
-                     parent, with top at 54.9%):
-                       wrapper.left + 0.20 * 0.70 = 0.85
-                       -> wrapper.left = 71% -> right -41%
-                       wrapper.top + 0.49 * 0.70 = 0.30
-                       -> wrapper.top = -4.3% -> top -4% */
-                  'right-[-41%] top-[-4%]',
+                  /* LEFT hand sits ON the top-right corner of the
+                     "Furnish" wordmark (straddles the edge — hand
+                     center exactly at the corner so it reads as
+                     "on the corner" not "floating above"). Earlier
+                     math put the hand at parent (85%, 30%) which
+                     was 27 percentage points ABOVE the text top —
+                     too far up, hand looked detached.
+
+                     Wordmark spans roughly (10%, 90%) horizontally
+                     and (57%, 82%) vertically (font-size = 8rem at
+                     1440 viewport, parent ~512px square, line-
+                     height 1, bottom-[18%]). Top-right CORNER of
+                     text = parent (90%, 57%).
+
+                     With transform-origin (20%, 49%) + scale(2.0)
+                     the hand stays at element (20%, 49%):
+                       wrapper.left + 0.20 * 0.70 = 0.90
+                       -> wrapper.left = 76% -> right -46%
+                       wrapper.top  + 0.49 * 0.70 = 0.57
+                       -> wrapper.top = 22.7% -> top 23% */
+                  'right-[-46%] top-[23%]',
                   'h-[70%] w-[70%]',
                   'pointer-events-none',
                 )}
@@ -315,27 +325,24 @@ export function Hero() {
                 <div
                   className={cn(
                     'absolute',
-                    /* For the mirrored hand, origin at element
-                       center (50%, 50%) instead of the hand
-                       position. With scale(-2, 2) + origin (50%,
-                       50%), the hand at (20%, 49%) maps to:
-                         x: 50 + (-2)*(20-50) = 110%
-                         y: 50 + 2*(49-50) = 48%
-                       So hand ends up at element (110%, 48%),
-                       i.e. PAST the element's right edge (which
-                       is what we want — mirrored to the right).
+                    /* RIGHT hand: just past the right edge of the
+                       Furnish wordmark, vertically lower than the
+                       left hand so the composition has a clear
+                       diagonal. With scale(-2, 2) + default origin
+                       (50%, 50%), hand at element (20%, 49%) maps
+                       to (110%, 48%) — past the wrapper's right
+                       edge.
 
-                       Target parent (95%, 50%):
-                         wrapper.left + 1.10 * 0.70 = 0.95
-                         -> wrapper.left = 18% -> right 12%
-                         wrapper.top + 0.48 * 0.70 = 0.50
-                         -> wrapper.top = 16.4% -> top 16%
+                       Target parent (98%, 62%):
+                         wrapper.left + 1.10 * 0.70 = 0.98
+                         -> wrapper.left = 21% -> right 9%
+                         wrapper.top  + 0.48 * 0.70 = 0.62
+                         -> wrapper.top = 28.4% -> top 28%
 
-                       NB: right-[12%] is POSITIVE (wrapper sits
-                       inside parent). Earlier iteration mistakenly
-                       used right-[-52%] which pushed the hand off
-                       screen past the page right edge. */
-                    'right-[12%] top-[16%]',
+                       Lower than LEFT hand (which is at y=57%) —
+                       62% > 57% so the right hand reads "to the
+                       right and slightly lower" per Hassan's spec. */
+                    'right-[9%] top-[28%]',
                     'h-[70%] w-[70%]',
                     'pointer-events-none',
                   )}
