@@ -330,21 +330,40 @@ export function Hero() {
                 </div>
               )}
 
-              {/* Walking legs JUST below the Furnish wordmark.
-                  - Wordmark text bottom is at parent y ≈ 83% (font-
-                    size 8rem, line-height 1, bottom-[18%] anchor).
-                  - Legs wrapper top moved from 82% (overlapping
-                    descenders) to 84% so the legs sit clearly past
-                    the textbox bottom — "JUST below," 1pp gap.
-                  - Aspect-[1/2] (height = 2x width) keeps the legs
-                    long enough to extend below the wrapper into the
-                    cream space, reading like full character legs
-                    rather than just feet. */}
+              {/* Walking legs SUPER DAMN CLOSE to the Furnish
+                  textbox bottom, but not touching.
+
+                  Pixel-sampled the actual rendered legs canvas:
+                  the dotlottie player squashes the natural 1350x1800
+                  lottie into the 369x737 wrapper (0.75 aspect ->
+                  0.5 aspect). Visible-legs bbox lands at canvas y
+                  57.5%-79.0%, which means the visible legs TOP sits
+                  at 57.05% of wrapper height (canvas fills 99.2% of
+                  the wrapper, no letterboxing).
+
+                  With wrapper width 72% of parent and aspect-[1/2],
+                  wrapper height = 145.2% of parent. So visible
+                  legs top in parent coords =
+                    wrapper.top + 0.5705 * 145.2 = wrapper.top + 82.84
+
+                  Wordmark text bottom is at parent y = 83.4%. To
+                  put visible legs ~5px below text bottom (super
+                  close, NOT touching — first attempt at 0.5% put
+                  visible legs at 83.34% which was 0px gap, basically
+                  connected):
+                    target visible_top = 84.34% (5px gap on 512px
+                    parent = 1.0pp)
+                    wrapper.top = 84.34 - 82.84 = 1.5%
+
+                  Earlier iteration had wrapper.top = 84%, which put
+                  visible legs at parent y = 166.8% — far below the
+                  parent box, ~340px south of the wordmark. That was
+                  the "disconnected" feel Hassan called out. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute left-1/2 -translate-x-1/2',
-                    'top-[84%]',
+                    'top-[1.5%]',
                     'w-[78%] sm:w-[72%]',
                     'aspect-[1/2]',
                     'pointer-events-none',
