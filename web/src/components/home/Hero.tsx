@@ -230,24 +230,38 @@ export function Hero() {
                 ariaLabel=""
               />
 
-              {/* Second mirrored hand. Hassan's spec:
-                    - Off to the right (right side of the wrapper)
-                    - A tiny bit ABOVE the Furnish text
-                  Sized smaller than the primary hand (~42% wrapper)
-                  so it reads as a paired greeter from the right
-                  rather than a duplicate of the primary. Mirrored
-                  via scaleX(-1) so it waves from the opposite
-                  direction. Slightly off the right edge (right-[-3%])
-                  so it feels grounded against the column edge rather
-                  than floating in. Mounted only after readyForExtras
-                  flips so it doesn't compete with the primary hand
-                  for initial parse / paint. */}
+              {/* Second mirrored hand.
+
+                  Sized DRAMATICALLY bigger this iteration —
+                  h/w-[42%] -> h/w-[70%] — so it reads as the
+                  character's other arm at full presence rather
+                  than a small accent. Positioned in the upper-
+                  right with the top edge OVERFLOWING above the
+                  wrapper so the hand bottom sits just clear of
+                  the Furnish text top edge: no overlap.
+
+                  Math (the wrapper is square, percentages are
+                  relative to that):
+                    Furnish text bottom:  18% from wrapper bottom
+                                          = 82% from top
+                    Furnish text height:  ~25-29% of wrapper
+                                          (clamp 3rem..8rem)
+                    Furnish text top:     ~53-57% from wrapper top
+                    Second hand vertical: top-[-20%] to 50% from
+                                          top (with h-[70%]),
+                                          so bottom at 50% sits
+                                          ~3-7% above text top.
+
+                  Mirrored via scaleX(-1). Right edge slightly
+                  past the wrapper edge so the hand feels grounded
+                  against the column edge, like the first hand
+                  does. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute',
-                    'top-[48%] right-[-3%]',
-                    'h-[42%] w-[42%]',
+                    'top-[-20%] right-[-3%]',
+                    'h-[70%] w-[70%]',
                     'pointer-events-none',
                   )}
                   style={{ transform: 'scaleX(-1)' }}
@@ -261,21 +275,23 @@ export function Hero() {
                 </div>
               )}
 
-              {/* Walking legs under the Furnish wordmark. Sized ~3x
-                  the previous iteration per Hassan ("make the legs
-                  3x bigger"). At w-[78%] sm:w-[72%] aspect-[3/4]
-                  the legs are nearly the wrapper's full width and
-                  extend below the wrapper so the character feels
-                  like it's actually walking onto the page rather
-                  than caged inside a square. Same readyForExtras
-                  gating as the second hand. */}
+              {/* Walking legs JUST BELOW the Furnish wordmark.
+                  - Top moved from top-[80%] -> top-[82%] so the
+                    legs anchor right at the text bottom edge
+                    instead of leaving a gap above.
+                  - Aspect ratio changed 3/4 -> 1/2 to make the
+                    legs 1.5x longer (height 4/3 of width ->
+                    height 2x width). Width unchanged at 78% sm:72%.
+                  - Net result: legs extend further below the
+                    wrapper into the cream space, reading more
+                    like full character legs than just feet. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute left-1/2 -translate-x-1/2',
-                    'top-[80%]',
+                    'top-[82%]',
                     'w-[78%] sm:w-[72%]',
-                    'aspect-[3/4]',
+                    'aspect-[1/2]',
                     'pointer-events-none',
                   )}
                   aria-hidden="true"
