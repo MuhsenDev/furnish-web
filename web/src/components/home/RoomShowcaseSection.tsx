@@ -64,19 +64,19 @@ import { cn } from '@/lib/utils';
    the 1.04 scale was causing on rooms 1 and 2 (the scale was
    pushing edge content past the overflow-hidden card boundary). */
 
-const ENTRY_ITEM_DURATION_S = 0.6;
-const ENTRY_ITEM_STAGGER_S = 0.06;
-const ENTRY_ITEM_STAGGER_MOBILE_S = 0.04;
+const ENTRY_ITEM_DURATION_S = 0.4;
+const ENTRY_ITEM_STAGGER_S = 0.04;
+const ENTRY_ITEM_STAGGER_MOBILE_S = 0.025;
 const ENTRY_INITIAL_Y_PX = -160;
 const ENTRY_INITIAL_SCALE = 0.85;
 const ENTRY_OVERSHOOT_SCALE = 1.02;
-const ENTRY_ROOM_TOTAL_BUDGET_S = 0.5;
+const ENTRY_ROOM_TOTAL_BUDGET_S = 0.3;
 
-const CYCLE_DURATION_MS = 3500;
-const CYCLE_PHASE_ENTRY_MS = 1100;
-const CYCLE_PHASE_VIEW_MS = 2000; /* still hold, no movement, no scale */
-const CYCLE_PHASE_FADE_OUT_MS = 400;
-/* Total: 1100 + 2000 + 400 = 3500ms ✓ */
+const CYCLE_DURATION_MS = 1800;
+const CYCLE_PHASE_ENTRY_MS = 600;
+const CYCLE_PHASE_VIEW_MS = 1000; /* still hold, no movement, no scale */
+const CYCLE_PHASE_FADE_OUT_MS = 200;
+/* Total: 600 + 1000 + 200 = 1800ms per room ✓ Full loop: 5.4s. */
 
 /* Padding around the visible-content bbox after we tighten the
    viewBox at runtime. A small margin keeps the room art from
