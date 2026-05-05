@@ -182,8 +182,21 @@ export function Hero() {
             </p>
           </div>
 
-          {/* RIGHT column: hand-wave Lottie + "Furnish" wordmark
-              overlay + second mirrored hand at bottom-right. */}
+          {/* RIGHT column: a "Furnish character" composed of three
+              Lottie + text elements stacked head-to-toe:
+                (1) primary hand wave (top, fills wrapper),
+                (2) "Furnish" wordmark (the body),
+                (3) mirrored second hand at the bottom-right
+                    (waving from the opposite side),
+                (4) walking legs at the bottom (extending below
+                    the wrapper so the character has feet).
+
+              The wrapper max-width is now tighter on desktop than
+              the previous iteration so the desktop composition
+              reads close to the iOS mobile layout Hassan called
+              "beautiful." Previous max-w-[36/42rem] on lg/xl
+              spread the hands far apart on big screens; new caps
+              keep the character compact at every viewport. */}
           <div
             className={cn(
               'order-2 lg:order-2 lg:col-span-6',
@@ -193,8 +206,8 @@ export function Hero() {
             <div
               className={cn(
                 'relative w-full',
-                'max-w-[22rem] sm:max-w-[30rem]',
-                'lg:max-w-[36rem] xl:max-w-[42rem]',
+                'max-w-[22rem] sm:max-w-[26rem]',
+                'lg:max-w-[28rem] xl:max-w-[32rem]',
                 'aspect-square',
               )}
             >
@@ -208,7 +221,7 @@ export function Hero() {
               {/* Furnish wordmark overlay. */}
               <span
                 className={cn(
-                  'absolute inset-x-0 bottom-[14%]',
+                  'absolute inset-x-0 bottom-[18%]',
                   'text-center',
                   'font-display tracking-display-tight',
                   'pointer-events-none',
@@ -217,7 +230,7 @@ export function Hero() {
                 )}
                 style={{
                   color: 'var(--color-deep)',
-                  fontSize: 'clamp(3rem, 11vw, 9rem)',
+                  fontSize: 'clamp(3rem, 11vw, 8rem)',
                   lineHeight: '1',
                 }}
               >
@@ -225,17 +238,13 @@ export function Hero() {
               </span>
 
               {/* Second hand at bottom-right, mirrored horizontally
-                  via scaleX(-1) so it waves from the opposite
-                  direction. Sized close to the first hand
-                  (~85% of the wrapper) per Hassan, so the two
-                  hands read as paired greeters rather than
-                  primary + tiny accent. Slight negative offset on
-                  bottom and right so the hand visually extends
-                  beyond the wrapper edge. */}
+                  via scaleX(-1). Slightly tamer overflow than the
+                  previous iteration so the desktop layout doesn't
+                  feel chaotic. */}
               <div
                 className={cn(
-                  'absolute bottom-[-10%] right-[-8%]',
-                  'h-[85%] w-[85%]',
+                  'absolute bottom-[-6%] right-[-4%]',
+                  'h-[80%] w-[80%]',
                   'pointer-events-none',
                 )}
                 style={{ transform: 'scaleX(-1)' }}
@@ -243,6 +252,30 @@ export function Hero() {
               >
                 <LottieAsset
                   src="/Animations/Lottie/Hello-welcome.web.lottie"
+                  className="h-full w-full"
+                  ariaLabel=""
+                />
+              </div>
+
+              {/* Walking legs UNDER the Furnish wordmark so the
+                  whole composition reads as a small character:
+                  hands waving up top, "Furnish" as the body, legs
+                  walking at the bottom. Centered horizontally,
+                  positioned below the wordmark with the bottom
+                  edge extending past the wrapper so the legs feel
+                  grounded rather than caged. */}
+              <div
+                className={cn(
+                  'absolute left-1/2 -translate-x-1/2',
+                  'top-[78%]',
+                  'w-[26%] sm:w-[24%]',
+                  'aspect-[3/4]',
+                  'pointer-events-none',
+                )}
+                aria-hidden="true"
+              >
+                <LottieAsset
+                  src="/Animations/Lottie/Legs%20Walk.lottie"
                   className="h-full w-full"
                   ariaLabel=""
                 />
