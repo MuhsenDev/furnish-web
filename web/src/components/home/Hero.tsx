@@ -225,57 +225,28 @@ export function Hero() {
             >
               {/* LEFT hand (not mirrored).
 
-                  Verified-in-browser positioning (the "silly
-                  mistake" fix): the visible hand actually renders
-                  at (20%, 49%) of the wrapper, not (30%, 51%) as
-                  earlier math assumed. Layer 1 of the Lottie
-                  (animated scale 0->69%) is the rendered hand;
-                  its canvas position is (204, 300) of 1000x600
-                  = (20.4%, 50%). After meet-mode aspect-fit in
-                  the square wrapper, that maps to (20.1%, 48%) of
-                  wrapper.
+                  Sits on the LEFT side of the "Furnish" wordmark,
+                  symmetric to the RIGHT hand below. Non-mirrored
+                  Lottie has its visible hand at element (20%, 49%) —
+                  near the LEFT edge of the wrapper — so placing
+                  the wrapper extending past the parent's left edge
+                  parks the hand right at parent x ≈ 5% (just past
+                  the visible left edge of the text).
 
-                  Target: visible hand at (70%, 35%) of parent —
-                  TOP-RIGHT of the "Furnish" word (wordmark sits
-                  at 56-83% from top vertically, ~30-70% from
-                  left visually since text-center). 35% from top
-                  is well above text top (56%); 70% from left is
-                  just past the right edge of the visible text.
-
-                  Math: wrapper.left + 0.20 * 0.70 = 0.70
-                        -> wrapper.left = 56% -> right -26%
-                        wrapper.top + 0.49 * 0.70 = 0.35
-                        -> wrapper.top = 0.7% -> top 1%
+                  Target visible hand at parent (5%, 57%):
+                    wrapper.left + 0.20 * 0.70 = 0.05
+                      -> wrapper.left = -9% -> left -9%
+                    wrapper.top  + 0.49 * 0.70 = 0.57
+                      -> wrapper.top = 22.7% -> top 23%
 
                   CSS transform scale(2.0) origin (20%, 49%) doubles
                   the hand visually without canvas clipping. The
-                  scale anchor at the hand center keeps positioning
-                  math intact (hand stays at 20%, 49% of wrapper
-                  post-scale, just rendered larger). */}
+                  origin at the hand center keeps the post-scale
+                  math intact (hand stays at element (20%, 49%)). */}
               <div
                 className={cn(
                   'absolute',
-                  /* LEFT hand sits ON the top-right corner of the
-                     "Furnish" wordmark (straddles the edge — hand
-                     center exactly at the corner so it reads as
-                     "on the corner" not "floating above"). Earlier
-                     math put the hand at parent (85%, 30%) which
-                     was 27 percentage points ABOVE the text top —
-                     too far up, hand looked detached.
-
-                     Wordmark spans roughly (10%, 90%) horizontally
-                     and (57%, 82%) vertically (font-size = 8rem at
-                     1440 viewport, parent ~512px square, line-
-                     height 1, bottom-[18%]). Top-right CORNER of
-                     text = parent (90%, 57%).
-
-                     With transform-origin (20%, 49%) + scale(2.0)
-                     the hand stays at element (20%, 49%):
-                       wrapper.left + 0.20 * 0.70 = 0.90
-                       -> wrapper.left = 76% -> right -46%
-                       wrapper.top  + 0.49 * 0.70 = 0.57
-                       -> wrapper.top = 22.7% -> top 23% */
-                  'right-[-46%] top-[23%]',
+                  'left-[-9%] top-[23%]',
                   'h-[70%] w-[70%]',
                   'pointer-events-none',
                 )}
@@ -359,21 +330,21 @@ export function Hero() {
                 </div>
               )}
 
-              {/* Walking legs JUST BELOW the Furnish wordmark.
-                  - Top moved from top-[80%] -> top-[82%] so the
-                    legs anchor right at the text bottom edge
-                    instead of leaving a gap above.
-                  - Aspect ratio changed 3/4 -> 1/2 to make the
-                    legs 1.5x longer (height 4/3 of width ->
-                    height 2x width). Width unchanged at 78% sm:72%.
-                  - Net result: legs extend further below the
-                    wrapper into the cream space, reading more
-                    like full character legs than just feet. */}
+              {/* Walking legs JUST below the Furnish wordmark.
+                  - Wordmark text bottom is at parent y ≈ 83% (font-
+                    size 8rem, line-height 1, bottom-[18%] anchor).
+                  - Legs wrapper top moved from 82% (overlapping
+                    descenders) to 84% so the legs sit clearly past
+                    the textbox bottom — "JUST below," 1pp gap.
+                  - Aspect-[1/2] (height = 2x width) keeps the legs
+                    long enough to extend below the wrapper into the
+                    cream space, reading like full character legs
+                    rather than just feet. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute left-1/2 -translate-x-1/2',
-                    'top-[82%]',
+                    'top-[84%]',
                     'w-[78%] sm:w-[72%]',
                     'aspect-[1/2]',
                     'pointer-events-none',
