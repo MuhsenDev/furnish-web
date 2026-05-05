@@ -169,7 +169,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         <h2
           id="waitlist-modal-title"
           className={cn(
-            'font-display text-deep',
+            'font-display text-deep text-center',
             'tracking-display-tight leading-display-tight',
             'text-display-l',
           )}
@@ -177,7 +177,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
           {t('home', 'waitlistModalTitle')}
         </h2>
 
-        <p className="mt-4 text-body-l text-ink/85 leading-relaxed">
+        <p className="mt-4 text-center text-body-l text-ink/85 leading-relaxed">
           {t('home', 'waitlistModalDescription')}
         </p>
 

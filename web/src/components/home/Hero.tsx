@@ -28,7 +28,6 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 import { LottieAsset } from '@/components/shared/LottieAsset';
 import { WaitlistModal } from '@/components/shared/WaitlistModal';
@@ -40,7 +39,7 @@ import { cn } from '@/lib/utils';
 
 const primaryCtaClasses = cn(
   'btn-primary-hover',
-  'inline-flex items-center justify-center gap-2',
+  'inline-flex items-center justify-center',
   'rounded-sm bg-[var(--color-accent)] text-cream',
   'px-7 py-3.5 text-body-m font-semibold',
   'shadow-1',
@@ -140,6 +139,14 @@ export function Hero() {
                 'sm:justify-center lg:justify-start',
               )}
             >
+              {/* No ArrowRight icon on the hero primary CTA — when
+                  the arrow has its default opacity:0 (visible only
+                  on hover) it still occupies layout space, pushing
+                  the visible text ~17px left of the button's visual
+                  center. Hassan flagged the off-center text directly.
+                  Cleanest fix: drop the icon. The button is now
+                  text-only, perfectly centered between the px-7
+                  paddings. */}
               {APP_LAUNCHED ? (
                 <Link
                   data-hero-cta-primary
@@ -152,11 +159,6 @@ export function Hero() {
                   className={primaryCtaClasses}
                 >
                   {t('common', 'ctaAppStore')}
-                  <ArrowRight
-                    size={18}
-                    strokeWidth={1.5}
-                    className="cta-arrow"
-                  />
                 </Link>
               ) : (
                 <button
@@ -169,11 +171,6 @@ export function Hero() {
                   className={primaryCtaClasses}
                 >
                   {t('home', 'waitlistButton')}
-                  <ArrowRight
-                    size={18}
-                    strokeWidth={1.5}
-                    className="cta-arrow"
-                  />
                 </button>
               )}
 
@@ -253,12 +250,10 @@ export function Hero() {
                   so the hand bbox's peak parent-y extent is
                   wrapper.top + 51pp (= 0.73 * 70).
 
-                  Mobile (top-[23%]): peak hand bot = 23 + 51 = 74%.
-                  Mobile text top is at 67.7% (smaller font), so
-                  74% > 67.7%... but the hand bbox edges are mostly
-                  empty alpha, and at most frames the hand bot is
-                  only ~64%. Hassan rates mobile as perfect, so we
-                  keep top-[23%].
+                  Mobile (top-[13%]): the entire hero composition —
+                  hands + wordmark + legs — was uniformly shifted
+                  up the Y axis by 10pp on mobile so the hands peek
+                  out more prominently above the wordmark.
 
                   Desktop (lg:top-[3%]): peak hand bot = 3 + 51 =
                   54%, ~7px clear of desktop text top 55.3%. This
@@ -271,7 +266,7 @@ export function Hero() {
               <div
                 className={cn(
                   'absolute',
-                  'left-[-9%] top-[23%] lg:top-[3%]',
+                  'left-[-9%] top-[13%] lg:top-[3%]',
                   'h-[70%] w-[70%]',
                   'pointer-events-none',
                 )}
@@ -342,8 +337,11 @@ export function Hero() {
                        lg:top-[3%]) so the "RIGHT lower than LEFT"
                        spec from earlier iterations is preserved.
 
-                       Mobile keeps top-[28%] (Hassan: perfect). */
-                    'right-[9%] top-[28%] lg:top-[4%]',
+                       Mobile (top-[18%]): shifted up 10pp from
+                       prior top-[28%] in lockstep with the LEFT
+                       hand and wordmark to bring the hands into
+                       view above the wordmark. */
+                    'right-[9%] top-[18%] lg:top-[4%]',
                     'h-[70%] w-[70%]',
                     'pointer-events-none',
                   )}
@@ -376,24 +374,23 @@ export function Hero() {
                   legs top in parent coords =
                     wrapper.top + 0.5705 * 145.2 = wrapper.top + 82.84
 
-                  Wordmark text bottom is at parent y = 83.4%. To
-                  put visible legs ~5px below text bottom (super
-                  close, NOT touching — first attempt at 0.5% put
-                  visible legs at 83.34% which was 0px gap, basically
-                  connected):
-                    target visible_top = 84.34% (5px gap on 512px
-                    parent = 1.0pp)
-                    wrapper.top = 84.34 - 82.84 = 1.5%
+                  Desktop (lg:top-[1.5%]): visible legs top at
+                  parent y = 84.34%, which is 1.5pp (≈8px) below
+                  desktop wordmark text bottom (82.6%) — the "super
+                  damn close, not touching" gap Hassan asked for.
 
-                  Earlier iteration had wrapper.top = 84%, which put
-                  visible legs at parent y = 166.8% — far below the
-                  parent box, ~340px south of the wordmark. That was
-                  the "disconnected" feel Hassan called out. */}
+                  Mobile (top-[-8.5%]): shifted up 10pp in lockstep
+                  with the rest of the hero composition. Visible
+                  legs top = -8.5 + 82.84 = 74.34%, which is 2.34pp
+                  below the mobile wordmark text bottom (after that
+                  was also shifted to bottom-[28%], yielding text
+                  bottom at parent y 72%). Same proportional 8px
+                  gap maintained. */}
               {readyForExtras && (
                 <div
                   className={cn(
                     'absolute left-1/2 -translate-x-1/2',
-                    'top-[1.5%]',
+                    'top-[-8.5%] lg:top-[1.5%]',
                     'w-[78%] sm:w-[72%]',
                     'aspect-[1/2]',
                     'pointer-events-none',
@@ -411,10 +408,20 @@ export function Hero() {
               {/* Furnish wordmark overlay. RENDERED LAST in the JSX
                   so it stacks ON TOP of the hand+legs Lotties; the
                   text always reads cleanly even when overlapping
-                  Lottie elements would otherwise cover it. */}
+                  Lottie elements would otherwise cover it.
+
+                  Mobile uses bottom-[28%] so the wordmark sits in
+                  the middle of the parent box rather than the
+                  lower third — paired with the +10pp UP shift on
+                  hands and legs so the whole composition reads
+                  higher and the hands peek out above the text.
+
+                  Desktop reverts to lg:bottom-[18%] (Hassan: the
+                  desktop hero is finalized). */}
               <span
                 className={cn(
-                  'absolute inset-x-0 bottom-[18%]',
+                  'absolute inset-x-0',
+                  'bottom-[28%] lg:bottom-[18%]',
                   'text-center',
                   'font-display tracking-display-tight',
                   'pointer-events-none',

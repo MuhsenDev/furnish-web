@@ -22,7 +22,6 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 import { Card, CardCaption } from '@/components/Card';
 import { useScrollReveal } from '@/lib/motion';
@@ -195,16 +194,12 @@ export function GalleryPreview() {
             onClick={() => track('home_gallery_preview_click', { room_index: 0, target: 'see_full_gallery' })}
             className={galleryCtaClasses}
           >
+            {/* No arrow icon — same centering rationale as the hero
+                primary CTA. The cta-arrow class is opacity:0 by
+                default and would push the visible text ~17px left
+                of the button center. Text-only button stays
+                perfectly centered between its px-9 paddings. */}
             {t('home', 'galleryCta')}
-            <ArrowRight
-              size={18}
-              strokeWidth={1.5}
-              className={cn(
-                'cta-arrow',
-                'transition-transform duration-500 ease-premium',
-                'group-hover/cta:translate-x-1',
-              )}
-            />
           </Link>
           <p className="text-body-s text-muted">
             {t('home', 'galleryDesignedIn')}
