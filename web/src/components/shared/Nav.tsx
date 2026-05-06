@@ -39,11 +39,14 @@ export function Nav() {
       >
         <Container width="default">
           <div className="flex h-16 items-center justify-between sm:h-20">
-            {/* Logo + wordmark. Logo always visible; wordmark
-                hides on the smallest viewports so the right-side
-                Menu/CTA cluster doesn't collide with it on a 320px
-                iPhone SE. From sm: up the wordmark appears next to
-                the logo in display serif. */}
+            {/* Logo + wordmark. Both visible at every viewport.
+                Hassan checked the mobile bar and confirmed the
+                wordmark fits next to the menu/CTA cluster — an
+                earlier `hidden sm:inline` was hiding it
+                unnecessarily. Mobile uses a slightly smaller
+                wordmark (text-xl) to keep the bar uncluttered on
+                narrow phones; sm:text-3xl restores the desktop
+                size. */}
             <Link
               href="/"
               aria-label={t('nav', 'logoAriaLabel')}
@@ -60,10 +63,7 @@ export function Nav() {
               <span
                 className={cn(
                   'font-display tracking-display-tight text-deep',
-                  /* Wordmark hidden below sm so the logo-only state
-                     keeps the bar uncluttered on narrow phones. */
-                  'hidden sm:inline',
-                  'text-2xl sm:text-3xl',
+                  'text-xl sm:text-3xl',
                 )}
               >
                 Furnish

@@ -79,7 +79,13 @@ export function Hero() {
     >
       <Container
         width="default"
-        className="flex flex-1 items-center pt-24 pb-10 lg:pt-12 lg:pb-12"
+        /* Desktop top padding was lg:pt-12 (48px) — too small to
+           clear the sm:h-20 sticky nav (80px). The headline's first
+           line ("Designed for") was visibly clipped under the nav
+           on first paint at lg+ widths. Bumped to lg:pt-28 (112px)
+           so the headline starts comfortably below the nav with
+           breathing room. */
+        className="flex flex-1 items-center pt-24 pb-10 lg:pt-28 lg:pb-12"
       >
         <div
           className={cn(

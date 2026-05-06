@@ -10,11 +10,13 @@
   The HowWeMakeMoney section anchors with id="how-we-make-money" so
   the FTC disclosure on every blog post links directly to it.
 
-  Founder image: replaced the photo of Hassan with an anonymous
-  silhouette SVG (black head + white question mark). Hassan asked
-  to take the photo down. If/when he supplies a different image,
-  drop it at public/images/about/founder.{jpg,png,svg} and update
-  FOUNDER_PHOTO_SRC.
+  Founder image: an anonymous silhouette of a man-in-a-suit with a
+  question-mark face. Hassan asked for his photo to come down and
+  supplied this stock silhouette as the stand-in until he provides
+  a different image. The portrait sits inside a small editorial
+  frame (warm beige inset + thin ink border + soft shadow) so the
+  silhouette reads as an intentional placeholder rather than an
+  unstyled stock asset.
 */
 
 import * as React from 'react';
@@ -27,7 +29,7 @@ import { cn } from '@/lib/utils';
 
 /* Toggle to true once Hassan supplies the founder photo. */
 const PHOTO_AVAILABLE = true;
-const FOUNDER_PHOTO_SRC = '/images/about/founder.svg';
+const FOUNDER_PHOTO_SRC = '/images/about/founder-silhouette.jpg';
 
 /* ---- AboutHero ---- */
 
@@ -84,20 +86,41 @@ export function FounderSection() {
         >
           {PHOTO_AVAILABLE && (
             <div data-reveal className="mx-auto lg:mx-0">
+              {/* Mini portrait frame: outer warm-beige mat with a
+                  thin ink border + soft shadow, inner cream window
+                  holding the silhouette. Keeps the placeholder
+                  feeling intentional without being precious about
+                  it (Hassan: "don't do too much"). p-3 mat width
+                  reads as a real frame at 320px and 480px. */}
               <div
                 className={cn(
-                  'relative overflow-hidden',
-                  'rounded-[var(--radius)]',
-                  'h-80 w-80 lg:h-[480px] lg:w-[480px]',
+                  'inline-block',
+                  'rounded-sm bg-[var(--color-beige)]',
+                  'border border-[rgba(43,30,24,0.18)]',
+                  'shadow-2',
+                  'p-3 sm:p-4',
                 )}
               >
-                <Image
-                  src={FOUNDER_PHOTO_SRC}
-                  alt={t('about', 'founderPhotoAlt')}
-                  fill
-                  sizes="(min-width: 1024px) 480px, 320px"
-                  className="object-cover"
-                />
+                <div
+                  className={cn(
+                    'relative overflow-hidden',
+                    /* White window matches the silhouette JPG's white
+                       background so the figure feels integrated with
+                       the frame rather than sitting on a contrasting
+                       cream square. */
+                    'bg-white',
+                    'h-72 w-72 sm:h-80 sm:w-80 lg:h-[440px] lg:w-[440px]',
+                    'border border-[rgba(43,30,24,0.10)]',
+                  )}
+                >
+                  <Image
+                    src={FOUNDER_PHOTO_SRC}
+                    alt={t('about', 'founderPhotoAlt')}
+                    fill
+                    sizes="(min-width: 1024px) 440px, (min-width: 640px) 320px, 288px"
+                    className="object-contain"
+                  />
+                </div>
               </div>
             </div>
           )}

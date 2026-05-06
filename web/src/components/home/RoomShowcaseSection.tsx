@@ -84,6 +84,26 @@ const CYCLE_PHASE_FADE_OUT_MS = 200;
    content's smaller dimension. */
 const VIEWBOX_TRIM_PADDING_FRACTION = 0.02;
 
+/* Rasterization resolution for pixel-bbox detection. Long side in
+   px on the offscreen canvas. Higher = faint walls/floor edges
+   produce more pixels above the alpha threshold and get caught;
+   lower = faster but misses thin strokes. 2400 chosen empirically:
+   high enough to register stroke-only walls in 6.svg / 7.svg even
+   on desktop Chrome where the rasterizer was leaving them out at
+   the previous 1500. */
+const RASTER_LONG_SIDE_PX = 2400;
+
+/* How far the geometric bbox can EXTEND the pixel bbox per side,
+   as a fraction of the pixel-bbox dimension. The cap exists to
+   prevent oversized static-walls paths (whose getBBox extends to
+   the SVG corners even though their painted content is interior)
+   from inflating the trim. Bumped 0.25 → 0.50: when desktop
+   rasterization drops faint walls entirely from the pixel scan,
+   25% wasn't enough room to recover them via the geometric
+   fallback; 50% gives the geometric bbox enough latitude to put
+   walls back in without unfettered access to the SVG corners. */
+const GEO_EXTENSION_CAP = 0.50;
+
 /* The Vercel curve. Used for the entry deceleration, the
    lift/return phases of the active ceremony, and the fade-out. */
 const VERCEL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -139,22 +159,41 @@ function isStatic(groupId: string): boolean {
    are drawn with paths whose bbox extends past the visible art. */
 async function tightenViewBoxToVisualBounds(
   svg: SVGSVGElement,
-): Promise<void> {
+): Promise<{ width: number; height: number } | null> {
+  /* CRITICAL: wait two animation frames before reading geometry.
+     Hassan reported the rooms render correctly on iOS Safari but
+     come up undersized + missing walls/floors on desktop Chrome.
+     Root cause: when the SVG is inlined via innerHTML and we
+     immediately call getBBox() on its child <g> elements, desktop
+     Chrome often returns 0,0,0,0 (paint/layout hasn't completed).
+     The geometric-bbox union below ends up incomplete (e.g.,
+     missing the static-walls bbox), and the union math then caps
+     the pixel-bbox extension at a stale geo bound — cropping the
+     walls right out of the trimmed viewBox.
+
+     iOS Safari schedules layout aggressively enough that the
+     synchronous-after-innerHTML getBBox call usually returns real
+     values. Desktop Chrome doesn't, hence the cross-browser
+     divergence. Two RAFs guarantees layout has settled before we
+     query geometry. */
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+
   /* Capture the natural viewBox (after the inline SVG mounts the
      viewBox is already what was in the source file). */
   const vbAttr = svg.getAttribute('viewBox');
-  if (!vbAttr) return;
+  if (!vbAttr) return null;
   const vb = vbAttr.split(/\s+/).map(Number);
-  if (vb.length !== 4 || !vb.every(Number.isFinite)) return;
+  if (vb.length !== 4 || !vb.every(Number.isFinite)) return null;
   const [vbX, vbY, vbW, vbH] = vb;
 
-  /* Rasterize at 1500px long-side so we don't miss thin walls
-     or low-alpha anti-aliased edges (was 800; rooms 2 + 3 had
-     their right walls / bottom floors cropped at the lower res
-     because faint paint at the edges fell below the alpha
-     threshold and got excluded from the bbox). */
+  /* Rasterize at RASTER_LONG_SIDE_PX (2400) so faint walls and
+     anti-aliased stroke edges produce enough pixels above the
+     alpha threshold. Was 1500; bump caught additional faint paint
+     on desktop where the rasterizer leaves walls thinner. */
   const longSide = Math.max(vbW, vbH);
-  const scale = 1500 / longSide;
+  const scale = RASTER_LONG_SIDE_PX / longSide;
   const cw = Math.max(1, Math.round(vbW * scale));
   const ch = Math.max(1, Math.round(vbH * scale));
 
@@ -177,13 +216,18 @@ async function tightenViewBoxToVisualBounds(
   try {
     imageBitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
+      /* crossOrigin='anonymous' is safe here even though the blob
+         is same-origin; it explicitly tells Chrome to treat the
+         image as CORS-clean so getImageData below doesn't taint
+         the canvas in any browser edge case. */
+      img.crossOrigin = 'anonymous';
       img.onload = () => resolve(img);
       img.onerror = (err) => reject(err);
       img.src = url;
     });
   } catch (_) {
     URL.revokeObjectURL(url);
-    return;
+    return null;
   }
 
   const canvas = document.createElement('canvas');
@@ -192,7 +236,7 @@ async function tightenViewBoxToVisualBounds(
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     URL.revokeObjectURL(url);
-    return;
+    return null;
   }
   ctx.drawImage(imageBitmap, 0, 0, cw, ch);
   URL.revokeObjectURL(url);
@@ -203,15 +247,16 @@ async function tightenViewBoxToVisualBounds(
   } catch (_) {
     /* Tainted canvas (shouldn't happen with same-origin SVG, but
        guard anyway). */
-    return;
+    return null;
   }
 
-  /* Scan alpha channel to find tightest opaque bbox. Step by 1px
-     and use the lowest practical alpha threshold (1) so we catch
-     even very faintly-painted walls and floor edges. Lower than 1
-     would catch fully-transparent pixels that the renderer
-     sometimes leaves with stale color data. */
-  const ALPHA_THRESHOLD = 1;
+  /* Scan alpha channel to find tightest opaque bbox. Threshold is
+     0 (any non-fully-transparent pixel counts) — was 1, which
+     excluded pixels at exactly alpha=1. Stroke anti-aliasing on
+     thin walls leaves a fringe of alpha=1 pixels that the previous
+     threshold dropped, contributing to the desktop "missing walls"
+     symptom. */
+  const ALPHA_THRESHOLD = 0;
   let minX = cw,
     minY = ch,
     maxX = -1,
@@ -227,13 +272,13 @@ async function tightenViewBoxToVisualBounds(
       }
     }
   }
-  if (maxX < 0) return;
+  if (maxX < 0) return null;
 
   /* Convert pixel bbox back to SVG viewBox coords. */
-  let pxBboxX = vbX + (minX / cw) * vbW;
-  let pxBboxY = vbY + (minY / ch) * vbH;
-  let pxBboxW = ((maxX - minX) / cw) * vbW;
-  let pxBboxH = ((maxY - minY) / ch) * vbH;
+  const pxBboxX = vbX + (minX / cw) * vbW;
+  const pxBboxY = vbY + (minY / ch) * vbH;
+  const pxBboxW = ((maxX - minX) / cw) * vbW;
+  const pxBboxH = ((maxY - minY) / ch) * vbH;
 
   /* Union with the geometric bbox of named groups (excluding
      unknown-not-visable). Pixel-scan can miss faintly-painted
@@ -247,6 +292,7 @@ async function tightenViewBoxToVisualBounds(
     geoMinY = Infinity,
     geoMaxX = -Infinity,
     geoMaxY = -Infinity;
+  let validBboxCount = 0;
   const namedCandidates = Array.from(svg.children).filter((el) => {
     if (el.tagName === 'defs') return false;
     if (el.tagName !== 'g') return true;
@@ -259,6 +305,7 @@ async function tightenViewBoxToVisualBounds(
       if (typeof node.getBBox !== 'function') continue;
       const b = node.getBBox();
       if (b.width === 0 && b.height === 0) continue;
+      validBboxCount += 1;
       if (b.x < geoMinX) geoMinX = b.x;
       if (b.y < geoMinY) geoMinY = b.y;
       if (b.x + b.width > geoMaxX) geoMaxX = b.x + b.width;
@@ -269,19 +316,21 @@ async function tightenViewBoxToVisualBounds(
   }
 
   /* Union with geometric bbox, but CAP each side's extension at
-     25% of the pixel bbox dimension so we don't pull in massive
-     amounts of whitespace from a static-walls path that happens
-     to extend to the SVG corners. The cap lets us reach a wall
-     that's drawn slightly past the painted content, but not the
-     full geometric corner of an oversized SVG. */
-  const MAX_EXT_PCT = 0.25;
-  const maxExtX = pxBboxW * MAX_EXT_PCT;
-  const maxExtY = pxBboxH * MAX_EXT_PCT;
+     GEO_EXTENSION_CAP (50%) of the pixel bbox dimension so we don't
+     pull in massive amounts of whitespace from a static-walls path
+     that happens to extend to the SVG corners. The cap lets us
+     reach walls that are drawn slightly past the painted content
+     while still rejecting the full geometric corner of an oversized
+     SVG. Skip the union entirely if too few valid getBBox results
+     came back — a single valid bbox isn't representative enough to
+     trust as a recovery floor. */
+  const maxExtX = pxBboxW * GEO_EXTENSION_CAP;
+  const maxExtY = pxBboxH * GEO_EXTENSION_CAP;
   let finalMinX = pxBboxX;
   let finalMinY = pxBboxY;
   let finalMaxX = pxBboxX + pxBboxW;
   let finalMaxY = pxBboxY + pxBboxH;
-  if (Number.isFinite(geoMinX)) {
+  if (validBboxCount >= 2 && Number.isFinite(geoMinX)) {
     finalMinX = Math.max(geoMinX, pxBboxX - maxExtX);
     finalMinY = Math.max(geoMinY, pxBboxY - maxExtY);
     finalMaxX = Math.min(geoMaxX, pxBboxX + pxBboxW + maxExtX);
@@ -292,12 +341,20 @@ async function tightenViewBoxToVisualBounds(
   const newW = finalMaxX - finalMinX;
   const newH = finalMaxY - finalMinY;
 
+  /* Sanity bail: if the union math collapsed (shouldn't happen but
+     guard so we never set a degenerate viewBox), keep the natural
+     viewBox by returning early. */
+  if (newW <= 0 || newH <= 0) return null;
+
   /* Padding for stroke/anti-alias safety. */
   const pad = Math.min(newW, newH) * VIEWBOX_TRIM_PADDING_FRACTION;
+  const finalW = newW + 2 * pad;
+  const finalH = newH + 2 * pad;
   svg.setAttribute(
     'viewBox',
-    `${newX - pad} ${newY - pad} ${newW + 2 * pad} ${newH + 2 * pad}`,
+    `${newX - pad} ${newY - pad} ${finalW} ${finalH}`,
   );
+  return { width: finalW, height: finalH };
 }
 
 interface RoomProps {
@@ -329,6 +386,13 @@ function Room({
   const animatableRef = React.useRef<SVGGElement[]>([]);
   const [svgLoaded, setSvgLoaded] = React.useState(false);
   const [itemCount, setItemCount] = React.useState(0);
+  /* Card aspect-ratio defaults to 3/2 (landscape isometric room
+     framing) and switches to the SVG's actual trimmed content
+     aspect once the trim completes. The card therefore always
+     hugs its room art edge-to-edge — no internal letterboxing,
+     which is what Hassan was after with "make sure the images are
+     larger to tightly fit the border". */
+  const [cardAspect, setCardAspect] = React.useState<number>(3 / 2);
 
   /* Fetch + inline the SVG once on mount. Set up the initial state
      of each animatable group so it sits offscreen above with 0
@@ -416,7 +480,21 @@ function Room({
 
            Adds a small padding fraction so stroke widths and
            anti-aliased edges don't get clipped at the card frame. */
-        await tightenViewBoxToVisualBounds(svg as SVGSVGElement);
+        const trimmed = await tightenViewBoxToVisualBounds(
+          svg as SVGSVGElement,
+        );
+        if (trimmed && trimmed.width > 0 && trimmed.height > 0) {
+          /* Clamp the dynamic aspect to a sensible band so a wildly
+             portrait or landscape trim result doesn't make this
+             room's card visually dwarf its siblings in the row.
+             Range 1.10–1.80 covers all three current rooms after a
+             healthy trim (isometric room framing tends to land near
+             1.4–1.55) while still letting each card adopt its own
+             natural proportions. */
+          const rawAspect = trimmed.width / trimmed.height;
+          const clamped = Math.max(1.1, Math.min(1.8, rawAspect));
+          setCardAspect(clamped);
+        }
 
         setSvgLoaded(true);
       } catch (err) {
@@ -574,12 +652,10 @@ function Room({
       role="img"
       aria-label={`${label} design ${index + 1} of ${ROOMS.length}: ${alt}`}
       className={cn(
-        /* Bumped from max-w-[300px] lg:max-w-[400px] to give each
-           room significantly more presence on desktop. With 3
-           columns and reduced grid gaps, each cell is now ~440px
-           wide on a 1200px container — the rooms read as the
-           centerpiece of this section instead of small thumbnails. */
-        'mx-auto w-full max-w-[340px] lg:max-w-[480px]',
+        /* Generous max-w so the rooms read as gallery centerpieces
+           rather than thumbnails. Bumped lg cap from 480 → 520 per
+           Hassan's "make sure the images are larger" follow-up. */
+        'mx-auto w-full max-w-[340px] lg:max-w-[520px]',
         'flex flex-col items-center',
       )}
     >
@@ -588,19 +664,23 @@ function Room({
           tight against the image generation"). Walls + floors of
           the room art now sit flush to all four edges of the card.
 
-          aspect-[3/2] matches the actual visual-paint aspect of
-          each isometric room (~1.48 measured via pixel-bbox after
-          the viewBox trim). The room art now fills the card
-          edge-to-edge with no internal whitespace. */}
+          aspect-ratio is set DYNAMICALLY to the SVG's trimmed
+          content aspect (default 3/2, switches once trim resolves).
+          Means each card hugs its room exactly — no internal
+          letterboxing, no whitespace around the art. Different
+          rooms may end up with slightly different card heights
+          (clamped 1.10–1.80) but the row still reads as a unified
+          gallery thanks to the items-center grid alignment. */}
       <div
         className={cn(
           'relative w-full',
-          'aspect-[3/2]',
           'bg-[var(--color-editorial-accent-bg)]',
           'border border-[rgba(43,30,24,0.08)]',
           'shadow-1',
           'overflow-hidden',
+          'transition-[aspect-ratio] duration-300 ease-premium',
         )}
+        style={{ aspectRatio: cardAspect }}
       >
         <div className="absolute inset-0">
         {/* Bronze warm glow beneath the room. Sits at z=0 so the
