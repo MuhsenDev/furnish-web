@@ -160,25 +160,28 @@ function isStatic(groupId: string): boolean {
 async function tightenViewBoxToVisualBounds(
   svg: SVGSVGElement,
 ): Promise<{ width: number; height: number } | null> {
-  /* CRITICAL: wait two animation frames before reading geometry.
-     Hassan reported the rooms render correctly on iOS Safari but
-     come up undersized + missing walls/floors on desktop Chrome.
-     Root cause: when the SVG is inlined via innerHTML and we
-     immediately call getBBox() on its child <g> elements, desktop
-     Chrome often returns 0,0,0,0 (paint/layout hasn't completed).
-     The geometric-bbox union below ends up incomplete (e.g.,
-     missing the static-walls bbox), and the union math then caps
-     the pixel-bbox extension at a stale geo bound — cropping the
-     walls right out of the trimmed viewBox.
+  /* Wait for layout to settle before reading geometry. When the
+     SVG is inlined via innerHTML and getBBox() is called
+     immediately, desktop Chrome often returns 0,0,0,0 (paint/
+     layout hasn't completed) — leading to a stale geometric bbox
+     and over-aggressive cropping. iOS Safari schedules layout
+     aggressively enough that the issue doesn't surface there;
+     hence the cross-browser divergence Hassan reported.
 
-     iOS Safari schedules layout aggressively enough that the
-     synchronous-after-innerHTML getBBox call usually returns real
-     values. Desktop Chrome doesn't, hence the cross-browser
-     divergence. Two RAFs guarantees layout has settled before we
-     query geometry. */
-  await new Promise<void>((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-  );
+     Race two requestAnimationFrames against a 250 ms hard timeout.
+     In a normal (visible) tab the RAFs win in ~32 ms. In a hidden
+     tab, Chrome PAUSES RAF callbacks indefinitely — without the
+     timeout this await would hang forever, the entire trim
+     function would never complete, and setSvgLoaded(true) would
+     never fire. The timeout fallback lets the trim still run with
+     whatever geometry is available; pixel-bbox path is unaffected
+     by this either way. */
+  await Promise.race<void>([
+    new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    ),
+    new Promise<void>((resolve) => window.setTimeout(resolve, 250)),
+  ]);
 
   /* Capture the natural viewBox (after the inline SVG mounts the
      viewBox is already what was in the source file). */
@@ -214,17 +217,30 @@ async function tightenViewBoxToVisualBounds(
 
   let imageBitmap: HTMLImageElement | null = null;
   try {
-    imageBitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      /* crossOrigin='anonymous' is safe here even though the blob
-         is same-origin; it explicitly tells Chrome to treat the
-         image as CORS-clean so getImageData below doesn't taint
-         the canvas in any browser edge case. */
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = (err) => reject(err);
-      img.src = url;
-    });
+    /* IMPORTANT: do NOT set img.crossOrigin = 'anonymous' here.
+       A previous iteration of this code did, intending to defend
+       against canvas taint, but blob URLs don't emit CORS response
+       headers — and Chrome treats `crossOrigin='anonymous'` on a
+       blob URL as a CORS failure that hangs the load (neither
+       onload nor onerror fires reliably). On iOS Safari the load
+       still succeeded, masking the bug locally — that's why the
+       rooms came up correctly there but came up untrimmed on
+       desktop. Same-origin blob URLs don't taint the canvas
+       anyway. Race the load against a 4-second hard timeout so a
+       wedged Image can never block setSvgLoaded(true). */
+    imageBitmap = await Promise.race<HTMLImageElement | null>([
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = (err) => reject(err);
+        img.src = url;
+      }),
+      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 4000)),
+    ]);
+    if (!imageBitmap) {
+      URL.revokeObjectURL(url);
+      return null;
+    }
   } catch (_) {
     URL.revokeObjectURL(url);
     return null;
@@ -480,19 +496,31 @@ function Room({
 
            Adds a small padding fraction so stroke widths and
            anti-aliased edges don't get clipped at the card frame. */
-        const trimmed = await tightenViewBoxToVisualBounds(
-          svg as SVGSVGElement,
-        );
+        /* Trim is best-effort: if it throws or times out we fall
+           back to the natural viewBox + the default 3/2 card
+           aspect. Critically we ALWAYS reach setSvgLoaded(true)
+           below so the entry/cycle effects can run regardless. */
+        let trimmed: { width: number; height: number } | null = null;
+        try {
+          trimmed = await tightenViewBoxToVisualBounds(
+            svg as SVGSVGElement,
+          );
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('[RoomShowcase] trim threw, using natural viewBox', src, err);
+        }
         if (trimmed && trimmed.width > 0 && trimmed.height > 0) {
           /* Clamp the dynamic aspect to a sensible band so a wildly
              portrait or landscape trim result doesn't make this
              room's card visually dwarf its siblings in the row.
-             Range 1.10–1.80 covers all three current rooms after a
-             healthy trim (isometric room framing tends to land near
-             1.4–1.55) while still letting each card adopt its own
-             natural proportions. */
+             Range 0.85–1.80 lets a portrait-leaning room (2.svg,
+             living-room scene with a couch + standing figure
+             trimmed to ~0.92) keep its natural shape rather than
+             being padded out to 1.10 with horizontal whitespace.
+             items-center on the parent grid keeps the row visually
+             balanced even when card heights differ. */
           const rawAspect = trimmed.width / trimmed.height;
-          const clamped = Math.max(1.1, Math.min(1.8, rawAspect));
+          const clamped = Math.max(0.85, Math.min(1.8, rawAspect));
           setCardAspect(clamped);
         }
 
@@ -678,8 +706,14 @@ function Room({
           'border border-[rgba(43,30,24,0.08)]',
           'shadow-1',
           'overflow-hidden',
-          'transition-[aspect-ratio] duration-300 ease-premium',
         )}
+        /* aspect-ratio is set ONCE per room (default 3/2 → trimmed
+           value after the first paint). No transition: it's a
+           one-time snap on mount, and adding `transition-[aspect-
+           ratio]` was causing the new value to never visually
+           apply in environments where requestAnimationFrame is
+           paused (e.g., a backgrounded tab, where the transition
+           sits frozen at its start frame). */
         style={{ aspectRatio: cardAspect }}
       >
         <div className="absolute inset-0">
