@@ -36,7 +36,7 @@ data is attached to these measurements.
 app launches, it will collect the photos you upload, the designs
 the AI generates, and account information you provide (email,
 sign-in provider, style preferences). Photos uploaded for redesign
-will be auto-deleted from our servers 30 days after the redesign
+will be auto-deleted from our servers 7 days after the redesign
 completes. We will update this Privacy Policy with the full
 details before the app is released.
 

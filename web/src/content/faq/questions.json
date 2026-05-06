@@ -45,7 +45,7 @@
         {
           "id": "what-ai-powers-furnish",
           "question": "What AI powers Furnish?",
-          "answer": "Furnish uses Google's Gemini family of models for the redesign step plus a controlled vocabulary of style, vibe, and density tags that we built ourselves. The model never sees your photo without those guardrails.",
+          "answer": "Furnish uses Google's image generation AI for the redesign step plus a controlled vocabulary of style, vibe, and density tags that we built ourselves. The model never sees your photo without those guardrails.",
           "showOnPages": ["/faq", "/how-it-works"]
         },
         {
@@ -119,7 +119,7 @@
         {
           "id": "what-happens-to-my-photo",
           "question": "What happens to my photo?",
-          "answer": "Your photo is uploaded over HTTPS to generate the redesign. The original photo auto-deletes from our servers 30 days after the redesign completes. The redesigned image stays in your account so you can shop later.",
+          "answer": "Your photo is uploaded over HTTPS to generate the redesign. The original photo auto-deletes from our servers 7 days after the redesign completes. The redesigned image stays in your account so you can shop later.",
           "showOnPages": ["/faq", "/how-it-works"]
         },
         {
@@ -143,7 +143,7 @@
         {
           "id": "can-i-delete-my-data",
           "question": "Can I delete my data?",
-          "answer": "Yes. Delete your account from Settings inside the app. Your photos, rooms, and preferences are removed within 30 days. We also support GDPR and CCPA data export and deletion requests by email at hello@furnish.live.",
+          "answer": "Yes. Delete your account from Settings inside the app. Your photos, rooms, and preferences are removed within 7 days. We also support GDPR and CCPA data export and deletion requests by email at hello@furnish.live.",
           "showOnPages": ["/faq"]
         }
       ]
@@ -211,7 +211,7 @@
         {
           "id": "how-much-storage",
           "question": "How much storage does the app use?",
-          "answer": "Roughly 80 to 120 MB depending on how many rooms you save. We aggressively cache only what you use and clear out anything older than 30 days unless you have explicitly saved it.",
+          "answer": "Roughly 80 to 120 MB depending on how many rooms you save. We aggressively cache only what you use and clear out anything older than 7 days unless you have explicitly saved it.",
           "showOnPages": ["/faq"]
         },
         {
