@@ -64,8 +64,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/images/og/og-default.jpg',
-        width: 1200,
-        height: 630,
+        width: 1050,
+        height: 600,
         alt: 'Furnish, AI redesigns any room from a photo',
       },
     ],
@@ -74,6 +74,28 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Furnish',
     description: 'Take a photo. Furnish does the rest.',
+    images: [
+      {
+        url: '/images/og/og-default.jpg',
+        width: 1050,
+        height: 600,
+        alt: 'Furnish, AI redesigns any room from a photo',
+      },
+    ],
+  },
+  /* Favicon + tab icon variants. /icon.svg is the primary
+     (modern browsers render the SVG sharply at any size). PNG
+     fallbacks at 16×16 and 32×32 for older browsers that don't
+     do SVG favicons. apple-touch-icon at 180×180 PNG for iOS
+     home-screen shortcuts (iOS specifically prefers PNG here). */
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    shortcut: { url: '/icon.svg', type: 'image/svg+xml' },
   },
   robots: { index: true, follow: true },
 };

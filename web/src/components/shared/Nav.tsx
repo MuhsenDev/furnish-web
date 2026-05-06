@@ -17,6 +17,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Menu as MenuIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -38,12 +39,35 @@ export function Nav() {
       >
         <Container width="default">
           <div className="flex h-16 items-center justify-between sm:h-20">
+            {/* Logo + wordmark. Logo always visible; wordmark
+                hides on the smallest viewports so the right-side
+                Menu/CTA cluster doesn't collide with it on a 320px
+                iPhone SE. From sm: up the wordmark appears next to
+                the logo in display serif. */}
             <Link
               href="/"
               aria-label={t('nav', 'logoAriaLabel')}
-              className="font-display text-2xl tracking-display-tight text-deep sm:text-3xl"
+              className="flex items-center gap-2"
             >
-              Furnish
+              <Image
+                src="/icon.svg"
+                alt=""
+                width={32}
+                height={32}
+                priority
+                className="h-6 w-6 sm:h-8 sm:w-8"
+              />
+              <span
+                className={cn(
+                  'font-display tracking-display-tight text-deep',
+                  /* Wordmark hidden below sm so the logo-only state
+                     keeps the bar uncluttered on narrow phones. */
+                  'hidden sm:inline',
+                  'text-2xl sm:text-3xl',
+                )}
+              >
+                Furnish
+              </span>
             </Link>
 
             <div className="flex items-center gap-3 sm:gap-5">
