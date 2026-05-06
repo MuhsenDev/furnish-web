@@ -118,8 +118,11 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="waitlist-modal-title"
+      /* z-index needs to sit above MenuTakeover (z-[9000]) and the
+         gallery lightbox (z-[9100]) so the modal stays on top when
+         a CTA inside one of those overlays opens it. */
       className={cn(
-        'fixed inset-0 z-50',
+        'fixed inset-0 z-[9200]',
         'flex items-center justify-center',
         'p-4',
       )}

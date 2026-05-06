@@ -32,6 +32,14 @@ import {
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 
+/* CardCaption uses text-muted (#8A7760) for the meta line, which on
+   a cream/beige background washes out — Hassan flagged the
+   "Living Room / Contemporary" line as barely readable. We render
+   the caption inline here instead so we can use text-ink/80 for the
+   meta line, giving real contrast while still feeling subdued
+   relative to the title. CardCaption stays unchanged for other
+   surfaces that genuinely want a faint meta line. */
+
 export interface GalleryTileProps {
   /** All curated images for this room. The cycler walks this array. */
   images: GalleryImage[];
@@ -139,11 +147,14 @@ export function GalleryTile({
         </span>
       </button>
 
-      <CardCaption
-        title={ROOM_LABELS[current.roomType]}
-        meta={STYLE_LABELS[current.style]}
-        className="pb-1"
-      />
+      <div className="px-1 pt-3 pb-1">
+        <p className="text-body-l font-semibold leading-tight text-deep">
+          {ROOM_LABELS[current.roomType]}
+        </p>
+        <p className="mt-1 text-body-s leading-caption text-ink/80">
+          {STYLE_LABELS[current.style]}
+        </p>
+      </div>
 
       <p className="mt-1 px-1 text-body-s font-semibold text-[var(--color-accent)]">
         {t('gallery', 'tileDesignedIn')}

@@ -78,7 +78,10 @@ export function StyleCycler({
       <span
         aria-live="polite"
         className={cn(
-          'min-w-[3.5rem] text-center font-semibold text-ink',
+          /* text-deep (brand near-black) for clear contrast against
+             the cream/beige tile bg. Previously used text-ink which
+             read as faint on the warm card surface. */
+          'min-w-[3.5rem] text-center font-semibold text-deep',
           size === 'sm' ? 'text-body-s' : 'text-body-m',
         )}
       >

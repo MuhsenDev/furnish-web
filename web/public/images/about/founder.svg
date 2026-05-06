@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Anonymous-founder silhouette. Replaces the previous photo of
+  Hassan on the About page. Black hand-drawn-style head with a
+  white question mark on the face, on a flat white background.
+  Hassan asked for the photo of him to come down; this is the
+  stand-in placeholder until he supplies a different image.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Anonymous silhouette placeholder for the Furnish founder">
+  <rect x="0" y="0" width="720" height="960" fill="#FFFFFF"/>
+  <!-- Head silhouette: an asymmetric, hand-drawn organic shape rather than a perfect ellipse, to match the rough sketch feel of the source. -->
+  <path
+    d="M 360 60
+       C 510 60 612 200 624 360
+       C 632 470 600 580 588 660
+       C 580 720 590 800 600 880
+       C 605 920 580 950 540 940
+       C 460 920 360 920 280 940
+       C 220 950 180 920 180 880
+       C 180 800 196 720 188 660
+       C 176 580 144 470 152 360
+       C 164 200 266 60 360 60 Z"
+    fill="#0E0E0E"
+  />
+  <!-- White question mark on the face, centered. -->
+  <text
+    x="360"
+    y="540"
+    font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    font-size="320"
+    font-weight="600"
+    fill="#FFFFFF"
+    text-anchor="middle"
+    dominant-baseline="middle"
+  >?</text>
+</svg>

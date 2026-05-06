@@ -81,7 +81,14 @@ export function CardCaption({
         </p>
       )}
       {meta && (
-        <p className="mt-1 text-body-s leading-caption text-muted">{meta}</p>
+        /* Meta line was previously text-muted (#8A7760), which on a
+           cream/beige card surface read as washed-out — Hassan
+           flagged "Living Room / Contemporary / Designed in 8s" on
+           the gallery as barely readable. text-ink at 70% opacity
+           keeps the line subordinate to the title without sacrificing
+           legibility. Affects gallery, blog index, related posts,
+           home gallery preview consistently. */
+        <p className="mt-1 text-body-s leading-caption text-ink/70">{meta}</p>
       )}
     </div>
   );

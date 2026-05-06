@@ -30,7 +30,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/Container';
 import { LottieAsset } from '@/components/shared/LottieAsset';
-import { WaitlistModal } from '@/components/shared/WaitlistModal';
+import { useWaitlist } from '@/components/shared/WaitlistContext';
 import { useHeroSequence } from '@/lib/motion';
 import { t } from '@/lib/i18n';
 import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
@@ -54,7 +54,7 @@ const secondaryCtaClasses = cn(
 
 export function Hero() {
   const heroRef = useHeroSequence<HTMLElement>();
-  const [waitlistOpen, setWaitlistOpen] = React.useState(false);
+  const { open: openWaitlist } = useWaitlist();
 
   /* Stagger the secondary Lottie elements (mirrored second hand,
      walking legs) so they mount AFTER the first hand wave has had
@@ -166,7 +166,7 @@ export function Hero() {
                   data-hero-cta-primary
                   onClick={() => {
                     track('home_hero_cta_click', { cta_text: 'waitlist' });
-                    setWaitlistOpen(true);
+                    openWaitlist();
                   }}
                   className={primaryCtaClasses}
                 >
@@ -441,15 +441,9 @@ export function Hero() {
         </div>
       </Container>
 
-      {/* Waitlist modal. Mounted always (when pre-launch); the
-          component returns null when `open` is false so it's free
-          when not displayed. */}
-      {!APP_LAUNCHED && (
-        <WaitlistModal
-          open={waitlistOpen}
-          onClose={() => setWaitlistOpen(false)}
-        />
-      )}
+      {/* Waitlist modal lives at the layout level via
+          WaitlistProvider — Hero just calls openWaitlist() when
+          the primary CTA is clicked. No local modal mount needed. */}
     </section>
   );
 }

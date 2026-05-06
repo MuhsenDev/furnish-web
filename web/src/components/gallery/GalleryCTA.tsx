@@ -11,6 +11,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/Container';
+import { useWaitlist } from '@/components/shared/WaitlistContext';
 import { useScrollReveal } from '@/lib/motion';
 import { t } from '@/lib/i18n';
 import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
@@ -37,6 +38,7 @@ export function GalleryCTA() {
     yOffset: 30,
     stagger: 0.1,
   });
+  const { open: openWaitlist } = useWaitlist();
 
   const ctaText = APP_LAUNCHED
     ? t('common', 'ctaAppStore')
@@ -82,13 +84,16 @@ export function GalleryCTA() {
               {ctaText}
             </Link>
           ) : (
-            <Link
-              href={ctaHref}
-              onClick={() => track('cta_click', { location: 'gallery_cta', target: 'waitlist' })}
+            <button
+              type="button"
+              onClick={() => {
+                track('cta_click', { location: 'gallery_cta', target: 'waitlist' });
+                openWaitlist();
+              }}
               className={primaryCtaClasses}
             >
               {ctaText}
-            </Link>
+            </button>
           )}
           <Link
             href="/how-it-works"

@@ -26,6 +26,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
 import { Container } from '@/components/Container';
+import { useWaitlist } from '@/components/shared/WaitlistContext';
 import { useScrollReveal } from '@/lib/motion';
 import { useInView } from '@/lib/use-in-view';
 import { t } from '@/lib/i18n';
@@ -148,6 +149,7 @@ export function ComparisonTable() {
     [revealRef, viewRef],
   );
 
+  const { open: openWaitlist } = useWaitlist();
   const ctaText = APP_LAUNCHED
     ? t('common', 'ctaAppStore')
     : t('common', 'ctaWaitlist');
@@ -308,20 +310,36 @@ export function ComparisonTable() {
         </div>
 
         <div className="mt-section-y-tight" data-reveal>
-          <Link
-            href={ctaHref}
-            target={APP_LAUNCHED ? '_blank' : undefined}
-            rel={APP_LAUNCHED ? 'noopener noreferrer' : undefined}
-            onClick={() =>
-              track('home_hero_cta_click', {
-                cta_text: APP_LAUNCHED ? 'app_store' : 'waitlist',
-                location: 'comparison_table',
-              })
-            }
-            className={primaryCtaLargeClasses}
-          >
-            {ctaText}
-          </Link>
+          {APP_LAUNCHED ? (
+            <Link
+              href={ctaHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() =>
+                track('home_hero_cta_click', {
+                  cta_text: 'app_store',
+                  location: 'comparison_table',
+                })
+              }
+              className={primaryCtaLargeClasses}
+            >
+              {ctaText}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                track('home_hero_cta_click', {
+                  cta_text: 'waitlist',
+                  location: 'comparison_table',
+                });
+                openWaitlist();
+              }}
+              className={primaryCtaLargeClasses}
+            >
+              {ctaText}
+            </button>
+          )}
         </div>
       </Container>
     </section>

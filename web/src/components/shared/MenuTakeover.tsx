@@ -161,8 +161,10 @@ export function MenuTakeover({ open, onClose }: MenuTakeoverProps) {
           </ul>
         </nav>
 
+        {/* Close the menu BEFORE opening the waitlist modal so the
+            modal isn't visually underneath the full-screen menu. */}
         <div className="mt-auto pt-6">
-          <NavCTA location="menu" />
+          <NavCTA location="menu" onClick={onClose} />
         </div>
       </div>
     </div>

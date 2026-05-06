@@ -24,6 +24,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/Container';
 import { EmailWaitlist } from '@/components/shared/EmailWaitlist';
+import { useWaitlist } from '@/components/shared/WaitlistContext';
 import { useScrollReveal } from '@/lib/motion';
 import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
@@ -45,6 +46,7 @@ export function FinalCTA() {
     yOffset: 30,
     stagger: 0.15,
   });
+  const { open: openWaitlist } = useWaitlist();
 
   const ctaText = APP_LAUNCHED
     ? t('common', 'ctaAppStore')
@@ -136,15 +138,16 @@ export function FinalCTA() {
                 {ctaText}
               </Link>
             ) : (
-              <a
-                href={ctaHref}
-                onClick={() =>
-                  track('home_final_cta_click', { cta_text: 'waitlist' })
-                }
+              <button
+                type="button"
+                onClick={() => {
+                  track('home_final_cta_click', { cta_text: 'waitlist' });
+                  openWaitlist();
+                }}
                 className={finalCtaButtonClasses}
               >
                 {ctaText}
-              </a>
+              </button>
             )}
           </div>
 

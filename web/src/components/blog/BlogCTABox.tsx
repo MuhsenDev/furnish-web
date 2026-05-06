@@ -12,6 +12,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/Container';
+import { useWaitlist } from '@/components/shared/WaitlistContext';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
@@ -39,6 +40,7 @@ const secondaryCtaClasses = cn(
 );
 
 export function BlogCTABox({ postSlug, className }: BlogCTABoxProps) {
+  const { open: openWaitlist } = useWaitlist();
   const ctaText = APP_LAUNCHED
     ? t('common', 'ctaAppStore')
     : t('common', 'ctaWaitlist');
@@ -85,18 +87,19 @@ export function BlogCTABox({ postSlug, className }: BlogCTABoxProps) {
               {ctaText}
             </Link>
           ) : (
-            <Link
-              href={ctaHref}
-              onClick={() =>
+            <button
+              type="button"
+              onClick={() => {
                 track('blog_cta_click', {
                   target: 'waitlist',
                   ...(postSlug ? { post: postSlug } : {}),
-                })
-              }
+                });
+                openWaitlist();
+              }}
               className={primaryCtaClasses}
             >
               {ctaText}
-            </Link>
+            </button>
           )}
           <Link
             href="/how-it-works"

@@ -9,6 +9,8 @@
   "filterClear": "Clear filters",
   "filterRoomLabel": "Filter by room",
   "filterStyleLabel": "Filter by style",
+  "filterRoomEyebrow": "Room",
+  "filterStyleEyebrow": "Style",
 
   "cyclerPrevAria": "Previous style",
   "cyclerNextAria": "Next style",

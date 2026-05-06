@@ -1,19 +1,24 @@
 'use client';
 
 /*
-  Gallery filter system per Document 6 Section 3.7.
+  Gallery filter system per Document 6 §3.7.
 
-  Two filter rows: room type and style. Pills horizontal-scroll on
-  mobile, wrap on desktop. Active filter has accent-color background
-  with cream text. Inactive has page-bg with ink text + 1px subtle
-  border.
+  Redesigned 2026-05-05 per Hassan's feedback that the previous
+  rounded-pill stack "looked odd". The previous design had two rows
+  of bulky filled pills (rounded-full, px-5 py-2.5, accent fill on
+  active) which felt like form chrome rather than editorial filters.
 
-  Combined filters yield a single image (handled in GalleryGrid via
-  the filter state passed up).
-
-  Reset button always visible when any filter is active.
-
-  Mobile sticky-to-top so user can re-filter without scrolling back.
+  New layout:
+    - Each row leads with an eyebrow-style category label ("Room" /
+      "Style") so the user can see at a glance what each row filters.
+    - Chips are low-chrome: text-only at rest, subtle accent tint
+      (accent-color text + 8% accent background) when active. Tighter
+      padding (px-3 py-1.5) and rounded-sm corners instead of the
+      former rounded-full.
+    - Mobile: still horizontal-scroll. Desktop: wraps. Eyebrow stacks
+      above the chip rail on small screens to save horizontal space.
+    - Sticky-to-top behavior unchanged so the user can refilter from
+      anywhere on the page.
 */
 
 import * as React from 'react';
@@ -39,29 +44,65 @@ export interface GalleryFiltersProps {
   onClear: () => void;
 }
 
-const pillBase = cn(
+const chipBase = cn(
   'shrink-0 inline-flex items-center justify-center',
-  'rounded-full px-5 py-2.5 text-body-s font-semibold',
-  'transition-all duration-300 ease-premium',
+  'rounded-sm px-3 py-1.5 text-body-s font-semibold',
+  'transition-colors duration-200 ease-premium',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
   'focus-visible:ring-offset-2 focus-visible:ring-offset-cream',
 );
 
-const pillActive = cn(
-  'bg-[var(--color-accent)] text-cream',
-  'border border-[var(--color-accent)]',
-  'shadow-1',
+const chipActive = cn(
+  /* Active = accent text on a soft accent tint. No heavy border or
+     full-fill: feels editorial, not form-control. */
+  'bg-[var(--color-accent)]/[0.10] text-[var(--color-accent)]',
 );
 
-const pillInactive = cn(
-  'bg-surface text-ink',
-  'border border-[rgba(43,30,24,0.16)]',
-  /* Inactive hover: warm tint background, accent border, deeper
-     text. More visual feedback than just a slightly darker border. */
-  'hover:border-[var(--color-accent)]/50',
-  'hover:bg-[var(--color-accent)]/[0.06]',
-  'hover:text-deep',
+const chipInactive = cn(
+  /* Inactive = subdued text. Hover reveals warm beige bg + deeper
+     text so the affordance is unambiguous. */
+  'text-ink/70 hover:text-deep',
+  'hover:bg-[rgba(43,30,24,0.05)]',
 );
+
+interface FilterRowProps {
+  eyebrow: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+}
+
+/* One filter row = eyebrow label + horizontal chip rail. Stacks on
+   mobile, lays out side-by-side on sm+ screens. */
+function FilterRow({ eyebrow, ariaLabel, children }: FilterRowProps) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-1.5',
+        'sm:flex-row sm:items-center sm:gap-4',
+      )}
+    >
+      <span
+        className={cn(
+          'eyebrow shrink-0 text-muted',
+          'sm:min-w-[56px]',
+        )}
+      >
+        {eyebrow}
+      </span>
+      <div
+        role="group"
+        aria-label={ariaLabel}
+        className={cn(
+          'flex min-w-0 flex-1 gap-1 overflow-x-auto pb-0.5',
+          'sm:flex-wrap sm:overflow-visible sm:pb-0',
+          '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function GalleryFilters({
   selectedRoom,
@@ -96,98 +137,88 @@ export function GalleryFilters({
     <div
       className={cn(
         'sticky top-16 z-20 sm:top-20',
-        'border-b border-[rgba(43,30,24,0.06)]',
+        'border-b border-[rgba(43,30,24,0.08)]',
         'bg-cream/85 backdrop-blur-md',
-        'py-4',
+        'py-4 sm:py-5',
       )}
     >
       <Container width="default">
-        {/* Room filter row */}
-        <div
-          aria-label={t('gallery', 'filterRoomLabel')}
-          role="group"
-          className={cn(
-            'flex gap-2 overflow-x-auto pb-1',
-            'sm:flex-wrap sm:overflow-visible',
-            '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          )}
-        >
-          <button
-            type="button"
-            onClick={() => handleRoomClick(null)}
-            className={cn(
-              pillBase,
-              selectedRoom == null ? pillActive : pillInactive,
-            )}
+        <div className="flex flex-col gap-3 sm:gap-3.5">
+          <FilterRow
+            eyebrow={t('gallery', 'filterRoomEyebrow')}
+            ariaLabel={t('gallery', 'filterRoomLabel')}
           >
-            {t('gallery', 'filterAllRooms')}
-          </button>
-          {ALL_ROOMS.map((room) => (
             <button
-              key={room}
               type="button"
-              onClick={() => handleRoomClick(room)}
+              onClick={() => handleRoomClick(null)}
               className={cn(
-                pillBase,
-                selectedRoom === room ? pillActive : pillInactive,
+                chipBase,
+                selectedRoom == null ? chipActive : chipInactive,
               )}
             >
-              {ROOM_LABELS[room]}
+              {t('gallery', 'filterAllRooms')}
             </button>
-          ))}
-        </div>
+            {ALL_ROOMS.map((room) => (
+              <button
+                key={room}
+                type="button"
+                onClick={() => handleRoomClick(room)}
+                className={cn(
+                  chipBase,
+                  selectedRoom === room ? chipActive : chipInactive,
+                )}
+              >
+                {ROOM_LABELS[room]}
+              </button>
+            ))}
+          </FilterRow>
 
-        {/* Style filter row */}
-        <div
-          aria-label={t('gallery', 'filterStyleLabel')}
-          role="group"
-          className={cn(
-            'mt-3 flex gap-2 overflow-x-auto pb-1',
-            'sm:flex-wrap sm:overflow-visible',
-            '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          )}
-        >
-          <button
-            type="button"
-            onClick={() => handleStyleClick(null)}
-            className={cn(
-              pillBase,
-              selectedStyle == null ? pillActive : pillInactive,
-            )}
+          <FilterRow
+            eyebrow={t('gallery', 'filterStyleEyebrow')}
+            ariaLabel={t('gallery', 'filterStyleLabel')}
           >
-            {t('gallery', 'filterAllStyles')}
-          </button>
-          {styles.map((style) => (
             <button
-              key={style}
               type="button"
-              onClick={() => handleStyleClick(style)}
+              onClick={() => handleStyleClick(null)}
               className={cn(
-                pillBase,
-                selectedStyle === style ? pillActive : pillInactive,
+                chipBase,
+                selectedStyle == null ? chipActive : chipInactive,
               )}
             >
-              {STYLE_LABELS[style]}
+              {t('gallery', 'filterAllStyles')}
             </button>
-          ))}
-        </div>
+            {styles.map((style) => (
+              <button
+                key={style}
+                type="button"
+                onClick={() => handleStyleClick(style)}
+                className={cn(
+                  chipBase,
+                  selectedStyle === style ? chipActive : chipInactive,
+                )}
+              >
+                {STYLE_LABELS[style]}
+              </button>
+            ))}
+          </FilterRow>
 
-        {hasActiveFilter && (
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={handleClear}
-              className={cn(
-                'inline-flex items-center gap-1.5',
-                'text-body-s font-semibold text-[var(--color-accent)]',
-                'hover:underline underline-offset-4',
-              )}
-            >
-              <X size={14} strokeWidth={1.75} />
-              {t('gallery', 'filterClear')}
-            </button>
-          </div>
-        )}
+          {hasActiveFilter && (
+            <div>
+              <button
+                type="button"
+                onClick={handleClear}
+                className={cn(
+                  'inline-flex items-center gap-1.5',
+                  'text-body-s font-semibold text-[var(--color-accent)]',
+                  'hover:underline underline-offset-4',
+                )}
+              >
+                <X size={14} strokeWidth={1.75} />
+                {t('gallery', 'filterClear')}
+              </button>
+            </div>
+          )}
+        </div>
       </Container>
     </div>
   );

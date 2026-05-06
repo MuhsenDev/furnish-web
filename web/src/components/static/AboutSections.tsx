@@ -10,11 +10,11 @@
   The HowWeMakeMoney section anchors with id="how-we-make-money" so
   the FTC disclosure on every blog post links directly to it.
 
-  Founder photo state: PHOTO_AVAILABLE constant is read from a
-  build-time check. When true, the photo renders; when false, the
-  layout collapses to text-only without a placeholder image. Hassan
-  drops a photo at public/images/about/founder.jpg and toggles the
-  constant when ready.
+  Founder image: replaced the photo of Hassan with an anonymous
+  silhouette SVG (black head + white question mark). Hassan asked
+  to take the photo down. If/when he supplies a different image,
+  drop it at public/images/about/founder.{jpg,png,svg} and update
+  FOUNDER_PHOTO_SRC.
 */
 
 import * as React from 'react';
@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 
 /* Toggle to true once Hassan supplies the founder photo. */
 const PHOTO_AVAILABLE = true;
-const FOUNDER_PHOTO_SRC = '/images/about/founder.jpg';
+const FOUNDER_PHOTO_SRC = '/images/about/founder.svg';
 
 /* ---- AboutHero ---- */
 

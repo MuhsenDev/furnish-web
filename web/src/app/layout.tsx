@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import '../styles/globals.css';
 import { Nav } from '@/components/shared/Nav';
 import { Footer } from '@/components/shared/Footer';
+import { WaitlistProvider } from '@/components/shared/WaitlistContext';
 import { t } from '@/lib/i18n';
 
 /*
@@ -117,11 +118,17 @@ export default function RootLayout({
         <a href="#main" className="skip-to-content">
           {t('common', 'skipToContent')}
         </a>
-        <Nav />
-        <main id="main" className="flex-1">
-          {children}
-        </main>
-        <Footer />
+        {/* WaitlistProvider mounts the modal once at root and
+            exposes openWaitlist() to every CTA on the site (nav
+            pill, mobile menu, hero, gallery, blog, final CTA,
+            comparison table). One modal, many triggers. */}
+        <WaitlistProvider>
+          <Nav />
+          <main id="main" className="flex-1">
+            {children}
+          </main>
+          <Footer />
+        </WaitlistProvider>
         <Analytics />
         <SpeedInsights />
       </body>

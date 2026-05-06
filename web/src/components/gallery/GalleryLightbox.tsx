@@ -196,10 +196,17 @@ export function GalleryLightbox({
       aria-modal="true"
       aria-labelledby="lightbox-title"
       onClick={handleBackdropClick}
+      /* Backdrop combines a moderate dark tint with a strong frosted
+         blur so the entire page recedes — Hassan asked that opening
+         a gallery image should "blur out the entire background and
+         only show the image and caption". A plain dark overlay
+         wasn't enough; backdrop-blur-2xl (40px Gaussian) fully
+         abstracts the underlying grid while bg-ink/55 keeps the
+         lightbox image popping against the haze. */
       className={cn(
         'fixed inset-0 z-[9100]',
         'flex items-center justify-center',
-        'bg-deep/80',
+        'bg-ink/55 backdrop-blur-2xl',
         'p-4 sm:p-8',
       )}
       style={{ opacity: 0 }}
