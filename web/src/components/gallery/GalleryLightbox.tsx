@@ -196,22 +196,25 @@ export function GalleryLightbox({
       aria-modal="true"
       aria-labelledby="lightbox-title"
       onClick={handleBackdropClick}
-      /* Backdrop combines a strong dark tint with a heavy frosted
-         blur. The previous bg-ink/55 was too light below the
-         image — the cream caption was bleeding into the blurred
-         cream/beige page underneath, making "Home Office ·
-         Industrial / Designed in 8 seconds / 1 of 4" essentially
-         unreadable (Hassan flagged it directly). Bumped to
-         bg-ink/80 so cream text reads cleanly anywhere on the
-         backdrop. backdrop-blur-2xl preserves the "blur out the
-         entire background" feel Hassan liked. */
+      /* Backdrop = dark overlay + heavy frosted blur. Background
+         color is set via inline style with literal RGBA rather
+         than Tailwind's `bg-ink/80` opacity modifier — the modifier
+         composes via color-mix() against a CSS-variable color, and
+         on some GPUs / browsers the resulting backdrop rendered
+         lighter than expected (Hassan saw the caption area as a
+         near-cream wash even with bg-ink/80 deployed). Inline
+         RGBA guarantees the literal alpha-blended color regardless
+         of Tailwind's composition path. */
       className={cn(
         'fixed inset-0 z-[9100]',
         'flex items-center justify-center',
-        'bg-ink/80 backdrop-blur-2xl',
+        'backdrop-blur-2xl',
         'p-4 sm:p-8',
       )}
-      style={{ opacity: 0 }}
+      style={{
+        opacity: 0,
+        backgroundColor: 'rgba(43, 30, 24, 0.85)',
+      }}
     >
       <button
         ref={closeBtnRef}
@@ -256,22 +259,36 @@ export function GalleryLightbox({
           )}
         </div>
 
-        <div className="text-center text-cream">
+        {/* Caption pill — self-contained dark container so the
+            text is readable regardless of what the lightbox
+            backdrop renders as on any given GPU/browser. The
+            previous free-floating cream text against the (variably
+            lit) backdrop was unreadable for Hassan despite a
+            dark-overlay bump (the image's outer shadow + the
+            backdrop-blur composition lightened the area below the
+            image enough that cream text disappeared into it).
+            Pill carries its own dark surface; cream text on it
+            stays sharp regardless. */}
+        <div
+          className={cn(
+            'rounded-sm',
+            'px-6 py-4 sm:px-8 sm:py-5',
+            'text-center max-w-2xl',
+          )}
+          style={{
+            backgroundColor: 'rgba(43, 30, 24, 0.85)',
+          }}
+        >
           <p
             id="lightbox-title"
             className="text-body-xl font-semibold text-cream"
           >
             {ROOM_LABELS[image.roomType]} · {STYLE_LABELS[image.style]}
           </p>
-          {/* Description was text-cream/85 — too thin against the
-              backdrop. Full cream + medium weight reads cleanly. */}
-          <p className="mt-2 max-w-2xl text-body-m font-medium text-cream">
+          <p className="mt-2 text-body-m font-medium text-cream">
             {image.description}
           </p>
-          {/* "Designed in 8 seconds" microcopy used a custom tan that
-              washed out on the dark+blur backdrop. Light-tan via
-              cream/80 reads as subordinate but still legible. */}
-          <p className="mt-2 text-body-s text-cream/80">
+          <p className="mt-2 text-body-s text-cream/75">
             {t('gallery', 'lightboxDesignedIn')}
           </p>
         </div>
