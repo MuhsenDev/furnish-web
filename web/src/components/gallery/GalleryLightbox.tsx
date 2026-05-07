@@ -204,10 +204,20 @@ export function GalleryLightbox({
          lighter than expected (Hassan saw the caption area as a
          near-cream wash even with bg-ink/80 deployed). Inline
          RGBA guarantees the literal alpha-blended color regardless
-         of Tailwind's composition path. */
+         of Tailwind's composition path.
+
+         Layout: items-start + overflow-y-auto + my-auto on the
+         inner stack. Content is centered when it fits (my-auto
+         pulls equal margins top/bottom in the flex column), and
+         scrolls cleanly when it doesn't. The previous
+         items-center + no-overflow combo was clipping the
+         Previous/Next nav row at the bottom of the viewport on
+         shorter screens (Hassan flagged: the nav was just below
+         the visible area). */
       className={cn(
         'fixed inset-0 z-[9100]',
-        'flex items-center justify-center',
+        'flex flex-col items-center',
+        'overflow-y-auto',
         'backdrop-blur-2xl',
         'p-4 sm:p-8',
       )}
@@ -221,8 +231,14 @@ export function GalleryLightbox({
         type="button"
         onClick={onClose}
         aria-label={t('gallery', 'lightboxCloseAria')}
+        /* Close button uses `fixed` (not `absolute`) so it stays
+           pinned to the viewport top-right even when the backdrop
+           scrolls — `position: absolute` inside an `overflow-y:
+           auto` container would scroll the close button along with
+           the content. z-[9101] sits above the backdrop's z-[9100]
+           so the button is always reachable. */
         className={cn(
-          'absolute top-4 right-4 sm:top-6 sm:right-6',
+          'fixed top-4 right-4 sm:top-6 sm:right-6 z-[9101]',
           'inline-flex h-10 w-10 items-center justify-center',
           'rounded-full bg-cream/95 text-deep',
           'shadow-2',
@@ -233,12 +249,18 @@ export function GalleryLightbox({
         <X size={20} strokeWidth={1.75} />
       </button>
 
-      <div className="flex w-full max-w-5xl flex-col items-center gap-6">
+      <div className="flex w-full max-w-5xl flex-col items-center gap-5 my-auto">
         <div
           ref={imageRef}
           className={cn(
             'relative w-full overflow-hidden rounded-[var(--radius)]',
-            'aspect-[4/3] max-h-[80vh]',
+            /* max-h reduced from 80vh to 65vh so the caption pill
+               (≈120px) and Previous/Next nav (~40px) below the
+               image always fit on a typical viewport without
+               clipping. Caller can still scroll if the screen is
+               unusually short — overflow-y-auto on the backdrop
+               handles that fallback. */
+            'aspect-[4/3] max-h-[65vh]',
             'shadow-3',
           )}
         >
