@@ -46,23 +46,36 @@ export interface GalleryFiltersProps {
 
 const chipBase = cn(
   'shrink-0 inline-flex items-center justify-center',
-  'rounded-sm px-3 py-1.5 text-body-s font-semibold',
+  'rounded-sm px-3.5 py-2 text-body-s font-semibold',
+  /* Every chip carries a 1px border so it reads as a real button
+     at rest, not as flat text. The previous low-chrome version
+     dropped the border entirely and Hassan said the labels read
+     as plain text — adding a visible boundary back. */
+  'border',
   'transition-colors duration-200 ease-premium',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
   'focus-visible:ring-offset-2 focus-visible:ring-offset-cream',
 );
 
 const chipActive = cn(
-  /* Active = accent text on a soft accent tint. No heavy border or
-     full-fill: feels editorial, not form-control. */
-  'bg-[var(--color-accent)]/[0.10] text-[var(--color-accent)]',
+  /* Active = filled accent button. Strong contrast vs inactive
+     so the current selection is unambiguous. */
+  'border-[var(--color-accent)]',
+  'bg-[var(--color-accent)]',
+  'text-cream',
 );
 
 const chipInactive = cn(
-  /* Inactive = subdued text. Hover reveals warm beige bg + deeper
-     text so the affordance is unambiguous. */
-  'text-ink/70 hover:text-deep',
-  'hover:bg-[rgba(43,30,24,0.05)]',
+  /* Inactive = outlined surface button. Cream/surface fill +
+     ink-tone border so each chip reads as a discrete clickable
+     box. Hover deepens the border + adds a faint accent tint so
+     the affordance is unmistakable. */
+  'border-[rgba(43,30,24,0.20)]',
+  'bg-surface',
+  'text-ink',
+  'hover:border-[var(--color-accent)]',
+  'hover:bg-[var(--color-accent)]/[0.06]',
+  'hover:text-deep',
 );
 
 interface FilterRowProps {

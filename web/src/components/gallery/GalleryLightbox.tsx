@@ -196,17 +196,19 @@ export function GalleryLightbox({
       aria-modal="true"
       aria-labelledby="lightbox-title"
       onClick={handleBackdropClick}
-      /* Backdrop combines a moderate dark tint with a strong frosted
-         blur so the entire page recedes — Hassan asked that opening
-         a gallery image should "blur out the entire background and
-         only show the image and caption". A plain dark overlay
-         wasn't enough; backdrop-blur-2xl (40px Gaussian) fully
-         abstracts the underlying grid while bg-ink/55 keeps the
-         lightbox image popping against the haze. */
+      /* Backdrop combines a strong dark tint with a heavy frosted
+         blur. The previous bg-ink/55 was too light below the
+         image — the cream caption was bleeding into the blurred
+         cream/beige page underneath, making "Home Office ·
+         Industrial / Designed in 8 seconds / 1 of 4" essentially
+         unreadable (Hassan flagged it directly). Bumped to
+         bg-ink/80 so cream text reads cleanly anywhere on the
+         backdrop. backdrop-blur-2xl preserves the "blur out the
+         entire background" feel Hassan liked. */
       className={cn(
         'fixed inset-0 z-[9100]',
         'flex items-center justify-center',
-        'bg-ink/55 backdrop-blur-2xl',
+        'bg-ink/80 backdrop-blur-2xl',
         'p-4 sm:p-8',
       )}
       style={{ opacity: 0 }}
@@ -257,14 +259,19 @@ export function GalleryLightbox({
         <div className="text-center text-cream">
           <p
             id="lightbox-title"
-            className="text-body-xl font-semibold"
+            className="text-body-xl font-semibold text-cream"
           >
             {ROOM_LABELS[image.roomType]} · {STYLE_LABELS[image.style]}
           </p>
-          <p className="mt-2 max-w-2xl text-body-m text-cream/85">
+          {/* Description was text-cream/85 — too thin against the
+              backdrop. Full cream + medium weight reads cleanly. */}
+          <p className="mt-2 max-w-2xl text-body-m font-medium text-cream">
             {image.description}
           </p>
-          <p className="mt-2 text-body-s text-[var(--color-tan)]">
+          {/* "Designed in 8 seconds" microcopy used a custom tan that
+              washed out on the dark+blur backdrop. Light-tan via
+              cream/80 reads as subordinate but still legible. */}
+          <p className="mt-2 text-body-s text-cream/80">
             {t('gallery', 'lightboxDesignedIn')}
           </p>
         </div>
