@@ -12,7 +12,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "email:prelaunch": "tsx scripts/send-prelaunch.ts",
+    "email:prelaunch:dry": "tsx scripts/send-prelaunch.ts --dry-run",
+    "email:launch": "tsx scripts/send-launch.ts",
+    "email:launch:dry": "tsx scripts/send-launch.ts --dry-run"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.19.1",
@@ -38,10 +42,12 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.4.2",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.15",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.3"
   }
 }

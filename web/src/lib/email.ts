@@ -70,8 +70,9 @@ function buildCopy({
     ``,
     referralLink,
     ``,
-    `We'll email you exactly once more, when the app goes live. No`,
-    `drip sequences, no newsletters. Promise.`,
+    `We'll keep emails minimal, a quick heads up the week before`,
+    `launch, then a note when we ship. No drip sequences, no`,
+    `newsletters.`,
     ``,
     `If you want to read what we're up to between now and then, the`,
     `blog is here: ${SITE_URL}/blog`,
@@ -111,8 +112,8 @@ function buildCopy({
         <a href="${referralLink}" style="color:#8B6F47;text-decoration:underline;font-weight:600;word-break:break-all;">${referralLink}</a>
       </p>
       <p style="margin:0 0 16px 0;">
-        We'll email you exactly once more, when the app goes live. No drip
-        sequences, no newsletters. Promise.
+        We'll keep emails minimal, a quick heads up the week before launch,
+        then a note when we ship. No drip sequences, no newsletters.
       </p>
       <p style="margin:0 0 24px 0;">
         If you want to read what we're up to between now and then, the blog
@@ -137,15 +138,225 @@ export async function sendConfirmationEmail({
   position,
   referralCode,
 }: SendConfirmationEmailArgs): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
   const copy = buildCopy({ position, referralCode });
+  return sendEmail({ to, subject: copy.subject, html: copy.html, text: copy.text });
+}
+
+/* ---------------------------------------------------------------- */
+/* Pre-launch reminder (T-1 week)                                   */
+/* ---------------------------------------------------------------- */
+
+export interface SendPrelaunchEmailArgs {
+  to: string;
+  position: number;
+  /** Day name to display in the body, e.g. "Tuesday". */
+  launchDay: string;
+  /** Pretty-formatted launch date for body display, e.g. "August 12". */
+  launchDate: string;
+}
+
+interface PrelaunchCopy {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+function buildPrelaunchCopy({
+  position,
+  launchDay,
+  launchDate,
+}: {
+  position: number;
+  launchDay: string;
+  launchDate: string;
+}): PrelaunchCopy {
+  const positionDisplay = formatPosition(position);
+
+  /* Plaintext body. Hassan-voice: short, direct, no marketing-run-up.
+     DRAFT copy: review before the actual T-1-week send. */
+  const text = [
+    `Hi,`,
+    ``,
+    `Quick note: Furnish goes live on the App Store one week from`,
+    `today, on ${launchDay}, ${launchDate}.`,
+    ``,
+    `You're #${positionDisplay} on the waitlist.`,
+    ``,
+    `When the app drops you'll get one more email from me with the`,
+    `App Store link. That's it. No marketing run-up between now and`,
+    `then.`,
+    ``,
+    `See you on launch day.`,
+    ``,
+    `Hassan`,
+    `Founder, Furnish`,
+    `furnish.live`,
+  ].join('\n');
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Furnish goes live one week from today</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
+      <p style="margin:0 0 16px 0;">Hi,</p>
+      <p style="margin:0 0 16px 0;">
+        Quick note: <strong>Furnish</strong> goes live on the App Store one
+        week from today, on <strong>${launchDay}, ${launchDate}</strong>.
+      </p>
+      <p style="margin:0 0 16px 0;">
+        You're <strong>#${positionDisplay}</strong> on the waitlist.
+      </p>
+      <p style="margin:0 0 24px 0;">
+        When the app drops you'll get one more email from me with the App
+        Store link. That's it. No marketing run-up between now and then.
+      </p>
+      <p style="margin:0 0 4px 0;">See you on launch day.</p>
+      <p style="margin:0 0 4px 0;">Hassan</p>
+      <p style="margin:0;color:rgba(43,30,24,0.6);font-size:14px;">Founder, Furnish &middot; furnish.live</p>
+    </div>
+  </body>
+</html>`;
+
+  return {
+    subject: 'Furnish goes live one week from today',
+    html,
+    text,
+  };
+}
+
+export async function sendPrelaunchEmail(
+  args: SendPrelaunchEmailArgs,
+): Promise<{ ok: boolean; error?: string }> {
+  const copy = buildPrelaunchCopy(args);
+  return sendEmail({
+    to: args.to,
+    subject: copy.subject,
+    html: copy.html,
+    text: copy.text,
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* Launch day                                                       */
+/* ---------------------------------------------------------------- */
+
+export interface SendLaunchEmailArgs {
+  to: string;
+  position: number;
+  /** App Store URL pulled from App Store Connect at send time. */
+  appStoreUrl: string;
+}
+
+interface LaunchCopy {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+function buildLaunchCopy({
+  position,
+  appStoreUrl,
+}: {
+  position: number;
+  appStoreUrl: string;
+}): LaunchCopy {
+  const positionDisplay = formatPosition(position);
+
+  /* Hassan-voice draft: short, direct, single CTA, signs off the
+     three-email sequence. Review before the launch-day blast. */
+  const text = [
+    `Hi,`,
+    ``,
+    `Furnish is live.`,
+    ``,
+    `Take a photo of any room, AI redesigns it in your style, every`,
+    `piece is shoppable. Free to use, ad-free, no subscription.`,
+    ``,
+    `Download here:`,
+    ``,
+    appStoreUrl,
+    ``,
+    `You were #${positionDisplay} on the waitlist. Thanks for being`,
+    `early.`,
+    ``,
+    `That's the last email from me. Have at it.`,
+    ``,
+    `Hassan`,
+    `Founder, Furnish`,
+    `furnish.live`,
+  ].join('\n');
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Furnish is live</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
+      <p style="margin:0 0 16px 0;">Hi,</p>
+      <p style="margin:0 0 16px 0;"><strong>Furnish</strong> is live.</p>
+      <p style="margin:0 0 16px 0;">
+        Take a photo of any room, AI redesigns it in your style, every
+        piece is shoppable. Free to use, ad-free, no subscription.
+      </p>
+      <p style="margin:0 0 24px 0;">
+        <a href="${appStoreUrl}" style="color:#8B6F47;text-decoration:underline;font-weight:600;word-break:break-all;">${appStoreUrl}</a>
+      </p>
+      <p style="margin:0 0 16px 0;">
+        You were <strong>#${positionDisplay}</strong> on the waitlist.
+        Thanks for being early.
+      </p>
+      <p style="margin:0 0 24px 0;">That's the last email from me. Have at it.</p>
+      <p style="margin:0 0 4px 0;">Hassan</p>
+      <p style="margin:0;color:rgba(43,30,24,0.6);font-size:14px;">Founder, Furnish &middot; furnish.live</p>
+    </div>
+  </body>
+</html>`;
+
+  return { subject: 'Furnish is live', html, text };
+}
+
+export async function sendLaunchEmail(
+  args: SendLaunchEmailArgs,
+): Promise<{ ok: boolean; error?: string }> {
+  const copy = buildLaunchCopy(args);
+  return sendEmail({
+    to: args.to,
+    subject: copy.subject,
+    html: copy.html,
+    text: copy.text,
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* Shared transport: every send funnels through here                */
+/* ---------------------------------------------------------------- */
+
+interface SendEmailArgs {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
+async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+}: SendEmailArgs): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
-    /* Dev / pre-launch fallback: never error on missing key.
-       Logs enough so a developer can verify content shape. */
     // eslint-disable-next-line no-console
     console.log(
-      `[email] (no RESEND_API_KEY) skipping send to ${to}; subject="${copy.subject}"`,
+      `[email] (no RESEND_API_KEY) skipping send to ${to}; subject="${subject}"`,
     );
     return { ok: true };
   }
@@ -155,9 +366,9 @@ export async function sendConfirmationEmail({
     const { error } = await client.emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: copy.subject,
-      html: copy.html,
-      text: copy.text,
+      subject,
+      html,
+      text,
     });
 
     if (error) {
