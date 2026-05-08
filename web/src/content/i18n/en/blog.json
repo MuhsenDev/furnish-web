@@ -32,6 +32,17 @@
   "categoryFounderStory": "Founder Story",
 
   "indexEmpty": "Posts arrive at launch. Check back soon.",
+  "indexEmptyForCategory": "No posts in this category yet. Try another, or browse all.",
   "paginationPrev": "Previous",
-  "paginationNext": "Next"
+  "paginationNext": "Next",
+
+  "categoryNavAriaLabel": "Filter posts by category",
+  "categoryBucketAll": "All",
+  "categoryBucketStyleGuides": "Style Guides",
+  "categoryBucketBuyingGuides": "Buying Guides",
+  "categoryBucketStyleStories": "Style Stories",
+  "categoryBucketTrends": "Trends",
+
+  "tocAriaLabel": "Table of contents",
+  "tocHeading": "On this page"
 }

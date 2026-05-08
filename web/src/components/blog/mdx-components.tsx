@@ -21,7 +21,25 @@ import type { MDXComponents } from 'mdx/types';
 import { ProductCard } from './ProductCard';
 import { BlogCTABox } from './BlogCTABox';
 import { BlogDisclosure } from './BlogDisclosure';
+import { Accordion, type AccordionItem } from '@/components/shared/Accordion';
 import { cn } from '@/lib/utils';
+
+/* <FAQ> shortcode: lets MDX authors write
+     <FAQ items={[
+       { id: 'q-pets', question: 'Will velvet hold up with a cat?',
+         answer: 'Performance velvet, yes. ...' },
+       ...
+     ]} />
+   in a blog post and get the same SSR-safe accordion the rest of
+   the site uses. Items array is typed to AccordionItem so authors
+   get autocomplete + type checking through MDX type inference. */
+function FAQ({ items }: { items: AccordionItem[] }) {
+  return (
+    <div className="my-block-y">
+      <Accordion items={items} />
+    </div>
+  );
+}
 
 function isExternal(href: string | undefined): boolean {
   if (!href) return false;
@@ -132,4 +150,5 @@ export const blogMdxComponents: MDXComponents = {
   ProductCard,
   BlogCTABox,
   BlogDisclosure,
+  FAQ,
 };

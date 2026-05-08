@@ -29,6 +29,8 @@ import {
   STYLE_LABELS,
 } from '@/data/gallery';
 import { getGsap, useReducedMotion } from '@/lib/motion';
+import { useWaitlist } from '@/components/shared/WaitlistContext';
+import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 
@@ -55,6 +57,28 @@ export function GalleryLightbox({
   const backdropRef = React.useRef<HTMLDivElement>(null);
   const closeBtnRef = React.useRef<HTMLButtonElement>(null);
   const prefersReduced = useReducedMotion();
+  const { open: openWaitlist } = useWaitlist();
+
+  /* "Design my room like this" CTA. Closes the lightbox first so
+     the waitlist modal stacks cleanly on top of the gallery
+     instead of fighting the lightbox backdrop, then opens the
+     shared WaitlistModal via the layout-level provider. Tracks the
+     interaction so we can see how many lightbox views convert. */
+  const handleDesignLikeThis = React.useCallback(() => {
+    if (image) {
+      track('gallery_lightbox_design_like_this', {
+        room: image.roomType,
+        style: image.style,
+      });
+    }
+    onClose();
+    /* Defer one tick so the close animation can start before the
+       waitlist modal mounts on top, avoiding a flash where both
+       are visible mid-animation. */
+    window.setTimeout(() => {
+      openWaitlist();
+    }, 50);
+  }, [image, onClose, openWaitlist]);
 
   /* Animate-in. Captures the source rect and tweens from that
      position to the fullscreen position. */
@@ -313,6 +337,29 @@ export function GalleryLightbox({
           <p className="mt-2 text-body-s text-cream/75">
             {t('gallery', 'lightboxDesignedIn')}
           </p>
+
+          {/* "Design my room like this" CTA. Closes the lightbox
+              and surfaces the WaitlistModal via the shared
+              context, so the user lands directly in the join-flow
+              with the inspiration still in mind. Pre-launch only;
+              post-launch this CTA pivots to the App Store link
+              (gated by APP_LAUNCHED, same pattern as every other
+              CTA on the site). */}
+          <button
+            type="button"
+            onClick={handleDesignLikeThis}
+            className={cn(
+              'mt-5 inline-flex items-center justify-center',
+              'rounded-sm bg-[var(--color-accent)] text-cream',
+              'px-6 py-3 text-body-m font-semibold',
+              'shadow-1',
+              'btn-primary-hover',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream',
+              'focus-visible:ring-offset-2 focus-visible:ring-offset-ink',
+            )}
+          >
+            {t('gallery', 'lightboxDesignLikeThisCta')}
+          </button>
         </div>
 
         {total > 1 && (

@@ -45,6 +45,7 @@ export type AnalyticsEvent =
   | 'gallery_tile_cycle_prev'
   | 'gallery_tile_shuffle'
   | 'gallery_tile_open'
+  | 'gallery_lightbox_design_like_this'
   /* Blog (Document 7) */
   | 'blog_post_view'
   | 'blog_product_card_click'

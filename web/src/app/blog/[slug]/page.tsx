@@ -19,12 +19,16 @@ import { BlogPostHero } from '@/components/blog/BlogPostHero';
 import { BlogCTABox } from '@/components/blog/BlogCTABox';
 import { BlogAuthorBio } from '@/components/blog/BlogAuthorBio';
 import { BlogRelatedPosts } from '@/components/blog/BlogRelatedPosts';
+import { PostTOC } from '@/components/blog/PostTOC';
+import { ReadingProgressBar } from '@/components/blog/ReadingProgressBar';
 import { blogMdxComponents } from '@/components/blog/mdx-components';
 import {
   getAllBlogPosts,
   getBlogPostBySlug,
   getRelatedPosts,
 } from '@/lib/blog';
+import { extractH2Headings } from '@/lib/headings';
+import { cn } from '@/lib/utils';
 
 interface BlogPostPageProps {
   params: { slug: string };
@@ -111,50 +115,84 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   const related = await getRelatedPosts(post.slug, 3);
 
+  /* Extract H2s from the MDX source at build time. The same headings
+     get rendered as <h2 id="..."> by rehype-slug below, so the TOC
+     links resolve. PostTOC auto-hides if there are fewer than 4. */
+  const headings = extractH2Headings(post.content);
+
   return (
-    <article>
-      <BlogPostStructuredData post={post} />
+    <>
+      {/* Reading progress strip pinned to the viewport top. Scoped
+          to the <article> below via the targetSelector default. */}
+      <ReadingProgressBar />
 
-      <BlogPostHeader
-        date={post.date}
-        updatedAt={post.updatedAt}
-        readingTimeMinutes={post.readingTimeMinutes}
-        category={post.category}
-      />
+      <article>
+        <BlogPostStructuredData post={post} />
 
-      <BlogPostHero
-        title={post.title}
-        excerpt={post.excerpt}
-        heroImage={post.heroImage}
-        heroImageAlt={post.heroImageAlt}
-      />
+        <BlogPostHeader
+          date={post.date}
+          updatedAt={post.updatedAt}
+          readingTimeMinutes={post.readingTimeMinutes}
+          category={post.category}
+        />
 
-      {/* FTC disclosure renders at the top of the body, before any
-          content. Locked, non-optional per Document 7 §5.4. */}
-      <Container width="narrow" className="pt-section-y-tight">
-        <BlogDisclosure />
-      </Container>
+        <BlogPostHero
+          title={post.title}
+          excerpt={post.excerpt}
+          heroImage={post.heroImage}
+          heroImageAlt={post.heroImageAlt}
+        />
 
-      {/* MDX body rendered with custom component map. */}
-      <Container width="narrow" className="pb-section-y-tight">
-        <div className="blog-prose">
-          <MDXRemote
-            source={post.content}
-            components={blogMdxComponents}
-            options={{
-              mdxOptions: {
-                rehypePlugins: [rehypeSlug],
-              },
-            }}
-          />
+        {/* Mobile TOC chip rail. Sticky below the nav. Auto-hides
+            via the component's own minHeadings threshold. Hidden on
+            lg+ via lg:hidden so the desktop sidebar takes over. */}
+        <div className="lg:hidden">
+          <PostTOC headings={headings} variant="mobile" />
         </div>
-      </Container>
 
-      <BlogCTABox postSlug={post.slug} />
+        {/* FTC disclosure renders at the top of the body, before any
+            content. Locked, non-optional per Document 7 §5.4. */}
+        <Container width="narrow" className="pt-section-y-tight">
+          <BlogDisclosure />
+        </Container>
 
-      <BlogAuthorBio author={post.author} />
+        {/* Body grid: on lg+ we lay out the prose centered with the
+            TOC on the left as a sticky sidebar. The grid uses
+            `[280px_minmax(0,1fr)]` so the prose column gets a
+            min-content cap and never overflows. */}
+        <Container width="default" className="pb-section-y-tight">
+          <div
+            className={cn(
+              'lg:grid lg:gap-10',
+              'lg:grid-cols-[240px_minmax(0,720px)]',
+              'lg:justify-center',
+            )}
+          >
+            {/* Desktop TOC sidebar. Auto-hidden when post has fewer
+                than 4 H2s (PostTOC's internal threshold). */}
+            <aside className="hidden lg:block">
+              <PostTOC headings={headings} variant="desktop" />
+            </aside>
+            <div className="blog-prose min-w-0">
+              <MDXRemote
+                source={post.content}
+                components={blogMdxComponents}
+                options={{
+                  mdxOptions: {
+                    rehypePlugins: [rehypeSlug],
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </Container>
 
-      <BlogRelatedPosts posts={related} currentSlug={post.slug} />
-    </article>
+        <BlogCTABox postSlug={post.slug} />
+
+        <BlogAuthorBio author={post.author} />
+
+        <BlogRelatedPosts posts={related} currentSlug={post.slug} />
+      </article>
+    </>
   );
 }
