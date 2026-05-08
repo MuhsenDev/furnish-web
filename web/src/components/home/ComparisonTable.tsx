@@ -106,7 +106,7 @@ function CellValue({
      made "8 seconds" and "Free" balloon to ~3x the height of every
      other row and broke the table's visual rhythm. Now uses the
      same body-l size as the rest, but in display font, accent
-     color, and slightly heavier — visually distinguished without
+     color, and slightly heavier, visually distinguished without
      the table-busting size jump. */
   const accent = isFurnish && emphasize;
   return (

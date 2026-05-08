@@ -10,12 +10,12 @@ import { notFound } from 'next/navigation';
 import { LegalPage, loadLegalDocument } from '@/components/static/LegalPage';
 
 export const metadata: Metadata = {
-  title: { absolute: 'Terms of Service — Furnish' },
+  title: { absolute: 'Terms of Service, Furnish' },
   description:
     'Terms governing your use of furnish.live and the Furnish app.',
   alternates: { canonical: 'https://furnish.live/terms' },
   openGraph: {
-    title: 'Terms of Service — Furnish',
+    title: 'Terms of Service, Furnish',
     description:
       'Terms governing your use of furnish.live and the Furnish app.',
     url: 'https://furnish.live/terms',

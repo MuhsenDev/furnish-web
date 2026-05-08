@@ -53,9 +53,9 @@ You agree to:
 
 ## Intellectual property
 
-All content on the Service that we author or commission —
+All content on the Service that we author or commission -
 including the Furnish name, logo, brand identity, copy, page
-designs, illustrations, photography, and code — is owned by
+designs, illustrations, photography, and code, is owned by
 Further Fetched LLC and is protected by U.S. and international
 copyright, trademark, and other intellectual property laws.
 Nothing in these Terms grants you any license to use that

@@ -85,7 +85,7 @@ export function FounderSection() {
                lg:w-[440px] silhouette frame (≈472px outer with the
                p-4 mat) fits inside the grid track. The previous
                320px column meant the frame was bleeding ~150px to
-               the right, overlapping the body copy on desktop —
+               the right, overlapping the body copy on desktop -
                Hassan flagged it. The 1fr text column still holds
                plenty of width on a 1200px container (≈700px). */
             PHOTO_AVAILABLE ? 'lg:grid-cols-[500px_1fr] lg:gap-16' : '',

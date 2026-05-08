@@ -194,7 +194,7 @@ export function GalleryPreview() {
             onClick={() => track('home_gallery_preview_click', { room_index: 0, target: 'see_full_gallery' })}
             className={galleryCtaClasses}
           >
-            {/* No arrow icon — same centering rationale as the hero
+            {/* No arrow icon, same centering rationale as the hero
                 primary CTA. The cta-arrow class is opacity:0 by
                 default and would push the visible text ~17px left
                 of the button center. Text-only button stays

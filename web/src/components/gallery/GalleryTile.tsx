@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 
 /* CardCaption uses text-muted (#8A7760) for the meta line, which on
-   a cream/beige background washes out — Hassan flagged the
+   a cream/beige background washes out, Hassan flagged the
    "Living Room / Contemporary" line as barely readable. We render
    the caption inline here instead so we can use text-ink/80 for the
    meta line, giving real contrast while still feeling subdued

@@ -198,7 +198,7 @@ export function GalleryLightbox({
       onClick={handleBackdropClick}
       /* Backdrop = dark overlay + heavy frosted blur. Background
          color is set via inline style with literal RGBA rather
-         than Tailwind's `bg-ink/80` opacity modifier — the modifier
+         than Tailwind's `bg-ink/80` opacity modifier, the modifier
          composes via color-mix() against a CSS-variable color, and
          on some GPUs / browsers the resulting backdrop rendered
          lighter than expected (Hassan saw the caption area as a
@@ -233,7 +233,7 @@ export function GalleryLightbox({
         aria-label={t('gallery', 'lightboxCloseAria')}
         /* Close button uses `fixed` (not `absolute`) so it stays
            pinned to the viewport top-right even when the backdrop
-           scrolls — `position: absolute` inside an `overflow-y:
+           scrolls, `position: absolute` inside an `overflow-y:
            auto` container would scroll the close button along with
            the content. z-[9101] sits above the backdrop's z-[9100]
            so the button is always reachable. */
@@ -258,7 +258,7 @@ export function GalleryLightbox({
                (≈120px) and Previous/Next nav (~40px) below the
                image always fit on a typical viewport without
                clipping. Caller can still scroll if the screen is
-               unusually short — overflow-y-auto on the backdrop
+               unusually short, overflow-y-auto on the backdrop
                handles that fallback. */
             'aspect-[4/3] max-h-[65vh]',
             'shadow-3',
@@ -281,7 +281,7 @@ export function GalleryLightbox({
           )}
         </div>
 
-        {/* Caption pill — self-contained dark container so the
+        {/* Caption pill, self-contained dark container so the
             text is readable regardless of what the lightbox
             backdrop renders as on any given GPU/browser. The
             previous free-floating cream text against the (variably

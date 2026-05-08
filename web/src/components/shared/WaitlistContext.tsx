@@ -4,8 +4,8 @@
   WaitlistContext + provider.
 
   Centralizes the WaitlistModal at the layout level so every CTA on
-  the site — nav pill, mobile menu, hero, gallery, blog, final CTA,
-  comparison table, anywhere — opens the same modal via a shared
+  the site, nav pill, mobile menu, hero, gallery, blog, final CTA,
+  comparison table, anywhere, opens the same modal via a shared
   `openWaitlist()` call instead of each component owning its own
   modal state or hard-linking to `#waitlist` anchors.
 
@@ -24,7 +24,7 @@ import { WaitlistModal } from './WaitlistModal';
 interface WaitlistContextValue {
   /** Opens the waitlist modal. */
   open: () => void;
-  /** Closes the modal. Rarely needed — backdrop, Esc, and the
+  /** Closes the modal. Rarely needed, backdrop, Esc, and the
       modal's own close button handle most cases. */
   close: () => void;
   /** Current open state, exposed for components that need to

@@ -1,7 +1,7 @@
 'use client';
 
 /*
-  LottieAsset — wrapper around @lottiefiles/dotlottie-react.
+  LottieAsset, wrapper around @lottiefiles/dotlottie-react.
 
   Loads a .lottie file (the compressed Lottie variant) from public/.
   Lazy-loads the player chunk so SSR HTML stays clean.

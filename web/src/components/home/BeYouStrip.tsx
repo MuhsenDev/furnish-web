@@ -1,7 +1,7 @@
 'use client';
 
 /*
-  BeYouStrip — full-bleed dark strip with the "Be you" Lottie
+  BeYouStrip, full-bleed dark strip with the "Be you" Lottie
   centered. Sits on the home page between GalleryPreview ("Real
   rooms. Designed by Furnish.") and HomeCompareSlider ("See the
   magic.") per Hassan's positioning call.

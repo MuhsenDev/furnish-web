@@ -1,7 +1,7 @@
 'use client';
 
 /*
-  WaitlistModal — dialog that explains how the Furnish waitlist
+  WaitlistModal, dialog that explains how the Furnish waitlist
   works and collects an email address. Opens when the Hero "Join
   the Waitlist" CTA is clicked. Replaces the previous inline
   EmailWaitlist form embedded directly in the hero.

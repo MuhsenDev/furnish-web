@@ -50,7 +50,7 @@ const chipBase = cn(
   /* Every chip carries a 1px border so it reads as a real button
      at rest, not as flat text. The previous low-chrome version
      dropped the border entirely and Hassan said the labels read
-     as plain text — adding a visible boundary back. */
+     as plain text, adding a visible boundary back. */
   'border',
   'transition-colors duration-200 ease-premium',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',

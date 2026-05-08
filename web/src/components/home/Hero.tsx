@@ -79,7 +79,7 @@ export function Hero() {
     >
       <Container
         width="default"
-        /* Desktop top padding was lg:pt-12 (48px) — too small to
+        /* Desktop top padding was lg:pt-12 (48px), too small to
            clear the sm:h-20 sticky nav (80px). The headline's first
            line ("Designed for") was visibly clipped under the nav
            on first paint at lg+ widths. Bumped to lg:pt-28 (112px)
@@ -145,7 +145,7 @@ export function Hero() {
                 'sm:justify-center lg:justify-start',
               )}
             >
-              {/* No ArrowRight icon on the hero primary CTA — when
+              {/* No ArrowRight icon on the hero primary CTA, when
                   the arrow has its default opacity:0 (visible only
                   on hover) it still occupies layout space, pushing
                   the visible text ~17px left of the button's visual
@@ -230,8 +230,8 @@ export function Hero() {
 
                   Sits on the LEFT side of the "Furnish" wordmark,
                   symmetric to the RIGHT hand below. Non-mirrored
-                  Lottie has its visible hand at element (20%, 49%) —
-                  near the LEFT edge of the wrapper — so placing
+                  Lottie has its visible hand at element (20%, 49%) -
+                  near the LEFT edge of the wrapper, so placing
                   the wrapper extending past the parent's left edge
                   parks the hand right at parent x ≈ 5% (just past
                   the visible left edge of the text).
@@ -250,14 +250,14 @@ export function Hero() {
 
                   Pixel-sampled the hand canvas across a full
                   animation cycle: the hand-wave isn't a small
-                  static glyph — it sweeps through canvas y 35%-61%
+                  static glyph, it sweeps through canvas y 35%-61%
                   (a 26pp range). After scale(2.0) origin (20%, 49%)
                   that becomes element y 21%-73% (a 52pp range),
                   so the hand bbox's peak parent-y extent is
                   wrapper.top + 51pp (= 0.73 * 70).
 
-                  Mobile (top-[13%]): the entire hero composition —
-                  hands + wordmark + legs — was uniformly shifted
+                  Mobile (top-[13%]): the entire hero composition -
+                  hands + wordmark + legs, was uniformly shifted
                   up the Y axis by 10pp on mobile so the hands peek
                   out more prominently above the wordmark.
 
@@ -292,7 +292,7 @@ export function Hero() {
               {/* RIGHT hand (mirrored).
 
                   Both scaleX(-1) and scale(2.0) applied with the
-                  SAME origin at (20%, 49%) — the natural hand
+                  SAME origin at (20%, 49%), the natural hand
                   position. With this single-origin combo:
                   - scaleX(-1) origin (20%, 49%): hand at (20%, 49%)
                     stays at (20%, 49%) but mirrored (since origin
@@ -304,7 +304,7 @@ export function Hero() {
                   same as the LEFT hand. Wrapper position math is
                   identical to LEFT.
 
-                  Target: visible hand at (90%, 50%) of parent —
+                  Target: visible hand at (90%, 50%) of parent -
                   to the right and lower than left hand (which is
                   at 70%, 35%), still above text top (~55%).
 
@@ -325,7 +325,7 @@ export function Hero() {
                     /* RIGHT hand: just past the right edge of the
                        Furnish wordmark. With scale(-2, 2) + default
                        origin (50%, 50%), hand at element (20%, 49%)
-                       maps to (110%, 48%) — past the wrapper's
+                       maps to (110%, 48%), past the wrapper's
                        right edge.
 
                        X: wrapper.left + 1.10 * 0.70 = 0.98
@@ -382,7 +382,7 @@ export function Hero() {
 
                   Desktop (lg:top-[1.5%]): visible legs top at
                   parent y = 84.34%, which is 1.5pp (≈8px) below
-                  desktop wordmark text bottom (82.6%) — the "super
+                  desktop wordmark text bottom (82.6%), the "super
                   damn close, not touching" gap Hassan asked for.
 
                   Mobile (top-[-8.5%]): shifted up 10pp in lockstep
@@ -418,7 +418,7 @@ export function Hero() {
 
                   Mobile uses bottom-[28%] so the wordmark sits in
                   the middle of the parent box rather than the
-                  lower third — paired with the +10pp UP shift on
+                  lower third, paired with the +10pp UP shift on
                   hands and legs so the whole composition reads
                   higher and the hands peek out above the text.
 
@@ -448,7 +448,7 @@ export function Hero() {
       </Container>
 
       {/* Waitlist modal lives at the layout level via
-          WaitlistProvider — Hero just calls openWaitlist() when
+          WaitlistProvider, Hero just calls openWaitlist() when
           the primary CTA is clicked. No local modal mount needed. */}
     </section>
   );

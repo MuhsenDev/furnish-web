@@ -4,13 +4,13 @@
   Persistent CTA pill in the top-right of the nav per Document 4
   Section 5.1.
 
-  Pre-launch: "Join the Waitlist" — clicking opens the shared
+  Pre-launch: "Join the Waitlist", clicking opens the shared
   WaitlistModal via the WaitlistProvider context (every Join-the-
   Waitlist CTA across the site triggers the same modal so the user
   experience is consistent regardless of which entry point they
   click).
 
-  Post-launch: "Get the App" — links to the iOS App Store URL via
+  Post-launch: "Get the App", links to the iOS App Store URL via
   a regular anchor with target="_blank".
 
   Gated by the NEXT_PUBLIC_APP_LAUNCHED env var. Default pre-launch.

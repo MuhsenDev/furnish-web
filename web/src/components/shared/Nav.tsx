@@ -41,7 +41,7 @@ export function Nav() {
           <div className="flex h-16 items-center justify-between sm:h-20">
             {/* Logo + wordmark. Both visible at every viewport.
                 Hassan checked the mobile bar and confirmed the
-                wordmark fits next to the menu/CTA cluster — an
+                wordmark fits next to the menu/CTA cluster, an
                 earlier `hidden sm:inline` was hiding it
                 unnecessarily. Mobile uses a slightly smaller
                 wordmark (text-xl) to keep the bar uncluttered on

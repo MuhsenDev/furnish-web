@@ -55,7 +55,7 @@ export function CompareSlider({
 
      The motion library applies the clipPath to whatever ref is
      passed as `afterImgRef`. Originally that meant the AFTER image
-     was clipped on top, with BEFORE underneath full-bleed — which
+     was clipped on top, with BEFORE underneath full-bleed, which
      made the LEFT half of the slider show AFTER and the RIGHT
      half show BEFORE at position=50. That was reversed from what
      the corner labels promise ("Before" on left, "After" on
@@ -138,8 +138,8 @@ export function CompareSlider({
 
           Two layers:
           (1) The 1-px-wide cream divider line spanning top to
-              bottom — pure visual, doesn't widen the hit area.
-          (2) An inner pill at the center — visible round chip with
+              bottom, pure visual, doesn't widen the hit area.
+          (2) An inner pill at the center, visible round chip with
               the chevron icon. Sized large enough on mobile to
               meet WCAG / Apple HIG tap-target minimums (44 pt =
               ~64 px after device pixel ratio for finger pads).
@@ -149,7 +149,7 @@ export function CompareSlider({
           pill bubble up to the container, so the pill IS
           interactive even though the listener isn't directly on
           it. Removed the previous `pointer-events-none` on the
-          pill — it caused taps to fall through to the underlying
+          pill, it caused taps to fall through to the underlying
           image with no visual feedback, which mobile users
           perceived as "the button doesn't register." Now the pill
           captures the tap directly and the container still gets
@@ -166,7 +166,7 @@ export function CompareSlider({
         style={{ left: `${initialPosition}%`, transform: 'translateX(-50%)' }}
       >
         {/* Visible handle pill. Bigger on mobile, smaller on
-            desktop — finger taps need a wider target than mouse
+            desktop, finger taps need a wider target than mouse
             clicks. */}
         <div
           className={cn(
@@ -195,7 +195,7 @@ export function CompareSlider({
         </div>
       </div>
 
-      {/* Before/after corner labels — bold, tiny cream cards in
+      {/* Before/after corner labels, bold, tiny cream cards in
           the top corners with shadow-1 elevation so they feel like
           actual labels rather than text floated on the image. */}
       <span

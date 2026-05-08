@@ -1,7 +1,7 @@
 'use client';
 
 /*
-  RoomShowcaseSection — three SVG isometric rooms displayed
+  RoomShowcaseSection, three SVG isometric rooms displayed
   side-by-side on desktop / stacked on mobile.
 
   Substantial rework from the previous jump+spin version (commit
@@ -24,7 +24,7 @@
                                    entry, stays put afterward.
     - Unnamed <g> tags (clip-path wrappers, isolation containers,
       rendering plumbing) are skipped automatically by the
-      `:scope > g[id]` selector — only top-level NAMED groups
+      `:scope > g[id]` selector, only top-level NAMED groups
       become drop-in candidates.
 
   Inlining strategy: fetch the .svg as text, insert via innerHTML
@@ -34,7 +34,7 @@
   there's no optimization layer to fight.
 
   Animation plumbing:
-    - Per-item entry: Web Animations API (g.animate(...)) — direct
+    - Per-item entry: Web Animations API (g.animate(...)), direct
       DOM, no React rerenders per item.
     - Per-room idle levitation + lift+glow: Framer Motion on the
       wrapping motion.div (room-level transforms compose with the
@@ -56,7 +56,7 @@ import { cn } from '@/lib/utils';
 
 /* Per-active-turn sequence: ENTRY (items drop in) → VIEW (still
    hold so the user can absorb the finished room) → FADE-OUT
-   (items disappear). NO scale "breath" anymore — Hassan: shorten
+   (items disappear). NO scale "breath" anymore, Hassan: shorten
    or remove the breath that played after items fully landed. The
    only motion is now the per-item drop-in and the glow's
    brightness ramp. The room itself never moves or scales. This
@@ -155,7 +155,7 @@ function isStatic(groupId: string): boolean {
 /* Rasterize the inline SVG, scan pixel alpha to find the opaque-
    content bbox, and rewrite the SVG's viewBox to match. This is
    how we make the room art FILL its card without trailing
-   whitespace — geometric bbox isn't enough because walls/floors
+   whitespace, geometric bbox isn't enough because walls/floors
    are drawn with paths whose bbox extends past the visible art. */
 async function tightenViewBoxToVisualBounds(
   svg: SVGSVGElement,
@@ -163,14 +163,14 @@ async function tightenViewBoxToVisualBounds(
   /* Wait for layout to settle before reading geometry. When the
      SVG is inlined via innerHTML and getBBox() is called
      immediately, desktop Chrome often returns 0,0,0,0 (paint/
-     layout hasn't completed) — leading to a stale geometric bbox
+     layout hasn't completed), leading to a stale geometric bbox
      and over-aggressive cropping. iOS Safari schedules layout
      aggressively enough that the issue doesn't surface there;
      hence the cross-browser divergence Hassan reported.
 
      Race two requestAnimationFrames against a 250 ms hard timeout.
      In a normal (visible) tab the RAFs win in ~32 ms. In a hidden
-     tab, Chrome PAUSES RAF callbacks indefinitely — without the
+     tab, Chrome PAUSES RAF callbacks indefinitely, without the
      timeout this await would hang forever, the entire trim
      function would never complete, and setSvgLoaded(true) would
      never fire. The timeout fallback lets the trim still run with
@@ -220,10 +220,10 @@ async function tightenViewBoxToVisualBounds(
     /* IMPORTANT: do NOT set img.crossOrigin = 'anonymous' here.
        A previous iteration of this code did, intending to defend
        against canvas taint, but blob URLs don't emit CORS response
-       headers — and Chrome treats `crossOrigin='anonymous'` on a
+       headers, and Chrome treats `crossOrigin='anonymous'` on a
        blob URL as a CORS failure that hangs the load (neither
        onload nor onerror fires reliably). On iOS Safari the load
-       still succeeded, masking the bug locally — that's why the
+       still succeeded, masking the bug locally, that's why the
        rooms came up correctly there but came up untrimmed on
        desktop. Same-origin blob URLs don't taint the canvas
        anyway. Race the load against a 4-second hard timeout so a
@@ -267,7 +267,7 @@ async function tightenViewBoxToVisualBounds(
   }
 
   /* Scan alpha channel to find tightest opaque bbox. Threshold is
-     0 (any non-fully-transparent pixel counts) — was 1, which
+     0 (any non-fully-transparent pixel counts), was 1, which
      excluded pixels at exactly alpha=1. Stroke anti-aliasing on
      thin walls leaves a fringe of alpha=1 pixels that the previous
      threshold dropped, contributing to the desktop "missing walls"
@@ -299,7 +299,7 @@ async function tightenViewBoxToVisualBounds(
   /* Union with the geometric bbox of named groups (excluding
      unknown-not-visable). Pixel-scan can miss faintly-painted
      structural elements (walls, floors drawn with thin strokes
-     or near-bg fills) — walls in 6.svg / 7.svg specifically have
+     or near-bg fills), walls in 6.svg / 7.svg specifically have
      paths whose painted content barely registers above the alpha
      threshold but whose geometry IS where the room frame sits.
      Taking the union catches both the visible paint and the
@@ -338,7 +338,7 @@ async function tightenViewBoxToVisualBounds(
      reach walls that are drawn slightly past the painted content
      while still rejecting the full geometric corner of an oversized
      SVG. Skip the union entirely if too few valid getBBox results
-     came back — a single valid bbox isn't representative enough to
+     came back, a single valid bbox isn't representative enough to
      trust as a recovery floor. */
   const maxExtX = pxBboxW * GEO_EXTENSION_CAP;
   const maxExtY = pxBboxH * GEO_EXTENSION_CAP;
@@ -405,7 +405,7 @@ function Room({
   /* Card aspect-ratio defaults to 3/2 (landscape isometric room
      framing) and switches to the SVG's actual trimmed content
      aspect once the trim completes. The card therefore always
-     hugs its room art edge-to-edge — no internal letterboxing,
+     hugs its room art edge-to-edge, no internal letterboxing,
      which is what Hassan was after with "make sure the images are
      larger to tightly fit the border". */
   const [cardAspect, setCardAspect] = React.useState<number>(3 / 2);
@@ -448,7 +448,7 @@ function Room({
         svgEl.style.width = '100%';
         svgEl.style.height = '100%';
 
-        /* Direct child <g id="..."> only — never reach into nested
+        /* Direct child <g id="..."> only, never reach into nested
            groups (those are clip-path / isolation plumbing). */
         const topLevelNamedGroups = Array.from(
           svg.querySelectorAll(':scope > g[id]'),
@@ -483,7 +483,7 @@ function Room({
              - walls/floors in each SVG are drawn with paths whose
                geometric bbox extends to the corners of the natural
                viewBox even when the visible art is smaller (Hassan:
-               "they still too small" — the room illustrations
+               "they still too small", the room illustrations
                occupied ~65% of the card area with the rest empty).
 
            Approach: rasterize the SVG to a hidden canvas at low
@@ -539,7 +539,7 @@ function Room({
 
   /* Per-active-turn sequence:
        1. ENTRY: each item drops in (Web Animations API, staggered)
-       2. VIEW: still hold — items sit, glow stays bright, no
+       2. VIEW: still hold, items sit, glow stays bright, no
                 movement on the room. (Replaced the previous lift+
                 peak+return "breath" Hassan asked to remove.)
        3. FADE-OUT: items fade to opacity 0.
@@ -653,13 +653,13 @@ function Room({
     index,
   ]);
 
-  /* For diagnostics in dev — Hassan can pop the console open and
+  /* For diagnostics in dev, Hassan can pop the console open and
      see how many animatable items each room found. */
   React.useEffect(() => {
     if (svgLoaded && process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console
       console.info(
-        `[RoomShowcase] ${src} loaded — ${itemCount} animatable items.`,
+        `[RoomShowcase] ${src} loaded, ${itemCount} animatable items.`,
       );
     }
   }, [svgLoaded, itemCount, src]);
@@ -687,14 +687,14 @@ function Room({
         'flex flex-col items-center',
       )}
     >
-      {/* Card frame hugs the illustration tight — sharp corners,
+      {/* Card frame hugs the illustration tight, sharp corners,
           no inner padding (Hassan: "outerbox should shrink down
           tight against the image generation"). Walls + floors of
           the room art now sit flush to all four edges of the card.
 
           aspect-ratio is set DYNAMICALLY to the SVG's trimmed
           content aspect (default 3/2, switches once trim resolves).
-          Means each card hugs its room exactly — no internal
+          Means each card hugs its room exactly, no internal
           letterboxing, no whitespace around the art. Different
           rooms may end up with slightly different card heights
           (clamped 1.10–1.80) but the row still reads as a unified
@@ -742,7 +742,7 @@ function Room({
           aria-hidden="true"
         />
 
-        {/* SVG container — fills the card box exactly. No transform
+        {/* SVG container, fills the card box exactly. No transform
             wrapper anymore; the room frame never moves or scales,
             so we just need a static positioning context. */}
         <div
@@ -756,7 +756,7 @@ function Room({
 
       {/* Label sits OUTSIDE the card, in the eyebrow style used
           across the site for section eyebrows ("EVERY ROOM",
-          "SEE THE MAGIC", etc.) — uppercase, tracked-out, muted
+          "SEE THE MAGIC", etc.), uppercase, tracked-out, muted
           warm brown. */}
       <p className="eyebrow mt-5">{label}</p>
     </div>
@@ -769,9 +769,9 @@ export function RoomShowcaseSection() {
   const [hasEnteredView, setHasEnteredView] = React.useState(false);
   const [activeIdx, setActiveIdx] = React.useState(0);
 
-  /* IntersectionObserver — flip hasEnteredView the first time the
+  /* IntersectionObserver, flip hasEnteredView the first time the
      section comes into view, then disconnect. The cycle starts
-     immediately after that flip (no separate entry phase wait —
+     immediately after that flip (no separate entry phase wait -
      each room's items only appear during its own active turn,
      not on first scroll-in). */
   React.useEffect(() => {
@@ -831,14 +831,14 @@ export function RoomShowcaseSection() {
           isometric illustrations (~10–90 named groups each). A
           proper recolor to a 2–3 tone brand palette (cream / warm
           brown / accent tan) requires a programmatic pass over
-          every fill in each .svg file — out of scope for this
+          every fill in each .svg file, out of scope for this
           visual refactor. The cards now frame the illustrations in
           a way that feels intentional even before the recolor;
           revisit when there's time to script the fill remap. */}
       {/* Container "wide" (1440px) instead of "default" (1200px) so
           the 3 rooms read as a generous gallery rather than a
           cramped strip. This matches the "wide" token's documented
-          use case ("Gallery grids" per Document 2 §4.2) — the
+          use case ("Gallery grids" per Document 2 §4.2), the
           three-room showcase IS a gallery. The section header
           inside still centers in max-w-3xl so the headline doesn't
           spread too wide. */}

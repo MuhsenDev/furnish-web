@@ -1,4 +1,4 @@
-# Furnish — Project Context for Claude
+# Furnish, Project Context for Claude
 
 This is the website + landing page for Furnish, an AI interior design iOS app. Read this before doing anything in this repo.
 
@@ -46,17 +46,18 @@ The companion iOS app is a separate codebase NOT in this repo. The website's job
 
 These are locked decisions. Don't second-guess them in suggestions:
 
-1. **Email-only commits from `furtherfetchedllc@gmail.com`** — Vercel blocks other emails.
-2. **No emoji in user-facing UI** — custom SVG icons only.
-3. **No fake numbers** — qualitative claims only until real traction exists.
+1. **Email-only commits from `furtherfetchedllc@gmail.com`**. Vercel blocks other emails.
+2. **No emoji in user-facing UI**. Custom SVG icons only.
+3. **No fake numbers**. Qualitative claims only until real traction exists.
 4. **No calendar-period language** in user copy ("when you're ready," not "weekly/quarterly").
-5. **Vercel curve easing site-wide** — `cubic-bezier(0.16, 1, 0.3, 1)` for ease-out, `cubic-bezier(0.7, 0, 0.84, 0)` for ease-in. Centralized in tokens.css and eases.ts.
+5. **Vercel curve easing site-wide.** `cubic-bezier(0.16, 1, 0.3, 1)` for ease-out, `cubic-bezier(0.7, 0, 0.84, 0)` for ease-in. Centralized in tokens.css and eases.ts.
 6. **Brand colors:** cream (#F5EDDF), bronze (#8B6F47), espresso (#3D2817). Plus secondary tokens in tokens.css.
 7. **Font stack:** Fraunces serif for display headings, system sans for body.
 8. **Title Case** on buttons/headers; **sentence case** on body copy.
 9. **OKT (One Key Takeaway):** *"Your household, your style, sharper."*
 10. **Image generation:** Google's Nano Banana Pro (refer to it externally as "Google's image generation AI").
 11. **Furniture detection:** GPT-5.4 (technical reference; user-facing copy says "AI").
+12. **No em dashes anywhere.** The character is U+2014 (the long horizontal dash, wider than a hyphen). Banned everywhere: user-facing copy, MDX/blog posts, i18n strings, code comments, even this CLAUDE.md. Use commas, colons, periods, or hyphens instead. Hassan locked this rule 2026-05-08 after a full sweep of generated content. Before committing, run a literal-char search across `web/src` for the dash character (the grep needs the actual U+2014 byte) to confirm zero matches.
 
 ## Conventions
 
@@ -64,7 +65,7 @@ These are locked decisions. Don't second-guess them in suggestions:
 - **Named exports** for components.
 - **i18n-first copy:** all user-facing strings live in `web/src/content/i18n/en/*.json`, never hardcoded in components.
 - **Component co-location:** if a component has data, place it in `web/src/data/` typed and imported, don't inline.
-- **Read before editing.** Don't infer file contents — actually read them.
+- **Read before editing.** Don't infer file contents; actually read them.
 - **Match existing patterns** before introducing new ones.
 - **>50 lines of new code:** pause and confirm approach before writing.
 - **CSS:** scan for existing rules with the same selector before adding new ones (project history has duplicate-rule bugs).
@@ -82,7 +83,7 @@ These are locked decisions. Don't second-guess them in suggestions:
 
 ## Critical reference docs
 
-In `web/docs/specs/` — these are the original 11 spec documents that defined the build. Read for canonical decisions, ignore for implementation status (much has shipped beyond what specs describe).
+In `web/docs/specs/`. These are the original 11 spec documents that defined the build. Read for canonical decisions, ignore for implementation status (much has shipped beyond what specs describe).
 
 ## Decision policy
 
