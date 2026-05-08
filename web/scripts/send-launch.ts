@@ -34,6 +34,13 @@ import { sendLaunchEmail, buildLaunchCopy } from '../src/lib/email';
 interface CliArgs {
   appStoreUrl: string;
   dryRun: boolean;
+  /**
+   * If set, the script targets exactly one waitlist row by email
+   * (case-insensitive eq match against the email column). Used
+   * for end-to-end verification before flipping to LIVE on the
+   * full list. Empty / unset means "send to everyone".
+   */
+  onlyEmail: string | null;
 }
 
 interface WaitlistRow {
@@ -48,12 +55,14 @@ const THROTTLE_MS = 110;
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const out: Partial<CliArgs> = { dryRun: false };
+  const out: Partial<CliArgs> = { dryRun: false, onlyEmail: null };
   for (const raw of args) {
     if (raw === '--dry-run') {
       out.dryRun = true;
     } else if (raw.startsWith('--app-store-url=')) {
       out.appStoreUrl = raw.substring('--app-store-url='.length).trim();
+    } else if (raw.startsWith('--only-email=')) {
+      out.onlyEmail = raw.substring('--only-email='.length).trim().toLowerCase();
     } else {
       console.error(`Unknown arg: ${raw}`);
       process.exit(1);
@@ -61,7 +70,7 @@ function parseArgs(): CliArgs {
   }
   if (!out.appStoreUrl) {
     console.error(
-      'Required: --app-store-url=https://apps.apple.com/... [--dry-run]',
+      'Required: --app-store-url=https://apps.apple.com/... [--dry-run] [--only-email=you@example.com]',
     );
     process.exit(1);
   }
@@ -71,10 +80,14 @@ function parseArgs(): CliArgs {
     );
     process.exit(1);
   }
+  if (out.onlyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.onlyEmail)) {
+    console.error(`--only-email must be a valid email, got "${out.onlyEmail}"`);
+    process.exit(1);
+  }
   return out as CliArgs;
 }
 
-async function fetchAllRows(): Promise<WaitlistRow[]> {
+async function fetchRows(onlyEmail: string | null): Promise<WaitlistRow[]> {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     throw new Error(
       'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env. ' +
@@ -82,9 +95,15 @@ async function fetchAllRows(): Promise<WaitlistRow[]> {
     );
   }
 
+  /* Same shape as send-prelaunch.ts: when onlyEmail is set, filter
+     server-side via PostgREST eq + limit=1. */
+  const filter = onlyEmail
+    ? `&email=eq.${encodeURIComponent(onlyEmail)}&limit=1`
+    : '';
+
   const url =
     `${SUPABASE_URL}/rest/v1/waitlist` +
-    `?select=email,position&order=position.asc`;
+    `?select=email,position&order=position.asc${filter}`;
 
   const res = await fetch(url, {
     headers: {
@@ -125,12 +144,22 @@ async function main(): Promise<void> {
       `app-store-url=${args.appStoreUrl}`,
   );
 
-  const rows = await fetchAllRows();
+  const rows = await fetchRows(args.onlyEmail);
   if (rows.length === 0) {
-    console.log('[launch] no rows in waitlist; nothing to send.');
+    if (args.onlyEmail) {
+      console.log(
+        `[launch] No waitlist row found for ${args.onlyEmail}, sign up at furnish.live first.`,
+      );
+    } else {
+      console.log('[launch] no rows in waitlist; nothing to send.');
+    }
     return;
   }
-  console.log(`[launch] fetched ${rows.length} waitlist rows.`);
+  console.log(
+    args.onlyEmail
+      ? `[launch] fetched 1 row matching ${args.onlyEmail}.`
+      : `[launch] fetched ${rows.length} waitlist rows.`,
+  );
 
   /* In dry-run, render and log a sample plaintext body so the
      operator can confirm the copy + spacing before going LIVE. */

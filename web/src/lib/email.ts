@@ -97,6 +97,7 @@ function buildCopy({
   </head>
   <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
+      <img src="https://furnish.live/email/furnish-card.png" alt="Furnish" style="display:block; max-width:100%; height:auto; margin:0 auto 24px auto;" />
       <p style="margin:0 0 16px 0;">Hi,</p>
       <p style="margin:0 0 16px 0;">You're <strong>#${positionDisplay}</strong> on the waitlist for Furnish.</p>
       <p style="margin:0 0 16px 0;">
@@ -215,6 +216,7 @@ export function buildPrelaunchCopy({
   </head>
   <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
+      <img src="https://furnish.live/email/furnish-card.png" alt="Furnish" style="display:block; max-width:100%; height:auto; margin:0 auto 24px auto;" />
       <p style="margin:0 0 16px 0;">
         A quick heads up: we ship <strong>Furnish</strong> on the App Store
         on <strong>${launchDay}, ${launchDate}</strong>.
@@ -328,6 +330,7 @@ export function buildLaunchCopy({
   </head>
   <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
+      <img src="https://furnish.live/email/furnish-card.png" alt="Furnish" style="display:block; max-width:100%; height:auto; margin:0 auto 24px auto;" />
       <p style="margin:0 0 16px 0;">It's here.</p>
       <p style="margin:0 0 16px 0;">
         Download <strong>Furnish</strong> on the App Store:

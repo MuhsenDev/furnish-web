@@ -48,6 +48,13 @@ interface CliArgs {
   launchDay: string;
   launchDate: string;
   dryRun: boolean;
+  /**
+   * If set, the script targets exactly one waitlist row by email
+   * (matches the existing `email` column case-insensitively). Used
+   * for end-to-end verification: send yourself a test before going
+   * LIVE on the full list. Empty / unset means "send to everyone".
+   */
+  onlyEmail: string | null;
 }
 
 interface WaitlistRow {
@@ -64,7 +71,7 @@ const THROTTLE_MS = 110;
 
 function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
-  const out: Partial<CliArgs> = { dryRun: false };
+  const out: Partial<CliArgs> = { dryRun: false, onlyEmail: null };
   for (const raw of args) {
     if (raw === '--dry-run') {
       out.dryRun = true;
@@ -72,6 +79,8 @@ function parseArgs(): CliArgs {
       out.launchDay = raw.substring('--launch-day='.length).trim();
     } else if (raw.startsWith('--launch-date=')) {
       out.launchDate = raw.substring('--launch-date='.length).trim();
+    } else if (raw.startsWith('--only-email=')) {
+      out.onlyEmail = raw.substring('--only-email='.length).trim().toLowerCase();
     } else {
       console.error(`Unknown arg: ${raw}`);
       process.exit(1);
@@ -79,12 +88,16 @@ function parseArgs(): CliArgs {
   }
   if (!out.launchDay || !out.launchDate) {
     console.error(
-      'Required: --launch-day=Tuesday --launch-date=2026-08-12 [--dry-run]',
+      'Required: --launch-day=Tuesday --launch-date=2026-08-12 [--dry-run] [--only-email=you@example.com]',
     );
     process.exit(1);
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(out.launchDate)) {
     console.error(`--launch-date must be YYYY-MM-DD, got "${out.launchDate}"`);
+    process.exit(1);
+  }
+  if (out.onlyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.onlyEmail)) {
+    console.error(`--only-email must be a valid email, got "${out.onlyEmail}"`);
     process.exit(1);
   }
   return out as CliArgs;
@@ -114,7 +127,7 @@ function formatDateForDisplay(iso: string): string {
   return `${MONTHS[m - 1]} ${d}`;
 }
 
-async function fetchAllRows(): Promise<WaitlistRow[]> {
+async function fetchRows(onlyEmail: string | null): Promise<WaitlistRow[]> {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     throw new Error(
       'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in env. ' +
@@ -122,11 +135,20 @@ async function fetchAllRows(): Promise<WaitlistRow[]> {
     );
   }
 
+  /* When `onlyEmail` is set we filter server-side via PostgREST's
+     `eq` operator. The waitlist insert path normalizes email to
+     lowercase before insert, so a lowercase eq is the correct
+     match. URL-encode to defend against a recipient with `+` in
+     the local part etc. */
+  const filter = onlyEmail
+    ? `&email=eq.${encodeURIComponent(onlyEmail)}&limit=1`
+    : '';
+
   /* Order by position so the live-progress log reads roughly in
-     waitlist order (mostly cosmetic). */
+     waitlist order (mostly cosmetic; ignored when limit=1). */
   const url =
     `${SUPABASE_URL}/rest/v1/waitlist` +
-    `?select=email,position&order=position.asc`;
+    `?select=email,position&order=position.asc${filter}`;
 
   const res = await fetch(url, {
     headers: {
@@ -169,12 +191,22 @@ async function main(): Promise<void> {
       `(displayed as "${launchDateDisplay}")`,
   );
 
-  const rows = await fetchAllRows();
+  const rows = await fetchRows(args.onlyEmail);
   if (rows.length === 0) {
-    console.log('[prelaunch] no rows in waitlist; nothing to send.');
+    if (args.onlyEmail) {
+      console.log(
+        `[prelaunch] No waitlist row found for ${args.onlyEmail}, sign up at furnish.live first.`,
+      );
+    } else {
+      console.log('[prelaunch] no rows in waitlist; nothing to send.');
+    }
     return;
   }
-  console.log(`[prelaunch] fetched ${rows.length} waitlist rows.`);
+  console.log(
+    args.onlyEmail
+      ? `[prelaunch] fetched 1 row matching ${args.onlyEmail}.`
+      : `[prelaunch] fetched ${rows.length} waitlist rows.`,
+  );
 
   /* In dry-run, render and log a sample plaintext body using the
      first row's data so the operator can confirm the locked copy +
