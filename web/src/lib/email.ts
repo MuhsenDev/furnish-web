@@ -172,25 +172,35 @@ function buildPrelaunchCopy({
 }): PrelaunchCopy {
   const positionDisplay = formatPosition(position);
 
-  /* Plaintext body. Hassan-voice: short, direct, no marketing-run-up.
-     DRAFT copy: review before the actual T-1-week send. */
+  /* Plaintext body. Locked copy from Hassan, 2026-05-08. Em dashes
+     in the source were swapped to commas / dropped per the project's
+     no-em-dash hard rule (CLAUDE.md #12). */
   const text = [
-    `Hi,`,
+    `A quick heads up: we ship Furnish on the App Store on`,
+    `${launchDay}, ${launchDate}.`,
     ``,
-    `Quick note: Furnish goes live on the App Store one week from`,
-    `today, on ${launchDay}, ${launchDate}.`,
+    `If you've forgotten what you signed up for, take a photo of`,
+    `any room, the AI redesigns it in your chosen style, every`,
+    `piece is shoppable, free to use, no subscription.`,
     ``,
-    `You're #${positionDisplay} on the waitlist.`,
+    `You're #${positionDisplay} on the list. Waitlist members get the`,
+    `App Store link the morning of launch, before any public`,
+    `announcement.`,
     ``,
-    `When the app drops you'll get one more email from me with the`,
-    `App Store link. That's it. No marketing run-up between now and`,
-    `then.`,
+    `Two things to do between now and then:`,
     ``,
-    `See you on launch day.`,
+    `1. Add hello@furnish.live to your contacts so the launch`,
+    `   email doesn't get buried in your Promotions tab.`,
+    ``,
+    `2. If you have a room you've been meaning to redesign, take`,
+    `   a clean photo of it now. Daylight, no flash, shot from a`,
+    `   corner so most of the room is visible. That way the moment`,
+    `   you install the app, you have a photo ready to drop in.`,
+    ``,
+    `See you on ${launchDay}.`,
     ``,
     `Hassan`,
     `Founder, Furnish`,
-    `furnish.live`,
   ].join('\n');
 
   const html = `<!doctype html>
@@ -202,21 +212,37 @@ function buildPrelaunchCopy({
   </head>
   <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
-      <p style="margin:0 0 16px 0;">Hi,</p>
       <p style="margin:0 0 16px 0;">
-        Quick note: <strong>Furnish</strong> goes live on the App Store one
-        week from today, on <strong>${launchDay}, ${launchDate}</strong>.
+        A quick heads up: we ship <strong>Furnish</strong> on the App Store
+        on <strong>${launchDay}, ${launchDate}</strong>.
       </p>
       <p style="margin:0 0 16px 0;">
-        You're <strong>#${positionDisplay}</strong> on the waitlist.
+        If you've forgotten what you signed up for, take a photo of any
+        room, the AI redesigns it in your chosen style, every piece is
+        shoppable, free to use, no subscription.
       </p>
-      <p style="margin:0 0 24px 0;">
-        When the app drops you'll get one more email from me with the App
-        Store link. That's it. No marketing run-up between now and then.
+      <p style="margin:0 0 16px 0;">
+        You're <strong>#${positionDisplay}</strong> on the list. Waitlist
+        members get the App Store link the morning of launch, before any
+        public announcement.
       </p>
-      <p style="margin:0 0 4px 0;">See you on launch day.</p>
+      <p style="margin:0 0 8px 0;">Two things to do between now and then:</p>
+      <ol style="margin:0 0 16px 0;padding-left:24px;">
+        <li style="margin:0 0 12px 0;">
+          Add <a href="mailto:hello@furnish.live" style="color:#8B6F47;text-decoration:underline;">hello@furnish.live</a>
+          to your contacts so the launch email doesn't get buried in your
+          Promotions tab.
+        </li>
+        <li>
+          If you have a room you've been meaning to redesign, take a clean
+          photo of it now. Daylight, no flash, shot from a corner so most
+          of the room is visible. That way the moment you install the app,
+          you have a photo ready to drop in.
+        </li>
+      </ol>
+      <p style="margin:0 0 24px 0;">See you on ${launchDay}.</p>
       <p style="margin:0 0 4px 0;">Hassan</p>
-      <p style="margin:0;color:rgba(43,30,24,0.6);font-size:14px;">Founder, Furnish &middot; furnish.live</p>
+      <p style="margin:0;color:rgba(43,30,24,0.6);font-size:14px;">Founder, Furnish</p>
     </div>
   </body>
 </html>`;
@@ -266,28 +292,26 @@ function buildLaunchCopy({
 }): LaunchCopy {
   const positionDisplay = formatPosition(position);
 
-  /* Hassan-voice draft: short, direct, single CTA, signs off the
-     three-email sequence. Review before the launch-day blast. */
+  /* Plaintext body. Locked copy from Hassan, 2026-05-08. Em dashes
+     in the source were swapped to commas / dropped per the project's
+     no-em-dash hard rule (CLAUDE.md #12). */
   const text = [
-    `Hi,`,
+    `It's here.`,
     ``,
-    `Furnish is live.`,
+    `Download Furnish on the App Store: ${appStoreUrl}`,
     ``,
-    `Take a photo of any room, AI redesigns it in your style, every`,
-    `piece is shoppable. Free to use, ad-free, no subscription.`,
-    ``,
-    `Download here:`,
-    ``,
-    appStoreUrl,
+    `Take a photo of any room, pick a style, watch the redesign`,
+    `happen. Tap any piece you like to buy it. Free, no`,
+    `subscription, no catch.`,
     ``,
     `You were #${positionDisplay} on the waitlist. Thanks for being`,
     `early.`,
     ``,
-    `That's the last email from me. Have at it.`,
+    `If you redesign a room you love, send me the before/after,`,
+    `I read every reply.`,
     ``,
     `Hassan`,
     `Founder, Furnish`,
-    `furnish.live`,
   ].join('\n');
 
   const html = `<!doctype html>
@@ -299,22 +323,25 @@ function buildLaunchCopy({
   </head>
   <body style="margin:0;padding:24px;background:#FAF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2B1E18;line-height:1.55;">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:32px;border:1px solid rgba(43,30,24,0.08);">
-      <p style="margin:0 0 16px 0;">Hi,</p>
-      <p style="margin:0 0 16px 0;"><strong>Furnish</strong> is live.</p>
+      <p style="margin:0 0 16px 0;">It's here.</p>
       <p style="margin:0 0 16px 0;">
-        Take a photo of any room, AI redesigns it in your style, every
-        piece is shoppable. Free to use, ad-free, no subscription.
-      </p>
-      <p style="margin:0 0 24px 0;">
+        Download <strong>Furnish</strong> on the App Store:
         <a href="${appStoreUrl}" style="color:#8B6F47;text-decoration:underline;font-weight:600;word-break:break-all;">${appStoreUrl}</a>
+      </p>
+      <p style="margin:0 0 16px 0;">
+        Take a photo of any room, pick a style, watch the redesign happen.
+        Tap any piece you like to buy it. Free, no subscription, no catch.
       </p>
       <p style="margin:0 0 16px 0;">
         You were <strong>#${positionDisplay}</strong> on the waitlist.
         Thanks for being early.
       </p>
-      <p style="margin:0 0 24px 0;">That's the last email from me. Have at it.</p>
+      <p style="margin:0 0 24px 0;">
+        If you redesign a room you love, send me the before/after, I read
+        every reply.
+      </p>
       <p style="margin:0 0 4px 0;">Hassan</p>
-      <p style="margin:0;color:rgba(43,30,24,0.6);font-size:14px;">Founder, Furnish &middot; furnish.live</p>
+      <p style="margin:0;color:rgba(43,30,24,0.6);font-size:14px;">Founder, Furnish</p>
     </div>
   </body>
 </html>`;

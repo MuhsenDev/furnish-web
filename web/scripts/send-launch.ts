@@ -21,7 +21,13 @@
   keeps delivery logs in their dashboard; we don't need a duplicate.
 */
 
-import 'dotenv/config';
+/* See send-prelaunch.ts for the rationale; dotenv auto-loads `.env`
+   only, so we point it at `.env.local` explicitly first. */
+import * as dotenv from 'dotenv';
+import * as path from 'node:path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config();
+
 import * as readline from 'node:readline';
 import { sendLaunchEmail } from '../src/lib/email';
 

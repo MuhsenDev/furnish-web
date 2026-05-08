@@ -31,7 +31,16 @@
   keeps delivery logs in their dashboard; we don't need a duplicate.
 */
 
-import 'dotenv/config';
+/* dotenv's auto-loader reads `.env` only. The Next convention is
+   `.env.local` (which Next loads itself for runtime + build, but
+   standalone CLI scripts don't go through Next). Explicitly point
+   dotenv at `.env.local` here, with a `.env` fallback so anyone
+   who keeps secrets in `.env` (eg CI) still works. */
+import * as dotenv from 'dotenv';
+import * as path from 'node:path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config(); // also load `.env` if present; doesn't override existing keys
+
 import * as readline from 'node:readline';
 import { sendPrelaunchEmail } from '../src/lib/email';
 
