@@ -7,7 +7,7 @@
   bold borders, raised shadow. Other columns are neutral.
 
   Cost row emphasized: "Free" in Furnish column gets display-font
-  treatment. Time row emphasized similarly with "8 seconds".
+  treatment. Time row emphasized similarly with "30 seconds".
 
   Mobile: collapsed "tap to compare" pattern. User picks one
   competitor at a time. Cleaner than horizontal scroll on small
@@ -51,7 +51,7 @@ const ROWS: Row[] = [
   { feature: t('home', 'comparisonRow3'), furnish: true, designer: false, havenly: false, pinterest: false },
   {
     feature: t('home', 'comparisonRow4'),
-    furnish: '8 seconds',
+    furnish: '30 seconds',
     designer: '4 to 8 weeks',
     havenly: '1 to 2 weeks',
     pinterest: 'Never',
@@ -103,7 +103,7 @@ function CellValue({
   /* String value: emphasize the Furnish column when the row is
      marked emphasize (cost, time). Previously this used
      `text-display-m` (a heading size) inside the table cell, which
-     made "8 seconds" and "Free" balloon to ~3x the height of every
+     made "30 seconds" and "Free" balloon to ~3x the height of every
      other row and broke the table's visual rhythm. Now uses the
      same body-l size as the rest, but in display font, accent
      color, and slightly heavier, visually distinguished without

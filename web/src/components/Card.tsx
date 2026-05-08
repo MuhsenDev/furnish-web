@@ -83,7 +83,7 @@ export function CardCaption({
       {meta && (
         /* Meta line was previously text-muted (#8A7760), which on a
            cream/beige card surface read as washed-out, Hassan
-           flagged "Living Room / Contemporary / Designed in 8s" on
+           flagged "Living Room / Contemporary / Designed in 30s" on
            the gallery as barely readable. text-ink at 70% opacity
            keeps the line subordinate to the title without sacrificing
            legibility. Affects gallery, blog index, related posts,

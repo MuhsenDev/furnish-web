@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
   Image inside a rounded card with optional caption below. Most
   images on the site use this treatment.
 
-  Captions follow the "Designed in 8 seconds" micro-copy pattern
+  Captions follow the "Designed in 30 seconds" micro-copy pattern
   from Document 2 Appendix A (Burrow lesson). Caption metadata
   carries style name, room type, and brief description.
 

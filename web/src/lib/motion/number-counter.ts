@@ -1,7 +1,7 @@
 /*
   Motion 9, number counters per Document 3 Section 12.
 
-  Used in the home-page comparison table to show "8 seconds" etc.
+  Used in the home-page comparison table to show "30 seconds" etc.
   counting up. Counter animates from 0 to target over 1.2 seconds
   with furnishInOut easing (mechanical precision).
 

@@ -7,7 +7,7 @@
     Image (4:3 aspect)
     Room name (display font)
     Style label (sans, smaller, 80% opacity)
-    "Designed in 8 seconds" micro-copy in accent color
+    "Designed in 30 seconds" micro-copy in accent color
     StyleCycler at the bottom
 
   Click on the IMAGE area opens the lightbox. Cycle controls do

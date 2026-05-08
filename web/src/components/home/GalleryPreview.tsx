@@ -5,7 +5,7 @@
 
   9 tiles in a 3x3 grid (desktop), 2-col tablet, 1-col mobile. Each
   tile shows one curated AI-generated room with caption (room type
-  in display font, style in sans, "Designed in 8 seconds" micro).
+  in display font, style in sans, "Designed in 30 seconds" micro).
 
   Click any tile fires home_gallery_preview_click. Lightbox
   interaction is deferred to Document 6 (which builds the dedicated

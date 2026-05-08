@@ -19,13 +19,13 @@
   "cyclerCounterFormat": "{current} of {total}",
 
   "tileViewLargerHint": "View larger",
-  "tileDesignedIn": "Designed in 8 seconds",
+  "tileDesignedIn": "Designed in 30 seconds",
   "tilePlaceholderCaption": "Coming soon",
 
   "lightboxCloseAria": "Close lightbox",
   "lightboxPrevAria": "Previous style in this room",
   "lightboxNextAria": "Next style in this room",
-  "lightboxDesignedIn": "Designed in 8 seconds",
+  "lightboxDesignedIn": "Designed in 30 seconds",
   "lightboxMobileCloseHint": "Tap to close",
   "lightboxDesignLikeThisCta": "Design my room like this",
 
