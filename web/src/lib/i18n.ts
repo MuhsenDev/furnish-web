@@ -36,6 +36,7 @@ import about from '@/content/i18n/en/about.json';
 import howItWorks from '@/content/i18n/en/how-it-works.json';
 import faq from '@/content/i18n/en/faq.json';
 import legal from '@/content/i18n/en/legal.json';
+import waitlist from '@/content/i18n/en/waitlist.json';
 
 export type Locale = 'en';
 export type Namespace =
@@ -49,7 +50,8 @@ export type Namespace =
   | 'about'
   | 'how-it-works'
   | 'faq'
-  | 'legal';
+  | 'legal'
+  | 'waitlist';
 
 export const DEFAULT_LOCALE: Locale = 'en';
 export const SUPPORTED_LOCALES: readonly Locale[] = ['en'] as const;
@@ -67,6 +69,7 @@ const messages: Record<Locale, Record<Namespace, Record<string, string>>> = {
     'how-it-works': howItWorks,
     faq,
     legal,
+    waitlist,
   },
 };
 

@@ -19,8 +19,17 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
+import { WaitlistConfirmation } from './WaitlistConfirmation';
+import { readReferralCode } from './referralStorage';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
+
+interface SuccessState {
+  email: string;
+  position: number;
+  referralCode: string;
+  alreadyOnList: boolean;
+}
 
 export interface EmailWaitlistProps {
   /** Where this form lives. Used for analytics attribution. */
@@ -40,6 +49,7 @@ export function EmailWaitlist({
   const [email, setEmail] = React.useState('');
   const [status, setStatus] = React.useState<Status>('idle');
   const [errorMsg, setErrorMsg] = React.useState<string>('');
+  const [successState, setSuccessState] = React.useState<SuccessState | null>(null);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,15 +66,36 @@ export function EmailWaitlist({
     setErrorMsg('');
     track('home_email_waitlist_submit', { location });
 
+    /* Pull a captured referral code if the user arrived via /?ref=xyz
+       (cookie / localStorage). Sent as referredBy so the API can
+       attribute and bump the inviter's position. */
+    const referredBy = readReferralCode();
+
     try {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({
+          email: trimmed,
+          ...(referredBy ? { referredBy } : {}),
+        }),
       });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        position?: number;
+        referralCode?: string;
+        alreadyOnList?: boolean;
+        error?: string;
+      } | null;
+      if (!res.ok || !json?.ok || json.position == null || !json.referralCode) {
+        throw new Error(json?.error ?? `HTTP ${res.status}`);
       }
+      setSuccessState({
+        email: trimmed,
+        position: json.position,
+        referralCode: json.referralCode,
+        alreadyOnList: !!json.alreadyOnList,
+      });
       setStatus('success');
       track('waitlist_success', { location });
     } catch {
@@ -74,18 +105,23 @@ export function EmailWaitlist({
     }
   };
 
-  if (status === 'success') {
+  if (status === 'success' && successState) {
     return (
-      <p
+      <div
         role="status"
         className={cn(
-          'text-body-m',
+          'w-full max-w-xl',
           scheme === 'on-dark' ? 'text-cream' : 'text-deep',
           className,
         )}
       >
-        {t('home', 'waitlistSuccess')}
-      </p>
+        <WaitlistConfirmation
+          email={successState.email}
+          position={successState.position}
+          referralCode={successState.referralCode}
+          alreadyOnList={successState.alreadyOnList}
+        />
+      </div>
     );
   }
 

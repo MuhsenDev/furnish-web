@@ -25,8 +25,17 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
+import { WaitlistConfirmation } from './WaitlistConfirmation';
+import { readReferralCode } from './referralStorage';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
+
+interface SuccessState {
+  email: string;
+  position: number;
+  referralCode: string;
+  alreadyOnList: boolean;
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,6 +48,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [email, setEmail] = React.useState('');
   const [status, setStatus] = React.useState<Status>('idle');
   const [errorMsg, setErrorMsg] = React.useState<string>('');
+  const [successState, setSuccessState] = React.useState<SuccessState | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   /* Esc closes. Body scroll locks while open. Focus moves to the
@@ -73,6 +83,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
         setEmail('');
         setStatus('idle');
         setErrorMsg('');
+        setSuccessState(null);
       }, 200);
       return () => window.clearTimeout(t);
     }
@@ -93,15 +104,37 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     setErrorMsg('');
     track('home_email_waitlist_submit', { location: 'modal' });
 
+    /* Pull a previously-captured referral code from cookie /
+       localStorage so visitors who arrived via /?ref=xyz get
+       attributed even if the share-targeted page wasn't where
+       they finally signed up. */
+    const referredBy = readReferralCode();
+
     try {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({
+          email: trimmed,
+          ...(referredBy ? { referredBy } : {}),
+        }),
       });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        position?: number;
+        referralCode?: string;
+        alreadyOnList?: boolean;
+        error?: string;
+      } | null;
+      if (!res.ok || !json?.ok || json.position == null || !json.referralCode) {
+        throw new Error(json?.error ?? `HTTP ${res.status}`);
       }
+      setSuccessState({
+        email: trimmed,
+        position: json.position,
+        referralCode: json.referralCode,
+        alreadyOnList: !!json.alreadyOnList,
+      });
       setStatus('success');
       track('waitlist_success', { location: 'modal' });
     } catch {
@@ -169,29 +202,33 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
           <X size={20} strokeWidth={1.75} />
         </button>
 
-        <h2
-          id="waitlist-modal-title"
-          className={cn(
-            'font-display text-deep text-center',
-            'tracking-display-tight leading-display-tight',
-            'text-display-l',
-          )}
-        >
-          {t('home', 'waitlistModalTitle')}
-        </h2>
-
-        <p className="mt-4 text-center text-body-l text-ink/85 leading-relaxed">
-          {t('home', 'waitlistModalDescription')}
-        </p>
-
-        {status === 'success' ? (
-          <p
-            role="status"
-            className="mt-8 rounded-sm bg-[var(--color-beige)]/60 p-5 text-body-l text-deep"
-          >
-            {t('home', 'waitlistSuccess')}
-          </p>
+        {status === 'success' && successState ? (
+          <WaitlistConfirmation
+            email={successState.email}
+            position={successState.position}
+            referralCode={successState.referralCode}
+            alreadyOnList={successState.alreadyOnList}
+          />
         ) : (
+          <>
+            <h2
+              id="waitlist-modal-title"
+              className={cn(
+                'font-display text-deep text-center',
+                'tracking-display-tight leading-display-tight',
+                'text-display-l',
+              )}
+            >
+              {t('home', 'waitlistModalTitle')}
+            </h2>
+
+            <p className="mt-4 text-center text-body-l text-ink/85 leading-relaxed">
+              {t('home', 'waitlistModalDescription')}
+            </p>
+          </>
+        )}
+
+        {status !== 'success' && (
           <form onSubmit={onSubmit} className="mt-8" noValidate>
             <input
               ref={inputRef}

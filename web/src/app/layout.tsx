@@ -1,3 +1,4 @@
+import * as React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
@@ -6,6 +7,7 @@ import '../styles/globals.css';
 import { Nav } from '@/components/shared/Nav';
 import { Footer } from '@/components/shared/Footer';
 import { WaitlistProvider } from '@/components/shared/WaitlistContext';
+import { ReferralCapture } from '@/components/shared/ReferralCapture';
 import { t } from '@/lib/i18n';
 
 /*
@@ -123,6 +125,14 @@ export default function RootLayout({
             pill, mobile menu, hero, gallery, blog, final CTA,
             comparison table). One modal, many triggers. */}
         <WaitlistProvider>
+          {/* ReferralCapture mounts inside Suspense (it uses
+              useSearchParams) and silently captures ?ref=xyz on
+              first paint. Renders a thin top banner when a code is
+              active. Wrapping in Suspense per Next App Router
+              requirement. */}
+          <React.Suspense fallback={null}>
+            <ReferralCapture />
+          </React.Suspense>
           <Nav />
           <main id="main" className="flex-1">
             {children}

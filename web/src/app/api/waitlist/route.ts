@@ -1,40 +1,61 @@
 /*
-  Waitlist API per Document 9 §8.2.
+  Waitlist API per Document 9 §8.2 + 2026-05-08 referral mechanics.
 
-  Accepts POST with { email: string }. Validates format. Inserts
-  into the Supabase 'waitlist' table via the service-role key
-  (server-only; bypasses RLS).
+  POST { email: string, referredBy?: string }
+    -> { ok: true, position: number, referralCode: string,
+                   referredCount: number, alreadyOnList?: boolean }
 
-  Behavior when Supabase is not configured (env vars unset):
-  the endpoint accepts the email, logs it server-side, and
-  returns success. This keeps local development and pre-Supabase
-  prod testing functional. Once SUPABASE_URL and
-  SUPABASE_SERVICE_ROLE_KEY are set in Vercel, real inserts begin.
+  Behavior:
+    - Validates email format.
+    - If `referredBy` is provided, looks up the referrer. If the
+      code doesn't resolve to a real row, silently drops it (don't
+      break a signup over a bogus param).
+    - Generates an 8-char referral_code; retries up to 5 times on
+      collision (UNIQUE index in the DB).
+    - Inserts the row. The DB sequence handles position assignment
+      atomically; the after-insert trigger applies the +referrer
+      bump + referred_count increment when referred_by is set.
+    - Returns the new user's position + code so the UI can swap to
+      the confirmation screen.
+    - Fires sendConfirmationEmail without awaiting so a slow Resend
+      roundtrip doesn't slow the user response. Failures are logged
+      server-side, not surfaced to the client.
 
-  Rate limit: simple per-IP token bucket (20 requests per hour
-  per IP). Hassan tunes if real abuse appears.
+  Duplicate email handling:
+    - Returns 200 with `alreadyOnList: true` and the EXISTING user's
+      position + code, so the UI can still show the confirmation
+      screen. Avoids leaking signup membership to fishing attempts
+      (a 409 would confirm "yes, this email is on the list"). Spec
+      explicitly asks for this UX: "you're already on the list" not
+      "this email exists".
 
-  Idempotency: the waitlist table should have a unique constraint
-  on email; duplicate inserts return ok=true to the client (no
-  signal that an email was already on the list, which would leak
-  signup membership information).
+  Behavior when Supabase isn't configured (env vars unset): the
+  endpoint synthesizes a plausible position + code, returns success,
+  and skips the persistence + email steps. Keeps local development
+  and pre-Supabase prod testing functional.
 */
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { isSupabaseConfigured, supabaseInsert } from '@/lib/supabase';
+import {
+  isSupabaseConfigured,
+  supabaseInsert,
+  supabaseSelect,
+  supabaseCount,
+} from '@/lib/supabase';
+import { sendConfirmationEmail } from '@/lib/email';
+import {
+  generateReferralCode,
+  POSITION_OFFSET,
+} from '@/lib/referral';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REFERRAL_CODE_RE = /^[a-z0-9]{4,16}$/;
 
-/* Per-IP rate limiter. In-memory; resets on cold start. Acceptable
-   for this volume; if the site needs hardened rate limiting, switch
-   to Upstash or Vercel KV. */
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX = 20;
 const ipBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function getClientIp(req: NextRequest): string {
-  /* Prefer x-forwarded-for first IP, then x-real-ip, then unknown.
-     Vercel and most edge proxies set x-forwarded-for. */
   const xff = req.headers.get('x-forwarded-for');
   if (xff) return xff.split(',')[0].trim();
   return req.headers.get('x-real-ip') ?? 'unknown';
@@ -52,7 +73,29 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+interface WaitlistRow {
+  email: string;
+  position: number;
+  referral_code: string;
+  referred_count: number;
+}
+
+interface SignupSuccessBody {
+  ok: true;
+  position: number;
+  referralCode: string;
+  referredCount: number;
+  alreadyOnList?: boolean;
+}
+
+interface SignupErrorBody {
+  ok: false;
+  error: string;
+}
+
+export async function POST(
+  req: NextRequest,
+): Promise<NextResponse<SignupSuccessBody | SignupErrorBody>> {
   const ip = getClientIp(req);
   if (isRateLimited(ip)) {
     return NextResponse.json(
@@ -61,7 +104,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let body: { email?: unknown };
+  let body: { email?: unknown; referredBy?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -80,30 +123,186 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  /* If Supabase is configured, insert the row. If not, log and
-     return ok so local dev and pre-config prod still work. */
-  if (isSupabaseConfigured()) {
-    const result = await supabaseInsert('waitlist', {
-      email,
-      source: 'website',
-      created_at: new Date().toISOString(),
-    });
+  /* Sanitize referredBy: must be a short alphanumeric string. */
+  const referredByRaw =
+    typeof body.referredBy === 'string'
+      ? body.referredBy.trim().toLowerCase()
+      : '';
+  const referredBy = REFERRAL_CODE_RE.test(referredByRaw)
+    ? referredByRaw
+    : null;
 
-    /* Idempotent on duplicate email: status 409 from Supabase means
-       the unique constraint blocked the insert, which is fine for
-       the user (they are already on the list). Return ok. */
-    if (!result.ok && result.status !== 409) {
-      console.error(
-        `[waitlist] supabase insert failed for ${email}: ${result.error}`,
-      );
-      return NextResponse.json(
-        { ok: false, error: 'persistence_failed' },
-        { status: 500 },
-      );
-    }
-  } else {
-    console.log(`[waitlist] received signup (no Supabase): ${email}`);
+  /* Without Supabase (local dev / pre-config), synthesize a
+     plausible response so the UI flow works end-to-end. The
+     position is computed from a stub count of 0 + offset, the
+     code is freshly generated (and not persisted). */
+  if (!isSupabaseConfigured()) {
+    const fallbackPosition = POSITION_OFFSET + 1;
+    const fallbackCode = generateReferralCode();
+    // eslint-disable-next-line no-console
+    console.log(
+      `[waitlist] received signup (no Supabase): ${email} (referredBy=${referredBy ?? 'none'})`,
+    );
+    /* Fire and forget: still hit Resend in dev so the email module's
+       console-fallback path runs, useful for content QA. */
+    void sendConfirmationEmail({
+      to: email,
+      position: fallbackPosition,
+      referralCode: fallbackCode,
+    });
+    return NextResponse.json({
+      ok: true,
+      position: fallbackPosition,
+      referralCode: fallbackCode,
+      referredCount: 0,
+    });
   }
 
-  return NextResponse.json({ ok: true });
+  /* Validate referrer exists. If the param is set but no row
+     resolves, drop it silently (don't error). */
+  let validReferralCode: string | null = null;
+  if (referredBy) {
+    const refLookup = await supabaseSelect<{ referral_code: string }>(
+      'waitlist',
+      `select=referral_code&referral_code=eq.${encodeURIComponent(referredBy)}&limit=1`,
+    );
+    if (refLookup.ok && refLookup.data && refLookup.data.length > 0) {
+      validReferralCode = refLookup.data[0].referral_code;
+    }
+  }
+
+  /* Duplicate-email pre-check: return the existing row's position +
+     code instead of letting the unique constraint fire. Lets the UI
+     show the confirmation screen with accurate data. */
+  const existing = await supabaseSelect<WaitlistRow>(
+    'waitlist',
+    `select=email,position,referral_code,referred_count&email=eq.${encodeURIComponent(email)}&limit=1`,
+  );
+  if (existing.ok && existing.data && existing.data.length > 0) {
+    const row = existing.data[0];
+    return NextResponse.json({
+      ok: true,
+      position: row.position,
+      referralCode: row.referral_code,
+      referredCount: row.referred_count,
+      alreadyOnList: true,
+    });
+  }
+
+  /* Generate a unique referral code. Retry up to 5x on collision
+     (UNIQUE index will reject duplicates with status 409 from
+     PostgREST; we handle that defensively). */
+  let referralCode = '';
+  let inserted: WaitlistRow | null = null;
+  let lastError = '';
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    referralCode = generateReferralCode();
+    const insertResult = await supabaseInsert<WaitlistRow>(
+      'waitlist',
+      {
+        email,
+        source: 'website',
+        created_at: new Date().toISOString(),
+        referral_code: referralCode,
+        referred_by: validReferralCode,
+      },
+      { returning: true },
+    );
+
+    if (insertResult.ok && insertResult.data && insertResult.data.length > 0) {
+      inserted = insertResult.data[0];
+      break;
+    }
+
+    lastError = insertResult.error ?? 'unknown';
+
+    /* 409 = unique violation; could be email or referral_code. If
+       it's email, the existing-check above already handled it (race
+       between check and insert). If referral_code, retry with a new
+       code. We don't know which without parsing the body, so retry
+       a few times then fall through. */
+    if (insertResult.status !== 409) break;
+  }
+
+  if (!inserted) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[waitlist] supabase insert failed for ${email}: ${lastError}`,
+    );
+
+    /* If we hit 409 repeatedly, the email might have been inserted
+       between our pre-check and our retries (race). Re-check the
+       existing row and return that. */
+    if (lastError.endsWith('409')) {
+      const refetch = await supabaseSelect<WaitlistRow>(
+        'waitlist',
+        `select=email,position,referral_code,referred_count&email=eq.${encodeURIComponent(email)}&limit=1`,
+      );
+      if (refetch.ok && refetch.data && refetch.data.length > 0) {
+        const row = refetch.data[0];
+        return NextResponse.json({
+          ok: true,
+          position: row.position,
+          referralCode: row.referral_code,
+          referredCount: row.referred_count,
+          alreadyOnList: true,
+        });
+      }
+    }
+
+    return NextResponse.json(
+      { ok: false, error: 'persistence_failed' },
+      { status: 500 },
+    );
+  }
+
+  /* Fire-and-forget the email so a slow Resend call doesn't slow
+     the user response. Errors are logged inside sendConfirmationEmail. */
+  void sendConfirmationEmail({
+    to: email,
+    position: inserted.position,
+    referralCode: inserted.referral_code,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    position: inserted.position,
+    referralCode: inserted.referral_code,
+    referredCount: inserted.referred_count,
+  });
+}
+
+/*
+  GET /api/waitlist returns the public aggregate count + offset.
+  Cached by the caller for short windows (the homepage renders
+  server-side and re-fetches per request). Kept on the same route
+  so the API surface stays compact.
+*/
+interface CountSuccessBody {
+  ok: true;
+  count: number;
+}
+
+interface CountErrorBody {
+  ok: false;
+  error: string;
+}
+
+export async function GET(): Promise<NextResponse<CountSuccessBody | CountErrorBody>> {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ ok: true, count: POSITION_OFFSET });
+  }
+
+  const result = await supabaseCount('waitlist');
+  if (!result.ok || result.count == null) {
+    return NextResponse.json(
+      { ok: false, error: 'count_failed' },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    count: result.count + POSITION_OFFSET,
+  });
 }

@@ -1,0 +1,29 @@
+{
+  "publicCounter": "Join {n} people on the waitlist",
+
+  "referralBanner": "You were invited by a friend, joining bumps them up the list.",
+  "referralBannerDismiss": "Dismiss referral banner",
+
+  "confirmEyebrow": "You're on the list",
+  "confirmAlreadyEyebrow": "Welcome back",
+  "positionNumber": "#{n}",
+  "positionAhead": "{n} people are ahead of you",
+
+  "moveUpHeadline": "Move up the list",
+  "moveUpBody": "Every friend who joins through your link bumps you up 25 spots.",
+  "referralLinkAria": "Your referral link",
+  "copy": "Copy",
+  "copied": "Copied",
+
+  "nativeShare": "Share",
+  "shareEllipsis": "Share",
+  "shareTwitter": "X / Twitter",
+  "shareIMessage": "iMessage",
+  "shareCopyLink": "Copy link",
+  "shareTitle": "Furnish",
+  "shareMessage": "I just joined the @furnishapp waitlist, AI redesigns your room with shoppable furniture: {link}",
+
+  "inboxReminder": "Watch your inbox, we sent a confirmation to {email}.",
+
+  "emailSubject": "You're on the Furnish list"
+}

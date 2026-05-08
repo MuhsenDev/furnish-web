@@ -52,7 +52,18 @@ const secondaryCtaClasses = cn(
   'px-7 py-3.5 text-body-m font-semibold text-ink',
 );
 
-export function Hero() {
+export interface HeroProps {
+  /**
+   * Pre-formatted aggregate counter copy from the server (e.g.
+   * "Join 1,234 people on the waitlist"). Rendered just under the
+   * sub-CTA text. Server side computes this from a Supabase row
+   * count + the private POSITION_OFFSET so the offset never lands
+   * in the client bundle.
+   */
+  counterText?: string;
+}
+
+export function Hero({ counterText }: HeroProps = {}) {
   const heroRef = useHeroSequence<HTMLElement>();
   const { open: openWaitlist } = useWaitlist();
 
@@ -195,6 +206,16 @@ export function Hero() {
                 ? t('home', 'heroSubCtaPostLaunch')
                 : t('home', 'heroSubCtaPreLaunch')}
             </p>
+
+            {/* Aggregate signup counter, rendered only when the
+                server passed in copy. Subtle, intentionally not
+                shouty: same muted text size as the sub-CTA, just a
+                tighter top margin so it pairs visually. */}
+            {counterText && !APP_LAUNCHED && (
+              <p className="mt-1.5 text-body-s text-muted">
+                {counterText}
+              </p>
+            )}
           </div>
 
           {/* RIGHT column: a "Furnish character" composed of three

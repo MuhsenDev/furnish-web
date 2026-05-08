@@ -29,6 +29,9 @@ import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
 import { ComparisonTable } from '@/components/home/ComparisonTable';
 import { FounderNote } from '@/components/home/FounderNote';
 import { FinalCTA } from '@/components/home/FinalCTA';
+import { isSupabaseConfigured, supabaseCount } from '@/lib/supabase';
+import { POSITION_OFFSET } from '@/lib/referral';
+import { t } from '@/lib/i18n';
 
 /* RoomShowcaseSection pulls in framer-motion (~30 KB gz) which we
    don't want on the critical path. Section is below-the-fold; lazy
@@ -114,11 +117,32 @@ function HomeStructuredData() {
   );
 }
 
-export default function HomePage() {
+/* Server-side aggregate signup counter. Read at request time and
+   passed into the Hero as a formatted string so the offset stays
+   server-side. Falls back to the offset alone if Supabase isn't
+   configured. */
+async function fetchHeroCounterText(): Promise<string | undefined> {
+  if (!isSupabaseConfigured()) {
+    return t('waitlist', 'publicCounter').replace(
+      '{n}',
+      POSITION_OFFSET.toLocaleString('en-US'),
+    );
+  }
+  const result = await supabaseCount('waitlist');
+  if (!result.ok || result.count == null) return undefined;
+  const total = result.count + POSITION_OFFSET;
+  return t('waitlist', 'publicCounter').replace(
+    '{n}',
+    total.toLocaleString('en-US'),
+  );
+}
+
+export default async function HomePage() {
+  const counterText = await fetchHeroCounterText();
   return (
     <>
       <HomeStructuredData />
-      <Hero />
+      <Hero counterText={counterText} />
       <HomeCompareSlider />
       <RoomShowcaseSection />
       <GalleryPreview />
