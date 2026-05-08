@@ -51,7 +51,15 @@ export interface GalleryFiltersProps {
 
 const chipBase = cn(
   'shrink-0 inline-flex items-center justify-center',
-  'rounded-sm px-3.5 py-2 text-body-s font-semibold',
+  /* Padding tightened from px-3.5 py-2 to px-3 py-1.5 so all 10
+     style chips (longest is "Mid-century Modern") fit on a single
+     line on a typical 1280px+ desktop viewport. The prior padding
+     pushed total chip-row width past the default Container's
+     ~1136px usable inner width, orphaning "Traditional" onto a
+     second visible line (Hassan: "no 3 rows"). On narrower
+     viewports the row still scrolls horizontally with the
+     overflow chevron indicator. */
+  'rounded-sm px-3 py-1.5 text-body-s font-semibold',
   /* Every chip carries a 1px border so it reads as a real button
      at rest, not as flat text. The previous low-chrome version
      dropped the border entirely and Hassan said the labels read
@@ -255,7 +263,14 @@ export function GalleryFilters({
         'py-4 sm:py-5',
       )}
     >
-      <Container width="default">
+      {/* Filter bar uses Container width="wide" (1440px) instead of
+          "default" (1200px) so all 10 style chips fit on a single
+          line on a typical desktop. With "default" the longest chip
+          row needed ~1191 px while the inner content area was only
+          ~1136 px, forcing "Traditional" to wrap to a 3rd visible
+          row. The hero section above and the gallery grid below stay
+          on their original Container widths. */}
+      <Container width="wide">
         <div className="flex flex-col gap-3 sm:gap-3.5">
           <FilterRow
             eyebrow={t('gallery', 'filterRoomEyebrow')}
