@@ -42,7 +42,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config(); // also load `.env` if present; doesn't override existing keys
 
 import * as readline from 'node:readline';
-import { sendPrelaunchEmail } from '../src/lib/email';
+import { sendPrelaunchEmail, buildPrelaunchCopy } from '../src/lib/email';
 
 interface CliArgs {
   launchDay: string;
@@ -175,6 +175,22 @@ async function main(): Promise<void> {
     return;
   }
   console.log(`[prelaunch] fetched ${rows.length} waitlist rows.`);
+
+  /* In dry-run, render and log a sample plaintext body using the
+     first row's data so the operator can confirm the locked copy +
+     spacing render correctly before flipping to LIVE mode. */
+  if (args.dryRun) {
+    const sample = buildPrelaunchCopy({
+      position: rows[0].position,
+      launchDay: args.launchDay,
+      launchDate: launchDateDisplay,
+    });
+    console.log('---');
+    console.log(`[prelaunch] sample plaintext body (recipient #${rows[0].position}):`);
+    console.log('---');
+    console.log(sample.text);
+    console.log('---');
+  }
 
   if (!args.dryRun) {
     if (!process.env.RESEND_API_KEY) {

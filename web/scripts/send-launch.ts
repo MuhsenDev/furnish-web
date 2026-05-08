@@ -29,7 +29,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
 import * as readline from 'node:readline';
-import { sendLaunchEmail } from '../src/lib/email';
+import { sendLaunchEmail, buildLaunchCopy } from '../src/lib/email';
 
 interface CliArgs {
   appStoreUrl: string;
@@ -131,6 +131,20 @@ async function main(): Promise<void> {
     return;
   }
   console.log(`[launch] fetched ${rows.length} waitlist rows.`);
+
+  /* In dry-run, render and log a sample plaintext body so the
+     operator can confirm the copy + spacing before going LIVE. */
+  if (args.dryRun) {
+    const sample = buildLaunchCopy({
+      position: rows[0].position,
+      appStoreUrl: args.appStoreUrl,
+    });
+    console.log('---');
+    console.log(`[launch] sample plaintext body (recipient #${rows[0].position}):`);
+    console.log('---');
+    console.log(sample.text);
+    console.log('---');
+  }
 
   if (!args.dryRun) {
     if (!process.env.RESEND_API_KEY) {

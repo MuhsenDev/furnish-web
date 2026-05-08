@@ -161,7 +161,10 @@ interface PrelaunchCopy {
   text: string;
 }
 
-function buildPrelaunchCopy({
+/* Exported so the dry-run CLI can render a preview of the actual
+   plaintext + subject without sending. Production callers should
+   continue to use sendPrelaunchEmail. */
+export function buildPrelaunchCopy({
   position,
   launchDay,
   launchDate,
@@ -174,28 +177,28 @@ function buildPrelaunchCopy({
 
   /* Plaintext body. Locked copy from Hassan, 2026-05-08. Em dashes
      in the source were swapped to commas / dropped per the project's
-     no-em-dash hard rule (CLAUDE.md #12). */
+     no-em-dash hard rule (CLAUDE.md #12).
+
+     IMPORTANT: each array entry is a complete logical paragraph (or
+     a sign-off line). DO NOT split a paragraph across multiple
+     entries: some plaintext renderers (notably Gmail's flowed-text
+     mode) collapse the single \n between adjacent entries, which
+     produced "App Store onTuesday" / "ofany room" style joins in
+     the prior version. Keeping each paragraph as one string and
+     separating paragraphs with empty entries (-> blank lines)
+     guarantees correct spacing across all clients. */
   const text = [
-    `A quick heads up: we ship Furnish on the App Store on`,
-    `${launchDay}, ${launchDate}.`,
+    `A quick heads up: we ship Furnish on the App Store on ${launchDay}, ${launchDate}.`,
     ``,
-    `If you've forgotten what you signed up for, take a photo of`,
-    `any room, the AI redesigns it in your chosen style, every`,
-    `piece is shoppable, free to use, no subscription.`,
+    `If you've forgotten what you signed up for, take a photo of any room, the AI redesigns it in your chosen style, every piece is shoppable, free to use, no subscription.`,
     ``,
-    `You're #${positionDisplay} on the list. Waitlist members get the`,
-    `App Store link the morning of launch, before any public`,
-    `announcement.`,
+    `You're #${positionDisplay} on the list. Waitlist members get the App Store link the morning of launch, before any public announcement.`,
     ``,
     `Two things to do between now and then:`,
     ``,
-    `1. Add hello@furnish.live to your contacts so the launch`,
-    `   email doesn't get buried in your Promotions tab.`,
+    `1. Add hello@furnish.live to your contacts so the launch email doesn't get buried in your Promotions tab.`,
     ``,
-    `2. If you have a room you've been meaning to redesign, take`,
-    `   a clean photo of it now. Daylight, no flash, shot from a`,
-    `   corner so most of the room is visible. That way the moment`,
-    `   you install the app, you have a photo ready to drop in.`,
+    `2. If you have a room you've been meaning to redesign, take a clean photo of it now. Daylight, no flash, shot from a corner so most of the room is visible. That way the moment you install the app, you have a photo ready to drop in.`,
     ``,
     `See you on ${launchDay}.`,
     ``,
@@ -283,7 +286,9 @@ interface LaunchCopy {
   text: string;
 }
 
-function buildLaunchCopy({
+/* Exported for the same reason as buildPrelaunchCopy: the dry-run
+   CLI renders a preview without sending. */
+export function buildLaunchCopy({
   position,
   appStoreUrl,
 }: {
@@ -294,21 +299,21 @@ function buildLaunchCopy({
 
   /* Plaintext body. Locked copy from Hassan, 2026-05-08. Em dashes
      in the source were swapped to commas / dropped per the project's
-     no-em-dash hard rule (CLAUDE.md #12). */
+     no-em-dash hard rule (CLAUDE.md #12).
+
+     Each array entry is a complete logical paragraph (or sign-off
+     line). DO NOT split a paragraph across multiple entries; see
+     buildPrelaunchCopy for the rationale. */
   const text = [
     `It's here.`,
     ``,
     `Download Furnish on the App Store: ${appStoreUrl}`,
     ``,
-    `Take a photo of any room, pick a style, watch the redesign`,
-    `happen. Tap any piece you like to buy it. Free, no`,
-    `subscription, no catch.`,
+    `Take a photo of any room, pick a style, watch the redesign happen. Tap any piece you like to buy it. Free, no subscription, no catch.`,
     ``,
-    `You were #${positionDisplay} on the waitlist. Thanks for being`,
-    `early.`,
+    `You were #${positionDisplay} on the waitlist. Thanks for being early.`,
     ``,
-    `If you redesign a room you love, send me the before/after,`,
-    `I read every reply.`,
+    `If you redesign a room you love, send me the before/after, I read every reply.`,
     ``,
     `Hassan`,
     `Founder, Furnish`,
