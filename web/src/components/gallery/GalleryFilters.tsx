@@ -11,18 +11,23 @@
   New layout:
     - Each row leads with an eyebrow-style category label ("Room" /
       "Style") so the user can see at a glance what each row filters.
-    - Chips are low-chrome: text-only at rest, subtle accent tint
-      (accent-color text + 8% accent background) when active. Tighter
-      padding (px-3 py-1.5) and rounded-sm corners instead of the
-      former rounded-full.
-    - Mobile: still horizontal-scroll. Desktop: wraps. Eyebrow stacks
-      above the chip rail on small screens to save horizontal space.
+    - Chips are bordered button style: outlined surface fill at rest
+      (so each label reads as a clickable box, not flat text), filled
+      accent on active. Hassan iterated this in 2026-05.
+    - Single-row horizontal scroll on every viewport. The rail no
+      longer wraps to a second line on desktop (the 10-style chip set
+      was orphaning the "Traditional" chip onto a second row); same
+      scroll behavior on mobile + desktop.
+    - When the rail overflows, a fade gradient + clickable chevron-
+      right button appears on the right edge so users see there is
+      more content to scroll. The chevron auto-hides at the end of
+      the rail.
     - Sticky-to-top behavior unchanged so the user can refilter from
       anywhere on the page.
 */
 
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronRight } from 'lucide-react';
 import { Container } from '@/components/Container';
 import {
   ALL_ROOMS,
@@ -84,9 +89,61 @@ interface FilterRowProps {
   children: React.ReactNode;
 }
 
-/* One filter row = eyebrow label + horizontal chip rail. Stacks on
-   mobile, lays out side-by-side on sm+ screens. */
+/* One filter row = eyebrow label + horizontal chip rail.
+
+   Layout: stacks on mobile, lays out side-by-side on sm+ screens.
+
+   Scrolling: the chip rail ALWAYS scrolls horizontally (no wrap on
+   any viewport). Previously the rail wrapped to a second line on
+   sm+ when the 10-style chip set didn't fit (Hassan flagged the
+   "Traditional" chip on its own second row). Single-row scroll is
+   uniform across mobile + desktop and keeps the filter bar one
+   line tall.
+
+   Affordance: when the rail overflows AND the user isn't already
+   scrolled to the end, a fade gradient + clickable chevron appears
+   on the right edge so it's obvious there are more chips off-screen
+   (Hassan: "it doesn't look like there is multiple options to
+   scroll from"). Click the chevron to scroll the rail by ~70 % of
+   its visible width. The fade + chevron auto-hide once the user
+   reaches the end. */
 function FilterRow({ eyebrow, ariaLabel, children }: FilterRowProps) {
+  const railRef = React.useRef<HTMLDivElement>(null);
+  const [showRightAffordance, setShowRightAffordance] = React.useState(false);
+
+  React.useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const update = () => {
+      const canScroll = rail.scrollWidth > rail.clientWidth + 1;
+      const atEnd =
+        rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1;
+      setShowRightAffordance(canScroll && !atEnd);
+    };
+
+    update();
+    rail.addEventListener('scroll', update, { passive: true });
+
+    /* ResizeObserver re-evaluates on viewport changes so the
+       affordance correctly appears/disappears as the rail's width
+       changes (window resize, orientation change). */
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    ro?.observe(rail);
+
+    return () => {
+      rail.removeEventListener('scroll', update);
+      ro?.disconnect();
+    };
+  }, []);
+
+  const handleScrollNext = () => {
+    const rail = railRef.current;
+    if (!rail) return;
+    rail.scrollBy({ left: rail.clientWidth * 0.7, behavior: 'smooth' });
+  };
+
   return (
     <div
       className={cn(
@@ -102,16 +159,59 @@ function FilterRow({ eyebrow, ariaLabel, children }: FilterRowProps) {
       >
         {eyebrow}
       </span>
-      <div
-        role="group"
-        aria-label={ariaLabel}
-        className={cn(
-          'flex min-w-0 flex-1 gap-1 overflow-x-auto pb-0.5',
-          'sm:flex-wrap sm:overflow-visible sm:pb-0',
-          '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+      <div className="relative min-w-0 flex-1">
+        <div
+          ref={railRef}
+          role="group"
+          aria-label={ariaLabel}
+          className={cn(
+            /* Always single-row + horizontal scroll. No flex-wrap
+               on any breakpoint. */
+            'flex gap-1 overflow-x-auto pb-0.5',
+            '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          )}
+        >
+          {children}
+        </div>
+
+        {showRightAffordance && (
+          <>
+            {/* Fade gradient on the right edge so chips visibly
+                disappear into the bar rather than getting hard-
+                cut at the container edge. Width 14 = ~56 px,
+                enough to read as a fade without obscuring more
+                than the trailing chip's last few characters. */}
+            <div
+              className={cn(
+                'pointer-events-none absolute right-0 top-0 bottom-0 w-14',
+                'bg-gradient-to-l from-cream via-cream/85 to-transparent',
+              )}
+              aria-hidden="true"
+            />
+            {/* Clickable next-arrow. Sits over the fade. Pill-shaped
+                with the same surface treatment as inactive chips so
+                it reads as part of the filter system. */}
+            <button
+              type="button"
+              onClick={handleScrollNext}
+              aria-label={t('gallery', 'filterScrollMoreAria')}
+              className={cn(
+                'absolute right-1 top-1/2 -translate-y-1/2',
+                'inline-flex h-8 w-8 items-center justify-center',
+                'rounded-full border border-[rgba(43,30,24,0.20)]',
+                'bg-surface text-deep',
+                'shadow-1',
+                'hover:border-[var(--color-accent)]',
+                'hover:bg-[var(--color-accent)] hover:text-cream',
+                'transition-colors duration-200 ease-premium',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
+                'focus-visible:ring-offset-2 focus-visible:ring-offset-cream',
+              )}
+            >
+              <ChevronRight size={16} strokeWidth={2} />
+            </button>
+          </>
         )}
-      >
-        {children}
       </div>
     </div>
   );
