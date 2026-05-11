@@ -110,6 +110,16 @@
     0%, 100% { transform: scale(0.97) rotate(-1.5deg); }
     50% { transform: scale(1.04) rotate(1.5deg); }
   }
+
+  /* RoomShowcase constant idle levitation. Applied via inline
+     `animation: roomLevitate 5s ease-in-out infinite` on the SVG
+     wrapper div inside each room card. 6 px amplitude is small
+     enough to stay inside the card's overflow-hidden clip,
+     5 s period reads as slow breathing rather than bouncing. */
+  @keyframes roomLevitate {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
   .wordmark-wave {
     animation: wordmarkWave 2.4s var(--ease-furnish-in-out) infinite;
     transform-origin: 50% 80%;

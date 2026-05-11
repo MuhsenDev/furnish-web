@@ -691,6 +691,30 @@ function Room({
     index,
   ]);
 
+  /* Constant idle levitation. The wrapping HTML <div>
+     (svgContainerRef) gets a CSS keyframe animation that bobs it
+     vertically forever.
+
+     Why the div, not the SVG: the SVG defaults to
+     transform-box: view-box, so a CSS translateY(-Npx) on it
+     means -N units in SVG userspace, not screen pixels. With our
+     SVGs (viewBox ~1440 wide rendered to ~520px on screen, ~2.8×
+     shrink), translateY on the SVG would shrink proportionally.
+     Animating the wrapping HTML div instead applies the transform
+     in real screen pixels.
+
+     Why CSS keyframes, not Web Animations API: WAAPI in some
+     preview / iframe contexts reports the animation as "running"
+     but never advances currentTime (the document timeline doesn't
+     tick). CSS keyframes don't have that failure mode.
+
+     Amplitude 6 px (well inside the card's overflow-hidden clip),
+     5 s period, ease-in-out, repeats forever. prefers-reduced-
+     motion users get no animation. */
+  const levitationAnimation = prefersReducedMotion
+    ? undefined
+    : 'roomLevitate 5s ease-in-out infinite';
+
   /* For diagnostics in dev, Hassan can pop the console open and
      see how many animatable items each room found. */
   React.useEffect(() => {
@@ -780,14 +804,23 @@ function Room({
           aria-hidden="true"
         />
 
-        {/* SVG container, fills the card box exactly. No transform
-            wrapper anymore; the room frame never moves or scales,
-            so we just need a static positioning context. */}
+        {/* SVG container, fills the card box exactly. A separate
+            useEffect attaches a gentle continuous levitation
+            animation to the inlined SVG via the Web Animations
+            API (see the "constant idle levitation" effect below).
+            We use the WAAPI directly rather than wrapping this
+            div in motion.div because Framer Motion's transform
+            handoff was getting clobbered by the innerHTML
+            replacement that mounts the inline SVG. */}
         <div
           ref={svgContainerRef}
           className="absolute inset-0"
           aria-hidden="true"
-          style={{ zIndex: 1 }}
+          style={{
+            zIndex: 1,
+            animation: levitationAnimation,
+            willChange: levitationAnimation ? 'transform' : undefined,
+          }}
         />
         </div>
       </div>
