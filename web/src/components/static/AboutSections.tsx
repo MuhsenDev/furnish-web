@@ -167,6 +167,19 @@ export function FounderSection() {
             >
               {t('about', 'founderSignoff')}
             </p>
+            <p
+              data-reveal
+              className="mt-3 text-body-m text-ink/75"
+            >
+              {t('about', 'founderContactPrefix')}
+              <a
+                href={t('about', 'founderContactHref')}
+                className="font-semibold text-[var(--color-accent)] underline-offset-4 hover:underline"
+              >
+                {t('about', 'founderContactEmail')}
+              </a>
+              {t('about', 'founderContactSuffix')}
+            </p>
           </div>
         </div>
       </Container>

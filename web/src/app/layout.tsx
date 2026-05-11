@@ -8,6 +8,7 @@ import { Nav } from '@/components/shared/Nav';
 import { Footer } from '@/components/shared/Footer';
 import { WaitlistProvider } from '@/components/shared/WaitlistContext';
 import { ReferralCapture } from '@/components/shared/ReferralCapture';
+import { CookieConsentGate } from '@/components/shared/CookieConsentGate';
 import { t } from '@/lib/i18n';
 
 /*
@@ -133,6 +134,12 @@ export default function RootLayout({
           <React.Suspense fallback={null}>
             <ReferralCapture />
           </React.Suspense>
+          {/* CookieConsentGate self-scopes to /blog/* and dynamically
+              imports the banner with ssr:false so the consent module
+              never runs on the server. Skimlinks activation lives
+              inside the config's advertising.services.skimlinks
+              onAccept callback, NOT in blog/layout.tsx. */}
+          <CookieConsentGate />
           <Nav />
           <main id="main" className="flex-1">
             {children}

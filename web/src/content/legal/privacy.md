@@ -1,9 +1,9 @@
 ---
 title: "Privacy Policy"
-lastUpdated: "2026-05-05"
+lastUpdated: "2026-05-11"
 ---
 
-**Effective Date: May 5, 2026**
+**Effective Date: May 11, 2026**
 
 This Privacy Policy explains how Furnish ("we," "us," or "our")
 collects, uses, and protects information when you visit
@@ -89,6 +89,21 @@ us or by any third party we load.
 
 We do not use Google Analytics, Facebook Pixel, or any other
 ad-tech or cross-site tracking pixel.
+
+## Consent and choice
+
+On blog post pages we ask for your consent before activating
+Skimlinks (the affiliate link wrapper described above). You can
+accept, reject, or pick categories from the cookie banner that
+appears on those pages. Your choice is stored in a small
+first-party cookie called `cc_cookie` for 12 months. You can
+change your mind at any time by re-opening the preferences panel
+from the cookie banner.
+
+Strictly-necessary cookies are always on (they keep the site
+working). Advertising / Skimlinks cookies are off until you
+accept. If you reject, you can still read every blog post
+normally; no functionality is gated behind consent.
 
 ## Data retention
 
