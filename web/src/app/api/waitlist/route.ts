@@ -43,10 +43,7 @@ import {
   supabaseCount,
 } from '@/lib/supabase';
 import { sendConfirmationEmail } from '@/lib/email';
-import {
-  generateReferralCode,
-  POSITION_OFFSET,
-} from '@/lib/referral';
+import { generateReferralCode } from '@/lib/referral';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const REFERRAL_CODE_RE = /^[a-z0-9]{4,16}$/;
@@ -134,10 +131,11 @@ export async function POST(
 
   /* Without Supabase (local dev / pre-config), synthesize a
      plausible response so the UI flow works end-to-end. The
-     position is computed from a stub count of 0 + offset, the
-     code is freshly generated (and not persisted). */
+     position is a fixed 1 (the honest stub when no row count is
+     available) and the referral code is freshly generated and
+     not persisted. */
   if (!isSupabaseConfigured()) {
-    const fallbackPosition = POSITION_OFFSET + 1;
+    const fallbackPosition = 1;
     const fallbackCode = generateReferralCode();
     // eslint-disable-next-line no-console
     console.log(
@@ -273,10 +271,11 @@ export async function POST(
 }
 
 /*
-  GET /api/waitlist returns the public aggregate count + offset.
-  Cached by the caller for short windows (the homepage renders
-  server-side and re-fetches per request). Kept on the same route
-  so the API surface stays compact.
+  GET /api/waitlist returns the public aggregate signup count, the
+  real DB row count with no offset applied. The homepage renders
+  server-side and re-fetches per request (supabaseCount uses
+  cache: 'no-store'). Kept on the same route so the API surface
+  stays compact.
 */
 interface CountSuccessBody {
   ok: true;
@@ -290,7 +289,7 @@ interface CountErrorBody {
 
 export async function GET(): Promise<NextResponse<CountSuccessBody | CountErrorBody>> {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ ok: true, count: POSITION_OFFSET });
+    return NextResponse.json({ ok: true, count: 0 });
   }
 
   const result = await supabaseCount('waitlist');
@@ -303,6 +302,6 @@ export async function GET(): Promise<NextResponse<CountSuccessBody | CountErrorB
 
   return NextResponse.json({
     ok: true,
-    count: result.count + POSITION_OFFSET,
+    count: result.count,
   });
 }

@@ -7,8 +7,8 @@
     new code per signup; collision retries handled at the call site.
   - REFERRAL_COOKIE_NAME, REFERRAL_COOKIE_MAX_AGE_DAYS: shared
     constants so client and server agree on the storage shape.
-  - REFERRAL_BUMP, POSITION_OFFSET: tunables. Position offset is
-    server-side only per spec.
+  - REFERRAL_BUMP: how many list spots a successful referral grants
+    the inviter. The DB trigger applies the actual decrement.
 */
 
 /** Days the ?ref= attribution survives in the user's cookie /
@@ -22,13 +22,6 @@ export const REFERRAL_COOKIE_NAME = 'furnish_ref';
 /** Position bump applied to the referrer when a new signup
     attributes them. */
 export const REFERRAL_BUMP = 25;
-
-/** Offset added to live row counts before display (private,
-    server-side only). Scoped to a constant rather than inlined as
-    a magic number so the value is easy to tune later, but kept
-    out of any client component or comment that would advertise
-    it. */
-export const POSITION_OFFSET = 687;
 
 const CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 const CODE_LEN = 8;

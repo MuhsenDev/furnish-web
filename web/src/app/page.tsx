@@ -30,7 +30,6 @@ import { ComparisonTable } from '@/components/home/ComparisonTable';
 import { FounderNote } from '@/components/home/FounderNote';
 import { FinalCTA } from '@/components/home/FinalCTA';
 import { isSupabaseConfigured, supabaseCount } from '@/lib/supabase';
-import { POSITION_OFFSET } from '@/lib/referral';
 import { t } from '@/lib/i18n';
 
 /* RoomShowcaseSection pulls in framer-motion (~30 KB gz) which we
@@ -117,23 +116,20 @@ function HomeStructuredData() {
   );
 }
 
-/* Server-side aggregate signup counter. Read at request time and
-   passed into the Hero as a formatted string so the offset stays
-   server-side. Falls back to the offset alone if Supabase isn't
-   configured. */
+/* Server-side aggregate signup counter. Read at request time so the
+   number is always fresh (supabaseCount uses cache: 'no-store').
+   Returns undefined when Supabase isn't configured, the count query
+   fails, or the count is zero, so the Hero omits the line rather
+   than rendering "Join 0 people on the waitlist". */
 async function fetchHeroCounterText(): Promise<string | undefined> {
-  if (!isSupabaseConfigured()) {
-    return t('waitlist', 'publicCounter').replace(
-      '{n}',
-      POSITION_OFFSET.toLocaleString('en-US'),
-    );
-  }
+  if (!isSupabaseConfigured()) return undefined;
   const result = await supabaseCount('waitlist');
-  if (!result.ok || result.count == null) return undefined;
-  const total = result.count + POSITION_OFFSET;
+  if (!result.ok || result.count == null || result.count <= 0) {
+    return undefined;
+  }
   return t('waitlist', 'publicCounter').replace(
     '{n}',
-    total.toLocaleString('en-US'),
+    result.count.toLocaleString('en-US'),
   );
 }
 

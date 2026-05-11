@@ -3,20 +3,24 @@
 
   Server component. Reads the row count from Supabase at request
   time and renders "Join {N} people on the waitlist" near the hero
-  CTA. The displayed number is `live_count + POSITION_OFFSET` per
-  the position-offset policy; the offset stays server-side only.
+  CTA. The number is the real Supabase row count, no offset.
 
-  When Supabase isn't configured (dev / pre-launch) the counter
-  renders the offset by itself so the hero still shows a sensible
-  baseline number instead of "Join 0 people".
+  Renders nothing when Supabase isn't configured, when the count
+  query fails, or when the count is zero, so the component never
+  shows "Join 0 people on the waitlist".
 
-  No client-side polling. The page is server-rendered, so a fresh
-  number arrives on every page load.
+  No client-side polling. The page is server-rendered with
+  cache: 'no-store' on the count query, so a fresh number arrives
+  on every page load.
+
+  Note: this component is currently not referenced by any route.
+  The home page renders its own counter copy inline (see
+  app/page.tsx -> fetchHeroCounterText). Kept as a typed primitive
+  in case the counter is later promoted to a standalone surface.
 */
 
 import * as React from 'react';
 import { isSupabaseConfigured, supabaseCount } from '@/lib/supabase';
-import { POSITION_OFFSET } from '@/lib/referral';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -24,20 +28,17 @@ export interface WaitlistCounterProps {
   className?: string;
 }
 
-async function fetchCount(): Promise<number> {
-  if (!isSupabaseConfigured()) {
-    return POSITION_OFFSET;
-  }
+async function fetchCount(): Promise<number | null> {
+  if (!isSupabaseConfigured()) return null;
   const result = await supabaseCount('waitlist');
-  if (!result.ok || result.count == null) {
-    return POSITION_OFFSET;
-  }
-  return result.count + POSITION_OFFSET;
+  if (!result.ok || result.count == null) return null;
+  return result.count;
 }
 
 export async function WaitlistCounter({ className }: WaitlistCounterProps) {
-  const total = await fetchCount();
-  const formatted = total.toLocaleString('en-US');
+  const count = await fetchCount();
+  if (count == null || count <= 0) return null;
+  const formatted = count.toLocaleString('en-US');
 
   return (
     <p

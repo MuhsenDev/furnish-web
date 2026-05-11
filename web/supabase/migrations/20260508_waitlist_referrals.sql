@@ -8,8 +8,11 @@
 --   referred_count   (int, DEFAULT 0): denormalized referral total
 --
 -- Position assignment uses a Postgres SEQUENCE so concurrent inserts
--- get distinct values atomically (start = 688 to satisfy the
--- product offset; first new row -> 688).
+-- get distinct values atomically (first new row -> 1). The earlier
+-- iteration of this migration started the sequence at 688 to seed a
+-- now-removed "product offset" that inflated displayed positions;
+-- see 20260511_remove_waitlist_position_offset.sql for the rollback
+-- migration that renumbered existing prod rows.
 --
 -- Referral bump: after-insert trigger decrements the inviter's
 -- position by 25 (floor 1) and increments referred_count when the
@@ -17,13 +20,13 @@
 -- row.
 --
 -- Existing rows (if any) are backfilled in insertion order
--- starting at 688 before the NOT NULL constraint is enforced, so
+-- starting at 1 before the NOT NULL constraint is enforced, so
 -- the migration is idempotent against a populated table.
 -- ----------------------------------------------------------------
 
 -- 1. SEQUENCE for atomic position assignment.
 CREATE SEQUENCE IF NOT EXISTS waitlist_position_seq
-  START WITH 688
+  START WITH 1
   INCREMENT BY 1
   MINVALUE 1
   NO MAXVALUE
@@ -45,8 +48,9 @@ DECLARE
   rec RECORD;
 BEGIN
   -- Reset the sequence so backfill values come first; live inserts
-  -- continue from there.
-  PERFORM setval('waitlist_position_seq', 687);
+  -- continue from there. is_called=false means the next nextval()
+  -- returns 1 (matching START WITH 1) rather than 2.
+  PERFORM setval('waitlist_position_seq', 1, false);
 
   FOR rec IN
     SELECT email

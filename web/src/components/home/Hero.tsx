@@ -56,9 +56,9 @@ export interface HeroProps {
   /**
    * Pre-formatted aggregate counter copy from the server (e.g.
    * "Join 1,234 people on the waitlist"). Rendered just under the
-   * sub-CTA text. Server side computes this from a Supabase row
-   * count + the private POSITION_OFFSET so the offset never lands
-   * in the client bundle.
+   * sub-CTA text. Server side computes this from the real Supabase
+   * row count; left undefined when the count is unavailable or zero
+   * so the line hides entirely instead of reading "Join 0 people".
    */
   counterText?: string;
 }
