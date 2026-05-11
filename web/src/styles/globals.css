@@ -171,3 +171,111 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+  Cookie consent banner brand overrides.
+
+  vanilla-cookieconsent v3 exposes a set of --cc-* CSS custom
+  properties on :root that drive the modal palette, button colors,
+  border radii, and font stack. The defaults are a neutral grey
+  set that looks generic.
+
+  Scoping these overrides to #cc-main (the package's root element)
+  rather than :root means specificity wins over the package's own
+  :root declarations regardless of CSS import order. The dynamic-
+  imported cookieconsent.css can load after globals.css and the
+  custom properties still cascade DOWN from #cc-main to its
+  children intact.
+
+  Title font: Fraunces serif to match site h2 treatment.
+  Body: Inter via inheritance from the cascade.
+  Primary button (Accept all): solid bronze accent, cream text.
+  Secondary button (Essentials only): bronze outline on cream.
+  Tertiary preferences trigger: rendered as a quiet text link.
+*/
+#cc-main {
+  --cc-bg: var(--color-cream);
+  --cc-primary-color: var(--color-deep);
+  --cc-secondary-color: var(--color-muted);
+  --cc-font-family: var(--font-sans);
+  --cc-modal-border-radius: var(--radius);
+  --cc-btn-border-radius: var(--radius-sm);
+
+  --cc-btn-primary-bg: var(--color-accent);
+  --cc-btn-primary-color: var(--color-cream);
+  --cc-btn-primary-border-color: var(--color-accent);
+  --cc-btn-primary-hover-bg: var(--color-brown-2);
+  --cc-btn-primary-hover-color: var(--color-cream);
+  --cc-btn-primary-hover-border-color: var(--color-brown-2);
+
+  --cc-btn-secondary-bg: transparent;
+  --cc-btn-secondary-color: var(--color-accent);
+  --cc-btn-secondary-border-color: var(--color-accent);
+  --cc-btn-secondary-hover-bg: var(--color-beige);
+  --cc-btn-secondary-hover-color: var(--color-deep);
+  --cc-btn-secondary-hover-border-color: var(--color-accent);
+
+  --cc-separator-border-color: var(--color-line);
+  --cc-toggle-on-bg: var(--color-accent);
+  --cc-toggle-off-bg: var(--color-muted);
+  --cc-link-color: var(--color-accent);
+}
+
+/* Modal box: warm cream surface, thin accent top rule, soft warm
+   shadow (matches site's --shadow-3). The accent top rule keeps
+   the banner from blending into the cream background of the
+   surrounding page. */
+#cc-main .cm,
+#cc-main .pm {
+  box-shadow: var(--shadow-3);
+  border: 1px solid var(--color-line);
+}
+
+#cc-main .cm {
+  border-top: 3px solid var(--color-accent);
+}
+
+/* Title: Fraunces serif, espresso, like other site headings.
+   The default cookieconsent style is sans-bold, which read as
+   generic widget copy. Switching to the brand display face
+   anchors it to the editorial voice. */
+#cc-main .cm__title,
+#cc-main .pm__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--color-deep);
+}
+
+/* Description body copy. */
+#cc-main .cm__desc,
+#cc-main .pm__section-desc {
+  color: var(--color-ink);
+  line-height: 1.55;
+}
+
+/* Tertiary "Customize" button gets a quieter text-link treatment
+   so it doesn't compete with the primary Accept-all and the
+   Essentials-only secondary. Users who want fine-grained control
+   can still click into it; the visual hierarchy is Accept > Reject >
+   Customize. */
+#cc-main .cm__btn[data-role='show'] {
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding-inline: 0.25rem;
+}
+
+#cc-main .cm__btn[data-role='show']:hover {
+  background: transparent;
+  color: var(--color-deep);
+}
+
+/* Toggle switches inside the preferences modal: brand accent
+   for on-state, muted for off. */
+#cc-main .section__toggle:checked + .toggle__icon {
+  background: var(--color-accent);
+}
+

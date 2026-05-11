@@ -18,8 +18,20 @@ const SKIMLINKS_DOMAIN_FRAGMENT = 'skimresources.com';
 
 export const cookieConsentConfig: CookieConsentNS.CookieConsentConfig = {
   guiOptions: {
-    consentModal: { layout: 'box', position: 'bottom right' },
-    preferencesModal: { layout: 'box' },
+    consentModal: {
+      layout: 'box',
+      position: 'bottom right',
+      /* Visually distinguish the two main actions: solid bronze
+         "Accept all" (primary) vs bronze-outline "Essentials only"
+         (secondary). Same size, same border thickness; the only
+         difference is fill. Keeps the hierarchy clear without
+         nudging users toward Accept (GDPR best practice). */
+      equalWeightButtons: false,
+    },
+    preferencesModal: {
+      layout: 'box',
+      equalWeightButtons: false,
+    },
   },
   categories: {
     necessary: {
@@ -58,30 +70,30 @@ export const cookieConsentConfig: CookieConsentNS.CookieConsentConfig = {
     translations: {
       en: {
         consentModal: {
-          title: 'A small note on cookies',
+          title: 'Cookie preferences',
           description:
-            'On blog posts we use Skimlinks to wrap merchant links so we get attributed for any purchases. That sets a small advertising cookie. The rest of the site uses none. You can accept, reject, or pick.',
-          acceptAllBtn: 'Accept',
-          acceptNecessaryBtn: 'Reject',
-          showPreferencesBtn: 'Pick',
+            'Furnish uses essential cookies to keep the site working. On blog posts we also load Skimlinks, which attributes affiliate purchases to our retailer partnerships at no additional cost to you. Choose your preference below.',
+          acceptAllBtn: 'Accept all',
+          acceptNecessaryBtn: 'Essentials only',
+          showPreferencesBtn: 'Customize',
         },
         preferencesModal: {
           title: 'Cookie preferences',
           acceptAllBtn: 'Accept all',
-          acceptNecessaryBtn: 'Reject all',
+          acceptNecessaryBtn: 'Essentials only',
           savePreferencesBtn: 'Save preferences',
           closeIconLabel: 'Close',
           sections: [
             {
               title: 'Strictly necessary',
               description:
-                'Required for the site to function. Always on.',
+                'Required for the site to function. Always active.',
               linkedCategory: 'necessary',
             },
             {
               title: 'Advertising and affiliate',
               description:
-                'Skimlinks wraps outbound merchant links on blog posts so we earn a small commission when readers buy. No personal data is collected. You can reject and still read every post normally.',
+                'Skimlinks wraps outbound merchant links on blog posts so Furnish earns a small commission when readers buy. No personal data is collected. You can decline and still read every post normally.',
               linkedCategory: 'advertising',
             },
           ],
