@@ -81,8 +81,14 @@ const CYCLE_PHASE_FADE_OUT_MS = 200;
 /* Padding around the visible-content bbox after we tighten the
    viewBox at runtime. A small margin keeps the room art from
    touching the card edges. Specified as a fraction of the
-   content's smaller dimension. */
-const VIEWBOX_TRIM_PADDING_FRACTION = 0.02;
+   content's smaller dimension.
+
+   Hassan tightened this from 0.02 (2%) to 0.005 (0.5%) so the
+   card border hugs the room art just slightly larger than the
+   animation itself. The card's aspect-ratio is set to this
+   padded viewBox's aspect, so the room renders edge-to-edge
+   inside the card with only a hairline gap on each side. */
+const VIEWBOX_TRIM_PADDING_FRACTION = 0.005;
 
 /* Rasterization resolution for pixel-bbox detection. Long side in
    px on the offscreen canvas. Higher = faint walls/floor edges
