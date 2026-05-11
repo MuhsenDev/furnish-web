@@ -114,18 +114,29 @@ const VERCEL_EASE_CSS = 'cubic-bezier(0.16, 1, 0.3, 1)';
 interface RoomConfig {
   src: string;
   label: string;
+  /* Optional desktop-only (lg+) label override. When present, the
+     mobile `label` is rendered for screens < lg and `labelLg` is
+     rendered for lg+. Used so the desktop solo-EVERY layout can
+     show a different headline ("Dream home in days!") below the
+     box while mobile still reads "EVERY. SINGLE. STYLE." across
+     the three stacked cards. */
+  labelLg?: string;
   alt: string;
 }
 
-/* Labels read together left-to-right form the section's
+/* Mobile labels read together left-to-right form the section's
    tagline phrase: "EVERY. SINGLE. STYLE." (Hassan-specified,
    replacing the prior LIVING ROOM / KITCHEN / BEDROOM labels).
+   On desktop (lg+) only the first room renders (the SINGLE and
+   STYLE rooms are CSS-hidden via lg:hidden), and the EVERY
+   room's labelLg override becomes the section's only eyebrow.
    Alt text for accessibility still describes the actual room
    illustration the SVG depicts. */
 const ROOMS: RoomConfig[] = [
   {
     src: '/Animations/SVG/2.svg',
     label: 'Every.',
+    labelLg: 'Dream home in days!',
     alt: 'Isometric illustration of a designed living room',
   },
   {
@@ -377,6 +388,11 @@ interface RoomProps {
   src: string;
   alt: string;
   label: string;
+  /* Optional desktop-only (lg+) eyebrow override. Renders alongside
+     the mobile label with responsive visibility classes so the
+     same Room can show different copy on the two breakpoints
+     without re-rendering. */
+  labelLg?: string;
   index: number;
   /* Flips true once the section enters the viewport. Until then,
      items stay hidden (opacity 0) and no animation runs. */
@@ -386,6 +402,13 @@ interface RoomProps {
      isActive=true at any moment after the section comes into
      view. Flips every CYCLE_DURATION_MS. */
   isActive: boolean;
+  /* When true, the per-active-turn sequence runs entry + view
+     and STOPS before the fade-out, so items remain visible
+     indefinitely. Used by the desktop solo-EVERY layout where
+     the section no longer cycles through siblings and the room
+     should sit fully populated after its entry, not fade to
+     opacity 0 with no follow-up cycle to bring it back. */
+  skipFadeOut?: boolean;
   prefersReducedMotion: boolean;
 }
 
@@ -393,9 +416,11 @@ function Room({
   src,
   alt,
   label,
+  labelLg,
   index,
   shouldEnter,
   isActive,
+  skipFadeOut,
   prefersReducedMotion,
 }: RoomProps) {
   const svgContainerRef = React.useRef<HTMLDivElement>(null);
@@ -620,6 +645,12 @@ function Room({
           await waitMs(CYCLE_PHASE_ENTRY_MS + CYCLE_PHASE_VIEW_MS);
           if (cancelled) return;
 
+          /* Desktop solo-EVERY layout: there is no follow-up cycle
+             that would bring the room back, so skipping the fade-out
+             leaves the room fully populated. Mobile keeps the
+             original entry → view → fade-out → next room rotation. */
+          if (skipFadeOut) return;
+
           /* === FADE-OUT === */
           for (const g of items) {
             g.animate(
@@ -650,6 +681,7 @@ function Room({
     shouldEnter,
     svgLoaded,
     prefersReducedMotion,
+    skipFadeOut,
     index,
   ]);
 
@@ -757,8 +789,23 @@ function Room({
       {/* Label sits OUTSIDE the card, in the eyebrow style used
           across the site for section eyebrows ("EVERY ROOM",
           "SEE THE MAGIC", etc.), uppercase, tracked-out, muted
-          warm brown. */}
-      <p className="eyebrow mt-5">{label}</p>
+          warm brown.
+
+          When `labelLg` is provided, render BOTH variants and use
+          responsive visibility classes so mobile shows the small
+          `label` ("Every.") and lg+ shows the longer `labelLg`
+          ("Dream home in days!"). The eyebrow class applies
+          text-transform: uppercase automatically, so the source
+          strings are sentence-cased for readability in the
+          ROOMS table above. */}
+      {labelLg ? (
+        <>
+          <p className="eyebrow mt-5 lg:hidden">{label}</p>
+          <p className="eyebrow mt-5 hidden lg:block">{labelLg}</p>
+        </>
+      ) : (
+        <p className="eyebrow mt-5">{label}</p>
+      )}
     </div>
   );
 }
@@ -768,6 +815,29 @@ export function RoomShowcaseSection() {
   const sectionRef = React.useRef<HTMLElement>(null);
   const [hasEnteredView, setHasEnteredView] = React.useState(false);
   const [activeIdx, setActiveIdx] = React.useState(0);
+  /* Tracks whether the viewport is at the lg breakpoint or above
+     (Tailwind's lg = 1024px). Drives a desktop-only layout where
+     only the first room (EVERY) renders, centered, with its
+     labelLg eyebrow. Mobile behavior is unchanged: all three
+     rooms stack, the cycle rotates EVERY → SINGLE → STYLE, and
+     the fade-out runs between turns. Initialized false so the
+     first paint matches the mobile layout; the matchMedia effect
+     below flips it to the correct value before the cycle starts. */
+  const [isLg, setIsLg] = React.useState(false);
+
+  /* Detect the lg breakpoint via matchMedia. Listening for
+     changes keeps the state correct if a user resizes the window
+     across the threshold (rare on production traffic but real in
+     dev, and free to support). matchMedia is supported everywhere
+     we care about. */
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    setIsLg(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsLg(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   /* IntersectionObserver, flip hasEnteredView the first time the
      section comes into view, then disconnect. The cycle starts
@@ -804,15 +874,27 @@ export function RoomShowcaseSection() {
   }, [reduced]);
 
   /* Active-room cycle. activeIdx advances every CYCLE_DURATION_MS,
-     which equals the full per-room sequence (entry → ceremony →
-     fade-out). Loops forever until unmount or reduced-motion. */
+     which equals the full per-room sequence (entry → view →
+     fade-out). Loops forever until unmount or reduced-motion.
+
+     Desktop short-circuit: on lg+ only the EVERY room renders
+     (SINGLE and STYLE are CSS-hidden), so there are no siblings
+     to rotate to. We skip the interval entirely. activeIdx
+     remains 0 so the EVERY room is permanently active; combined
+     with skipFadeOut={true} below, its entry sequence runs once
+     when the section scrolls into view and the items stay in
+     place. Re-resizing back to mobile re-enables the cycle. */
   React.useEffect(() => {
     if (reduced || !hasEnteredView) return;
+    if (isLg) {
+      setActiveIdx(0);
+      return;
+    }
     const interval = window.setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % ROOMS.length);
     }, CYCLE_DURATION_MS);
     return () => window.clearInterval(interval);
-  }, [reduced, hasEnteredView]);
+  }, [reduced, hasEnteredView, isLg]);
 
   return (
     <section
@@ -862,28 +944,46 @@ export function RoomShowcaseSection() {
         <div
           className={cn(
             'mt-12 sm:mt-16 lg:mt-20',
-            'grid grid-cols-1 lg:grid-cols-3',
-            /* Tighter gutters so the rooms can be larger without
-               the section feeling cluttered (Hassan: rooms should
-               be as big as possible). On mobile we keep gap-10 for
-               vertical breathing between stacked cards; on lg the
-               horizontal gap drops to gap-6 / xl:gap-8. */
+            /* Mobile: 3 stacked rooms (grid-cols-1). Desktop: only
+               the EVERY room renders (SINGLE + STYLE are CSS-
+               hidden via lg:hidden wrappers below), so the desktop
+               grid drops to a single centered column. The
+               justify-items-center on the grid keeps the lone
+               desktop card centered inside the wide container. */
+            'grid grid-cols-1 lg:grid-cols-1',
             'gap-10 lg:gap-6 xl:gap-8',
             'items-center justify-items-center',
           )}
         >
-          {ROOMS.map((room, idx) => (
-            <Room
-              key={room.src}
-              src={room.src}
-              alt={room.alt}
-              label={room.label}
-              index={idx}
-              shouldEnter={hasEnteredView}
-              isActive={hasEnteredView && idx === activeIdx}
-              prefersReducedMotion={reduced}
-            />
-          ))}
+          {ROOMS.map((room, idx) => {
+            const room0 = idx === 0;
+            return (
+              <div
+                key={room.src}
+                /* SINGLE (idx 1) and STYLE (idx 2) are stacked
+                   below EVERY on mobile and hidden entirely on
+                   lg+. EVERY (idx 0) is always rendered. */
+                className={cn('w-full', !room0 && 'lg:hidden')}
+              >
+                <Room
+                  src={room.src}
+                  alt={room.alt}
+                  label={room.label}
+                  labelLg={room.labelLg}
+                  index={idx}
+                  shouldEnter={hasEnteredView}
+                  isActive={hasEnteredView && idx === activeIdx}
+                  /* Desktop solo-EVERY: skip fade-out so the room
+                     stays visible after entry instead of going to
+                     opacity 0 with no follow-up cycle to bring it
+                     back. Mobile keeps the original fade-out so
+                     the SINGLE → STYLE rotation reads cleanly. */
+                  skipFadeOut={room0 && isLg}
+                  prefersReducedMotion={reduced}
+                />
+              </div>
+            );
+          })}
         </div>
       </Container>
     </section>
