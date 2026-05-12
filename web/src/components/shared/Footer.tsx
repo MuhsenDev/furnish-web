@@ -123,6 +123,16 @@ export function Footer() {
           <p className="text-body-s text-muted">
             © {year} Furnish. All rights reserved.
           </p>
+          {/* Impact.com site verification via their Edit-Content
+              method. Impact's verifier fetches the homepage and
+              regex-matches this literal string. Rendered visibly
+              (per their docs) but at the smallest readable size and
+              lowest reasonable contrast so the footer stays clean.
+              Remove this block once verification succeeds in the
+              Impact dashboard. */}
+          <p className="mt-3 font-mono text-[10px] leading-tight text-ink/30 break-all">
+            Impact-Site-Verification: 319a516c-9eae-45e1-a59d-c4d8d75d2226
+          </p>
         </div>
       </Container>
     </footer>
