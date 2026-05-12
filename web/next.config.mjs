@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 
+import { withSentryConfig } from '@sentry/nextjs';
+
 /*
   next.config.mjs
 
@@ -131,4 +133,8 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: 'furtherfetched',
+  project: 'furnish-web',
+});

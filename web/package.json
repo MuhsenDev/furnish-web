@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=20.0.0 <21.0.0"
   },
-  "packageManager": "pnpm@9.12.3",
+  "packageManager": "pnpm@10.4.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.19.1",
+    "@sentry/nextjs": "^8.40.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
