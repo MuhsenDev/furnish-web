@@ -9,6 +9,7 @@ import { Footer } from '@/components/shared/Footer';
 import { WaitlistProvider } from '@/components/shared/WaitlistContext';
 import { ReferralCapture } from '@/components/shared/ReferralCapture';
 import { CookieConsentGate } from '@/components/shared/CookieConsentGate';
+import { PostHogProvider } from '@/components/shared/PostHogProvider';
 import { t } from '@/lib/i18n';
 
 /*
@@ -121,31 +122,38 @@ export default function RootLayout({
         <a href="#main" className="skip-to-content">
           {t('common', 'skipToContent')}
         </a>
-        {/* WaitlistProvider mounts the modal once at root and
-            exposes openWaitlist() to every CTA on the site (nav
-            pill, mobile menu, hero, gallery, blog, final CTA,
-            comparison table). One modal, many triggers. */}
-        <WaitlistProvider>
-          {/* ReferralCapture mounts inside Suspense (it uses
-              useSearchParams) and silently captures ?ref=xyz on
-              first paint. Renders a thin top banner when a code is
-              active. Wrapping in Suspense per Next App Router
-              requirement. */}
-          <React.Suspense fallback={null}>
-            <ReferralCapture />
-          </React.Suspense>
-          {/* CookieConsentGate self-scopes to /blog/* and dynamically
-              imports the banner with ssr:false so the consent module
-              never runs on the server. Skimlinks activation lives
-              inside the config's advertising.services.skimlinks
-              onAccept callback, NOT in blog/layout.tsx. */}
-          <CookieConsentGate />
-          <Nav />
-          <main id="main" className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </WaitlistProvider>
+        {/* PostHogProvider wraps everything so its $pageview events
+            fire on every client-side navigation. It uses the App
+            Router's usePathname + useSearchParams (Suspense-wrapped
+            internally) and no-ops cleanly when
+            NEXT_PUBLIC_POSTHOG_KEY isn't set (local dev). */}
+        <PostHogProvider>
+          {/* WaitlistProvider mounts the modal once at root and
+              exposes openWaitlist() to every CTA on the site (nav
+              pill, mobile menu, hero, gallery, blog, final CTA,
+              comparison table). One modal, many triggers. */}
+          <WaitlistProvider>
+            {/* ReferralCapture mounts inside Suspense (it uses
+                useSearchParams) and silently captures ?ref=xyz on
+                first paint. Renders a thin top banner when a code is
+                active. Wrapping in Suspense per Next App Router
+                requirement. */}
+            <React.Suspense fallback={null}>
+              <ReferralCapture />
+            </React.Suspense>
+            {/* CookieConsentGate self-scopes to /blog/* and dynamically
+                imports the banner with ssr:false so the consent module
+                never runs on the server. Skimlinks activation lives
+                inside the config's advertising.services.skimlinks
+                onAccept callback, NOT in blog/layout.tsx. */}
+            <CookieConsentGate />
+            <Nav />
+            <main id="main" className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </WaitlistProvider>
+        </PostHogProvider>
         <Analytics />
         <SpeedInsights />
       </body>
