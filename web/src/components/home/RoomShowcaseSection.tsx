@@ -451,8 +451,10 @@ function Room({
       try {
         const res = await fetch(src);
         if (!res.ok) {
-          // eslint-disable-next-line no-console
-          console.error(`Room SVG fetch failed: ${src} (${res.status})`);
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.error(`Room SVG fetch failed: ${src} (${res.status})`);
+          }
           return;
         }
         const text = await res.text();
@@ -461,8 +463,10 @@ function Room({
         svgContainerRef.current.innerHTML = text;
         const svg = svgContainerRef.current.querySelector('svg');
         if (!svg) {
-          // eslint-disable-next-line no-console
-          console.error(`Room SVG had no <svg> root: ${src}`);
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.error(`Room SVG had no <svg> root: ${src}`);
+          }
           return;
         }
 
@@ -537,8 +541,10 @@ function Room({
             svg as SVGSVGElement,
           );
         } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn('[RoomShowcase] trim threw, using natural viewBox', src, err);
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.warn('[RoomShowcase] trim threw, using natural viewBox', src, err);
+          }
         }
         if (trimmed && trimmed.width > 0 && trimmed.height > 0) {
           /* Clamp the dynamic aspect to a sensible band so a wildly
@@ -557,8 +563,10 @@ function Room({
 
         setSvgLoaded(true);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('Room SVG load error:', src, err);
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.error('Room SVG load error:', src, err);
+        }
       }
     }
 
