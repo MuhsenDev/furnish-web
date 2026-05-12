@@ -29,8 +29,6 @@ import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
 import { ComparisonTable } from '@/components/home/ComparisonTable';
 import { FounderNote } from '@/components/home/FounderNote';
 import { FinalCTA } from '@/components/home/FinalCTA';
-import { isSupabaseConfigured, supabaseCount } from '@/lib/supabase';
-import { t } from '@/lib/i18n';
 
 /* RoomShowcaseSection pulls in framer-motion (~30 KB gz) which we
    don't want on the critical path. Section is below-the-fold; lazy
@@ -116,29 +114,18 @@ function HomeStructuredData() {
   );
 }
 
-/* Server-side aggregate signup counter. Read at request time so the
-   number is always fresh (supabaseCount uses cache: 'no-store').
-   Returns undefined when Supabase isn't configured, the count query
-   fails, or the count is zero, so the Hero omits the line rather
-   than rendering "Join 0 people on the waitlist". */
-async function fetchHeroCounterText(): Promise<string | undefined> {
-  if (!isSupabaseConfigured()) return undefined;
-  const result = await supabaseCount('waitlist');
-  if (!result.ok || result.count == null || result.count <= 0) {
-    return undefined;
-  }
-  return t('waitlist', 'publicCounter').replace(
-    '{n}',
-    result.count.toLocaleString('en-US'),
-  );
-}
-
+/* The hero used to render a "Join {N} people on the waitlist" line
+   below the CTAs, computed from the real Supabase row count. Hassan
+   pulled it 2026-05-12 since exposing a low-but-honest count
+   undersells the launch. Hero's counterText prop is optional; when
+   it's undefined the Hero renders without that line (see the
+   `{counterText && ...}` guard in Hero.tsx). To re-enable later,
+   restore fetchHeroCounterText and pass its result back into Hero. */
 export default async function HomePage() {
-  const counterText = await fetchHeroCounterText();
   return (
     <>
       <HomeStructuredData />
-      <Hero counterText={counterText} />
+      <Hero />
       <HomeCompareSlider />
       <RoomShowcaseSection />
       <GalleryPreview />
