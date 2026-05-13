@@ -1,17 +1,24 @@
 'use client';
 
 /*
-  Founder note per Document 5 Section 7. Locked copy: 3 paragraphs,
-  Hassan signoff, no last name in signoff. No photo unless Hassan
-  supplies one (none yet, so text-only).
+  Founder note. Originally 3 paragraphs of full bio prose; following
+  Quick Fix #3 from the 2026-05-13 design review (approved by Hassan
+  2026-05-13) the home version is now a single 47-word excerpt with
+  a "Read the full story" link to the about page's founder section,
+  where the full bio renders in the 3-card layout. Cuts ~100 words
+  from the home page and eliminates the content-duplication wall
+  the audit flagged.
 
   Section: max-width 720px, centered, page-bg (no card). Eyebrow
-  plus headline plus 3 paragraphs plus right-aligned signoff.
+  plus headline plus a single excerpt paragraph plus a link to
+  /about#founder-heading. Hassan signoff stays on the about page,
+  not duplicated here.
 
   Fires home_founder_note_view once on viewport entry.
 */
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Container } from '@/components/Container';
 import { useScrollReveal } from '@/lib/motion';
 import { useInView } from '@/lib/use-in-view';
@@ -67,27 +74,34 @@ export function FounderNote() {
             </h2>
           </div>
 
-          <div className="mt-section-y-tight space-y-5">
-            <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-              {t('home', 'founderParagraph1')}
-            </p>
-            <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-              {t('home', 'founderParagraph2')}
-            </p>
-            <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-              {t('home', 'founderParagraph3')}
-            </p>
-          </div>
-
           <p
             data-reveal
-            className={cn(
-              'mt-8 text-right text-body-l italic',
-              'text-ink/80',
-            )}
+            className="mt-section-y-tight text-body-l text-ink/90 leading-relaxed"
           >
-            {t('home', 'founderSignoff')}
+            {t('home', 'founderExcerpt')}
           </p>
+
+          <div className="mt-8 flex items-center justify-between gap-6">
+            <Link
+              data-reveal
+              href="/about#founder-heading"
+              className={cn(
+                'inline-flex items-center gap-2',
+                'text-body-m font-semibold text-[var(--color-accent)]',
+                'underline-offset-4 hover:underline',
+              )}
+            >
+              {t('home', 'founderReadMore')}
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
+
+            <p
+              data-reveal
+              className="text-body-l italic text-ink/80"
+            >
+              {t('home', 'founderSignoff')}
+            </p>
+          </div>
         </div>
       </Container>
     </section>

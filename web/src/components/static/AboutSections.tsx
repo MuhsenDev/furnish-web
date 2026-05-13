@@ -69,6 +69,27 @@ export function AboutHero() {
 
 /* ---- FounderSection ---- */
 
+/*
+  Stretch Fix #1 from the 2026-05-13 design review: the 4-paragraph
+  founder bio used to render as a 1047 px wall of identical-weight
+  prose. This version splits the bio into three alternating cards
+  (Origin / Motivation / Who it's for) with the portrait gutter
+  becoming a sticky context column on desktop, plus the existing
+  serif pull quote between cards 2 and 3.
+
+  Decision per Hassan (2026-05-13): cut founderParagraph3 entirely
+  (the line "Quotes from interior designers..." that was the strongest
+  beat in P3 is already promoted to the pull quote, and the rest of
+  the paragraph repeated the empty-rooms / Pinterest-paralysis frame).
+  Cards therefore use P1 / P2 / P4. P3 remains in the i18n catalog
+  for now in case the editorial choice gets reverted; rendering omits
+  it.
+
+  Portrait gutter stays exactly as previously shipped (silhouette,
+  beige mat, 440 px on lg). Sticky positioning keeps the face visible
+  while the reader scrolls through the cards on the right.
+*/
+
 export function FounderSection() {
   const ref = useScrollReveal<HTMLElement>({ yOffset: 30, stagger: 0.1 });
   return (
@@ -81,24 +102,17 @@ export function FounderSection() {
         <div
           className={cn(
             'grid gap-10',
-            /* Photo column widened from 320px to 500px so the
-               lg:w-[440px] silhouette frame (≈472px outer with the
-               p-4 mat) fits inside the grid track. The previous
-               320px column meant the frame was bleeding ~150px to
-               the right, overlapping the body copy on desktop -
-               Hassan flagged it. The 1fr text column still holds
-               plenty of width on a 1200px container (≈700px). */
             PHOTO_AVAILABLE ? 'lg:grid-cols-[500px_1fr] lg:gap-16' : '',
           )}
         >
+          {/* Left gutter: sticky portrait + eyebrow + h2 + signoff.
+              Sticky on lg+ keeps the founder identity visible while
+              the reader scrolls the 3 right-column cards. */}
           {PHOTO_AVAILABLE && (
-            <div data-reveal className="mx-auto lg:mx-0">
-              {/* Mini portrait frame: outer warm-beige mat with a
-                  thin ink border + soft shadow, inner cream window
-                  holding the silhouette. Keeps the placeholder
-                  feeling intentional without being precious about
-                  it (Hassan: "don't do too much"). p-3 mat width
-                  reads as a real frame at 320px and 480px. */}
+            <div
+              data-reveal
+              className="mx-auto lg:mx-0 lg:sticky lg:top-24 lg:self-start"
+            >
               <div
                 className={cn(
                   'inline-block',
@@ -111,10 +125,6 @@ export function FounderSection() {
                 <div
                   className={cn(
                     'relative overflow-hidden',
-                    /* White window matches the silhouette JPG's white
-                       background so the figure feels integrated with
-                       the frame rather than sitting on a contrasting
-                       cream square. */
                     'bg-white',
                     'h-72 w-72 sm:h-80 sm:w-80 lg:h-[440px] lg:w-[440px]',
                     'border border-[rgba(43,30,24,0.10)]',
@@ -129,60 +139,135 @@ export function FounderSection() {
                   />
                 </div>
               </div>
+
+              <p className="eyebrow mt-6">
+                {t('about', 'founderEyebrow')}
+              </p>
+              <h2
+                id="founder-heading"
+                className={cn(
+                  'mt-3 font-display text-deep',
+                  'tracking-display-tight leading-display',
+                  'text-display-m',
+                )}
+              >
+                {t('about', 'founderHeadline')}
+              </h2>
+              {/* Signoff renders inside the sticky gutter on lg+
+                  only (where it pairs visually with the portrait
+                  and reads as a signature). On mobile the gutter
+                  stacks above the cards, so the signoff is moved
+                  below the cards to remain a proper "closer." */}
+              <p className="mt-6 text-body-l italic text-ink/80 hidden lg:block">
+                {t('about', 'founderSignoff')}
+              </p>
             </div>
           )}
 
+          {/* Right column: 3 alternating cards + pull quote between
+              cards 2 and 3. Cards alternate cream (with line border)
+              and the editorial-accent-bg cream tint so the visual
+              rhythm of the column reads as "three distinct beats" not
+              "one continuous wall." Each card has a tiny capitalized
+              eyebrow label (Origin / Motivation / Who it's for) per
+              the design-review sketch. */}
           <div className={PHOTO_AVAILABLE ? '' : 'mx-auto max-w-2xl'}>
-            <p data-reveal className="eyebrow">
-              {t('about', 'founderEyebrow')}
-            </p>
-            <h2
-              id="founder-heading"
-              data-reveal
-              className={cn(
-                'mt-3 font-display text-deep',
-                'tracking-display-tight leading-display',
-                'text-display-m',
-              )}
-            >
-              {t('about', 'founderHeadline')}
-            </h2>
-            <div className="mt-6 space-y-5">
-              <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-                {t('about', 'founderParagraph1')}
-              </p>
-              <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-                {t('about', 'founderParagraph2')}
-              </p>
-              {/* Pull quote between P2 and P3. Verbatim line from
-                  P3 elevated as a serif blockquote, breaks the
-                  4-paragraph wall per the 2026-05-13 design review
-                  (Top 3 finding #1 quick fix). Bronze left rule
-                  matches the existing MDX blockquote treatment in
-                  blog/mdx-components.tsx, so the typographic voice
-                  is consistent across the About page and editorial
-                  long-form. */}
+            {/* Mobile-only eyebrow + h2 above the cards (the sticky
+                gutter version renders them on lg+ inside the gutter
+                column). Keeps the heading hierarchy intact for the
+                stacked mobile layout. */}
+            {PHOTO_AVAILABLE ? null : (
+              <>
+                <p data-reveal className="eyebrow">
+                  {t('about', 'founderEyebrow')}
+                </p>
+                <h2
+                  id="founder-heading"
+                  data-reveal
+                  className={cn(
+                    'mt-3 font-display text-deep',
+                    'tracking-display-tight leading-display',
+                    'text-display-m',
+                  )}
+                >
+                  {t('about', 'founderHeadline')}
+                </h2>
+              </>
+            )}
+
+            <div className="flex flex-col gap-8">
+              <article
+                data-reveal
+                className={cn(
+                  'rounded-sm bg-[var(--color-editorial-accent-bg)]',
+                  'p-7 sm:p-8',
+                )}
+              >
+                <p className="eyebrow text-[10px]">
+                  {t('about', 'founderCard1Eyebrow')}
+                </p>
+                <p className="mt-3 text-body-l text-ink/90 leading-relaxed">
+                  {t('about', 'founderParagraph1')}
+                </p>
+              </article>
+
+              <article
+                data-reveal
+                className={cn(
+                  'rounded-sm bg-[var(--color-cream)]',
+                  'border border-[var(--color-line)]',
+                  'p-7 sm:p-8',
+                )}
+              >
+                <p className="eyebrow text-[10px]">
+                  {t('about', 'founderCard2Eyebrow')}
+                </p>
+                <p className="mt-3 text-body-l text-ink/90 leading-relaxed">
+                  {t('about', 'founderParagraph2')}
+                </p>
+              </article>
+
+              {/* Pull quote separator between cards 2 and 3.
+                  Bronze left rule + 56 px Fraunces italic matches
+                  the blog MDX blockquote treatment so the
+                  typographic voice is consistent across About and
+                  long-form editorial. */}
               <blockquote
                 data-reveal
                 className={cn(
-                  'my-8 border-l-2 border-[var(--color-accent)]',
-                  'pl-6 py-1',
+                  'border-l-2 border-[var(--color-accent)]',
+                  'pl-6 py-1 my-2',
                   'font-display text-display-m italic text-deep',
                   'leading-display tracking-display-tight',
                 )}
               >
                 {t('about', 'founderPullQuote')}
               </blockquote>
-              <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-                {t('about', 'founderParagraph3')}
-              </p>
-              <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-                {t('about', 'founderParagraph4')}
-              </p>
+
+              <article
+                data-reveal
+                className={cn(
+                  'rounded-sm bg-[var(--color-editorial-accent-bg)]',
+                  'p-7 sm:p-8',
+                )}
+              >
+                <p className="eyebrow text-[10px]">
+                  {t('about', 'founderCard3Eyebrow')}
+                </p>
+                <p className="mt-3 text-body-l text-ink/90 leading-relaxed">
+                  {t('about', 'founderParagraph4')}
+                </p>
+              </article>
             </div>
+
+            {/* Signoff: rendered below the cards on mobile (the
+                sticky gutter on lg+ shows its own copy, hidden on
+                mobile via the lg:block utility above). The contact
+                byline below stays in this column in both layouts so
+                the mailto sits adjacent to the cards. */}
             <p
               data-reveal
-              className="mt-6 text-body-l italic text-ink/80"
+              className="mt-8 text-body-l italic text-ink/80 lg:hidden"
             >
               {t('about', 'founderSignoff')}
             </p>
@@ -305,6 +390,39 @@ export function ValuesSection() {
 
 /* ---- HowWeMakeMoneySection ---- */
 
+/*
+  Quick Fix #2 from the 2026-05-13 design review, applied as the
+  "partial replace" variant Hassan picked: a 3-card comparison
+  block summarizes the cost / commission / picks flow at the top
+  of the section, and replaces the original P1 + P2 prose.
+  Paragraphs 3 (integrity statement), 4 (FTC affiliate disclosure,
+  Skimlinks-relevant), and 5 (closer) survive verbatim as prose
+  below the cards.
+
+  Skimlinks-safe: the FTC disclosure paragraph (howWeMakeMoneyBody4)
+  renders unchanged. The integrity paragraph (Body3) also stays.
+  Reviewers see the same disclosure text as before; the cards just
+  give scrolling readers a scannable summary above the prose.
+*/
+
+const HWMM_CARDS = [
+  {
+    titleKey: 'howWeMakeMoneyCard1Title',
+    valueKey: 'howWeMakeMoneyCard1Value',
+    detailKey: 'howWeMakeMoneyCard1Detail',
+  },
+  {
+    titleKey: 'howWeMakeMoneyCard2Title',
+    valueKey: 'howWeMakeMoneyCard2Value',
+    detailKey: 'howWeMakeMoneyCard2Detail',
+  },
+  {
+    titleKey: 'howWeMakeMoneyCard3Title',
+    valueKey: 'howWeMakeMoneyCard3Value',
+    detailKey: 'howWeMakeMoneyCard3Detail',
+  },
+];
+
 export function HowWeMakeMoneySection() {
   const ref = useScrollReveal<HTMLElement>({ yOffset: 30, stagger: 0.1 });
   return (
@@ -329,13 +447,42 @@ export function HowWeMakeMoneySection() {
         >
           {t('about', 'howWeMakeMoneyHeadline')}
         </h2>
-        <div className="mt-6 space-y-5">
-          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-            {t('about', 'howWeMakeMoneyBody1')}
-          </p>
-          <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
-            {t('about', 'howWeMakeMoneyBody2')}
-          </p>
+
+        {/* 3-card comparison block, summarizes the cost / commission
+            / picks flow at a glance. Cards sit on cream against the
+            beige section background, giving them visual lift. */}
+        <div className="mt-section-y-tight grid gap-6 sm:grid-cols-3">
+          {HWMM_CARDS.map((card) => (
+            <div
+              key={card.titleKey}
+              data-reveal
+              className={cn(
+                'rounded-sm bg-[var(--color-cream)]',
+                'border border-[rgba(43,30,24,0.10)]',
+                'p-6 sm:p-7',
+              )}
+            >
+              <p className="eyebrow">{t('about', card.titleKey)}</p>
+              <p
+                className={cn(
+                  'mt-3 font-display text-deep',
+                  'tracking-display-tight leading-display',
+                  'text-display-s',
+                )}
+              >
+                {t('about', card.valueKey)}
+              </p>
+              <p className="mt-3 text-body-m text-ink/85 leading-relaxed">
+                {t('about', card.detailKey)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Prose continues with paragraphs 3 (integrity), 4 (FTC
+            affiliate disclosure, Skimlinks-relevant), and 5 (closer).
+            Paragraphs 1 and 2 are replaced by the cards above. */}
+        <div className="mt-section-y-tight space-y-5">
           <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
             {t('about', 'howWeMakeMoneyBody3')}
           </p>
