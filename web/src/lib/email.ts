@@ -23,6 +23,7 @@
 */
 
 import { Resend } from 'resend';
+import * as Sentry from '@sentry/nextjs';
 
 export interface SendConfirmationEmailArgs {
   to: string;
@@ -389,11 +390,21 @@ async function sendEmail({
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
+    /* RESEND_API_KEY env var not set in this environment. Logged as
+       a warning + sent to Sentry so the silent-skip case surfaces in
+       the dashboard. Without this, signups appear to succeed but no
+       email ever leaves the server, and there's no obvious signal
+       anywhere. */
     // eslint-disable-next-line no-console
-    console.log(
-      `[email] (no RESEND_API_KEY) skipping send to ${to}; subject="${subject}"`,
+    console.warn(
+      `[email] RESEND_API_KEY not set in this environment, skipping send to ${to}, subject="${subject}". Set RESEND_API_KEY in Vercel project settings to enable delivery.`,
     );
-    return { ok: true };
+    Sentry.captureMessage('[email] RESEND_API_KEY not set, skipping send', {
+      level: 'warning',
+      tags: { component: 'email', state: 'skipped_no_api_key' },
+      extra: { to, subject },
+    });
+    return { ok: false, error: 'no_api_key' };
   }
 
   try {
@@ -407,8 +418,24 @@ async function sendEmail({
     });
 
     if (error) {
+      /* Resend API call succeeded but the message was rejected,
+         most commonly because the from-domain (furnish.live) is not
+         verified at resend.com/domains. Resend's error object has
+         { name, message, statusCode? }. Bubbled to Sentry so the
+         specific Resend reason is visible to operators. */
       // eslint-disable-next-line no-console
       console.error(`[email] resend send failed for ${to}:`, error);
+      Sentry.captureMessage('[email] resend send failed', {
+        level: 'error',
+        tags: { component: 'email', state: 'resend_rejected' },
+        extra: {
+          to,
+          subject,
+          resendError: error,
+          fromAddress: FROM_ADDRESS,
+          hint: 'If error mentions verification or domain, verify furnish.live at resend.com/domains and add the DKIM + SPF records to Porkbun DNS.',
+        },
+      });
       return { ok: false, error: 'resend_send_failed' };
     }
 
@@ -416,6 +443,10 @@ async function sendEmail({
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(`[email] resend exception for ${to}:`, err);
+    Sentry.captureException(err, {
+      tags: { component: 'email', state: 'resend_exception' },
+      extra: { to, subject, fromAddress: FROM_ADDRESS },
+    });
     return { ok: false, error: 'resend_exception' };
   }
 }

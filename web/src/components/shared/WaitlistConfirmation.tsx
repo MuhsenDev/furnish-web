@@ -4,19 +4,17 @@
   Waitlist confirmation surface.
 
   Rendered in place of the signup form once the user submits a
-  valid email. Shows their position number with a count-up animation,
-  the share affordances (referral link with Copy + native share +
-  Twitter/X / iMessage / Copy Link buttons), and a confirmation
-  reminder for the email we just sent.
+  valid email. Confirms the signup with a "You're on the list"
+  eyebrow, then offers the share affordances (referral link with
+  Copy + native share + Twitter/X / iMessage / Copy Link buttons)
+  and a confirmation reminder for the email we just sent.
 
   Inputs come from the API response: { position, referralCode }.
-  The component derives the share URL by prefixing the referralCode
-  with the canonical site URL.
-
-  Animation policy:
-    - Position counts up from 0 to its real value over ~900 ms,
-      eased with the brand vercel curve.
-    - prefers-reduced-motion swaps the count-up for an instant set.
+  `position` is still passed by callers but is intentionally not
+  rendered any more (Hassan, 2026-05: "no fake numbers, no real
+  numbers either, just confirm they're on the list"). The share
+  URL is derived by prefixing referralCode with the canonical
+  site URL.
 
   Copy/share fallback chain:
     1. navigator.share if available -> primary mobile path
@@ -50,54 +48,19 @@ export interface WaitlistConfirmationProps {
 }
 
 const SITE_URL = 'https://furnish.live';
-const COUNT_UP_DURATION_MS = 900;
 
 function isMobile(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
-function useCountUp(target: number, durationMs: number, enabled: boolean): number {
-  const [value, setValue] = React.useState(enabled ? 0 : target);
-
-  React.useEffect(() => {
-    if (!enabled) {
-      setValue(target);
-      return;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const t = Math.min(1, elapsed / durationMs);
-      /* easeOutCubic - matches the gentle deceleration the rest of
-         the site uses (vercel curve approx for a numeric tween). */
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Math.round(target * eased));
-      if (t < 1) {
-        raf = requestAnimationFrame(tick);
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs, enabled]);
-
-  return value;
-}
-
 export function WaitlistConfirmation({
   email,
-  position,
   referralCode,
   alreadyOnList,
   className,
 }: WaitlistConfirmationProps) {
   const prefersReducedMotion = useReducedMotion();
-  const animatedPosition = useCountUp(
-    position,
-    COUNT_UP_DURATION_MS,
-    !prefersReducedMotion,
-  );
 
   const referralLink = `${SITE_URL}/?ref=${encodeURIComponent(referralCode)}`;
   const shareMessage = t('waitlist', 'shareMessage')
@@ -161,55 +124,13 @@ export function WaitlistConfirmation({
     window.location.href = `sms:&body=${body}`;
   };
 
-  const aheadCount = Math.max(position - 1, 0);
-
   return (
     <div className={cn('text-center', className)}>
-      {/* Peach-tinted celebration card (2026-05 secondary-accent
-          pass). Wraps the eyebrow + big position number + "X people
-          ahead" trio so the post-signup moment reads as
-          celebratory. The big number stays bronze (--color-accent)
-          to keep the brand anchor. The peach surround is the only
-          new color in this surface; everything inside is unchanged.
-          The hr below separates this celebration block from the
-          practical share/referral section below it. */}
-      <div
-        className={cn(
-          'rounded-[var(--radius)]',
-          'bg-[var(--color-accent-peach-soft)]',
-          'border border-[var(--color-accent-peach)]/40',
-          'px-6 py-8 sm:px-8 sm:py-10',
-        )}
-      >
-        <p className="eyebrow">
-          {alreadyOnList
-            ? t('waitlist', 'confirmAlreadyEyebrow')
-            : t('waitlist', 'confirmEyebrow')}
-        </p>
-
-        {/* Big position display, count-up animated. */}
-        <p
-          className={cn(
-            'mt-3 font-display text-[var(--color-accent)]',
-            'tracking-display-tight leading-display-tight',
-            'text-display-xl',
-          )}
-        >
-          <span aria-live="polite">
-            {t('waitlist', 'positionNumber').replace(
-              '{n}',
-              animatedPosition.toLocaleString('en-US'),
-            )}
-          </span>
-        </p>
-
-        <p className="mt-3 text-body-l text-ink/85">
-          {t('waitlist', 'positionAhead').replace(
-            '{n}',
-            aheadCount.toLocaleString('en-US'),
-          )}
-        </p>
-      </div>
+      <p className="eyebrow">
+        {alreadyOnList
+          ? t('waitlist', 'confirmAlreadyEyebrow')
+          : t('waitlist', 'confirmEyebrow')}
+      </p>
 
       <hr className="my-section-y-tight border-[rgba(43,30,24,0.10)]" />
 
