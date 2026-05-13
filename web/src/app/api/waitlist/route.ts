@@ -178,6 +178,23 @@ export async function POST(
   );
   if (existing.ok && existing.data && existing.data.length > 0) {
     const row = existing.data[0];
+    /* Re-fire the confirmation email on dedup so users whose first
+       send failed for any reason (Resend rejected, RESEND_API_KEY
+       was unset during initial deploy, Gmail spam-foldered, etc.)
+       can recover by submitting the form again. The original spec
+       called for silent dedup to avoid leaking list membership to
+       phishing attempts, but withholding the email entirely leaves
+       real users with no recovery path. Re-firing the SAME
+       confirmation does not leak new information to a phisher: the
+       confirmation surface already returns position + code, so
+       anyone testing whether an email is on the list learns it
+       regardless of whether the email is also re-sent. Fire-and-
+       forget so the dedup response is still fast. */
+    void sendConfirmationEmail({
+      to: email,
+      position: row.position,
+      referralCode: row.referral_code,
+    });
     return NextResponse.json({
       ok: true,
       position: row.position,
@@ -230,7 +247,9 @@ export async function POST(
 
     /* If we hit 409 repeatedly, the email might have been inserted
        between our pre-check and our retries (race). Re-check the
-       existing row and return that. */
+       existing row and return that. Re-fires sendConfirmationEmail
+       for the same recovery-path reason as the primary dedup branch
+       above. */
     if (lastError.endsWith('409')) {
       const refetch = await supabaseSelect<WaitlistRow>(
         'waitlist',
@@ -238,6 +257,11 @@ export async function POST(
       );
       if (refetch.ok && refetch.data && refetch.data.length > 0) {
         const row = refetch.data[0];
+        void sendConfirmationEmail({
+          to: email,
+          position: row.position,
+          referralCode: row.referral_code,
+        });
         return NextResponse.json({
           ok: true,
           position: row.position,
