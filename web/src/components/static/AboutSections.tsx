@@ -154,6 +154,25 @@ export function FounderSection() {
               <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
                 {t('about', 'founderParagraph2')}
               </p>
+              {/* Pull quote between P2 and P3. Verbatim line from
+                  P3 elevated as a serif blockquote, breaks the
+                  4-paragraph wall per the 2026-05-13 design review
+                  (Top 3 finding #1 quick fix). Bronze left rule
+                  matches the existing MDX blockquote treatment in
+                  blog/mdx-components.tsx, so the typographic voice
+                  is consistent across the About page and editorial
+                  long-form. */}
+              <blockquote
+                data-reveal
+                className={cn(
+                  'my-8 border-l-2 border-[var(--color-accent)]',
+                  'pl-6 py-1',
+                  'font-display text-display-m italic text-deep',
+                  'leading-display tracking-display-tight',
+                )}
+              >
+                {t('about', 'founderPullQuote')}
+              </blockquote>
               <p data-reveal className="text-body-l text-ink/90 leading-relaxed">
                 {t('about', 'founderParagraph3')}
               </p>

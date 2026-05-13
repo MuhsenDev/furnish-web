@@ -41,6 +41,100 @@ function FAQ({ items }: { items: AccordionItem[] }) {
   );
 }
 
+/* <PullQuote> richer named component for editorial pull quotes
+   that need optional attribution and larger typographic weight
+   than plain markdown blockquote.
+
+   Usage in MDX:
+     <PullQuote>
+       Quotes from interior designers that cost more than a car
+       payment.
+     </PullQuote>
+
+     <PullQuote attribution="Hassan Muhsen, founder">
+       I'd rather build than wait for someone else to do it.
+     </PullQuote>
+
+   Plain markdown `> ...` blockquotes still render as the smaller
+   left-bordered pull quote via the `blockquote` mapping below.
+   <PullQuote> is the larger "magazine pull quote" treatment with
+   generous vertical padding and the option of an attribution line. */
+function PullQuote({
+  children,
+  attribution,
+}: {
+  children: React.ReactNode;
+  attribution?: string;
+}) {
+  return (
+    <figure
+      className={cn(
+        'my-block-y border-l-2 border-[var(--color-accent)]',
+        'pl-6 py-2',
+      )}
+    >
+      <blockquote
+        className={cn(
+          'font-display text-display-m italic text-deep',
+          'leading-display tracking-display-tight',
+        )}
+      >
+        {children}
+      </blockquote>
+      {attribution ? (
+        <figcaption className="mt-3 text-body-s uppercase tracking-[0.1em] text-muted">
+          {attribution}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+/* <InlineImage> richer named component for editorial inline
+   imagery with an italic caption underneath, per the PIN-UP
+   Magazine pattern referenced in the 2026-05-13 design review.
+
+   Usage in MDX:
+     <InlineImage
+       src="/images/blog/sven-walnut-detail.jpg"
+       alt="Detail of Sven 88 inch tufted sofa in walnut"
+       caption="Sven 88 inch Tufted Leather Sofa in Charme Tan, from Article."
+     />
+
+   Plain markdown ![alt](src) still renders via the `img` mapping
+   below (no caption, no extra weight). <InlineImage> is the
+   "this image deserves to be called out" treatment. */
+function InlineImage({
+  src,
+  alt,
+  caption,
+  width = 1200,
+  height = 750,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+}) {
+  return (
+    <figure className="my-block-y">
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className="rounded-[var(--radius)] w-full h-auto"
+      />
+      {caption ? (
+        <figcaption className="mt-3 text-body-s italic text-muted leading-relaxed">
+          {caption}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
 function isExternal(href: string | undefined): boolean {
   if (!href) return false;
   return /^https?:\/\//i.test(href);
@@ -151,4 +245,6 @@ export const blogMdxComponents: MDXComponents = {
   BlogCTABox,
   BlogDisclosure,
   FAQ,
+  PullQuote,
+  InlineImage,
 };
