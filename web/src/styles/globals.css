@@ -236,7 +236,11 @@
 }
 
 #cc-main .cm {
-  border-top: 3px solid var(--color-accent);
+  /* Top accent stripe: peach (2026-05 brand expansion). Peach
+     reads as warmer + friendlier than bronze for a cookie banner;
+     bronze still owns the primary "Accept all" button below so
+     the action color is unchanged. */
+  border-top: 3px solid var(--color-accent-peach);
 }
 
 /* Title: Fraunces serif, espresso, like other site headings.

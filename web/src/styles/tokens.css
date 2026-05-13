@@ -66,35 +66,44 @@
      ============================================================ */
 
   /* Hero gradient. Used ONCE per page, only in the hero section.
-     Radial, accent-tinted at low opacity over the cream backdrop.
-     The only decorative gradient on the site. The bronze stop at
-     the center anchors the brand; the peach stop further out adds
-     a softer warm halo without competing with the bronze for
-     attention. The peach addition is part of the 2026-05
-     secondary-accent pass; revert it by deleting the middle stop
-     and shifting transparent back to 70%. */
+     Radial over the cream backdrop, three stops: bronze at the
+     center, peach at mid-radius, transparent at the edge. With
+     peach promoted to a third primary brand color (2026-05), the
+     gradient now gives bronze and peach roughly equal optical
+     weight, anchoring both colors in the hero. */
   --gradient-hero: radial-gradient(
     ellipse 80% 60% at 50% 30%,
-    rgba(139, 111, 71, 0.15) 0%,
-    rgba(254, 188, 174, 0.10) 35%,
-    transparent 75%
+    rgba(139, 111, 71, 0.13) 0%,
+    rgba(254, 188, 174, 0.18) 35%,
+    transparent 80%
   );
 
   /* Editorial accent, rare. Used as a tinted background block for
-     pull-quotes and statistic highlights. Same hue as the brown
-     accent, desaturated and lightened. */
-  --color-editorial-accent-bg: #F5EBDC;
+     pull-quotes and statistic highlights. Promoted from a subtle
+     warm-beige (#F5EBDC, barely visible) to a vivid peach in the
+     2026-05 brand expansion so editorial highlights actually pop. */
+  --color-editorial-accent-bg: #FAD5C8;
 
-  /* Peach secondary accent (2026-05). Added per Hassan as a softer
-     warm-pink complement to the primary bronze accent. Used
-     sparingly for delight moments (hero gradient stop, signup-
-     confirmation surface, text selection). NEVER replaces bronze
-     on CTAs, focus rings, links, or the .eyebrow class. The
-     "additive" rule: peach joins surfaces that were previously
-     neutral, it does not displace bronze on any surface where
-     bronze was already doing brand work. */
+  /* Peach as third primary brand color (2026-05). Promoted from
+     "secondary accent" to "primary, equal weight to bronze" per
+     Hassan. Peach now appears on dividers, the reading progress
+     bar, the cookie banner top stripe, the hero gradient, the
+     editorial accent bg, the founder-note section bg, the post-
+     signup card, and text selection across the site. Accessibility
+     constraint: peach on cream fails WCAG AA for body-text
+     contrast, so peach is restricted to backgrounds, borders,
+     dividers, and large-stroke decorative surfaces. Text on
+     peach-tint backgrounds stays espresso/ink for contrast.
+     Bronze (--color-accent) still owns CTAs, focus rings, link
+     underlines, and the muted-eyebrow color (all foreground-text
+     surfaces where peach contrast would fail). */
   --color-accent-peach: #FEBCAE;
   --color-accent-peach-soft: rgba(254, 188, 174, 0.18);
+
+  /* Solid peach tint for full-section backgrounds (founder note,
+     callout cards). Light enough that espresso/ink text reads at
+     WCAG AAA against it. */
+  --color-peach-tint: #FCEDE7;
 
   /* ============================================================
      SHADOWS, inherited from the app

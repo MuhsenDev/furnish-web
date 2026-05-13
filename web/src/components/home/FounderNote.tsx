@@ -40,14 +40,17 @@ export function FounderNote() {
       aria-labelledby="founder-note-heading"
     >
       <Container width="narrow">
-        {/* Whole founder note wrapped in a warm beige card so the
-            previously plain text-on-cream section gains visual
-            weight. Generous internal padding gives the prose room
-            to breathe; max-width inherited from Container narrow. */}
+        {/* Founder note card, peach-tinted (2026-05 brand expansion).
+            Previously bg-beige/55. Switched to --color-peach-tint
+            (#FCEDE7) so this whole section becomes one of the major
+            peach surfaces on the home page, giving peach the same
+            kind of full-section presence that bronze gets through
+            CTAs and link underlines. The text stays ink/deep
+            against the peach-tint bg for WCAG AAA contrast. */}
         <div
           className={cn(
             'rounded-[var(--radius)]',
-            'bg-[var(--color-beige)]/55',
+            'bg-[var(--color-peach-tint)]',
             'border border-[rgba(43,30,24,0.06)]',
             'shadow-1',
             'p-8 sm:p-10 lg:p-14',
