@@ -77,9 +77,13 @@
     top: 8px;
   }
 
-  /* Selection styling matches the warm palette. */
+  /* Selection styling matches the warm palette. Peach secondary
+     accent (2026-05) replaces tan here. The tan token is unchanged
+     elsewhere; this is the only :selection surface and was the
+     only place tan was rendered, so the swap is a brand-color
+     refresh on a single non-tactical interaction. */
   ::selection {
-    background: var(--color-tan);
+    background: var(--color-accent-peach);
     color: var(--color-deep);
   }
 }

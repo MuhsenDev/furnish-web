@@ -28,6 +28,9 @@ const config: Config = {
         danger: 'var(--color-danger)',
         warn: 'var(--color-warn)',
         ok: 'var(--color-ok)',
+        // Secondary peach accent (2026-05). Sparingly used. NEVER
+        // replaces bronze on CTAs/focus rings/links/.eyebrow.
+        'accent-peach': 'var(--color-accent-peach)',
       },
       fontFamily: {
         // Per Document 2 §2.2, app's sans for body and Fraunces for

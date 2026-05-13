@@ -67,17 +67,34 @@
 
   /* Hero gradient. Used ONCE per page, only in the hero section.
      Radial, accent-tinted at low opacity over the cream backdrop.
-     The only decorative gradient on the site. */
+     The only decorative gradient on the site. The bronze stop at
+     the center anchors the brand; the peach stop further out adds
+     a softer warm halo without competing with the bronze for
+     attention. The peach addition is part of the 2026-05
+     secondary-accent pass; revert it by deleting the middle stop
+     and shifting transparent back to 70%. */
   --gradient-hero: radial-gradient(
     ellipse 80% 60% at 50% 30%,
     rgba(139, 111, 71, 0.15) 0%,
-    transparent 70%
+    rgba(254, 188, 174, 0.10) 35%,
+    transparent 75%
   );
 
   /* Editorial accent, rare. Used as a tinted background block for
      pull-quotes and statistic highlights. Same hue as the brown
      accent, desaturated and lightened. */
   --color-editorial-accent-bg: #F5EBDC;
+
+  /* Peach secondary accent (2026-05). Added per Hassan as a softer
+     warm-pink complement to the primary bronze accent. Used
+     sparingly for delight moments (hero gradient stop, signup-
+     confirmation surface, text selection). NEVER replaces bronze
+     on CTAs, focus rings, links, or the .eyebrow class. The
+     "additive" rule: peach joins surfaces that were previously
+     neutral, it does not displace bronze on any surface where
+     bronze was already doing brand work. */
+  --color-accent-peach: #FEBCAE;
+  --color-accent-peach-soft: rgba(254, 188, 174, 0.18);
 
   /* ============================================================
      SHADOWS, inherited from the app

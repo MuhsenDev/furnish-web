@@ -165,34 +165,51 @@ export function WaitlistConfirmation({
 
   return (
     <div className={cn('text-center', className)}>
-      <p className="eyebrow">
-        {alreadyOnList
-          ? t('waitlist', 'confirmAlreadyEyebrow')
-          : t('waitlist', 'confirmEyebrow')}
-      </p>
-
-      {/* Big position display, count-up animated. */}
-      <p
+      {/* Peach-tinted celebration card (2026-05 secondary-accent
+          pass). Wraps the eyebrow + big position number + "X people
+          ahead" trio so the post-signup moment reads as
+          celebratory. The big number stays bronze (--color-accent)
+          to keep the brand anchor. The peach surround is the only
+          new color in this surface; everything inside is unchanged.
+          The hr below separates this celebration block from the
+          practical share/referral section below it. */}
+      <div
         className={cn(
-          'mt-3 font-display text-[var(--color-accent)]',
-          'tracking-display-tight leading-display-tight',
-          'text-display-xl',
+          'rounded-[var(--radius)]',
+          'bg-[var(--color-accent-peach-soft)]',
+          'border border-[var(--color-accent-peach)]/40',
+          'px-6 py-8 sm:px-8 sm:py-10',
         )}
       >
-        <span aria-live="polite">
-          {t('waitlist', 'positionNumber').replace(
-            '{n}',
-            animatedPosition.toLocaleString('en-US'),
-          )}
-        </span>
-      </p>
+        <p className="eyebrow">
+          {alreadyOnList
+            ? t('waitlist', 'confirmAlreadyEyebrow')
+            : t('waitlist', 'confirmEyebrow')}
+        </p>
 
-      <p className="mt-3 text-body-l text-ink/85">
-        {t('waitlist', 'positionAhead').replace(
-          '{n}',
-          aheadCount.toLocaleString('en-US'),
-        )}
-      </p>
+        {/* Big position display, count-up animated. */}
+        <p
+          className={cn(
+            'mt-3 font-display text-[var(--color-accent)]',
+            'tracking-display-tight leading-display-tight',
+            'text-display-xl',
+          )}
+        >
+          <span aria-live="polite">
+            {t('waitlist', 'positionNumber').replace(
+              '{n}',
+              animatedPosition.toLocaleString('en-US'),
+            )}
+          </span>
+        </p>
+
+        <p className="mt-3 text-body-l text-ink/85">
+          {t('waitlist', 'positionAhead').replace(
+            '{n}',
+            aheadCount.toLocaleString('en-US'),
+          )}
+        </p>
+      </div>
 
       <hr className="my-section-y-tight border-[rgba(43,30,24,0.10)]" />
 
