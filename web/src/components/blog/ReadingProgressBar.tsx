@@ -95,9 +95,7 @@ export function ReadingProgressBar({
       /* z-[60] sits above the sticky nav (z-50) so the bar is always
          visible even at the top of the page. h-[3px] keeps it
          visually thin. pointer-events-none so it never intercepts
-         clicks. The fill color is peach (2026-05 brand expansion;
-         peach is a third primary), which reads as "reading rhythm"
-         rather than the harder bronze "progress meter" feel. */
+         clicks. The accent color matches the brand bronze. */
       className={cn(
         'fixed inset-x-0 top-0 z-[60] h-[3px] pointer-events-none',
         'origin-left will-change-transform',
@@ -107,7 +105,7 @@ export function ReadingProgressBar({
     >
       <div
         aria-hidden="true"
-        className="h-full w-full bg-[var(--color-accent-peach)]"
+        className="h-full w-full bg-[var(--color-accent)]"
       />
     </div>
   );

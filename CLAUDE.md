@@ -51,7 +51,7 @@ These are locked decisions. Don't second-guess them in suggestions:
 3. **No fake numbers**. Qualitative claims only until real traction exists.
 4. **No calendar-period language** in user copy ("when you're ready," not "weekly/quarterly").
 5. **Vercel curve easing site-wide.** `cubic-bezier(0.16, 1, 0.3, 1)` for ease-out, `cubic-bezier(0.7, 0, 0.84, 0)` for ease-in. Centralized in tokens.css and eases.ts.
-6. **Brand colors:** cream (#FAF3E7), bronze (#8B6F47), espresso (#3D2723), peach (#FEBCAE). Three primaries: bronze and peach have equal weight, espresso anchors headings, cream is the body surface. **Bronze** stays on CTAs, focus rings, link underlines, the muted-eyebrow color, and any foreground text that needs to pass WCAG AA against cream. **Peach** owns dividers (SectionDivider), the reading progress bar, the cookie banner top stripe, the editorial-accent background, the founder-note section card, the post-signup celebration card, the hero radial gradient mid-stop, and text selection. **Accessibility constraint:** peach fails WCAG AA for body-text contrast on cream, so peach is restricted to backgrounds, borders, dividers, 1-2px lines, and large decorative surfaces. Foreground text on peach-tint bg must be ink or deep for contrast. Plus secondary tokens in tokens.css.
+6. **Brand colors:** cream (#F5EDDF), bronze (#8B6F47), espresso (#3D2817). Plus secondary tokens in tokens.css.
 7. **Font stack:** Fraunces serif for display headings, system sans for body.
 8. **Title Case** on buttons/headers; **sentence case** on body copy.
 9. **OKT (One Key Takeaway):** *"Your household, your style, sharper."*

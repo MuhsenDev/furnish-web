@@ -28,14 +28,9 @@ const config: Config = {
         danger: 'var(--color-danger)',
         warn: 'var(--color-warn)',
         ok: 'var(--color-ok)',
-        // Peach third primary (2026-05). Bronze still owns CTAs,
-        // focus rings, link underlines, and the .eyebrow color.
-        // Peach owns dividers, progress bar, cookie banner stripe,
-        // editorial highlights, the founder-note section bg, and
-        // the post-signup card. Accessibility: peach on cream fails
-        // WCAG AA for body text, so peach is bg/border/divider only.
+        // Secondary peach accent (2026-05). Sparingly used. NEVER
+        // replaces bronze on CTAs/focus rings/links/.eyebrow.
         'accent-peach': 'var(--color-accent-peach)',
-        'peach-tint': 'var(--color-peach-tint)',
       },
       fontFamily: {
         // Per Document 2 §2.2, app's sans for body and Fraunces for

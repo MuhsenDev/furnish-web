@@ -3,19 +3,13 @@ import { cn } from '@/lib/utils';
 
 /*
   SectionDivider is the brand marker, Document 2 Section 8.1.
-  A single-pixel horizontal line in the peach accent, used 1-2
+  A single-pixel horizontal line in the accent color, used 1-2
   times per page maximum as a subtle transition between major
   sections. NEVER used as a button underline or any tactical role.
 
   Width defaults to 56px (the marker variant). Set width="full"
   for the rare full-width divider used at the very top or bottom
   of an editorial section.
-
-  Color: switched from bronze (--color-accent) to peach
-  (--color-accent-peach) in the 2026-05 brand expansion where
-  peach became a third primary color. Bronze stays on actionable
-  surfaces (CTAs, focus rings, links). The divider is a
-  non-actionable brand marker so peach reads cleanly here.
 */
 
 type DividerWidth = 'marker' | 'full';
@@ -49,7 +43,7 @@ export function SectionDivider({
       role="separator"
       aria-hidden="true"
       className={cn(
-        'h-px bg-[var(--color-accent-peach)]',
+        'h-px bg-[var(--color-accent)]',
         widthClasses[width],
         alignClasses[align],
         className,
