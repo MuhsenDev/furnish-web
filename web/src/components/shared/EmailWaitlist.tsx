@@ -168,7 +168,7 @@ export function EmailWaitlist({
           className={cn(
             'btn-primary-hover',
             'inline-flex items-center justify-center',
-            'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+            'rounded-sm bg-[var(--color-accent)] text-cream',
             'px-6 py-3 text-body-m font-semibold',
             'shadow-1',
             'disabled:opacity-60 disabled:cursor-not-allowed',

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 const primaryLinkClasses = cn(
   'inline-flex items-center justify-center gap-2',
   'rounded-sm px-7 py-3.5 text-body-m font-semibold',
-  'bg-[var(--color-accent-peach)] text-deep',
+  'bg-[var(--color-accent)] text-cream',
   'shadow-1 transition-[transform,box-shadow]',
   'btn-primary-hover',
 );

@@ -95,7 +95,7 @@ export function ReferralCapture() {
           }
           style={{ overflow: 'hidden' }}
           className={cn(
-            'w-full bg-[var(--color-accent-peach)] text-deep',
+            'w-full bg-[var(--color-accent)] text-cream',
           )}
         >
           <div

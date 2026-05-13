@@ -128,7 +128,7 @@ function CellValue({
 const primaryCtaLargeClasses = cn(
   'btn-primary-hover',
   'inline-flex items-center justify-center gap-2',
-  'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+  'rounded-sm bg-[var(--color-accent)] text-cream',
   'px-9 py-4.5 text-body-l font-semibold',
   'shadow-2',
 );
@@ -197,7 +197,7 @@ export function ComparisonTable() {
                 className={cn(
                   'rounded-full border px-4 py-2 text-body-s font-semibold',
                   activeCompetitor === c.key
-                    ? 'border-[var(--color-accent-peach)] bg-[var(--color-accent-peach)] text-deep'
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-cream'
                     : 'border-[rgba(43,30,24,0.16)] bg-surface text-ink',
                 )}
               >

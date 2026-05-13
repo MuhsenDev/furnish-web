@@ -286,7 +286,7 @@ export function WaitlistConfirmation({
             }
             className={cn(
               'flex-1 inline-flex items-center justify-center gap-2',
-              'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+              'rounded-sm bg-[var(--color-accent)] text-cream',
               'px-6 py-3 text-body-m font-semibold',
               'shadow-1 btn-primary-hover',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
@@ -304,7 +304,7 @@ export function WaitlistConfirmation({
             onClick={() => setShowFallbackShares(true)}
             className={cn(
               'flex-1 inline-flex items-center justify-center gap-2',
-              'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+              'rounded-sm bg-[var(--color-accent)] text-cream',
               'px-6 py-3 text-body-m font-semibold',
               'shadow-1 btn-primary-hover',
             )}

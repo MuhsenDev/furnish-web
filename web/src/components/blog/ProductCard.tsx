@@ -124,7 +124,7 @@ export function ProductCard({
             className={cn(
               'btn-primary-hover',
               'inline-flex items-center justify-center gap-2',
-              'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+              'rounded-sm bg-[var(--color-accent)] text-cream',
               'px-5 py-2.5 text-body-s font-semibold',
               'shadow-1',
             )}

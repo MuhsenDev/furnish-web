@@ -109,7 +109,7 @@ const TILES: GalleryTile[] = [
 const galleryCtaClasses = cn(
   'btn-primary-hover group/cta',
   'inline-flex items-center justify-center gap-3',
-  'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+  'rounded-sm bg-[var(--color-accent)] text-cream',
   'px-9 py-4 text-body-m font-semibold tracking-wide',
   'shadow-1 hover:shadow-2',
 );

@@ -350,7 +350,7 @@ export function GalleryLightbox({
             onClick={handleDesignLikeThis}
             className={cn(
               'mt-5 inline-flex items-center justify-center',
-              'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+              'rounded-sm bg-[var(--color-accent)] text-cream',
               'px-6 py-3 text-body-m font-semibold',
               'shadow-1',
               'btn-primary-hover',

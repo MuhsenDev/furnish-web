@@ -36,7 +36,7 @@ const FINAL_CTA_IMAGE_SRC = '/images/hero/hero-2-art-deco-bedroom-evening.jpg';
 const finalCtaButtonClasses = cn(
   'btn-primary-hover',
   'inline-flex items-center justify-center gap-2',
-  'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+  'rounded-sm bg-[var(--color-accent)] text-cream',
   'px-9 py-4.5 text-body-l font-semibold',
   'shadow-2',
 );

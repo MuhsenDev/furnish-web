@@ -146,7 +146,7 @@ export function SectionNavigator({
                     aria-hidden="true"
                     className={cn(
                       'absolute left-0 top-0 bottom-0 w-0.5',
-                      'bg-[var(--color-accent-peach)] rounded-full',
+                      'bg-[var(--color-accent)] rounded-full',
                     )}
                     transition={
                       prefersReducedMotion

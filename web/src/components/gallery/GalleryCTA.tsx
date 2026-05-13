@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 const primaryCtaClasses = cn(
   'btn-primary-hover',
   'inline-flex items-center justify-center gap-2',
-  'rounded-sm bg-[var(--color-accent-peach)] text-deep',
+  'rounded-sm bg-[var(--color-accent)] text-cream',
   'px-7 py-3.5 text-body-m font-semibold',
   'shadow-1',
 );

@@ -160,8 +160,8 @@ export default function FaqPage() {
             href="mailto:hello@furnish.live"
             className={cn(
               'mt-6 inline-flex items-center justify-center',
-              'rounded-sm bg-[var(--color-accent-peach)] px-7 py-3.5',
-              'text-body-m font-semibold text-deep shadow-1',
+              'rounded-sm bg-[var(--color-accent)] px-7 py-3.5',
+              'text-body-m font-semibold text-cream shadow-1',
               'btn-primary-hover',
             )}
           >

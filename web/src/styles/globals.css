@@ -205,16 +205,12 @@
   --cc-modal-border-radius: var(--radius);
   --cc-btn-border-radius: var(--radius-sm);
 
-  /* Primary "Accept all" button: peach bg with espresso text
-     (2026-05 brand expansion). Peach with cream text would fail
-     WCAG; deep/espresso reads at AAA. Hover darkens peach via
-     mixing with black, matching the .btn-primary-hover pattern. */
-  --cc-btn-primary-bg: var(--color-accent-peach);
-  --cc-btn-primary-color: var(--color-deep);
-  --cc-btn-primary-border-color: var(--color-accent-peach);
-  --cc-btn-primary-hover-bg: color-mix(in srgb, var(--color-accent-peach) 88%, black);
-  --cc-btn-primary-hover-color: var(--color-deep);
-  --cc-btn-primary-hover-border-color: color-mix(in srgb, var(--color-accent-peach) 88%, black);
+  --cc-btn-primary-bg: var(--color-accent);
+  --cc-btn-primary-color: var(--color-cream);
+  --cc-btn-primary-border-color: var(--color-accent);
+  --cc-btn-primary-hover-bg: var(--color-brown-2);
+  --cc-btn-primary-hover-color: var(--color-cream);
+  --cc-btn-primary-hover-border-color: var(--color-brown-2);
 
   --cc-btn-secondary-bg: transparent;
   --cc-btn-secondary-color: var(--color-accent);
