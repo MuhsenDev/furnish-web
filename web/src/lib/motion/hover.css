@@ -27,7 +27,11 @@
   }
 }
 
-/* Primary button hover. Slight scale, slightly darker bg. */
+/* Primary button hover. Slight scale, slightly darker bg.
+   2026-05: primary CTAs swapped from bronze to peach, so the
+   hover-darkening mix targets peach now. 92% peach + 8% black
+   yields a deeper coral that reads as "pressed-in" without
+   losing the brand's warm-pink character. */
 .btn-primary-hover {
   transition:
     transform var(--duration-quick) var(--ease-furnish-quick),
@@ -37,7 +41,7 @@
 @media (hover: hover) and (pointer: fine) {
   .btn-primary-hover:hover {
     transform: scale(1.02);
-    background-color: color-mix(in srgb, var(--color-accent) 92%, black);
+    background-color: color-mix(in srgb, var(--color-accent-peach) 92%, black);
   }
 }
 

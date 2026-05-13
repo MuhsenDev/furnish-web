@@ -175,7 +175,7 @@ export function PostTOC({
                     aria-hidden="true"
                     className={cn(
                       'absolute left-0 top-0 bottom-0 w-0.5',
-                      'bg-[var(--color-accent)] rounded-full',
+                      'bg-[var(--color-accent-peach)] rounded-full',
                     )}
                     transition={
                       prefersReducedMotion
@@ -241,7 +241,7 @@ export function PostTOC({
                 'text-body-s font-semibold',
                 'transition-colors duration-150 ease-premium',
                 active
-                  ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-cream'
+                  ? 'border-[var(--color-accent-peach)] bg-[var(--color-accent-peach)] text-deep'
                   : 'border-[rgba(43,30,24,0.20)] bg-surface text-ink',
               )}
             >

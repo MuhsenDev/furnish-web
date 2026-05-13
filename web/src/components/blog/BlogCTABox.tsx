@@ -27,7 +27,7 @@ export interface BlogCTABoxProps {
 const primaryCtaClasses = cn(
   'btn-primary-hover',
   'inline-flex items-center justify-center gap-2',
-  'rounded-sm bg-[var(--color-accent)] text-cream',
+  'rounded-sm bg-[var(--color-accent-peach)] text-deep',
   'px-7 py-3.5 text-body-m font-semibold',
   'shadow-1',
 );

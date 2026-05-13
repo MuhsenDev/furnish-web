@@ -28,7 +28,7 @@ export interface PagePlaceholderProps {
 const homeLinkClasses = cn(
   'inline-flex items-center justify-center gap-2',
   'rounded-sm px-7 py-3.5 text-body-m font-semibold',
-  'bg-[var(--color-accent)] text-cream',
+  'bg-[var(--color-accent-peach)] text-deep',
   'shadow-1 transition-[transform,box-shadow]',
   'btn-primary-hover',
 );

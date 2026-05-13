@@ -30,7 +30,7 @@ export interface ButtonProps
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: cn(
-    'bg-[var(--color-accent)] text-cream',
+    'bg-[var(--color-accent-peach)] text-deep',
     'shadow-1 hover:shadow-2',
     'hover:-translate-y-px active:translate-y-0',
     'transition-[transform,box-shadow,background-color]',

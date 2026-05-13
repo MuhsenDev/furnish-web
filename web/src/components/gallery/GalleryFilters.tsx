@@ -71,11 +71,12 @@ const chipBase = cn(
 );
 
 const chipActive = cn(
-  /* Active = filled accent button. Strong contrast vs inactive
-     so the current selection is unambiguous. */
-  'border-[var(--color-accent)]',
-  'bg-[var(--color-accent)]',
-  'text-cream',
+  /* Active = filled peach button (2026-05 brand expansion).
+     Strong contrast vs inactive so the current selection is
+     unambiguous. Text is deep/espresso for WCAG AA against peach. */
+  'border-[var(--color-accent-peach)]',
+  'bg-[var(--color-accent-peach)]',
+  'text-deep',
 );
 
 const chipInactive = cn(
@@ -210,7 +211,7 @@ function FilterRow({ eyebrow, ariaLabel, children }: FilterRowProps) {
                 'bg-surface text-deep',
                 'shadow-1',
                 'hover:border-[var(--color-accent)]',
-                'hover:bg-[var(--color-accent)] hover:text-cream',
+                'hover:bg-[var(--color-accent-peach)] hover:text-deep',
                 'transition-colors duration-200 ease-premium',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
                 'focus-visible:ring-offset-2 focus-visible:ring-offset-cream',

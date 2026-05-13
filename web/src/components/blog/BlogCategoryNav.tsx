@@ -134,7 +134,7 @@ export function BlogCategoryNav({ active, counts }: BlogCategoryNavProps) {
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]',
               'focus-visible:ring-offset-2 focus-visible:ring-offset-cream',
               isActive
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-cream'
+                ? 'border-[var(--color-accent-peach)] bg-[var(--color-accent-peach)] text-deep'
                 : cn(
                     'border-[rgba(43,30,24,0.20)] bg-surface text-ink',
                     'hover:border-[var(--color-accent)]',

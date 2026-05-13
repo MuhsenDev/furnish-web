@@ -261,7 +261,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 'btn-primary-hover',
                 'mt-4 w-full',
                 'inline-flex items-center justify-center',
-                'rounded-sm bg-[var(--color-accent)] text-cream',
+                'rounded-sm bg-[var(--color-accent-peach)] text-deep',
                 'px-7 py-4 text-body-l font-semibold',
                 'shadow-1',
                 'disabled:opacity-60 disabled:cursor-not-allowed',

@@ -37,7 +37,7 @@ const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? '/';
 
 const PILL_CLASSES = cn(
   'btn-primary-hover inline-flex items-center justify-center',
-  'rounded-full bg-[var(--color-accent)] text-cream',
+  'rounded-full bg-[var(--color-accent-peach)] text-deep',
   'px-4 py-2 text-body-s font-semibold',
   'sm:px-5 sm:py-2.5 sm:text-body-m',
   'shadow-1',
