@@ -1,9 +1,9 @@
 ---
 title: "Terms of Service"
-lastUpdated: "2026-05-05"
+lastUpdated: "2026-05-12"
 ---
 
-**Effective Date: May 5, 2026**
+**Effective Date: May 12, 2026**
 
 These Terms of Service ("Terms") govern your access to and use of
 furnish.live and any pre-launch services we provide there
@@ -76,6 +76,29 @@ commission at no additional cost to you. This disclosure is
 provided in compliance with the U.S. Federal Trade Commission's
 endorsement guidelines (16 CFR Part 255). Affiliate compensation
 does not influence which products we recommend.
+
+## Purchases from third-party retailers
+
+When you click an affiliate link on Furnish and complete a
+purchase, you are buying from the destination retailer, not from
+Furnish. **Furnish is not a party to your purchase.** All
+transactions, payments, shipping, warranties, returns, refunds,
+and post-purchase customer service are governed solely by the
+retailer's own terms, policies, and applicable law.
+
+Furnish makes no representations or warranties about products
+sold by third-party retailers, including but not limited to
+product availability, accuracy of pricing, fitness for any
+purpose, or post-purchase satisfaction. Any dispute arising out
+of or related to a purchase you make at a third-party retailer,
+including disputes about charges, shipping, defects, returns, or
+refunds, is between you and that retailer. We will not be liable
+for any loss, damage, or expense arising from your purchase or
+attempted purchase at a third-party retailer.
+
+If you believe a product listing on Furnish is inaccurate,
+out-of-date, or misleading, please email **hello@furnish.live**
+and we will review the listing.
 
 ## Disclaimers
 

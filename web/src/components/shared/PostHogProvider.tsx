@@ -1,7 +1,7 @@
 'use client';
 
 /*
-  PostHogProvider — Furnish marketing site analytics.
+  PostHogProvider , Furnish marketing site analytics.
 
   Wires PostHog (posthog-js) into the Next.js App Router with proper
   pageview tracking. Pageviews fire on every client-side navigation
@@ -12,22 +12,22 @@
   The Furnish project on PostHog is shared between:
     - This marketing site (furnish.live)
     - The mobile/web app (the static SPA in MuhsenDev/furnish-app)
-  So events from both surfaces aggregate into one funnel —
+  So events from both surfaces aggregate into one funnel ,
   furnish.live visitor → waitlist signup → app open → first redesign
   → first product tap → affiliate click → purchase. That's the
   cross-surface story the launch plan section 4.4.9 expects.
 
   Env vars (set in Vercel project settings):
-    NEXT_PUBLIC_POSTHOG_KEY   — phc_* public-write key (safe to ship)
-    NEXT_PUBLIC_POSTHOG_HOST  — usually https://us.i.posthog.com
+    NEXT_PUBLIC_POSTHOG_KEY   , phc_* public-write key (safe to ship)
+    NEXT_PUBLIC_POSTHOG_HOST  , usually https://us.i.posthog.com
 
   If NEXT_PUBLIC_POSTHOG_KEY is unset, this component no-ops cleanly.
   Local dev without the env var doesn't break anything.
 
   Privacy posture:
-    - person_profiles: 'identified_only' — anonymous visitors don't
+    - person_profiles: 'identified_only' , anonymous visitors don't
       create person profiles. Only PostHog session IDs.
-    - capture_pageleave: true — measures dwell + bounce.
+    - capture_pageleave: true , measures dwell + bounce.
     - Vercel Analytics already runs site-wide without consent
       gating (see layout.tsx). PostHog adopts the same posture.
       EU GDPR consent gating is a follow-up if needed; the existing
@@ -45,7 +45,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
     if (!key) {
-      // Local dev or missing env var — no-op. Don't spam the console
+      // Local dev or missing env var , no-op. Don't spam the console
       // with a warning every time; one info-level line is enough.
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
@@ -62,7 +62,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       capture_pageview: false,
       capture_pageleave: true,
       person_profiles: 'identified_only',
-      // Defer autocapture until after the first paint — Furnish's hero
+      // Defer autocapture until after the first paint , Furnish's hero
       // animation is heavy; we don't want PostHog's listener registration
       // adding microtask overhead during the initial paint window.
       loaded: (ph) => {
