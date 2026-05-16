@@ -42,7 +42,12 @@ const primaryCtaClasses = cn(
   'inline-flex items-center justify-center',
   'rounded-sm bg-[var(--color-accent)] text-cream',
   'px-7 py-3.5 text-body-m font-semibold',
-  'shadow-1',
+  /* shadow-1 (the original) plus an inset deep-ink bottom edge so
+     the button reads more dimensional. Eye lands here first on the
+     hero. Stays within the brand palette: deep ink at 22% over the
+     bronze fill produces a darker bottom shoulder that is on-tone
+     rather than introducing a new color. */
+  'shadow-[var(--shadow-1),inset_0_-2px_0_rgba(43,30,24,0.22)]',
 );
 
 const secondaryCtaClasses = cn(
