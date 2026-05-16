@@ -120,7 +120,15 @@ export function Footer() {
         </div>
 
         <div className="mt-section-y-tight border-t border-[rgba(43,30,24,0.08)] pt-6">
+          {/* Provenance line above the copyright. Establishes that
+              a real person in a real place built this, useful trust
+              signal in the absence of social proof numbers. Same
+              muted body-s as the copyright so it reads as a paired
+              cluster, not a banner. */}
           <p className="text-body-s text-muted">
+            {t('footer', 'provenance')}
+          </p>
+          <p className="mt-1 text-body-s text-muted">
             © {year} Furnish. All rights reserved.
           </p>
         </div>
