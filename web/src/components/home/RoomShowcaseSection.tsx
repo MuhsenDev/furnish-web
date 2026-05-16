@@ -433,13 +433,16 @@ function Room({
   const animatableRef = React.useRef<SVGGElement[]>([]);
   const [svgLoaded, setSvgLoaded] = React.useState(false);
   const [itemCount, setItemCount] = React.useState(0);
-  /* Card aspect-ratio defaults to 3/2 (landscape isometric room
-     framing) and switches to the SVG's actual trimmed content
-     aspect once the trim completes. The card therefore always
-     hugs its room art edge-to-edge, no internal letterboxing,
+  /* Card aspect-ratio defaults to 1.0 (square) and switches to the
+     SVG's actual trimmed content aspect once the trim completes.
+     Default chosen to minimize the visible "snap" between first
+     paint and trim resolution, the 3 rooms typically trim to
+     aspects in the 0.9-1.1 band so a square default is closer to
+     the eventual value than the previous 3/2. The card therefore
+     always hugs its room art edge-to-edge, no internal letterboxing,
      which is what Hassan was after with "make sure the images are
      larger to tightly fit the border". */
-  const [cardAspect, setCardAspect] = React.useState<number>(3 / 2);
+  const [cardAspect, setCardAspect] = React.useState<number>(1);
 
   /* Fetch + inline the SVG once on mount. Set up the initial state
      of each animatable group so it sits offscreen above with 0
@@ -547,18 +550,24 @@ function Room({
           }
         }
         if (trimmed && trimmed.width > 0 && trimmed.height > 0) {
-          /* Clamp the dynamic aspect to a sensible band so a wildly
-             portrait or landscape trim result doesn't make this
-             room's card visually dwarf its siblings in the row.
-             Range 0.85–1.80 lets a portrait-leaning room (2.svg,
-             living-room scene with a couch + standing figure
-             trimmed to ~0.92) keep its natural shape rather than
-             being padded out to 1.10 with horizontal whitespace.
-             items-center on the parent grid keeps the row visually
-             balanced even when card heights differ. */
+          /* Use the trimmed aspect directly. The previous iteration
+             clamped this to [0.85, 1.80], which forced rooms whose
+             trimmed content fell outside that band to render with
+             letterbox whitespace inside the card. The card's border
+             surrounded the full card box, while the room art floated
+             with a side or top/bottom gap, producing the "misaligned
+             border" mobile defect Hassan flagged 2026-05-16: border
+             reads as not hugging the art because the art literally
+             doesn't reach it.
+
+             Dropping the clamp lets each card take its room's true
+             content aspect. Three rooms with slightly different
+             heights on mobile is acceptable, items-center on the
+             grid keeps the stacked layout balanced. On desktop only
+             room 0 renders so there's no sibling-height concern at
+             all. */
           const rawAspect = trimmed.width / trimmed.height;
-          const clamped = Math.max(0.85, Math.min(1.8, rawAspect));
-          setCardAspect(clamped);
+          setCardAspect(rawAspect);
         }
 
         setSvgLoaded(true);
