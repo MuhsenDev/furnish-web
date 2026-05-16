@@ -334,23 +334,33 @@ export function ComparisonTable() {
           ))}
         </div>
 
-        {/* 3-line callout below the table. Copy locked; visual
-            treatment ("stop" lines muted ink, "start" line bronze
-            accent) lives in 2.7-D and lands as a separate commit. */}
+        {/* 3-line callout below the table. Copy locked. Chromatic
+            shift: the two "Stop ..." lines render in muted ink
+            (the old behavior, faded out) and the "Start ..." line
+            renders in bronze accent (the new behavior Furnish
+            represents). The color jump on the third line is the
+            visual analog of the rhetorical pivot. Same display-m
+            size + leading on all three so the rhythm holds. */}
         <div
           className="mt-section-y max-w-3xl"
           data-reveal
         >
           <p
             className={cn(
-              'font-display text-deep',
+              'font-display',
               'tracking-display-tight leading-display',
               'text-display-m',
             )}
           >
-            <span className="block">{t('home', 'comparisonCalloutLine1')}</span>
-            <span className="block">{t('home', 'comparisonCalloutLine2')}</span>
-            <span className="block">{t('home', 'comparisonCalloutLine3')}</span>
+            <span className="block text-ink/55">
+              {t('home', 'comparisonCalloutLine1')}
+            </span>
+            <span className="block text-ink/55">
+              {t('home', 'comparisonCalloutLine2')}
+            </span>
+            <span className="block font-semibold text-[var(--color-accent)]">
+              {t('home', 'comparisonCalloutLine3')}
+            </span>
           </p>
         </div>
 
