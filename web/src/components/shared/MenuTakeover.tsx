@@ -30,6 +30,10 @@ const MENU_LINKS: Array<{ href: string; key: string }> = [
   { href: '/gallery', key: 'linkGallery' },
   { href: '/blog', key: 'linkBlog' },
   { href: '/about', key: 'linkAbout' },
+  /* FAQ added to the mobile takeover so phone visitors have the
+     same access surface the desktop inline nav exposes. Kept at
+     the end of the list to preserve its subordinate ranking. */
+  { href: '/faq', key: 'linkFaq' },
 ];
 
 export interface MenuTakeoverProps {

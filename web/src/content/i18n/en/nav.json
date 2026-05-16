@@ -4,8 +4,10 @@
   "menuAriaLabel": "Site navigation",
   "linkHome": "Home",
   "linkHowItWorks": "How It Works",
+  "linkWhyFurnish": "Why Furnish",
   "linkGallery": "Gallery",
   "linkBlog": "Blog",
   "linkAbout": "About",
+  "linkFaq": "FAQ",
   "logoAriaLabel": "Furnish, home"
 }
