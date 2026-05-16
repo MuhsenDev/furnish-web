@@ -1,22 +1,33 @@
 'use client';
 
 /*
-  Comparison table per Document 5 Section 6.
+  Comparison table per Document 5 Section 6, with a Phase-2 visual
+  overhaul (2026-05-16) to amplify Furnish-column dominance and mute
+  the competitors so the punchline cells ("30 seconds", "Free") do
+  more visual work.
 
-  5 columns x 8 rows. Furnish column gets accent-tinted background,
-  bold borders, raised shadow. Other columns are neutral.
-
-  Cost row emphasized: "Free" in Furnish column gets display-font
-  treatment. Time row emphasized similarly with "30 seconds".
-
-  Mobile: collapsed "tap to compare" pattern. User picks one
-  competitor at a time. Cleaner than horizontal scroll on small
-  screens.
-
-  3-line callout below the table is locked. Final CTA below the
-  callout fires home_final_cta_click... wait, that fires from the
-  FinalCTA section. Here the comparison-table CTA fires
-  home_hero_cta_click with location prop set to comparison-table.
+  Changes vs the prior iteration:
+    - Grid widened on the Furnish column (1.4fr/1.8fr/1fr/1fr/1fr)
+      so Furnish reads ~30% of table width vs ~16% for each
+      competitor.
+    - Furnish column background switched from accent/10 (a near-
+      invisible 10% bronze tint) to var(--color-cream), the
+      lightest brand color, which now pops against the beige
+      section background.
+    - Furnish header switched from body-l accent to display-m accent
+      semibold, so the column visibly outranks the competitor
+      headers which dropped to body-s muted.
+    - Emphasized cells ("30 seconds", "Free") jumped from body-l to
+      display-m on the Furnish side; competitors dropped from
+      body-l ink/80 to body-s muted. The contrast IS the persuasion.
+    - Feature labels in the leftmost column went from body-m ink to
+      body-m deep semibold so the eye sweep reads label -> Furnish
+      cell instead of label -> read every cell.
+    - Boolean cells: Furnish keeps its accent-color size-22 check;
+      competitor checks dropped from text-ok (green) to text-muted
+      (neutral) so their "yes" doesn't compete with Furnish's "yes".
+      No marks switched from text-danger desaturated red to neutral
+      text-muted, keeping the warm palette intact (red was clashing).
 
   Section anchored as id="why-furnish".
   Fires home_comparison_table_view once on viewport entry.
@@ -82,44 +93,58 @@ function CellValue({
   if (typeof value === 'boolean') {
     return value ? (
       <Check
-        size={isFurnish ? 22 : 18}
+        size={isFurnish ? 22 : 16}
         strokeWidth={2}
         className={cn(
-          isFurnish ? 'text-[var(--color-accent)]' : 'text-ok',
+          /* Furnish keeps accent bronze + larger. Competitor checks
+             render in neutral muted so their "yes" doesn't compete
+             visually with Furnish's "yes". */
+          isFurnish ? 'text-[var(--color-accent)]' : 'text-muted/70',
           'mx-auto',
         )}
         aria-label="Yes"
       />
     ) : (
       <X
-        size={16}
+        size={14}
         strokeWidth={1.5}
-        className="mx-auto text-[var(--color-danger)]/70"
+        /* Neutral muted instead of desaturated danger red. Red was
+           clashing with the warm cream/bronze palette. */
+        className="mx-auto text-muted/60"
         aria-label="No"
       />
     );
   }
 
-  /* String value: emphasize the Furnish column when the row is
-     marked emphasize (cost, time). Previously this used
-     `text-display-m` (a heading size) inside the table cell, which
-     made "30 seconds" and "Free" balloon to ~3x the height of every
-     other row and broke the table's visual rhythm. Now uses the
-     same body-l size as the rest, but in display font, accent
-     color, and slightly heavier, visually distinguished without
-     the table-busting size jump. */
-  const accent = isFurnish && emphasize;
+  /* Furnish + emphasize: display-m bronze, the punchline cells.
+     Furnish + non-emphasize: body-m deep semibold, heavier but not
+       table-busting.
+     Competitor (any row): body-s muted, smaller and lighter so the
+       eye registers Furnish first and drifts to competitors only
+       on second pass. The CONTRAST is the persuasion. */
+  if (isFurnish && emphasize) {
+    return (
+      <span
+        className={cn(
+          'block text-center',
+          'font-display font-semibold',
+          'text-display-m text-[var(--color-accent)]',
+          'tracking-display-tight leading-display-tight',
+        )}
+      >
+        {value}
+      </span>
+    );
+  }
+  if (isFurnish) {
+    return (
+      <span className="block text-center text-body-m font-semibold text-deep">
+        {value}
+      </span>
+    );
+  }
   return (
-    <span
-      className={cn(
-        'block text-center',
-        accent
-          ? 'font-display font-semibold text-body-l text-[var(--color-accent)] tracking-display-tight'
-          : isFurnish
-            ? 'font-semibold text-deep'
-            : 'text-ink/80',
-      )}
-    >
+    <span className="block text-center text-body-s text-muted">
       {value}
     </span>
   );
@@ -132,6 +157,12 @@ const primaryCtaLargeClasses = cn(
   'px-9 py-4.5 text-body-l font-semibold',
   'shadow-2',
 );
+
+/* Grid templates pulled out so header + every body row share the
+   same widths exactly. Furnish column is widest, then feature
+   labels, then the three competitors share the rest equally. */
+const DESKTOP_GRID = 'grid-cols-[1.4fr_1.8fr_1fr_1fr_1fr]';
+const MOBILE_GRID = 'grid-cols-[1.2fr_1.6fr_1fr]';
 
 export function ComparisonTable() {
   const revealRef = useScrollReveal<HTMLElement>({ yOffset: 40, stagger: 0.08 });
@@ -181,7 +212,10 @@ export function ComparisonTable() {
           >
             {t('home', 'comparisonHeadline')}
           </h2>
-          <p className="mt-4 text-body-xl text-ink/80">
+          {/* Subhead now in semibold deep, was body-xl ink/80. The
+              "$5,000+ to free" framing is doing real persuasion
+              work, give it weight to match. */}
+          <p className="mt-4 text-body-xl font-semibold text-deep">
             {t('home', 'comparisonSubheadline')}
           </p>
         </div>
@@ -207,11 +241,14 @@ export function ComparisonTable() {
           </div>
 
           <div className="overflow-hidden rounded-[var(--radius)] border border-[rgba(43,30,24,0.08)] bg-surface">
-            <div className="grid grid-cols-3 border-b border-[rgba(43,30,24,0.08)]">
+            <div className={cn('grid border-b border-[rgba(43,30,24,0.08)]', MOBILE_GRID)}>
               <div className="px-3 py-3 text-body-s font-semibold text-muted">
                 Feature
               </div>
-              <div className="bg-[var(--color-accent)]/10 px-3 py-3 text-center text-body-s font-semibold text-[var(--color-accent)]">
+              {/* Furnish mobile header: cream bg, display-l accent.
+                  Punches out clearly from the muted competitor
+                  header in the column next to it. */}
+              <div className="bg-cream px-3 py-4 text-center font-display text-display-m font-semibold text-[var(--color-accent)] tracking-display-tight">
                 {t('home', 'comparisonColFurnish')}
               </div>
               <div className="px-3 py-3 text-center text-body-s font-semibold text-muted">
@@ -222,13 +259,14 @@ export function ComparisonTable() {
               <div
                 key={idx}
                 className={cn(
-                  'grid grid-cols-3 items-center',
+                  'grid items-center',
+                  MOBILE_GRID,
                   idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
                   'border-b border-[rgba(43,30,24,0.06)] last:border-b-0',
                 )}
               >
-                <div className="px-3 py-3 text-body-s text-ink">{row.feature}</div>
-                <div className="bg-[var(--color-accent)]/10 px-3 py-3">
+                <div className="px-3 py-3 text-body-s font-semibold text-deep">{row.feature}</div>
+                <div className="bg-cream px-3 py-3">
                   <CellValue value={row.furnish} isFurnish emphasize={row.emphasize} />
                 </div>
                 <div className="px-3 py-3">
@@ -248,20 +286,24 @@ export function ComparisonTable() {
           className="mt-section-y-tight hidden overflow-hidden rounded-[var(--radius)] border border-[rgba(43,30,24,0.08)] bg-surface sm:block"
           data-reveal
         >
-          <div className="grid grid-cols-5 border-b border-[rgba(43,30,24,0.08)]">
+          <div className={cn('grid border-b border-[rgba(43,30,24,0.08)]', DESKTOP_GRID)}>
             <div className="px-4 py-4 text-body-s font-semibold uppercase tracking-wider text-muted">
               Feature
             </div>
-            <div className="bg-[var(--color-accent)]/10 px-4 py-4 text-center font-display text-body-l text-[var(--color-accent)]">
+            {/* Furnish desktop header: cream column bg + display-m
+                bronze + semibold. Dominates the eye on first read. */}
+            <div className="bg-cream px-4 py-5 text-center font-display text-display-m font-semibold text-[var(--color-accent)] tracking-display-tight">
               {t('home', 'comparisonColFurnish')}
             </div>
-            <div className="px-4 py-4 text-center text-body-m font-semibold text-muted">
+            {/* Competitor headers stepped down to body-s muted, so
+                they read as supporting context, not equal peers. */}
+            <div className="px-4 py-4 text-center text-body-s text-muted">
               {t('home', 'comparisonColDesigner')}
             </div>
-            <div className="px-4 py-4 text-center text-body-m font-semibold text-muted">
+            <div className="px-4 py-4 text-center text-body-s text-muted">
               {t('home', 'comparisonColHavenly')}
             </div>
-            <div className="px-4 py-4 text-center text-body-m font-semibold text-muted">
+            <div className="px-4 py-4 text-center text-body-s text-muted">
               {t('home', 'comparisonColPinterest')}
             </div>
           </div>
@@ -269,13 +311,14 @@ export function ComparisonTable() {
             <div
               key={idx}
               className={cn(
-                'grid grid-cols-5 items-center',
+                'grid items-center',
+                DESKTOP_GRID,
                 idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
                 'border-b border-[rgba(43,30,24,0.06)] last:border-b-0',
               )}
             >
-              <div className="px-4 py-4 text-body-m text-ink">{row.feature}</div>
-              <div className="bg-[var(--color-accent)]/10 px-4 py-4">
+              <div className="px-4 py-4 text-body-m font-semibold text-deep">{row.feature}</div>
+              <div className="bg-cream px-4 py-4">
                 <CellValue value={row.furnish} isFurnish emphasize={row.emphasize} />
               </div>
               <div className="px-4 py-4">
@@ -291,7 +334,9 @@ export function ComparisonTable() {
           ))}
         </div>
 
-        {/* 3-line callout below the table. Locked copy. */}
+        {/* 3-line callout below the table. Copy locked; visual
+            treatment ("stop" lines muted ink, "start" line bronze
+            accent) lives in 2.7-D and lands as a separate commit. */}
         <div
           className="mt-section-y max-w-3xl"
           data-reveal
