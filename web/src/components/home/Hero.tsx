@@ -214,6 +214,18 @@ export function Hero({ counterText }: HeroProps = {}) {
                 : t('home', 'heroSubCtaPreLaunch')}
             </p>
 
+            {/* Pre-launch trust micro-copy. Three short reassurances
+                that kill the most common waitlist objections (cost,
+                payment friction, lock-in). Renders below the sub-CTA
+                line at the same muted size for a coherent footer
+                cluster under the CTAs. Hidden post-launch since the
+                CTA points to the App Store, not an email collector. */}
+            {!APP_LAUNCHED && (
+              <p className="mt-1 text-body-s text-muted/80">
+                {t('home', 'heroTrustLine')}
+              </p>
+            )}
+
             {/* Aggregate signup counter, rendered only when the
                 server passed in copy. Subtle, intentionally not
                 shouty: same muted text size as the sub-CTA, just a
