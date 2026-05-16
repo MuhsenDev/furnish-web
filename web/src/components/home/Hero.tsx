@@ -112,8 +112,15 @@ export function Hero({ counterText }: HeroProps = {}) {
               'text-center lg:text-left',
             )}
           >
+            {/* Hero eyebrow names the category + speed claim so it
+                ADDS information instead of restating the H1. The
+                previous eyebrow was a CSS-uppercased copy of
+                common.tagline, which is the exact text the H1 below
+                already renders ("Take a photo. Furnish does the
+                rest."). Visitors were reading the same sentence twice
+                in different cases before reaching the subhead. */}
             <p data-hero-eyebrow className="eyebrow">
-              {t('common', 'tagline')}
+              {t('home', 'heroEyebrow')}
             </p>
 
             <h1
