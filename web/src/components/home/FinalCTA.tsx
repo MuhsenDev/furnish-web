@@ -156,13 +156,26 @@ export function FinalCTA() {
           </p>
 
           {!APP_LAUNCHED && (
-            <div
-              id="final-waitlist"
-              className="mt-8 scroll-mt-24 flex justify-center"
-              data-reveal
-            >
-              <EmailWaitlist location="final_cta" scheme="on-light" />
-            </div>
+            <>
+              <div
+                id="final-waitlist"
+                className="mt-8 scroll-mt-24 flex justify-center"
+                data-reveal
+              >
+                <EmailWaitlist location="final_cta" scheme="on-light" />
+              </div>
+              {/* Last-mile reassurance directly under the email
+                  field. Pairs with the hero trust line ("Free. No
+                  card. Just your email.") so both ends of the page
+                  close the same objections. Tight top margin so it
+                  reads as belonging to the form, not floating. */}
+              <p
+                data-reveal
+                className="mt-3 text-center text-body-s text-muted"
+              >
+                {t('home', 'finalCtaReassurance')}
+              </p>
+            </>
           )}
         </div>
       </Container>
