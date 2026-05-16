@@ -655,6 +655,39 @@ function Room({
             );
           });
 
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.info(
+              `[RoomShowcase] entry kicked off for ${src}, items=${items.length}, stagger=${cappedStagger * 1000}ms`,
+            );
+          }
+
+          /* Safety net: WAAPI's fill: 'forwards' does not always
+             persist on inline-SVG <g> elements in some Chrome
+             versions, items can revert to their inline initial
+             state (opacity 0, translated off-screen) after the
+             animation's active period ends. This was the most
+             likely cause of the desktop "animation doesn't fire"
+             report from Hassan 2026-05-16: items animated in then
+             snapped back to invisible. Force the final inline state
+             via setTimeout sized to the expected entry duration so
+             the room is definitively visible regardless of WAAPI
+             behavior. If WAAPI persisted correctly, this is a
+             no-op overwrite of identical values. */
+          const lastItemEndMs =
+            Math.ceil(
+              cappedStagger * Math.max(items.length - 1, 0) * 1000 +
+                ENTRY_ITEM_DURATION_S * 1000,
+            ) + 100;
+          const safetyId = window.setTimeout(() => {
+            if (cancelled) return;
+            for (const g of items) {
+              g.style.transform = 'translateY(0) scale(1)';
+              g.style.opacity = '1';
+            }
+          }, lastItemEndMs);
+          timeouts.push(safetyId);
+
           /* === VIEW: still hold, no scale/lift "breath" === */
           await waitMs(CYCLE_PHASE_ENTRY_MS + CYCLE_PHASE_VIEW_MS);
           if (cancelled) return;
