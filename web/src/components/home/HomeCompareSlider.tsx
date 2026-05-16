@@ -92,6 +92,18 @@ export function HomeCompareSlider() {
         >
           {t('home', 'compareCaption')}
         </p>
+
+        {/* Trust micro-line under the caption: closes the loop by
+            telling the visitor what they just saw is honest, no
+            virtual staging or rendered-from-scratch trickery.
+            Same muted size as the caption above, tighter top
+            margin so the two read as a pair. */}
+        <p
+          data-reveal
+          className="mt-2 text-center text-body-s text-muted"
+        >
+          {t('home', 'compareTrustLine')}
+        </p>
       </Container>
     </section>
   );
