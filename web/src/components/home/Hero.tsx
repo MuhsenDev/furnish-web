@@ -76,11 +76,18 @@ export function Hero({ counterText }: HeroProps = {}) {
      walking legs) so they mount AFTER the first hand wave has had
      time to download + parse. Loading three Lottie players at once
      was contributing to the perceived slow animation start Hassan
-     reported. The first hand renders immediately on mount; the
-     extras pop in 350 ms later. */
+     reported.
+
+     Stagger raised from 350ms to 1500ms 2026-05-16. At 350ms the
+     pop-in read as a load lag, just enough delay for the user to
+     notice the extras WEREN'T there, then suddenly were. At 1500ms
+     the first hand has already completed at least one full wave
+     cycle by the time the second hand + legs mount, so the reveal
+     reads as a deliberate second beat ("hand greets, then the rest
+     of the figure walks in") rather than a slow page load. */
   const [readyForExtras, setReadyForExtras] = React.useState(false);
   React.useEffect(() => {
-    const timer = window.setTimeout(() => setReadyForExtras(true), 350);
+    const timer = window.setTimeout(() => setReadyForExtras(true), 1500);
     return () => window.clearTimeout(timer);
   }, []);
 
