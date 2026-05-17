@@ -91,9 +91,13 @@ export function MegaNavSectionRail({
             className={cn(
               'group inline-flex w-fit items-center gap-4 text-left',
               'font-display tracking-display-tight leading-display-tight',
-              /* display-l caps at 5rem (80px) so "Get Started"
-                 doesn't crowd the rail-column edge. */
-              'text-display-l',
+              /* Mobile: display-l (full-width rail, plenty of
+                 room). lg+: drop to display-m (3.5rem max) since
+                 the rail compresses to ~28% column width and
+                 "Get Started" at display-l overflows + wraps to
+                 two lines, making the single button read as
+                 two separate buttons. */
+              'text-display-l lg:text-display-m',
               'transition-[color,transform,opacity] duration-300 ease-premium',
               isActive
                 ? 'text-deep opacity-100 translate-x-2'
@@ -101,7 +105,11 @@ export function MegaNavSectionRail({
               'focus-visible:outline-none focus-visible:opacity-100',
             )}
           >
-            <span>{section.label}</span>
+            {/* whitespace-nowrap safety net: even if a future
+                section label gets longer than the rail column,
+                it'll overflow into the gap rather than wrap to
+                multiple lines (which read as multiple buttons). */}
+            <span className="whitespace-nowrap">{section.label}</span>
             {/* ChevronRight makes the "this is clickable" affordance
                 explicit on labels that would otherwise read as
                 display headings. Always visible (low opacity at

@@ -158,9 +158,9 @@ export const navSections: NavSection[] = [
         "I'm 18, building solo from Michigan. Here's what I kept watching that pushed me to ship.",
       href: '/blog/why-i-built-furnish',
       ctaLabel: 'Read the story',
-      image: '/images/before-after/ba-1-living-room-empty-v2.jpg',
+      image: '/images/blog/blog-6-why-i-built-furnish.jpg',
       imageAlt:
-        'Empty living room before a Furnish redesign, used as a thematic image for the founder story',
+        'Founder story hero image for the Why I Built Furnish post',
     },
     cards: [
       {
@@ -169,7 +169,7 @@ export const navSections: NavSection[] = [
         name: 'Interior Design Trends 2026',
         description: 'What\'s aging well and what\'s already tired.',
         href: '/blog/interior-design-trends-2026',
-        image: '/images/gallery/gallery-living-scandinavian-01.png',
+        image: '/images/blog/blog-5-2026-trends.jpg',
       },
       {
         id: 'scandi-living',
@@ -177,7 +177,7 @@ export const navSections: NavSection[] = [
         name: 'Scandinavian Living Room 2026',
         description: 'Warm woods, low light, no clutter.',
         href: '/blog/scandinavian-living-room-2026',
-        image: '/images/gallery/gallery-living-scandinavian-01.png',
+        image: '/images/blog/blog-1-scandinavian-living-room.jpg',
       },
       {
         id: 'velvet-vs-linen',
@@ -185,7 +185,7 @@ export const navSections: NavSection[] = [
         name: 'Velvet vs Linen Sofas',
         description: 'When to pick each, and what to avoid.',
         href: '/blog/velvet-vs-linen-sofas',
-        image: '/images/gallery/gallery-living-scandinavian-01.png',
+        image: '/images/blog/blog-4-velvet-vs-linen-sofas.jpg',
       },
       {
         id: 'mid-century-tables',
@@ -193,7 +193,7 @@ export const navSections: NavSection[] = [
         name: 'Best Mid-Century Coffee Tables',
         description: 'A working shortlist, not a sponsored roundup.',
         href: '/blog/best-mid-century-coffee-tables',
-        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+        image: '/images/blog/blog-2-mid-century-coffee-tables.jpg',
       },
       {
         id: 'small-bedroom',
@@ -201,7 +201,7 @@ export const navSections: NavSection[] = [
         name: 'Small Bedroom Design Ideas',
         description: 'For rooms that fight you on every dimension.',
         href: '/blog/small-bedroom-design-ideas',
-        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+        image: '/images/blog/blog-3-small-bedroom.jpg',
       },
       {
         id: 'how-it-works',
@@ -209,7 +209,7 @@ export const navSections: NavSection[] = [
         name: 'How Furnish Works',
         description: 'Photo, style, shoppable room. In that order.',
         href: '/how-it-works',
-        image: '/images/gallery/gallery-kitchen-farmhouse-01.png',
+        image: '/images/before-after/ba-1-living-room-scandinavian.jpg',
       },
     ],
     categories: [
@@ -230,8 +230,8 @@ export const navSections: NavSection[] = [
         'Save 95% versus traditional interior designers. From $5,000+ to free.',
       href: '/#why-furnish',
       ctaLabel: 'See the comparison',
-      image: '/images/gallery/gallery-living-scandinavian-01.png',
-      imageAlt: 'Designed Scandinavian living room, used as the comparison-section hero',
+      image: '/images/hero/hero-1-scandinavian-living-morning.jpg',
+      imageAlt: 'Scandinavian living room in morning light, used as the comparison-section hero',
     },
     cards: [
       {
@@ -281,7 +281,7 @@ export const navSections: NavSection[] = [
         name: 'About Furnish',
         description: 'Built by Hassan Muhsen. Garden City, Michigan.',
         href: '/about',
-        image: '/images/gallery/gallery-living-scandinavian-01.png',
+        image: '/images/about/founder-silhouette.jpg',
       },
       {
         id: 'how',
@@ -289,7 +289,7 @@ export const navSections: NavSection[] = [
         name: 'How It Works',
         description: 'Three steps from a photo to a shoppable room.',
         href: '/how-it-works',
-        image: '/images/gallery/gallery-kitchen-farmhouse-01.png',
+        image: '/images/before-after/ba-1-living-room-scandinavian.jpg',
       },
       {
         id: 'faq',
