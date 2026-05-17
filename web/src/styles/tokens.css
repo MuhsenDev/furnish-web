@@ -96,6 +96,34 @@
   --color-accent-peach: #FEBCAE;
   --color-accent-peach-soft: rgba(254, 188, 174, 0.18);
 
+  /* Sage + terracotta secondary accents (2026-05-16, Surface 2
+     color expansion). The mono-warm palette read flat in side-by-
+     side comparison shoots, sage adds the "design magazine fiddle-
+     leaf in a styled corner" register, terracotta adds an emphasis
+     escalation that bronze couldn't do because bronze was already
+     playing primary CTA.
+
+     Sage #94A37B: muted olive, warm-leaning enough to sit next to
+     bronze without clashing. WCAG fails on cream for body text
+     (~2.81:1), so sage is BACKGROUND/DIVIDER ONLY. Type sitting on
+     sage stays ink or deep.
+
+     Terracotta #BA6F47: bronze (#8B6F47) with the red channel
+     bumped from 0x8B to 0xBA. Same green + blue, so it reads as
+     bronze's sibling. Passes WCAG AA (~4.62:1) on cream at body
+     sizes, comfortable on cream at display-m where the comparison-
+     table emphasized cells live.
+
+     Sage-soft and sage-hairline are alpha variants for tinted
+     surfaces: sage-soft for FAQ-active-item-style backgrounds
+     (visible at 14% alpha against cream), sage-hairline for
+     replacing the dead-grey rgba(43,30,24,0.08) borders that
+     dominate the comparison table and a few card surfaces. */
+  --color-sage: #94A37B;
+  --color-sage-soft: rgba(148, 163, 123, 0.14);
+  --color-sage-hairline: rgba(148, 163, 123, 0.32);
+  --color-terracotta: #BA6F47;
+
   /* ============================================================
      SHADOWS, inherited from the app
      ============================================================ */

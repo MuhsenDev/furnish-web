@@ -31,6 +31,13 @@ const config: Config = {
         // Secondary peach accent (2026-05). Sparingly used. NEVER
         // replaces bronze on CTAs/focus rings/links/.eyebrow.
         'accent-peach': 'var(--color-accent-peach)',
+        // Surface-2 accents (2026-05-16). Sage for tinted hairlines
+        // + subtle active-state backgrounds; terracotta for emphasis
+        // numbers in the comparison table. Sage is BG/DIVIDER-only
+        // (fails WCAG on cream for body type); terracotta passes AA
+        // at display sizes.
+        sage: 'var(--color-sage)',
+        terracotta: 'var(--color-terracotta)',
       },
       fontFamily: {
         // Per Document 2 §2.2, app's sans for body and Fraunces for
