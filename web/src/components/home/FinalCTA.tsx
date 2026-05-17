@@ -20,7 +20,6 @@
 */
 
 import * as React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/Container';
 import { EmailWaitlist } from '@/components/shared/EmailWaitlist';
@@ -30,8 +29,6 @@ import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
 import { APP_LAUNCHED, APP_STORE_URL } from '@/lib/flags';
 import { cn } from '@/lib/utils';
-
-const FINAL_CTA_IMAGE_SRC = '/images/hero/hero-2-art-deco-bedroom-evening.jpg';
 
 const finalCtaButtonClasses = cn(
   'btn-primary-hover',
@@ -62,49 +59,58 @@ export function FinalCTA() {
       id="final-cta"
       className={cn(
         'relative overflow-hidden',
-        'min-h-[80vh] flex items-center',
+        /* min-h dropped from 80vh to 60vh, the prior 80vh was sized
+           for a full-bleed cinematic photo. Without the photo, 80vh
+           reads as empty cream. 60vh keeps the section commanding
+           without dead space below the card. */
+        'min-h-[60vh] flex items-center',
+        'bg-cream',
       )}
       aria-labelledby="final-cta-heading"
     >
-      {/* Full-bleed cinematic background image. */}
-      <Image
-        src={FINAL_CTA_IMAGE_SRC}
-        alt={t('home', 'finalCtaImageAlt')}
-        fill
-        sizes="100vw"
-        className="absolute inset-0 object-cover"
-      />
-      {/* Layered overlays for legibility. The previous gradient at
-          /55 /40 /70 left bright areas of the image showing through
-          enough to wash out the cream headline. Now layered:
-          (1) ink (brand near-black) at 65% darkens the whole image,
-          (2) a deep-warm vertical gradient on top of that for the
-              cinematic vignette feel.
-          Cream text now sits on a dark backdrop with high contrast. */}
+      {/* Warm radial halo behind the card. Replaces the full-bleed
+          art-deco bedroom photo from the prior iteration; the photo
+          was doing decoration work that competed with the card's
+          content, the two darkening overlays existed only to fight
+          the photo back into legibility, and the whole pattern read
+          as a stock-photo template.
+
+          The halo uses the same chromatic recipe as --gradient-hero
+          (bronze at low alpha radiating to transparent), so the
+          bottom of the page chromatically echoes the top. Card
+          sits ON this halo rather than fighting against a photo.
+
+          Reference: Vercel's homepage final CTA block (radial
+          gradient behind a flat panel), plus Raycast's CTA-block
+          pattern of trusting copy + a single accent shape over
+          photography. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-ink/65"
-      />
-      <div
-        aria-hidden="true"
-        className={cn(
-          'absolute inset-0',
-          'bg-gradient-to-b from-deep/30 via-transparent to-deep/55',
-        )}
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 70% 55% at 50% 50%, rgba(139, 111, 71, 0.10) 0%, rgba(139, 111, 71, 0.04) 40%, transparent 75%)',
+        }}
       />
 
       <Container width="default" className="relative">
-        {/* Centered brand-color card wrapping the entire CTA block.
-            Cream background pops against the dark image overlay so
-            the headline reads cleanly. Text colors switch from
-            on-dark cream tones to on-light deep/ink tones since the
-            backdrop inside the card is now light. */}
+        {/* Centered card. bg-surface (Furnish's lightest brand
+            color, slightly brighter than the page cream) so the
+            card visually lifts off the halo via a subtle lightness
+            step, not via a hard fill change. Border picks up the
+            sage hairline from Surface 2 so it carries through the
+            Surface-2 divider treatment instead of the dead ink
+            border that lived here before.
+
+            Reference: Linear's contact-page card and Vercel's CTA
+            panel — a lifted surface with a deliberate edge, no
+            decorative bg image fighting it. */}
         <div
           className={cn(
             'mx-auto max-w-2xl text-center',
             'rounded-[var(--radius)]',
-            'bg-cream',
-            'border border-[rgba(43,30,24,0.08)]',
+            'bg-surface',
+            'border border-[var(--color-sage-hairline)]',
             'shadow-2',
             'p-8 sm:p-12 lg:p-14',
           )}
