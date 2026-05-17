@@ -29,6 +29,13 @@ export interface MegaNavSectionRailProps {
   onSwitch: (section: SectionId) => void;
 }
 
+/* Easing constants (4-tuple, satisfies framer-motion 12's Easing
+   type inside Variants objects). See MegaNavOverlay header for
+   why the inline transition pattern in older files doesn't need
+   this cast. */
+const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_IN: [number, number, number, number] = [0.7, 0, 0.84, 0];
+
 /* Stagger config matches the spec's "40ms between each, 250ms
    ease-out, total ~400ms" timing. */
 const railContainer = {
@@ -52,12 +59,12 @@ const railItem = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.25, ease: EASE_OUT },
   },
   exit: {
     opacity: 0,
     y: -4,
-    transition: { duration: 0.18, ease: [0.7, 0, 0.84, 0] },
+    transition: { duration: 0.18, ease: EASE_IN },
   },
 };
 
@@ -115,7 +122,7 @@ export function MegaNavSectionRail({
                   'bg-[var(--color-accent)]',
                   'translate-y-[-0.5em]',
                 )}
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.3, ease: EASE_OUT }}
               />
             )}
           </motion.button>

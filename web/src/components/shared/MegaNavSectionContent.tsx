@@ -30,6 +30,11 @@ export interface MegaNavSectionContentProps {
   onClose: () => void;
 }
 
+/* Easing constants (4-tuple, satisfies framer-motion 12's Easing
+   type inside Variants objects). */
+const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_IN: [number, number, number, number] = [0.7, 0, 0.84, 0];
+
 /* Cross-fade timing: 150ms out, 200ms in, per spec §4.2. The
    incoming content also lifts 8px from below per spec §4.1
    step 4. */
@@ -38,12 +43,12 @@ const paneContent = {
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.2, ease: EASE_OUT },
   },
   exit: {
     opacity: 0,
     y: -4,
-    transition: { duration: 0.15, ease: [0.7, 0, 0.84, 0] },
+    transition: { duration: 0.15, ease: EASE_IN },
   },
 };
 
