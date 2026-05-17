@@ -1,0 +1,326 @@
+/*
+  MegaNav data layer per the 2026-05-17 ApeChain-pattern mega-menu
+  build. All section content lives here so component code never
+  needs touching to update labels, cards, images, or destinations.
+
+  Pattern reference: apechain.com / their CLAUDE.md spec. Furnish
+  adaptations vs the source spec:
+    - Cream + bronze + sage palette (CLAUDE.md hard rule #6), NOT
+      dark + warm gold.
+    - Fraunces serif + Inter sans (CLAUDE.md hard rule #7), NOT
+      Bebas Neue + DM Sans.
+    - Sections remapped to Furnish's 4 user intents (Browse /
+      Learn / Compare / Get Started) instead of ApeChain's
+      Explore / Learn / Build / Bridge.
+    - Cards point at REAL destinations (gallery routes, blog
+      posts, comparison anchor, info pages). No fake apps.
+    - "Get Started" featured tile opens the existing
+      WaitlistModal via a sentinel href the orchestrator
+      intercepts, rather than navigating.
+
+  Em-dash check: every user-facing string here is em-dash-free per
+  CLAUDE.md hard rule #12.
+*/
+
+export type SectionId = 'browse' | 'learn' | 'compare' | 'get-started';
+
+/* A single card in the mega-menu's right-pane grid. */
+export interface NavCard {
+  id: string;
+  /** Short uppercase tag rendered above the card title. */
+  tag?: string;
+  /** Card title, usually 1-3 words. */
+  name: string;
+  /** Single-line subtitle. Sentence case. */
+  description: string;
+  /** Internal route OR external href. */
+  href: string;
+  /** Real image path. Must exist under /public/. */
+  image: string;
+}
+
+/* The big editorial tile at the top of each section's right pane. */
+export interface NavFeatured {
+  /** Small label above the title, uppercase via CSS. */
+  eyebrow: string;
+  /** Display-font headline. */
+  title: string;
+  /** Subtitle line. */
+  description: string;
+  /** Destination href OR the sentinel '__waitlist_modal__'. */
+  href: string;
+  /** Primary CTA text on the tile. */
+  ctaLabel: string;
+  /** Background image for the tile. */
+  image: string;
+  /** Image alt text for screen readers. */
+  imageAlt: string;
+}
+
+export interface NavSection {
+  id: SectionId;
+  /** Short label rendered in the closed top bar and left rail. */
+  label: string;
+  /** Featured tile at the top of the section's right pane. */
+  featured: NavFeatured | null;
+  /** Card grid below the featured tile. */
+  cards: NavCard[];
+  /** Optional pill row of category filters under the grid. */
+  categories?: Array<{ label: string; href: string }>;
+}
+
+/* Sentinel href the orchestrator intercepts to open the
+   WaitlistModal instead of routing. */
+export const WAITLIST_MODAL_HREF = '__waitlist_modal__';
+
+export const navSections: NavSection[] = [
+  {
+    id: 'browse',
+    label: 'Browse',
+    featured: {
+      eyebrow: 'Featured style',
+      title: 'Scandinavian Living Room',
+      description:
+        'Warm woods, neutral palette, designed in seconds from a single photo.',
+      href: '/gallery',
+      ctaLabel: 'See the gallery',
+      image: '/images/before-after/ba-1-living-room-scandinavian.jpg',
+      imageAlt:
+        'Scandinavian living room with warm woods and a neutral palette, designed by Furnish',
+    },
+    cards: [
+      {
+        id: 'living-room',
+        tag: 'Living rooms',
+        name: 'Living Room',
+        description: 'Couches that hold a Friday and a Sunday.',
+        href: '/gallery#room=living',
+        image: '/images/gallery/gallery-living-scandinavian-01.png',
+      },
+      {
+        id: 'bedroom',
+        tag: 'Bedrooms',
+        name: 'Bedroom',
+        description: 'Quiet, layered, made for actual sleep.',
+        href: '/gallery#room=bedroom',
+        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+      },
+      {
+        id: 'kitchen',
+        tag: 'Kitchens',
+        name: 'Kitchen',
+        description: 'A room you cook in, not just photograph.',
+        href: '/gallery#room=kitchen',
+        image: '/images/gallery/gallery-kitchen-farmhouse-01.png',
+      },
+      {
+        id: 'bathroom',
+        tag: 'Bathrooms',
+        name: 'Bathroom',
+        description: 'Spa rituals on a non-spa budget.',
+        href: '/gallery#room=bathroom',
+        image: '/images/gallery/gallery-bathroom-contemporary-01.png',
+      },
+      {
+        id: 'home-office',
+        tag: 'Home offices',
+        name: 'Home Office',
+        description: 'A desk you actually want to sit at.',
+        href: '/gallery#room=home-office',
+        image: '/images/gallery/gallery-home-office-industrial-01.png',
+      },
+      {
+        id: 'dining-room',
+        tag: 'Dining rooms',
+        name: 'Dining Room',
+        description: 'Long dinners deserve long tables.',
+        href: '/gallery#room=dining',
+        image: '/images/gallery/gallery-dining-art-deco-01.png',
+      },
+    ],
+    categories: [
+      { label: 'Scandinavian', href: '/gallery#style=scandinavian' },
+      { label: 'Mid-Century', href: '/gallery#style=mid-century' },
+      { label: 'Industrial', href: '/gallery#style=industrial' },
+      { label: 'Bohemian', href: '/gallery#style=bohemian' },
+      { label: 'Farmhouse', href: '/gallery#style=farmhouse' },
+      { label: 'Contemporary', href: '/gallery#style=contemporary' },
+    ],
+  },
+
+  {
+    id: 'learn',
+    label: 'Learn',
+    featured: {
+      eyebrow: 'Founder story',
+      title: 'Why I Built Furnish',
+      description:
+        "I'm 18, building solo from Michigan. Here's what I kept watching that pushed me to ship.",
+      href: '/blog/why-i-built-furnish',
+      ctaLabel: 'Read the story',
+      image: '/images/before-after/ba-1-living-room-empty-v2.jpg',
+      imageAlt:
+        'Empty living room before a Furnish redesign, used as a thematic image for the founder story',
+    },
+    cards: [
+      {
+        id: 'trends-2026',
+        tag: 'Trends',
+        name: 'Interior Design Trends 2026',
+        description: 'What\'s aging well and what\'s already tired.',
+        href: '/blog/interior-design-trends-2026',
+        image: '/images/gallery/gallery-living-scandinavian-01.png',
+      },
+      {
+        id: 'scandi-living',
+        tag: 'Living room',
+        name: 'Scandinavian Living Room 2026',
+        description: 'Warm woods, low light, no clutter.',
+        href: '/blog/scandinavian-living-room-2026',
+        image: '/images/gallery/gallery-living-scandinavian-01.png',
+      },
+      {
+        id: 'velvet-vs-linen',
+        tag: 'Sofa picks',
+        name: 'Velvet vs Linen Sofas',
+        description: 'When to pick each, and what to avoid.',
+        href: '/blog/velvet-vs-linen-sofas',
+        image: '/images/gallery/gallery-living-scandinavian-01.png',
+      },
+      {
+        id: 'mid-century-tables',
+        tag: 'Picks',
+        name: 'Best Mid-Century Coffee Tables',
+        description: 'A working shortlist, not a sponsored roundup.',
+        href: '/blog/best-mid-century-coffee-tables',
+        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+      },
+      {
+        id: 'small-bedroom',
+        tag: 'Bedroom',
+        name: 'Small Bedroom Design Ideas',
+        description: 'For rooms that fight you on every dimension.',
+        href: '/blog/small-bedroom-design-ideas',
+        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+      },
+      {
+        id: 'how-it-works',
+        tag: 'How it works',
+        name: 'How Furnish Works',
+        description: 'Photo, style, shoppable room. In that order.',
+        href: '/how-it-works',
+        image: '/images/gallery/gallery-kitchen-farmhouse-01.png',
+      },
+    ],
+    categories: [
+      { label: 'All posts', href: '/blog' },
+      { label: 'Trends', href: '/blog?category=trends' },
+      { label: 'Picks', href: '/blog?category=picks' },
+      { label: 'Founder story', href: '/blog/why-i-built-furnish' },
+    ],
+  },
+
+  {
+    id: 'compare',
+    label: 'Compare',
+    featured: {
+      eyebrow: 'How we compare',
+      title: 'Designed for you. Not for designers.',
+      description:
+        'Save 95% versus traditional interior designers. From $5,000+ to free.',
+      href: '/#why-furnish',
+      ctaLabel: 'See the comparison',
+      image: '/images/gallery/gallery-living-scandinavian-01.png',
+      imageAlt: 'Designed Scandinavian living room, used as the comparison-section hero',
+    },
+    cards: [
+      {
+        id: 'vs-designer',
+        tag: 'Versus',
+        name: 'Interior Designer',
+        description: '$2,000 to $10,000, weeks of back and forth.',
+        href: '/#why-furnish',
+        image: '/images/gallery/gallery-dining-art-deco-01.png',
+      },
+      {
+        id: 'vs-havenly',
+        tag: 'Versus',
+        name: 'Havenly',
+        description: '$79 to $1,599, limited iteration.',
+        href: '/#why-furnish',
+        image: '/images/gallery/gallery-home-office-industrial-01.png',
+      },
+      {
+        id: 'vs-pinterest',
+        tag: 'Versus',
+        name: 'Pinterest',
+        description: 'Free, but never a real room.',
+        href: '/#why-furnish',
+        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+      },
+    ],
+  },
+
+  {
+    id: 'get-started',
+    label: 'Get Started',
+    featured: {
+      eyebrow: 'Coming soon',
+      title: 'Join the Waitlist',
+      description:
+        'One email when Furnish launches on iOS. No drip campaigns, no spam.',
+      href: WAITLIST_MODAL_HREF,
+      ctaLabel: 'Get early access',
+      image: '/images/hero/hero-2-art-deco-bedroom-evening.jpg',
+      imageAlt: 'Mid-century modern bedroom in moody evening light, designed by Furnish',
+    },
+    cards: [
+      {
+        id: 'about',
+        tag: 'About',
+        name: 'About Furnish',
+        description: 'Built by Hassan Muhsen. Garden City, Michigan.',
+        href: '/about',
+        image: '/images/gallery/gallery-living-scandinavian-01.png',
+      },
+      {
+        id: 'how',
+        tag: 'How it works',
+        name: 'How It Works',
+        description: 'Three steps from a photo to a shoppable room.',
+        href: '/how-it-works',
+        image: '/images/gallery/gallery-kitchen-farmhouse-01.png',
+      },
+      {
+        id: 'faq',
+        tag: 'FAQ',
+        name: 'Frequently Asked',
+        description: 'What we collect, what costs what, when we ship.',
+        href: '/faq',
+        image: '/images/gallery/gallery-bathroom-contemporary-01.png',
+      },
+      {
+        id: 'legal',
+        tag: 'Legal',
+        name: 'Privacy & Terms',
+        description: 'How we handle your email and your data.',
+        href: '/privacy',
+        image: '/images/gallery/gallery-home-office-industrial-01.png',
+      },
+    ],
+  },
+];
+
+/* Convenience lookup. Components use this rather than re-finding by
+   id every render. */
+export const navSectionById: Record<SectionId, NavSection> = navSections.reduce(
+  (acc, section) => {
+    acc[section.id] = section;
+    return acc;
+  },
+  {} as Record<SectionId, NavSection>,
+);
+
+/* Section order is fixed: Browse / Learn / Compare / Get Started.
+   Both the closed-bar triggers and the open-state left rail render
+   in this order. Components iterate navSections directly. */
