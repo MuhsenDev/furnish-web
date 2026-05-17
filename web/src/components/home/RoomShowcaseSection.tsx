@@ -99,17 +99,6 @@ const VIEWBOX_TRIM_PADDING_FRACTION = 0.005;
    the previous 1500. */
 const RASTER_LONG_SIDE_PX = 2400;
 
-/* How far the geometric bbox can EXTEND the pixel bbox per side,
-   as a fraction of the pixel-bbox dimension. The cap exists to
-   prevent oversized static-walls paths (whose getBBox extends to
-   the SVG corners even though their painted content is interior)
-   from inflating the trim. Bumped 0.25 → 0.50: when desktop
-   rasterization drops faint walls entirely from the pixel scan,
-   25% wasn't enough room to recover them via the geometric
-   fallback; 50% gives the geometric bbox enough latitude to put
-   walls back in without unfettered access to the SVG corners. */
-const GEO_EXTENSION_CAP = 0.50;
-
 /* The Vercel curve. Used for the entry deceleration, the
    lift/return phases of the active ceremony, and the fade-out. */
 const VERCEL_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -170,8 +159,14 @@ function isStatic(groupId: string): boolean {
 /* Rasterize the inline SVG, scan pixel alpha to find the opaque-
    content bbox, and rewrite the SVG's viewBox to match. This is
    how we make the room art FILL its card without trailing
-   whitespace, geometric bbox isn't enough because walls/floors
-   are drawn with paths whose bbox extends past the visible art. */
+   whitespace.
+
+   Pixel bbox is used alone (no geometric-bbox union with named
+   groups); the union step previously here was sliding the trimmed
+   viewBox off the painted-content centroid because named-group
+   getBBox() reach is often asymmetric vs. the painted pixels.
+   With alpha threshold 0 + raster resolution 2400px long-side,
+   even faint stroked walls register through the pixel scan. */
 async function tightenViewBoxToVisualBounds(
   svg: SVGSVGElement,
 ): Promise<{ width: number; height: number } | null> {
@@ -311,66 +306,27 @@ async function tightenViewBoxToVisualBounds(
   const pxBboxW = ((maxX - minX) / cw) * vbW;
   const pxBboxH = ((maxY - minY) / ch) * vbH;
 
-  /* Union with the geometric bbox of named groups (excluding
-     unknown-not-visable). Pixel-scan can miss faintly-painted
-     structural elements (walls, floors drawn with thin strokes
-     or near-bg fills), walls in 6.svg / 7.svg specifically have
-     paths whose painted content barely registers above the alpha
-     threshold but whose geometry IS where the room frame sits.
-     Taking the union catches both the visible paint and the
-     structural geometry; padding then runs over the union. */
-  let geoMinX = Infinity,
-    geoMinY = Infinity,
-    geoMaxX = -Infinity,
-    geoMaxY = -Infinity;
-  let validBboxCount = 0;
-  const namedCandidates = Array.from(svg.children).filter((el) => {
-    if (el.tagName === 'defs') return false;
-    if (el.tagName !== 'g') return true;
-    const id = (el.id || '').toLowerCase();
-    return !id.startsWith('unknown-not-visable');
-  });
-  for (const el of namedCandidates) {
-    try {
-      const node = el as unknown as SVGGraphicsElement;
-      if (typeof node.getBBox !== 'function') continue;
-      const b = node.getBBox();
-      if (b.width === 0 && b.height === 0) continue;
-      validBboxCount += 1;
-      if (b.x < geoMinX) geoMinX = b.x;
-      if (b.y < geoMinY) geoMinY = b.y;
-      if (b.x + b.width > geoMaxX) geoMaxX = b.x + b.width;
-      if (b.y + b.height > geoMaxY) geoMaxY = b.y + b.height;
-    } catch (_) {
-      /* skip */
-    }
-  }
+  /* Pixel bbox alone, no geometric-bbox union. The previous
+     iteration unioned this with the geometric bbox (getBBox()) of
+     every named top-level group, capped at 50% extension per side.
+     That step extended the bbox asymmetrically toward whichever
+     named groups had the furthest getBBox() reach (e.g., a group
+     whose transformed children sit further out than its painted
+     pixels), sliding the trimmed viewBox center off the
+     painted-content centroid. Symptom: room art rendered with
+     visible whitespace on one side of the card, kissing the
+     border on the opposite side.
 
-  /* Union with geometric bbox, but CAP each side's extension at
-     GEO_EXTENSION_CAP (50%) of the pixel bbox dimension so we don't
-     pull in massive amounts of whitespace from a static-walls path
-     that happens to extend to the SVG corners. The cap lets us
-     reach walls that are drawn slightly past the painted content
-     while still rejecting the full geometric corner of an oversized
-     SVG. Skip the union entirely if too few valid getBBox results
-     came back, a single valid bbox isn't representative enough to
-     trust as a recovery floor. */
-  const maxExtX = pxBboxW * GEO_EXTENSION_CAP;
-  const maxExtY = pxBboxH * GEO_EXTENSION_CAP;
-  let finalMinX = pxBboxX;
-  let finalMinY = pxBboxY;
-  let finalMaxX = pxBboxX + pxBboxW;
-  let finalMaxY = pxBboxY + pxBboxH;
-  if (validBboxCount >= 2 && Number.isFinite(geoMinX)) {
-    finalMinX = Math.max(geoMinX, pxBboxX - maxExtX);
-    finalMinY = Math.max(geoMinY, pxBboxY - maxExtY);
-    finalMaxX = Math.min(geoMaxX, pxBboxX + pxBboxW + maxExtX);
-    finalMaxY = Math.min(geoMaxY, pxBboxY + pxBboxH + maxExtY);
-  }
-  const newX = finalMinX;
-  const newY = finalMinY;
-  const newW = finalMaxX - finalMinX;
-  const newH = finalMaxY - finalMinY;
+     The pixel bbox is symmetric on the painted-content centroid,
+     so the viewBox stays centered on the art. Alpha threshold is
+     already 0 (any non-transparent pixel counts) and raster
+     resolution is 2400px long-side, so faint stroked walls
+     register through the alpha scan without needing geometric
+     recovery. */
+  const newX = pxBboxX;
+  const newY = pxBboxY;
+  const newW = pxBboxW;
+  const newH = pxBboxH;
 
   /* Sanity bail: if the union math collapsed (shouldn't happen but
      guard so we never set a degenerate viewBox), keep the natural

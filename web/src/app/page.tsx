@@ -5,8 +5,11 @@
 
     1. Hero (Furnish hand wave + Furnish wordmark + walking legs)
     2. HomeCompareSlider (before/after slider)
-    3. RoomShowcaseSection (3 SVG isometric rooms with idle
-       levitation + jump+spin cycle, infinite loop)
+    3. RoomShowcaseGate -> RoomShowcaseSection
+       Mobile (<lg) only. The gate is a client-side matchMedia
+       wrapper that returns null on desktop so the section's chunk
+       never reaches the wire. Section itself renders 3 SVG
+       isometric rooms with idle levitation + entry sequence.
     4. GalleryPreview (mobile shows 3 tiles, desktop shows 9)
     5. ComparisonTable ("Designed for you. Not for designers.")
     6. FounderNote
@@ -22,35 +25,19 @@
 */
 
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
 import { Hero } from '@/components/home/Hero';
 import { GalleryPreview } from '@/components/home/GalleryPreview';
 import { HomeCompareSlider } from '@/components/home/HomeCompareSlider';
 import { ComparisonTable } from '@/components/home/ComparisonTable';
 import { FounderNote } from '@/components/home/FounderNote';
 import { FinalCTA } from '@/components/home/FinalCTA';
+import { RoomShowcaseGate } from '@/components/home/RoomShowcaseGate';
 
-/* RoomShowcaseSection pulls in framer-motion (~30 KB gz) which we
-   don't want on the critical path. Section is below-the-fold; lazy
-   load it. ssr: false keeps the framer-motion bundle out of the
-   server-rendered HTML too. The placeholder uses the same cream
-   bg as the actual section so there's no color flash when the
-   client chunk loads. */
-const RoomShowcaseSection = dynamic(
-  () =>
-    import('@/components/home/RoomShowcaseSection').then(
-      (m) => m.RoomShowcaseSection,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <section
-        aria-hidden="true"
-        className="bg-cream py-section-y min-h-[60vh]"
-      />
-    ),
-  },
-);
+/* RoomShowcaseSection lives behind RoomShowcaseGate (Surface 3,
+   2026-05-16). The gate is a client-side matchMedia wrapper that
+   only renders the section on viewports < lg, AND owns the
+   `next/dynamic` import so the section's chunk + framer-motion
+   bundle + 3 SVG fetches never reach the wire on desktop. */
 
 export const metadata: Metadata = {
   title: 'Furnish. Take a photo. Design your room. Shop it all.',
@@ -127,7 +114,7 @@ export default async function HomePage() {
       <HomeStructuredData />
       <Hero />
       <HomeCompareSlider />
-      <RoomShowcaseSection />
+      <RoomShowcaseGate />
       <GalleryPreview />
       <ComparisonTable />
       <FounderNote />
