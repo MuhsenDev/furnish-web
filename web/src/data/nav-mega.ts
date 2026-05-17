@@ -37,6 +37,11 @@ export interface NavCard {
   href: string;
   /** Real image path. Must exist under /public/. */
   image: string;
+  /** How to fit the image in the card tile. Default 'cover' fills
+      the tile (with crop). Use 'contain' for portrait-oriented
+      subjects like silhouettes or product shots where cropping
+      the head or feet would look broken. */
+  imageFit?: 'cover' | 'contain';
 }
 
 /* The big editorial tile at the top of each section's right pane. */
@@ -292,6 +297,11 @@ export const navSections: NavSection[] = [
         description: 'Built by Hassan Muhsen. Garden City, Michigan.',
         href: '/about',
         image: '/images/about/founder-silhouette.jpg',
+        /* Founder silhouette is a portrait figure; object-cover
+           crops the head and feet in a 4:3 tile. Contain it so the
+           full body shows. Letterbox falls on the bg-cream tile
+           background, matching the page palette. */
+        imageFit: 'contain',
       },
       {
         id: 'how',

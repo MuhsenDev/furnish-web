@@ -86,7 +86,10 @@ export function MegaNavAppGrid({
               fill
               sizes="(min-width: 1024px) 25vw, 50vw"
               className={cn(
-                'object-cover',
+                /* Default cover (fills + crops). Cards with portrait
+                   subjects opt into contain (letterbox onto the
+                   cream tile bg) by setting imageFit in nav-mega. */
+                card.imageFit === 'contain' ? 'object-contain' : 'object-cover',
                 'transition-[filter] duration-500 ease-premium',
                 'group-hover:[filter:saturate(1.08)_brightness(1.03)]',
               )}
