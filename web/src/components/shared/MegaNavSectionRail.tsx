@@ -21,6 +21,7 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { navSections, type SectionId } from '@/data/nav-mega';
 import { EASE_IN, EASE_OUT } from './megaNavMotion';
@@ -88,40 +89,39 @@ export function MegaNavSectionRail({
             onClick={() => onSwitch(section.id)}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'group inline-flex w-fit items-baseline gap-3 text-left',
+              'group inline-flex w-fit items-center gap-4 text-left',
               'font-display tracking-display-tight leading-display-tight',
-              /* Display-l (not display-xl at lg+) so the longest
-                 section label ("Get Started", 11 chars) doesn't
-                 risk crowding the rail-column edge at upper
-                 viewport widths. display-l caps at 5rem / 80px
-                 which keeps "Get Started" comfortably inside the
-                 28% rail column at 1440px container. */
+              /* display-l caps at 5rem (80px) so "Get Started"
+                 doesn't crowd the rail-column edge. */
               'text-display-l',
               'transition-[color,transform,opacity] duration-300 ease-premium',
               isActive
                 ? 'text-deep opacity-100 translate-x-2'
-                : 'text-deep opacity-60 hover:opacity-90 hover:translate-x-1',
+                : 'text-deep opacity-60 hover:opacity-100 hover:translate-x-1',
               'focus-visible:outline-none focus-visible:opacity-100',
             )}
           >
             <span>{section.label}</span>
-            {isActive && (
-              /* Active-section indicator: a small bronze dot that
-                 mirrors the closed-bar terracotta dot from Surface
-                 1. Bronze here (not terracotta) because the rail's
-                 active state is the primary navigation state, and
-                 bronze is the brand's primary accent. */
-              <motion.span
-                aria-hidden="true"
-                layoutId="rail-active-dot"
-                className={cn(
-                  'inline-block h-2 w-2 rounded-full',
-                  'bg-[var(--color-accent)]',
-                  'translate-y-[-0.5em]',
-                )}
-                transition={{ duration: 0.3, ease: EASE_OUT }}
-              />
-            )}
+            {/* ChevronRight makes the "this is clickable" affordance
+                explicit on labels that would otherwise read as
+                display headings. Always visible (low opacity at
+                rest, full opacity + bronze color on the active
+                section, slides on hover). Replaces the floating
+                bronze dot that was the active indicator before,
+                the chevron does double duty: button affordance
+                AND active marker. */}
+            <ChevronRight
+              size={32}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              className={cn(
+                'shrink-0',
+                'transition-[transform,opacity,color] duration-300 ease-premium',
+                isActive
+                  ? 'opacity-100 text-[var(--color-accent)] translate-x-1'
+                  : 'opacity-40 text-deep group-hover:opacity-90 group-hover:translate-x-1',
+              )}
+            />
           </motion.button>
         );
       })}
