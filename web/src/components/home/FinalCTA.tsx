@@ -34,7 +34,10 @@ const finalCtaButtonClasses = cn(
   'btn-primary-hover',
   'inline-flex items-center justify-center gap-2',
   'rounded-sm bg-[var(--color-accent)] text-cream',
-  'px-9 py-4.5 text-body-l font-semibold',
+  /* py-5 instead of py-4.5 (which is not a real Tailwind step
+     and silently no-op'd). py-5 = 1.25rem, the closest valid
+     token to the intended taller-than-default button. */
+  'px-9 py-5 text-body-l font-semibold',
   'shadow-2',
 );
 

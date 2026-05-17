@@ -42,7 +42,10 @@ const ROWS: Row[] = [
   {
     label: t('home', 'comparisonRow5'),
     furnish: 'Free',
-    designer: '$2,000+',
+    /* Matches the homepage ComparisonTable + nav-mega card copy
+       exactly, so visitors see the same designer-cost framing in
+       all three surfaces. */
+    designer: '$2,000-$10,000',
   },
 ];
 
@@ -61,20 +64,27 @@ export function MegaNavCompareMini() {
       )}
       aria-label="Furnish versus traditional interior designer comparison"
     >
+      {/* Grid template hoisted to a constant so the header row +
+          both data rows share identical column widths. Tweaked
+          from [1.2fr_1fr_1fr] to give the Feature column a touch
+          more room ("Time to first design" still wraps to 2
+          lines, but the wrap break point reads cleaner) and to
+          give the Designer column the breath it needs so the
+          "Interior Designer" header sits on one line. */}
       {/* Column header row. Furnish column gets bg-cream + display
           accent treatment exactly like the homepage table. */}
       <div
         className={cn(
-          'grid grid-cols-[1.2fr_1fr_1fr]',
+          'grid grid-cols-[1.3fr_1fr_1.1fr]',
           'border-b border-[var(--color-sage-hairline)]',
         )}
       >
-        <div className="px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+        <div className="px-3 py-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
           Feature
         </div>
         <div
           className={cn(
-            'bg-cream px-3 py-2.5 text-center',
+            'bg-cream px-3 py-3 text-center',
             'font-display text-body-l font-semibold',
             'text-[var(--color-accent)] tracking-display-tight',
           )}
@@ -83,9 +93,13 @@ export function MegaNavCompareMini() {
         </div>
         <div
           className={cn(
-            'px-3 py-2.5 text-center',
-            'font-display text-body-m font-normal',
-            'text-muted opacity-55 tracking-display-tight',
+            'px-3 py-3 text-center',
+            /* body-s + leading-tight (was body-m): matches the
+               designer-data font size so header reads as the
+               column's quiet companion, and fits "Interior
+               Designer" on one line at this column width. */
+            'font-display text-body-s font-normal',
+            'text-muted opacity-55 tracking-display-tight leading-tight',
           )}
         >
           {t('home', 'comparisonColDesigner')}
@@ -96,23 +110,27 @@ export function MegaNavCompareMini() {
         <div
           key={row.label}
           className={cn(
-            'grid grid-cols-[1.2fr_1fr_1fr] items-center',
+            'grid grid-cols-[1.3fr_1fr_1.1fr] items-center',
             idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
             'flex-1',
           )}
         >
-          <div className="px-3 py-2 text-body-s font-semibold text-deep">
+          <div className="px-3 py-3 text-body-s font-semibold text-deep leading-tight">
             {row.label}
           </div>
           {/* Furnish cell: terracotta, font-display, semibold.
-              Same treatment the homepage table uses on its
-              emphasized rows. */}
-          <div className="bg-cream px-3 py-2 text-center">
+              body-l (was body-xl) so values like "30 seconds"
+              fit on a single line in the narrow column rather
+              than wrapping to "30 / seconds" and reading as
+              broken. The terracotta + display semibold combo
+              already does the visual work; the extra size at
+              body-xl was overkill at this scale. */}
+          <div className="bg-cream px-3 py-3 text-center">
             <span
               className={cn(
                 'block',
                 'font-display font-semibold',
-                'text-body-xl text-[var(--color-terracotta)]',
+                'text-body-l text-[var(--color-terracotta)]',
                 'tracking-display-tight leading-display-tight',
               )}
             >
@@ -121,8 +139,8 @@ export function MegaNavCompareMini() {
           </div>
           {/* Designer cell: small + muted, the question to
               Furnish's answer. */}
-          <div className="px-3 py-2 text-center">
-            <span className="block text-body-s text-muted">
+          <div className="px-3 py-3 text-center">
+            <span className="block text-body-s text-muted leading-tight">
               {row.designer}
             </span>
           </div>

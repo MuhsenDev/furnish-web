@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     url: 'https://furnish.live/gallery',
     images: [
       {
-        url: '/images/og/og-gallery.jpg',
+        url: '/images/og/og-default.jpg',
         width: 1200,
         height: 630,
         alt: 'Furnish gallery, rooms designed by AI',

@@ -19,12 +19,12 @@
   "step3Number": "3",
   "step3Headline": "A photo-realistic redesign of your actual room.",
   "step3Body1": "Furnish sends your photo plus your quiz answers to our servers. The AI redesigns the room while keeping the architecture exactly as photographed: same walls, same windows, same floor, same camera angle. Every piece in the room is real and shoppable.",
-  "step3Body2": "The whole generation step takes about thirty seconds. You watch a brief progress moment and then the redesign appears. From there, every item in the room is tappable. Tap the sofa to see where to buy it. Tap the lamp. Tap the rug. The shopping list builds itself.",
+  "step3Body2": "The whole generation step takes about 30 seconds. You watch a brief progress moment and then the redesign appears. From there, every item in the room is tappable. Tap the sofa to see where to buy it. Tap the lamp. Tap the rug. The shopping list builds itself.",
   "step3Body3": "Save the room. Iterate as many times as you like. Send it to a partner. Pick pieces up over the next six months as your budget allows. Furnish is yours to use as fast or as slowly as you need.",
 
   "technologyEyebrow": "What is under the hood",
-  "technologyHeadline": "Google's Gemini AI plus our own design vocabulary.",
-  "technologyBody1": "Furnish uses Google's Gemini family of AI models for the redesign step. We do not train custom models. We do not pretend to. Gemini is among the strongest image-aware models available, and we get to focus on the part that actually changes how rooms turn out: the prompt and the controlled vocabulary that frames it.",
+  "technologyHeadline": "Google's image generation AI plus our own design vocabulary.",
+  "technologyBody1": "Furnish uses Google's image generation AI for the redesign step. We do not train custom models. We do not pretend to. We focus on the part that actually changes how rooms turn out: the prompt and the controlled vocabulary that frames it.",
   "technologyBody2": "Around the model we built a tagged catalog of real furniture across every room type and a controlled vocabulary of styles, vibes, and density tags. Every redesign passes through these guardrails. That is why a Furnish kitchen looks like a kitchen, a Furnish bedroom looks like a bedroom, and the result feels intentional rather than randomly assembled.",
   "technologyBody3": "Your photo never trains anything. It is processed for your redesign and then auto-deleted from our servers 7 days later. Read the Privacy Policy for the full data flow.",
 

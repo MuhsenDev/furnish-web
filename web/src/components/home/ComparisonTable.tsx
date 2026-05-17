@@ -161,7 +161,12 @@ const primaryCtaLargeClasses = cn(
   'btn-primary-hover',
   'inline-flex items-center justify-center gap-2',
   'rounded-sm bg-[var(--color-accent)] text-cream',
-  'px-9 py-4.5 text-body-l font-semibold',
+  /* py-5 instead of the previous py-4.5: Tailwind v3 has no 4.5
+     step, so the old class silently no-op'd and the button
+     rendered at the default button height. py-5 (1.25rem) is
+     the closest valid token to the intended ~1.125rem extra
+     vertical padding. */
+  'px-9 py-5 text-body-l font-semibold',
   'shadow-2',
 );
 
@@ -191,7 +196,12 @@ export function ComparisonTable() {
   const ctaText = APP_LAUNCHED
     ? t('common', 'ctaAppStore')
     : t('common', 'ctaWaitlist');
-  const ctaHref = APP_LAUNCHED ? APP_STORE_URL : '#waitlist';
+  /* '#final-waitlist' points at the FinalCTA section's existing
+     id. The previous '#waitlist' had no target anywhere on the
+     page so the Link silently jumped nowhere. Only used in the
+     APP_LAUNCHED=true branch (which renders <Link>); the false
+     branch renders a <button> that opens the modal directly. */
+  const ctaHref = APP_LAUNCHED ? APP_STORE_URL : '#final-waitlist';
 
   const competitors: Array<{ key: CompetitorKey; label: string }> = [
     { key: 'designer', label: t('home', 'comparisonColDesigner') },

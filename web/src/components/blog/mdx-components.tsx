@@ -94,11 +94,12 @@ function PullQuote({
    imagery with an italic caption underneath, per the PIN-UP
    Magazine pattern referenced in the 2026-05-13 design review.
 
-   Usage in MDX:
+   Usage in MDX (point src at any real /images/blog/*.jpg the
+   post ships with; the example below uses one that exists):
      <InlineImage
-       src="/images/blog/sven-walnut-detail.jpg"
-       alt="Detail of Sven 88 inch tufted sofa in walnut"
-       caption="Sven 88 inch Tufted Leather Sofa in Charme Tan, from Article."
+       src="/images/blog/blog-4-velvet-vs-linen-sofas.jpg"
+       alt="Detail of a velvet sofa in warm walnut tones"
+       caption="Velvet vs linen comparison, from the Furnish blog."
      />
 
    Plain markdown ![alt](src) still renders via the `img` mapping

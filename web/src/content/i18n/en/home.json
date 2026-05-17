@@ -65,7 +65,7 @@
   "founderExcerpt": "I'm 18, building Furnish solo from Michigan. I kept watching people I know hit the same wall: a beautiful new house, an empty room, no idea where to start, no budget for a designer. So I built the app that fills that gap.",
   "founderReadMore": "Read the full story",
   "founderParagraph1": "I'm 18, based in Garden City, Michigan. I started building apps in high school because I kept noticing problems no one was solving, and I'd rather build than wait for someone else to do it. I got my mortgage loan officer license while still in school for the same reason: I wanted real skills, real ownership, real work, not a resume.",
-  "founderParagraph2": "Furnish came from watching people I know struggle to make their homes feel finished. Empty rooms. Pinterest paralysis. Quotes from interior designers that cost more than a car payment. I wanted to make this accessible to everyone, not just people with $5,000 to spend on a designer they barely talk to.",
+  "founderParagraph2": "I kept watching people I know hit the same wall. Empty rooms. Pinterest paralysis. Quotes from designers that cost more than a car payment. So I built the tool that closes that gap, without the $5,000 price tag or the eight-week wait.",
   "founderParagraph3": "Furnish is for the new homeowner staring at empty walls. The renter tired of mismatched IKEA furniture. The real estate agent trying to help clients see what's possible. Anyone who wants their home to feel like theirs, without the gatekeeping, the cost, or the wait.",
   "founderSignoff": "Hassan",
 
@@ -77,11 +77,11 @@
   "finalCtaImageAlt": "Mid-century modern bedroom in moody evening light, designed by Furnish",
 
   "waitlistEmailPlaceholder": "your@email.com",
-  "waitlistButton": "Join The Waitlist",
+  "waitlistButton": "Join the Waitlist",
   "waitlistSuccess": "You are on the list. We'll email you when Furnish launches.",
   "waitlistError": "Something went wrong. Please try again.",
   "waitlistInvalidEmail": "Please enter a valid email.",
-  "waitlistModalTitle": "Join The Waitlist",
+  "waitlistModalTitle": "Join the Waitlist",
   "waitlistModalDescription": "Drop your email and we'll send you one message the moment Furnish goes live on iOS. No marketing, no spam, no follow-ups. Just the launch announcement.",
   "waitlistModalDismiss": "Close"
 }

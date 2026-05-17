@@ -243,7 +243,7 @@ export const navSections: NavSection[] = [
       eyebrow: 'How we compare',
       title: 'Designed for you. Not for designers.',
       description:
-        'Save 95% versus traditional interior designers. From $5,000+ to free.',
+        'Save 95%+ versus traditional interior designers. From $5,000+ to free.',
       href: '/#why-furnish',
       ctaLabel: 'See the comparison',
       /* No image. MegaNavSectionContent renders MegaNavCompareMini
@@ -256,7 +256,7 @@ export const navSections: NavSection[] = [
         id: 'vs-designer',
         tag: 'Versus',
         name: 'Interior Designer',
-        description: '$2,000 to $10,000, weeks of back and forth.',
+        description: '$2,000-$10,000, weeks of back and forth.',
         href: '/#why-furnish',
         /* Real photo of a designer at work. object-cover crops a
            landscape composition cleanly into the 4:3 tile. */

@@ -43,7 +43,9 @@ export function GalleryCTA() {
   const ctaText = APP_LAUNCHED
     ? t('common', 'ctaAppStore')
     : t('common', 'ctaWaitlist');
-  const ctaHref = APP_LAUNCHED ? APP_STORE_URL : '/#waitlist';
+  /* '/#final-waitlist' points at FinalCTA's section id on the
+     home page. The previous '/#waitlist' had no target. */
+  const ctaHref = APP_LAUNCHED ? APP_STORE_URL : '/#final-waitlist';
 
   return (
     <section

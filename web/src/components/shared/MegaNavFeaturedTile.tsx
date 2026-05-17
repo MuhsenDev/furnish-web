@@ -111,12 +111,15 @@ export function MegaNavFeaturedTile({
           <h3
             className={cn(
               'mt-3 font-display tracking-display-tight',
-              /* leading-display (0.95) is too tight for a wrapped
-                 multi-line title in Fraunces serif: descenders on
-                 y/g/p and the period after "you" crash into the
-                 line below. Use 1.05 to clear descenders without
-                 sacrificing the display feel. */
-              'leading-[1.05]',
+              /* leading-display (0.95) is too tight for wrapped
+                 multi-line Fraunces serif titles at display sizes:
+                 descenders on y/g/p crash into the line below and
+                 even ascender-heavy stacks like "Scandinavian /
+                 Living Room" read as cramped. 1.15 clears the
+                 line cleanly while still reading display-tight
+                 (Tailwind's leading-tight is 1.25, which is one
+                 step too loose for the editorial look). */
+              'leading-[1.15]',
               'text-deep',
               /* Graduated sizing: at mobile the copy column is
                  ~272px wide and display-m (32-56px) wraps long
@@ -127,7 +130,10 @@ export function MegaNavFeaturedTile({
           >
             {featured.title}
           </h3>
-          <p className="mt-4 text-body-l text-ink/85 leading-relaxed">
+          {/* mt-5 (was mt-4): the tighter h3 leading meant the
+              description sat right on top of the title's last
+              line. One step of separation lets the title breathe. */}
+          <p className="mt-5 text-body-l text-ink/85 leading-relaxed">
             {featured.description}
           </p>
           <span
