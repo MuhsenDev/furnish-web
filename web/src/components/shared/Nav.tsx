@@ -34,12 +34,15 @@ import { Container } from '@/components/Container';
 import { MenuTakeover } from './MenuTakeover';
 import { NavCTA } from './NavCTA';
 
-/* Primary desktop nav links. Three equal-weight links plus FAQ
-   rendered separately at a subordinate weight. */
+/* Primary desktop nav links. Short-form labels per the 2026-05-16
+   reference-tier polish pass (Linear/Stripe-style single-word
+   convention). Long-form keys (linkHowItWorks, linkWhyFurnish,
+   linkGallery) stay in nav.json so the mobile MenuTakeover + Footer
+   can use the descriptive variants without breaking. */
 const PRIMARY_LINKS: Array<{ href: string; key: string }> = [
-  { href: '/how-it-works', key: 'linkHowItWorks' },
-  { href: '/#why-furnish', key: 'linkWhyFurnish' },
-  { href: '/gallery', key: 'linkGallery' },
+  { href: '/how-it-works', key: 'linkHow' },
+  { href: '/#why-furnish', key: 'linkCompare' },
+  { href: '/gallery', key: 'linkRooms' },
 ];
 
 /* Pure helper, no React. Decide whether a given nav link points
@@ -128,11 +131,21 @@ export function Nav() {
             </Link>
 
             {/* DESKTOP (lg+) inline links. Hidden below lg.
-                gap-9 is a touch wider than the Round-2 gap-7, more
-                magazine-spacious between primary links. */}
+                gap-8 (32px) matches Linear's exact spacing value
+                from linear.app top nav. The Round-2 gap-9 read
+                slightly loose.
+
+                Active-state pattern (Linear/Vercel hybrid):
+                  - Default: text-deep at 75% opacity (subordinate)
+                  - Hover: opacity-100 + link-underline draw
+                  - Active route: opacity-100 + a 4×4 terracotta
+                    dot positioned 8px below the link
+                The dot replaces the prior terracotta text color
+                (which read too loud against the cream nav bg).
+                Quieter, more decisive than an underline indicator. */}
             <nav
               aria-label="Primary"
-              className="hidden lg:flex items-center gap-9"
+              className="hidden lg:flex items-center gap-8"
             >
               {PRIMARY_LINKS.map((link) => {
                 const active = isActiveLink(pathname, link.href);
@@ -142,35 +155,52 @@ export function Nav() {
                     href={link.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'link-underline',
-                      /* Premium DTC nav reads at weight 500 with
-                         tighter tracking. Was font-semibold (600);
-                         500 reads more deliberate, less aggressive. */
-                      'text-body-m font-medium tracking-[-0.005em]',
-                      /* Active page shifts color to terracotta
-                         (Surface 2 accent). Subtle, only on the
-                         current route. */
+                      'relative link-underline',
+                      /* 15px is Linear's nav-link size: between
+                         body-s (14) and body-m (16). Weight 500 +
+                         tighter -0.01em tracking reads as
+                         deliberate without being aggressive. */
+                      'text-[15px] font-medium tracking-[-0.01em]',
+                      'text-deep transition-opacity duration-200 ease-premium',
                       active
-                        ? 'text-[var(--color-terracotta)]'
-                        : 'text-deep',
+                        ? 'opacity-100'
+                        : 'opacity-75 hover:opacity-100',
+                      /* Active-route dot indicator. Terracotta from
+                         Surface 2. 4×4 px, centered horizontally,
+                         8px below the text baseline. */
+                      active &&
+                        'after:absolute after:left-1/2 after:-bottom-2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-[var(--color-terracotta)]',
                     )}
                   >
                     {t('nav', link.key)}
                   </Link>
                 );
               })}
-              <span aria-hidden="true" className="text-muted/40">
-                ·
-              </span>
+              {/* 1px vertical rule between the primary links and
+                  FAQ. Replaces the prior typographic "·" separator,
+                  which read as decoration. The rule reads as a
+                  deliberate divider. Reference: Stripe's nav
+                  between Solutions and Developers. */}
+              <span
+                aria-hidden="true"
+                className="h-4 w-px bg-[var(--color-sage-hairline)]"
+              />
               <Link
                 href="/faq"
                 aria-current={isActiveLink(pathname, '/faq') ? 'page' : undefined}
                 className={cn(
-                  'link-underline',
-                  'text-body-s',
+                  'relative link-underline',
+                  'text-[15px] font-medium tracking-[-0.01em]',
+                  'text-deep transition-opacity duration-200 ease-premium',
+                  /* FAQ stays subordinate via opacity (50%), not
+                     via font size. The size matches the primary
+                     links now so legibility is consistent across
+                     the nav row. */
                   isActiveLink(pathname, '/faq')
-                    ? 'text-[var(--color-terracotta)]'
-                    : 'text-muted',
+                    ? 'opacity-100'
+                    : 'opacity-50 hover:opacity-100',
+                  isActiveLink(pathname, '/faq') &&
+                    'after:absolute after:left-1/2 after:-bottom-2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-[var(--color-terracotta)]',
                 )}
               >
                 {t('nav', 'linkFaq')}

@@ -36,7 +36,7 @@ const APP_LAUNCHED = process.env.NEXT_PUBLIC_APP_LAUNCHED === 'true';
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? '/';
 
 const PILL_CLASSES = cn(
-  'btn-primary-hover inline-flex items-center justify-center',
+  'inline-flex items-center justify-center',
   'rounded-full bg-[var(--color-accent)] text-cream',
   'px-4 py-2 text-body-s font-semibold',
   'sm:px-5 sm:py-2.5 sm:text-body-m',
@@ -47,6 +47,13 @@ const PILL_CLASSES = cn(
      new colour, just adds a darker bottom shoulder under the
      bronze fill. */
   'shadow-[var(--shadow-1),inset_0_-2px_0_rgba(43,30,24,0.22)]',
+  /* Hover = lift 1px + shadow-1 -> shadow-2 grow. Active = depress
+     back to baseline. Replaces the shared btn-primary-hover's
+     scale(1.02) which read cartoonish in the nav context. Reference:
+     Stripe + Linear nav pill microstate (translate-y, not scale). */
+  'transition-[transform,box-shadow] duration-200 ease-premium',
+  'hover:-translate-y-px hover:shadow-[var(--shadow-2),inset_0_-2px_0_rgba(43,30,24,0.22)]',
+  'active:translate-y-0 active:shadow-[var(--shadow-1),inset_0_-1px_0_rgba(43,30,24,0.22)]',
 );
 
 export function NavCTA({ location = 'nav', className, onClick }: NavCTAProps) {
