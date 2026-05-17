@@ -35,8 +35,9 @@ export interface NavCard {
   description: string;
   /** Internal route OR external href. */
   href: string;
-  /** Real image path. Must exist under /public/. */
-  image: string;
+  /** Real image path. Must exist under /public/. Omit for a
+      text-only card (no image area, copy fills the tile). */
+  image?: string;
   /** How to fit the image in the card tile. Default 'cover' fills
       the tile (with crop). Use 'contain' for portrait-oriented
       subjects like silhouettes or product shots where cropping
@@ -289,8 +290,8 @@ export const navSections: NavSection[] = [
         'One email when Furnish launches on iOS. No drip campaigns, no spam.',
       href: WAITLIST_MODAL_HREF,
       ctaLabel: 'Get early access',
-      image: '/images/hero/hero-2-art-deco-bedroom-evening.jpg',
-      imageAlt: 'Mid-century modern bedroom in moody evening light, designed by Furnish',
+      /* No image. The empty-room hero was decorative filler; let
+         the waitlist CTA stand on copy alone. */
     },
     cards: [
       {
@@ -312,11 +313,9 @@ export const navSections: NavSection[] = [
         name: 'How It Works',
         description: 'Three steps from a photo to a shoppable room.',
         href: '/how-it-works',
-        /* Same empty-room shot as the Learn section's How Furnish
-            Works card, intentional pairing: both surfaces lead to
-            the same /how-it-works page and the empty room is the
-            "before any of this happens" signal. */
-        image: '/images/before-after/ba-1-living-room-empty-v2.jpg',
+        /* Text-only card. About's silhouette is the only image
+           that earns its place in this row; everything else was
+           filler. */
       },
       {
         id: 'faq',
@@ -324,10 +323,7 @@ export const navSections: NavSection[] = [
         name: 'Frequently Asked',
         description: 'What we collect, what costs what, when we ship.',
         href: '/faq',
-        /* Mid-century dining: a dining table is the universal "sit
-           down and talk it through" image. Warm and approachable,
-           matching the FAQ tone. */
-        image: '/images/gallery/gallery-dining-mid-century-01.png',
+        /* Text-only card. */
       },
       {
         id: 'legal',
@@ -335,11 +331,7 @@ export const navSections: NavSection[] = [
         name: 'Privacy & Terms',
         description: 'How we handle your email and your data.',
         href: '/privacy',
-        /* Minimalist walk-in closet: a private space where your
-           things are organized and kept yours. Reads as "we don't
-           hoard your data, we keep it tidy" without being literal
-           about lock/key/document cliches. */
-        image: '/images/gallery/gallery-walk-in-closet-minimalist-01.png',
+        /* Text-only card. */
       },
     ],
   },

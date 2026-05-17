@@ -73,32 +73,46 @@ export function MegaNavAppGrid({
           {/* Image fills the top of the card edge-to-edge. The
               card's overflow-hidden clips the image to the card
               radius. No inner ring (the card's border replaces
-              that affordance). */}
-          <div
-            className={cn(
-              'relative aspect-[4/3] w-full overflow-hidden',
-              'bg-cream',
-            )}
-          >
-            <Image
-              src={card.image}
-              alt={card.name}
-              fill
-              sizes="(min-width: 1024px) 25vw, 50vw"
+              that affordance). Omitted entirely when card.image
+              is undefined, in which case the text section below
+              takes the full tile height with center-aligned copy
+              so the card reads as deliberately text-only rather
+              than as a missing image. */}
+          {card.image && (
+            <div
               className={cn(
-                /* Default cover (fills + crops). Cards with portrait
-                   subjects opt into contain (letterbox onto the
-                   cream tile bg) by setting imageFit in nav-mega. */
-                card.imageFit === 'contain' ? 'object-contain' : 'object-cover',
-                'transition-[filter] duration-500 ease-premium',
-                'group-hover:[filter:saturate(1.08)_brightness(1.03)]',
+                'relative aspect-[4/3] w-full overflow-hidden',
+                'bg-cream',
               )}
-            />
-          </div>
+            >
+              <Image
+                src={card.image}
+                alt={card.name}
+                fill
+                sizes="(min-width: 1024px) 25vw, 50vw"
+                className={cn(
+                  /* Default cover (fills + crops). Cards with portrait
+                     subjects opt into contain (letterbox onto the
+                     cream tile bg) by setting imageFit in nav-mega. */
+                  card.imageFit === 'contain' ? 'object-contain' : 'object-cover',
+                  'transition-[filter] duration-500 ease-premium',
+                  'group-hover:[filter:saturate(1.08)_brightness(1.03)]',
+                )}
+              />
+            </div>
+          )}
           {/* Text section. flex-1 pushes the bottom against the
               card edge so cards with shorter text don't collapse
-              vertically when their sibling has longer text. */}
-          <div className="flex flex-1 flex-col p-4">
+              vertically when their sibling has longer text.
+              Text-only cards (no image) center their copy
+              vertically and get extra padding so the tile reads
+              as deliberate. */}
+          <div
+            className={cn(
+              'flex flex-1 flex-col',
+              card.image ? 'p-4' : 'justify-center p-5 sm:p-6',
+            )}
+          >
             {card.tag && <p className="eyebrow text-[10px]">{card.tag}</p>}
             <p
               className={cn(
