@@ -67,17 +67,23 @@
 
   /* Hero gradient. Used ONCE per page, only in the hero section.
      Radial, accent-tinted at low opacity over the cream backdrop.
-     The only decorative gradient on the site. The bronze stop at
-     the center anchors the brand; the peach stop further out adds
-     a softer warm halo without competing with the bronze for
-     attention. The peach addition is part of the 2026-05
-     secondary-accent pass; revert it by deleting the middle stop
-     and shifting transparent back to 70%. */
+     The only decorative gradient on the site. Bronze stop at the
+     center anchors the brand and fades to transparent at the
+     edge.
+
+     2026-05-16: peach middle stop removed. The peach experiment
+     was reverted in commits 135060533 + c9794e26, leaving the
+     gradient as the only user-facing place peach lived as a halo
+     tint. The remaining ::selection peach color is a separate
+     interaction state and stays.
+
+     Bronze-only halo now matches the FinalCTA halo at the bottom
+     of the page (shipped in e5e7aac), so the top and bottom of
+     the page bookend with the same chromatic recipe. */
   --gradient-hero: radial-gradient(
     ellipse 80% 60% at 50% 30%,
     rgba(139, 111, 71, 0.15) 0%,
-    rgba(254, 188, 174, 0.10) 35%,
-    transparent 75%
+    transparent 70%
   );
 
   /* Editorial accent, rare. Used as a tinted background block for
