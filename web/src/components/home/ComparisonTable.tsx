@@ -123,12 +123,19 @@ function CellValue({
        eye registers Furnish first and drifts to competitors only
        on second pass. The CONTRAST is the persuasion. */
   if (isFurnish && emphasize) {
+    /* Terracotta instead of bronze on emphasized cells ("30 seconds",
+       "Free"). Bronze was already the column header + ✓ marks color,
+       the eye had no escalation when it reached the punchline cell.
+       Terracotta is bronze's red-shifted sibling (same green + blue
+       channels, R bumped from 0x8B to 0xBA), so it harmonizes while
+       reading visibly hotter than the rest of the column. Passes
+       WCAG AAA on cream at display-m size. */
     return (
       <span
         className={cn(
           'block text-center',
           'font-display font-semibold',
-          'text-display-m text-[var(--color-accent)]',
+          'text-display-m text-[var(--color-terracotta)]',
           'tracking-display-tight leading-display-tight',
         )}
       >
@@ -240,8 +247,8 @@ export function ComparisonTable() {
             ))}
           </div>
 
-          <div className="overflow-hidden rounded-[var(--radius)] border border-[rgba(43,30,24,0.08)] bg-surface">
-            <div className={cn('grid border-b border-[rgba(43,30,24,0.08)]', MOBILE_GRID)}>
+          <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--color-sage-hairline)] bg-surface">
+            <div className={cn('grid border-b border-[var(--color-sage-hairline)]', MOBILE_GRID)}>
               <div className="px-3 py-3 text-body-s font-semibold text-muted">
                 Feature
               </div>
@@ -262,7 +269,7 @@ export function ComparisonTable() {
                   'grid items-center',
                   MOBILE_GRID,
                   idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
-                  'border-b border-[rgba(43,30,24,0.06)] last:border-b-0',
+                  'border-b border-[rgba(148,163,123,0.20)] last:border-b-0',
                 )}
               >
                 <div className="px-3 py-3 text-body-s font-semibold text-deep">{row.feature}</div>
@@ -283,10 +290,10 @@ export function ComparisonTable() {
 
         {/* Desktop: full 5-column table. */}
         <div
-          className="mt-section-y-tight hidden overflow-hidden rounded-[var(--radius)] border border-[rgba(43,30,24,0.08)] bg-surface sm:block"
+          className="mt-section-y-tight hidden overflow-hidden rounded-[var(--radius)] border border-[var(--color-sage-hairline)] bg-surface sm:block"
           data-reveal
         >
-          <div className={cn('grid border-b border-[rgba(43,30,24,0.08)]', DESKTOP_GRID)}>
+          <div className={cn('grid border-b border-[var(--color-sage-hairline)]', DESKTOP_GRID)}>
             <div className="px-4 py-4 text-body-s font-semibold uppercase tracking-wider text-muted">
               Feature
             </div>
@@ -314,7 +321,7 @@ export function ComparisonTable() {
                 'grid items-center',
                 DESKTOP_GRID,
                 idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
-                'border-b border-[rgba(43,30,24,0.06)] last:border-b-0',
+                'border-b border-[rgba(148,163,123,0.20)] last:border-b-0',
               )}
             >
               <div className="px-4 py-4 text-body-m font-semibold text-deep">{row.feature}</div>

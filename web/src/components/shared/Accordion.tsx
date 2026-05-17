@@ -99,7 +99,16 @@ function AccordionItemView({
   return (
     <div
       id={item.id}
-      className="scroll-mt-32 border-b border-[rgba(43,30,24,0.08)]"
+      className={cn(
+        'scroll-mt-32 border-b border-[rgba(43,30,24,0.08)]',
+        'transition-colors duration-200 ease-premium',
+        /* Surface-2 sage-soft tint on the open item, so the active
+           FAQ entry reads as visually "lit" without a heavier border
+           treatment. 14% alpha keeps body type readable on the tint
+           (sage fails WCAG on cream for body type at full saturation;
+           at 14% the underlying cream still dominates). */
+        open && 'bg-[var(--color-sage-soft)]',
+      )}
     >
       <h3 className="m-0">
         <button
