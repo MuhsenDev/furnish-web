@@ -239,8 +239,10 @@ export const navSections: NavSection[] = [
         'Save 95% versus traditional interior designers. From $5,000+ to free.',
       href: '/#why-furnish',
       ctaLabel: 'See the comparison',
-      image: '/images/hero/hero-1-scandinavian-living-morning.jpg',
-      imageAlt: 'Scandinavian living room in morning light, used as the comparison-section hero',
+      /* No image. MegaNavSectionContent renders MegaNavCompareMini
+         (a 2-row Furnish vs Designer mini value table) in the
+         media slot instead, so the visitor sees the actual
+         punchline numbers right in the nav. */
     },
     cards: [
       {

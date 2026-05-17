@@ -23,6 +23,7 @@ import { navSectionById, type SectionId } from '@/data/nav-mega';
 import { MegaNavFeaturedTile } from './MegaNavFeaturedTile';
 import { MegaNavAppGrid } from './MegaNavAppGrid';
 import { MegaNavCategoryPills } from './MegaNavCategoryPills';
+import { MegaNavCompareMini } from './MegaNavCompareMini';
 import { EASE_IN, EASE_OUT } from './megaNavMotion';
 
 export interface MegaNavSectionContentProps {
@@ -67,6 +68,14 @@ export function MegaNavSectionContent({
             sectionId={section.id}
             featured={section.featured}
             onActivate={onClose}
+            /* Compare section swaps the image slot for a mini
+               version of the homepage value table so the visitor
+               sees the actual punchline (30 seconds vs weeks,
+               Free vs $2K+) right in the nav instead of a generic
+               room photo. */
+            media={
+              section.id === 'compare' ? <MegaNavCompareMini /> : undefined
+            }
           />
         )}
 

@@ -24,6 +24,12 @@ export interface MegaNavFeaturedTileProps {
   /** Called when the visitor activates the tile so the overlay
       can close before navigation / modal open. */
   onActivate: () => void;
+  /** Optional custom node rendered in the media slot in place of
+      featured.image. Used by the Compare section to show a mini
+      value table instead of a photo. When omitted, the tile falls
+      back to featured.image (if set) or to a text-only single
+      column. */
+  media?: React.ReactNode;
 }
 
 const wrapperClasses = cn(
@@ -43,11 +49,16 @@ export function MegaNavFeaturedTile({
   sectionId,
   featured,
   onActivate,
+  media,
 }: MegaNavFeaturedTileProps) {
   const handleActivate = () => {
     track('mega_nav_featured_click', { section: sectionId });
     onActivate();
   };
+
+  /* Media slot resolution: explicit `media` prop wins, then the
+     image field, then nothing (text-only single-column). */
+  const hasMedia = Boolean(media) || Boolean(featured.image);
 
   return (
     <MegaNavActionWrapper
@@ -58,17 +69,20 @@ export function MegaNavFeaturedTile({
       <div
         className={cn(
           'grid items-center gap-6 lg:gap-10',
-          /* Two-column when an image is present, single-column
+          /* Two-column when any media is present, single-column
              (copy spans full width) when omitted. The text-only
              variant lets editorial tiles like the founder story
              stand on copy alone. */
           'grid-cols-1',
-          featured.image && 'lg:grid-cols-[1fr_1fr]',
+          hasMedia && 'lg:grid-cols-[1fr_1fr]',
         )}
       >
-        {/* Image side. aspect-[4/3] mobile, taller-aspect lg+.
-            Omitted entirely when featured.image is not provided. */}
-        {featured.image && (
+        {/* Media slot. Custom `media` (e.g. the compare mini-table)
+            takes precedence, otherwise fall back to an image if
+            featured.image is set, otherwise render nothing. */}
+        {media ? (
+          <div className="min-w-0">{media}</div>
+        ) : featured.image ? (
           <div
             className={cn(
               'relative overflow-hidden rounded-sm',
@@ -89,14 +103,20 @@ export function MegaNavFeaturedTile({
               )}
             />
           </div>
-        )}
+        ) : null}
 
         {/* Copy side. */}
         <div className="flex flex-col">
           <p className="eyebrow">{featured.eyebrow}</p>
           <h3
             className={cn(
-              'mt-3 font-display tracking-display-tight leading-display',
+              'mt-3 font-display tracking-display-tight',
+              /* leading-display (0.95) is too tight for a wrapped
+                 multi-line title in Fraunces serif: descenders on
+                 y/g/p and the period after "you" crash into the
+                 line below. Use 1.05 to clear descenders without
+                 sacrificing the display feel. */
+              'leading-[1.05]',
               'text-deep',
               /* Graduated sizing: at mobile the copy column is
                  ~272px wide and display-m (32-56px) wraps long
