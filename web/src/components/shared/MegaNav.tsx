@@ -32,6 +32,7 @@ import { AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { MegaNavTopBar } from './MegaNavTopBar';
 import { MegaNavOverlay } from './MegaNavOverlay';
+import { useScrollLock } from '@/lib/use-scroll-lock';
 import type { SectionId } from '@/data/nav-mega';
 
 export function MegaNav() {
@@ -78,30 +79,10 @@ export function MegaNav() {
     setActiveSection(section);
   }, []);
 
-  /* Body scroll lock, iOS-safe.
-     Naive `body { overflow: hidden }` is broken on iOS Safari
-     (the page still scrolls when the user touches the body behind
-     the modal). The position:fixed + negative top + saved scrollY
-     pattern is the only reliable lock that survives iOS Safari's
-     touch handling. */
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const scrollY = window.scrollY;
-    const body = document.body;
-    const prevPosition = body.style.position;
-    const prevTop = body.style.top;
-    const prevWidth = body.style.width;
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
-    return () => {
-      body.style.position = prevPosition;
-      body.style.top = prevTop;
-      body.style.width = prevWidth;
-      /* Restore scroll position after the lock is released. */
-      window.scrollTo(0, scrollY);
-    };
-  }, [isOpen]);
+  /* iOS-safe body scroll lock. Extracted to lib/use-scroll-lock
+     so WaitlistModal (previously broken on iOS with naive
+     overflow:hidden) shares the same implementation. */
+  useScrollLock(isOpen);
 
   /* Esc-to-close. Spec §4.1 calls this non-negotiable. */
   React.useEffect(() => {

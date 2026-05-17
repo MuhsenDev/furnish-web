@@ -42,6 +42,7 @@ import { MegaNavCloseButton } from './MegaNavCloseButton';
 import { MegaNavSectionRail } from './MegaNavSectionRail';
 import { MegaNavSectionContent } from './MegaNavSectionContent';
 import { EASE_IN, EASE_OUT } from './megaNavMotion';
+import { useFocusTrap } from '@/lib/use-focus-trap';
 import type { SectionId } from '@/data/nav-mega';
 
 export interface MegaNavOverlayProps {
@@ -83,34 +84,11 @@ export function MegaNavOverlay({
     return () => window.clearTimeout(id);
   }, []);
 
-  /* Focus trap. Tab cycles through focusable elements within the
-     overlay; Tab from last -> first, Shift+Tab from first -> last.
-     The trap reads the DOM each Tab press so it picks up
-     dynamically rendered cards. */
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      if (!overlayRef.current) return;
-      const focusable = Array.from(
-        overlayRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => !el.hasAttribute('disabled'));
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey && active === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  /* Tab trap inside the overlay. Extracted to lib/use-focus-trap
+     so WaitlistModal (previously had no trap) can share the same
+     implementation. Always active here since the component only
+     mounts while the overlay is open. */
+  useFocusTrap(overlayRef, true);
 
   return (
     <motion.div

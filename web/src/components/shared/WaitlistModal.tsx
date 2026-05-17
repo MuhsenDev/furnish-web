@@ -25,6 +25,8 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
+import { useScrollLock } from '@/lib/use-scroll-lock';
+import { useFocusTrap } from '@/lib/use-focus-trap';
 import { WaitlistConfirmation } from './WaitlistConfirmation';
 import { readReferralCode } from './referralStorage';
 
@@ -50,27 +52,27 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [errorMsg, setErrorMsg] = React.useState<string>('');
   const [successState, setSuccessState] = React.useState<SuccessState | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
 
-  /* Esc closes. Body scroll locks while open. Focus moves to the
-     input. All cleanup on unmount or close. */
+  /* iOS-safe body scroll lock + Tab focus trap, both extracted to
+     lib/ so MegaNavOverlay shares the same implementation.
+     Previous in-file scroll lock used overflow:hidden which iOS
+     Safari ignores for touch panning, and there was no focus trap
+     at all - Tab from the form could escape behind the modal. */
+  useScrollLock(open);
+  useFocusTrap(dialogRef, open);
+
+  /* Esc closes + move focus to the input on open. */
   React.useEffect(() => {
     if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKeyDown);
-
-    /* Focus the input on next tick so the dialog has mounted. */
     const focusTimer = window.setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
-
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', onKeyDown);
       window.clearTimeout(focusTimer);
     };
@@ -148,12 +150,15 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="waitlist-modal-title"
-      /* z-index needs to sit above MenuTakeover (z-[9000]) and the
-         gallery lightbox (z-[9100]) so the modal stays on top when
-         a CTA inside one of those overlays opens it. */
+      /* z-index sits above the gallery lightbox (z-[9100]) so the
+         modal stays on top when a CTA inside that overlay opens
+         it. The MenuTakeover (z-[9000]) referenced in the prior
+         comment no longer exists; replaced by MegaNavOverlay
+         (z-[90]) which is well below this. */
       className={cn(
         'fixed inset-0 z-[9200]',
         'flex items-center justify-center',
