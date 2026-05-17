@@ -56,10 +56,11 @@ export interface NavFeatured {
   href: string;
   /** Primary CTA text on the tile. */
   ctaLabel: string;
-  /** Background image for the tile. */
-  image: string;
-  /** Image alt text for screen readers. */
-  imageAlt: string;
+  /** Background image for the tile. Omit for a text-only tile
+      (copy spans the full tile width). */
+  image?: string;
+  /** Image alt text for screen readers. Required when image is set. */
+  imageAlt?: string;
 }
 
 export interface NavSection {
@@ -163,9 +164,9 @@ export const navSections: NavSection[] = [
         "I'm 18, building solo from Michigan. Here's what I kept watching that pushed me to ship.",
       href: '/blog/why-i-built-furnish',
       ctaLabel: 'Read the story',
-      image: '/images/blog/blog-6-why-i-built-furnish.jpg',
-      imageAlt:
-        'Founder story hero image for the Why I Built Furnish post',
+      /* No image. Text-only tile so the founder story reads as
+         editorial rather than competing with a generic styled
+         living room for attention. */
     },
     cards: [
       {

@@ -58,30 +58,38 @@ export function MegaNavFeaturedTile({
       <div
         className={cn(
           'grid items-center gap-6 lg:gap-10',
-          'grid-cols-1 lg:grid-cols-[1fr_1fr]',
+          /* Two-column when an image is present, single-column
+             (copy spans full width) when omitted. The text-only
+             variant lets editorial tiles like the founder story
+             stand on copy alone. */
+          'grid-cols-1',
+          featured.image && 'lg:grid-cols-[1fr_1fr]',
         )}
       >
-        {/* Image side. aspect-[4/3] mobile, taller-aspect lg+. */}
-        <div
-          className={cn(
-            'relative overflow-hidden rounded-sm',
-            'aspect-[4/3] lg:aspect-[5/4]',
-            'bg-cream',
-          )}
-        >
-          <Image
-            src={featured.image}
-            alt={featured.imageAlt}
-            fill
-            sizes="(min-width: 1024px) 35vw, 100vw"
+        {/* Image side. aspect-[4/3] mobile, taller-aspect lg+.
+            Omitted entirely when featured.image is not provided. */}
+        {featured.image && (
+          <div
             className={cn(
-              'object-cover',
-              'transition-[filter,transform] duration-500 ease-premium',
-              'group-hover:[filter:saturate(1.08)_brightness(1.03)]',
-              'group-hover:scale-[1.02]',
+              'relative overflow-hidden rounded-sm',
+              'aspect-[4/3] lg:aspect-[5/4]',
+              'bg-cream',
             )}
-          />
-        </div>
+          >
+            <Image
+              src={featured.image}
+              alt={featured.imageAlt ?? ''}
+              fill
+              sizes="(min-width: 1024px) 35vw, 100vw"
+              className={cn(
+                'object-cover',
+                'transition-[filter,transform] duration-500 ease-premium',
+                'group-hover:[filter:saturate(1.08)_brightness(1.03)]',
+                'group-hover:scale-[1.02]',
+              )}
+            />
+          </div>
+        )}
 
         {/* Copy side. */}
         <div className="flex flex-col">
