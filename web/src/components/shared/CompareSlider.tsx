@@ -195,17 +195,21 @@ export function CompareSlider({
         </div>
       </div>
 
-      {/* Before/after corner labels, bold, tiny cream cards in
-          the top corners with shadow-1 elevation so they feel like
-          actual labels rather than text floated on the image. */}
+      {/* Before/after corner labels. Tiny cream chips in the top
+          corners with shadow-1 elevation. Typography aligned to
+          the site's .eyebrow scale (font-semibold + 0.1em
+          tracking) so every uppercase label on the site shares
+          the same weight + spacing values. Was font-bold (700) +
+          0.12em tracking, slightly heavier and wider than the
+          rest of the site's uppercase labels. */}
       <span
         className={cn(
           'absolute left-3 top-3',
           'rounded-sm bg-cream',
           'px-2.5 py-1',
           'shadow-1',
-          'text-body-s font-bold uppercase',
-          'tracking-[0.12em] text-deep',
+          'text-body-s font-semibold uppercase',
+          'tracking-[0.1em] text-deep',
         )}
       >
         Before
@@ -216,8 +220,8 @@ export function CompareSlider({
           'rounded-sm bg-cream',
           'px-2.5 py-1',
           'shadow-1',
-          'text-body-s font-bold uppercase',
-          'tracking-[0.12em] text-deep',
+          'text-body-s font-semibold uppercase',
+          'tracking-[0.1em] text-deep',
         )}
       >
         After
