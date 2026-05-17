@@ -82,7 +82,10 @@ export function MegaNavAppGrid({
             <div
               className={cn(
                 'relative aspect-[4/3] w-full overflow-hidden',
-                'bg-cream',
+                /* Default cream tile. Logo-with-baked-in-white-bg
+                   cards opt into 'white' so the letterbox space
+                   blends instead of showing a hard rectangle. */
+                card.imageBg === 'white' ? 'bg-white' : 'bg-cream',
               )}
             >
               <Image

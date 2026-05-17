@@ -43,6 +43,12 @@ export interface NavCard {
       subjects like silhouettes or product shots where cropping
       the head or feet would look broken. */
   imageFit?: 'cover' | 'contain';
+  /** Background color of the image tile. Defaults to 'cream'.
+      Switch to 'white' when the image is a logo with a baked-in
+      white background (no alpha channel) so the letterbox space
+      blends with the logo's own bg instead of showing a hard
+      white rectangle on cream. */
+  imageBg?: 'cream' | 'white';
 }
 
 /* The big editorial tile at the top of each section's right pane. */
@@ -252,9 +258,9 @@ export const navSections: NavSection[] = [
         name: 'Interior Designer',
         description: '$2,000 to $10,000, weeks of back and forth.',
         href: '/#why-furnish',
-        /* Traditional style reads as the classic/formal aesthetic
-           an in-person designer would deliver. */
-        image: '/images/gallery/gallery-dining-traditional-01.png',
+        /* Real photo of a designer at work. object-cover crops a
+           landscape composition cleanly into the 4:3 tile. */
+        image: '/images/nav/nav-compare-vs-designer.jpg',
       },
       {
         id: 'vs-havenly',
@@ -262,9 +268,13 @@ export const navSections: NavSection[] = [
         name: 'Havenly',
         description: '$79 to $1,599, limited iteration.',
         href: '/#why-furnish',
-        /* Contemporary clean look reads as generic online-service
-           output, the kind a templated tier-1 plan would ship. */
-        image: '/images/gallery/gallery-home-office-contemporary-01.png',
+        /* Havenly's wordmark logo. JPEG with a white background
+           (no alpha), so the tile bg switches to white to hide
+           the seam, and the image is contained to avoid cropping
+           the logotype edges. */
+        image: '/images/nav/nav-compare-vs-havenly.jpg',
+        imageFit: 'contain',
+        imageBg: 'white',
       },
       {
         id: 'vs-pinterest',
@@ -272,10 +282,13 @@ export const navSections: NavSection[] = [
         name: 'Pinterest',
         description: 'Free, but never a real room.',
         href: '/#why-furnish',
-        /* Bohemian is the quintessential Pinterest aesthetic:
-           eclectic, layered, aspirational. The image you'd pin
-           but never actually build. */
-        image: '/images/gallery/gallery-living-bohemian-01.png',
+        /* Pinterest's red-circle "P" mark. VP8 webp (no alpha),
+           same white-bg-on-white-tile treatment as Havenly so
+           the logo's white background doesn't read as a hard
+           rectangle on cream. */
+        image: '/images/nav/nav-compare-vs-pinterest.webp',
+        imageFit: 'contain',
+        imageBg: 'white',
       },
     ],
   },
