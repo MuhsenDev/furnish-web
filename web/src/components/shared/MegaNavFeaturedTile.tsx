@@ -89,7 +89,12 @@ export function MegaNavFeaturedTile({
           <h3
             className={cn(
               'mt-3 font-display tracking-display-tight leading-display',
-              'text-deep text-display-m',
+              'text-deep',
+              /* Graduated sizing: at mobile the copy column is
+                 ~272px wide and display-m (32-56px) wraps long
+                 titles to 4-5 lines. Step up the size as the
+                 column widens. */
+              'text-2xl sm:text-3xl lg:text-display-m',
             )}
           >
             {featured.title}

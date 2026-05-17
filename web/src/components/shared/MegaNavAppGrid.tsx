@@ -5,10 +5,14 @@
   sweet spot. Modal-vs-link branching lives in
   MegaNavActionWrapper.
 
-  Hover treatment matches the GalleryPreview tile pattern from
-  the Surface 2 polish pass: saturation lift + brightness +3% +
-  tinted sage ring on hover. No transform-scale on the image;
-  the wrapper lifts 1px instead.
+  Each card is a discrete bordered container: image flush at top
+  (rounded with the card), text in a padded section below. Earlier
+  iteration had image + bare floating text with no boundary; the
+  Learn section's mix of long + short blog titles made the cards
+  look like fragments and read as if descriptions were bleeding
+  into the next row's images. line-clamp + flex-col + h-full keep
+  all cards in a row at the same height regardless of title
+  length variance.
 */
 
 import * as React from 'react';
@@ -25,12 +29,16 @@ export interface MegaNavAppGridProps {
 }
 
 const cardClasses = cn(
-  'group block text-left',
-  'transition-transform duration-300 ease-premium',
+  'group flex h-full flex-col text-left',
+  'rounded-[var(--radius)] overflow-hidden',
+  'bg-surface',
+  'border border-[var(--color-sage-hairline)]',
+  'shadow-1 hover:shadow-2',
+  'transition-[box-shadow,transform] duration-300 ease-premium',
   'hover:-translate-y-px',
   'focus-visible:outline-none focus-visible:ring-2',
   'focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2',
-  'focus-visible:ring-offset-cream rounded-sm',
+  'focus-visible:ring-offset-cream',
 );
 
 export function MegaNavAppGrid({
@@ -43,6 +51,10 @@ export function MegaNavAppGrid({
       className={cn(
         'grid gap-4 sm:gap-5 lg:gap-6',
         'grid-cols-2 lg:grid-cols-3',
+        /* items-stretch is grid's default but call it out: cards
+           in the same row stretch to match the tallest card's
+           height, so the bordered cards line up cleanly. */
+        'items-stretch',
       )}
     >
       {cards.map((card) => (
@@ -58,13 +70,14 @@ export function MegaNavAppGrid({
           }}
           className={cardClasses}
         >
+          {/* Image fills the top of the card edge-to-edge. The
+              card's overflow-hidden clips the image to the card
+              radius. No inner ring (the card's border replaces
+              that affordance). */}
           <div
             className={cn(
               'relative aspect-[4/3] w-full overflow-hidden',
-              'rounded-sm bg-cream',
-              'ring-1 ring-inset ring-transparent',
-              'transition-[box-shadow,filter] duration-300 ease-premium',
-              'group-hover:ring-[var(--color-sage-hairline)]',
+              'bg-cream',
             )}
           >
             <Image
@@ -79,17 +92,28 @@ export function MegaNavAppGrid({
               )}
             />
           </div>
-          <div className="mt-3">
+          {/* Text section. flex-1 pushes the bottom against the
+              card edge so cards with shorter text don't collapse
+              vertically when their sibling has longer text. */}
+          <div className="flex flex-1 flex-col p-4">
             {card.tag && <p className="eyebrow text-[10px]">{card.tag}</p>}
             <p
               className={cn(
                 'mt-1 font-display tracking-display-tight leading-tight',
-                'text-body-xl text-deep',
+                /* body-l (was body-xl) so long blog titles fit in
+                   2 lines more reliably across the grid widths. */
+                'text-body-l text-deep',
+                'line-clamp-2',
               )}
             >
               {card.name}
             </p>
-            <p className="mt-1 text-body-s text-ink/70 leading-relaxed">
+            <p
+              className={cn(
+                'mt-1 text-body-s text-ink/70 leading-relaxed',
+                'line-clamp-2',
+              )}
+            >
               {card.description}
             </p>
           </div>

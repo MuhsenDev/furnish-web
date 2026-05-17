@@ -90,10 +90,13 @@ export function MegaNavSectionRail({
             className={cn(
               'group inline-flex w-fit items-baseline gap-3 text-left',
               'font-display tracking-display-tight leading-display-tight',
-              /* Display-l on mobile, display-xl on lg+. Spec
-                 wants oversized display type; this matches
-                 Furnish's existing display scale. */
-              'text-display-l lg:text-display-xl',
+              /* Display-l (not display-xl at lg+) so the longest
+                 section label ("Get Started", 11 chars) doesn't
+                 risk crowding the rail-column edge at upper
+                 viewport widths. display-l caps at 5rem / 80px
+                 which keeps "Get Started" comfortably inside the
+                 28% rail column at 1440px container. */
+              'text-display-l',
               'transition-[color,transform,opacity] duration-300 ease-premium',
               isActive
                 ? 'text-deep opacity-100 translate-x-2'
