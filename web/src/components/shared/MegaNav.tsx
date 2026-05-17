@@ -28,12 +28,30 @@
 */
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { MegaNavTopBar } from './MegaNavTopBar';
-import { MegaNavOverlay } from './MegaNavOverlay';
 import { useScrollLock } from '@/lib/use-scroll-lock';
 import type { SectionId } from '@/data/nav-mega';
+
+/* MegaNavOverlay (+ its transitive deps: framer-motion variants,
+   the section rail / content / featured tile / app grid / pills /
+   close button) is dynamic-imported so it only enters the bundle
+   once the user actually opens the menu. On every page in the
+   site this saves ~20-30 KB gzip of code that the visitor would
+   otherwise download for a UI they may never trigger.
+
+   ssr: false keeps the overlay client-only (it relies on
+   document.body scroll lock + window-scoped keyboard listeners
+   anyway). loading: () => null returns nothing during the chunk
+   fetch; the typical fetch takes <50ms on a modern connection
+   and the overlay's own 200ms fade-in animation covers that gap
+   so the visitor doesn't see a "click then wait" frame. */
+const MegaNavOverlay = dynamic(
+  () => import('./MegaNavOverlay').then((m) => m.MegaNavOverlay),
+  { ssr: false, loading: () => null },
+);
 
 export function MegaNav() {
   const [isOpen, setIsOpen] = React.useState(false);
