@@ -30,6 +30,7 @@
 import * as React from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { MegaNavTopBar } from './MegaNavTopBar';
+import { MegaNavOverlay } from './MegaNavOverlay';
 import type { SectionId } from '@/data/nav-mega';
 
 export function MegaNav() {
@@ -114,12 +115,11 @@ export function MegaNav() {
       />
       <AnimatePresence>
         {isOpen && activeSection && (
-          /* Overlay component lands in commit 3/5. Until then this
-             branch never renders because the topbar's triggers
-             don't fire onOpen with a section (topbar holds its own
-             early-return guard). Once commit 3 lands, replace this
-             null with <MegaNavOverlay /> imported below. */
-          null
+          <MegaNavOverlay
+            activeSection={activeSection}
+            onClose={handleClose}
+            onSwitch={handleSwitchSection}
+          />
         )}
       </AnimatePresence>
     </>
