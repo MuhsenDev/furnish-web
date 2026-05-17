@@ -228,10 +228,18 @@ export const navSections: NavSection[] = [
         name: 'How Furnish Works',
         description: 'Photo, style, shoppable room. In that order.',
         href: '/how-it-works',
-        /* Empty/before shot signals "start of transformation".
-           Browse's featured already shows the AFTER of this same
-           pair, so the two read as a story across sections. */
-        image: '/images/before-after/ba-1-living-room-empty-v2.jpg',
+        /* Text-only card. An empty-room photo couldn't actually
+           communicate "the process" - it just showed an empty
+           room. Bullets name the three real steps, which is what
+           someone clicking "How it works" wants to see at a
+           glance. The one non-blog card in Learn reads as
+           deliberate editorial punctuation rather than a missing
+           image. */
+        bullets: [
+          'Snap a photo of any room',
+          'Pick your style in 90 seconds',
+          'Get a photo-realistic design',
+        ],
       },
     ],
     categories: [
