@@ -49,6 +49,17 @@
     line-height: 1.05;
   }
 
+  /* h1 + h2 carry the display roles (hero + section heads).
+     Bumped from 400 to 500 for slightly more presence at large
+     sizes without going bold. Reference: Linear/Raycast both
+     render their display type at 500 on Fraunces-family serifs.
+     h3 + h4 stay at 400 since they're section sub-heads where
+     400 reads as deliberate restraint. */
+  h1,
+  h2 {
+    font-weight: 500;
+  }
+
   /* Designed focus rings on every interactive element, Document 2
      Section 10.2. Replaces the default browser blue. */
   :where(a, button, [role='button'], input, select, textarea, [tabindex]):focus-visible {
