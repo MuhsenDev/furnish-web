@@ -269,7 +269,7 @@ export function ComparisonTable() {
                   'grid items-center',
                   MOBILE_GRID,
                   idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
-                  'border-b border-[rgba(148,163,123,0.20)] last:border-b-0',
+                  'border-b border-[rgba(148,163,123,0.12)] last:border-b-0',
                 )}
               >
                 <div className="px-3 py-3 text-body-s font-semibold text-deep">{row.feature}</div>
@@ -337,7 +337,7 @@ export function ComparisonTable() {
                 'grid items-center',
                 DESKTOP_GRID,
                 idx % 2 === 0 ? 'bg-cream/40' : 'bg-surface',
-                'border-b border-[rgba(148,163,123,0.20)] last:border-b-0',
+                'border-b border-[rgba(148,163,123,0.12)] last:border-b-0',
               )}
             >
               <div className="px-4 py-4 text-body-m font-semibold text-deep">{row.feature}</div>
