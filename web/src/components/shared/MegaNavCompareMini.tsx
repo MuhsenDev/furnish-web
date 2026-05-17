@@ -85,7 +85,12 @@ export function MegaNavCompareMini() {
         <div
           className={cn(
             'bg-cream px-3 py-3 text-center',
-            'font-display text-body-l font-semibold',
+            /* body-m (was body-l): the bg-cream column + accent
+               color + display font already does the dominance
+               work; the larger size on top forced data cells to
+               also size up, which crashed "30 seconds" into a
+               two-line wrap in the narrow column. */
+            'font-display text-body-m font-semibold',
             'text-[var(--color-accent)] tracking-display-tight',
           )}
         >
@@ -119,19 +124,18 @@ export function MegaNavCompareMini() {
             {row.label}
           </div>
           {/* Furnish cell: terracotta, font-display, semibold.
-              body-l (was body-xl) so values like "30 seconds"
-              fit on a single line in the narrow column rather
-              than wrapping to "30 / seconds" and reading as
-              broken. The terracotta + display semibold combo
-              already does the visual work; the extra size at
-              body-xl was overkill at this scale. */}
+              body-m (was body-xl -> body-l -> body-m) so values
+              like "30 seconds" actually fit on a single line in
+              the narrow column. The bg-cream column + terracotta
+              + display semibold combo carries the visual weight;
+              larger sizes broke the layout. */}
           <div className="bg-cream px-3 py-3 text-center">
             <span
               className={cn(
                 'block',
                 'font-display font-semibold',
-                'text-body-l text-[var(--color-terracotta)]',
-                'tracking-display-tight leading-display-tight',
+                'text-body-m text-[var(--color-terracotta)]',
+                'tracking-display-tight leading-tight',
               )}
             >
               {row.furnish}

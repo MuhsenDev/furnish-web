@@ -112,18 +112,18 @@ export function MegaNavFeaturedTile({
             className={cn(
               'mt-3 font-display tracking-display-tight',
               /* leading-display (0.95) was too tight for wrapped
-                 multi-line Fraunces serif titles at display sizes
-                 - descenders on y/g/p crashed into the line below
-                 and even ascender-heavy stacks like "Scandinavian
-                 / Living Room" read as cramped. Stepped 0.95 ->
-                 1.05 -> 1.15 -> 1.2 over three iterations on user
-                 feedback. 1.2 is the floor at which Fraunces caps
-                 + serifs feel like they have room to breathe at
-                 display-m size in the featured-tile column width;
-                 Tailwind's leading-tight (1.25) reads noticeably
-                 looser and starts pulling out of display-tight
-                 character. */
-              'leading-[1.2]',
+                 multi-line Fraunces serif titles at display sizes.
+                 Stepped 0.95 -> 1.05 -> 1.15 -> 1.2 -> 1.3 over
+                 four iterations of user feedback; Fraunces has
+                 prominent descenders (y/g/p/q) that crashed into
+                 the next line's caps until the multiplier hit
+                 1.3. This is the floor at the typeface; any
+                 lower and titles with stacked descenders + caps
+                 (like "you. / Not for / designers.") read as
+                 visually overlapping even when they technically
+                 clear. Tailwind has no built-in token at 1.3
+                 (tight=1.25, snug=1.375). */
+              'leading-[1.3]',
               'text-deep',
               /* Graduated sizing: at mobile the copy column is
                  ~272px wide and display-m (32-56px) wraps long
