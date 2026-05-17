@@ -167,13 +167,32 @@ export function GalleryPreview() {
               aria-label={`${tile.room}, ${tile.style}`}
             >
               <Card variant="image" interactive>
-                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-sm">
+                {/* Image-tile hover treatment refresh (2026-05-16
+                    polish second pass). Replaces the prior
+                    group-hover:scale-[1.03] zoom with a
+                    saturation + brightness lift + a brighter
+                    inner border. Stripe gallery-card pattern,
+                    movement-free. The image stays put; only its
+                    optical weight changes on hover. Feels more
+                    mature than a zoom against the reference set. */}
+                <div
+                  className={cn(
+                    'relative aspect-[4/3] w-full overflow-hidden rounded-sm',
+                    'ring-1 ring-inset ring-transparent',
+                    'transition-[box-shadow] duration-300 ease-premium',
+                    'group-hover:ring-[var(--color-sage-hairline)]',
+                  )}
+                >
                   <Image
                     src={tile.src}
                     alt={tile.alt}
                     fill
                     sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                    className="object-cover transition-transform duration-500 ease-premium group-hover:scale-[1.03]"
+                    className={cn(
+                      'object-cover',
+                      'transition-[filter] duration-500 ease-premium',
+                      'group-hover:[filter:saturate(1.08)_brightness(1.03)]',
+                    )}
                   />
                 </div>
                 <CardCaption
