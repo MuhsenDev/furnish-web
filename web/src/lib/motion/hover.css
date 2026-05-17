@@ -27,22 +27,30 @@
   }
 }
 
-/* Primary button hover. Slight scale, slightly darker bg. */
+/* Primary button hover. Lift 1px + grow shadow + slight bg darken.
+   Replaces the prior scale(1.02) "zoom" which read cartoonish at
+   CTA sizes against the reference set (Linear, Stripe, Raycast
+   all use translate-y physical-depression patterns). Reference:
+   Stripe.com sign-in pill microstate. Active state depresses
+   back to baseline. */
 .btn-primary-hover {
   transition:
     transform var(--duration-quick) var(--ease-furnish-quick),
-    background-color var(--duration-quick) var(--ease-furnish-quick);
+    background-color var(--duration-quick) var(--ease-furnish-quick),
+    box-shadow var(--duration-quick) var(--ease-furnish-quick);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary-hover:hover {
-    transform: scale(1.02);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-2);
     background-color: color-mix(in srgb, var(--color-accent) 92%, black);
   }
 }
 
 .btn-primary-hover:active {
-  transform: scale(0.98);
+  transform: translateY(0);
+  box-shadow: var(--shadow-1);
 }
 
 /* Secondary button hover. Background fills with low-opacity ink. */
