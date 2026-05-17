@@ -1,36 +1,32 @@
 'use client';
 
 /*
-  Top navigation per Document 4 Section 5.1, with a Phase-2 UX
-  refactor (2026-05-16): on desktop (≥lg) the global links render
-  inline on the top bar so visitors hit them in one click instead of
-  two-via-Menu. On mobile (<lg) the hamburger + full-screen takeover
-  pattern stays, since 4+ inline links don't fit alongside the
-  wordmark and the waitlist pill on a phone.
+  Top navigation, Surface 1 magazine-grade redesign (2026-05-16).
 
-  Desktop layout (≥lg):
-    [Furnish wordmark]  [How It Works · Why Furnish · Gallery · FAQ]  [CTA pill]
+  Key changes vs the prior iteration:
+    1. Scroll-state transition: transparent at rest (top of page),
+       cream/92 + backdrop-blur + sage-hairline border + shadow-1
+       once scrolled past 24px. The nav now reads as "part of the
+       hero" at the top and as "a chrome panel" once the user
+       commits to scrolling. Eliminates the "pasted on" feel.
+    2. Link typography: font-medium (was semibold), tighter tracking,
+       link-underline class so hover draws an underline from left to
+       right rather than the default browser-style underline pop.
+    3. Active-state cue: the link for the current page color-shifts
+       to terracotta (Surface 2 accent). Subtle "you are here".
+    4. Link row gap bumped 7 -> 9 for more magazine spacing.
+    5. Logo optical alignment: wordmark nudged up 1px at sm+ so the
+       serif's descenders don't read low against the link baseline.
+    6. CTA inset shadow comes from NavCTA itself; no change here.
 
-  Mobile layout (<lg):
-    [Furnish wordmark]                            [Menu trigger] [CTA pill]
-
-  Click depth before this refactor: every primary link was 2 clicks
-  (Menu trigger → link). After: 1 click on desktop. Mobile is
-  unchanged. The "Menu" button is hidden on lg+ via `lg:hidden`.
-
-  FAQ is rendered visually subordinate (smaller text, muted color,
-  preceded by a dot separator) because it's lower-intent than the
-  three primary links. Blog and About stay in the mobile takeover
-  + footer only on desktop, to keep the top bar tight.
-
-  Why Furnish anchors to /#why-furnish (the comparison table on the
-  home page, which already has `id="why-furnish"`). Cross-page hash
-  navigation is handled by Next.js automatically.
+  Mobile (<lg) hamburger + MenuTakeover overlay unchanged.
+  prefers-reduced-motion: state flip is instant (no transition).
 */
 
 import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Menu as MenuIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -46,21 +42,67 @@ const PRIMARY_LINKS: Array<{ href: string; key: string }> = [
   { href: '/gallery', key: 'linkGallery' },
 ];
 
+/* Pure helper, no React. Decide whether a given nav link points
+   at the route the user is currently on. Hash-anchor links
+   ("/#why-furnish") never activate, since they're scroll targets
+   on the home page, not destinations. */
+function isActiveLink(currentPathname: string | null, href: string): boolean {
+  if (!currentPathname) return false;
+  if (href.startsWith('/#')) return false;
+  if (href === '/') return currentPathname === '/';
+  return currentPathname === href || currentPathname.startsWith(`${href}/`);
+}
+
 export function Nav() {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const pathname = usePathname();
+
+  /* Scroll-state for the background/border treatment. Cheap
+     scroll listener with passive:true + setState only on transition
+     (React bails on identical state). Falls back to "scrolled
+     immediately" if SSR ever rendered (matches the rest-state on
+     first paint by initializing to false). */
+  const [isScrolled, setIsScrolled] = React.useState(false);
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const SCROLL_TRIGGER_PX = 24;
+    const onScroll = () => {
+      setIsScrolled(window.scrollY > SCROLL_TRIGGER_PX);
+    };
+    onScroll(); // initial state on mount
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
     <>
       <header
         className={cn(
           'sticky top-0 z-[100] w-full',
-          'bg-cream/85 backdrop-blur-md',
-          'border-b border-[rgba(43,30,24,0.06)]',
+          /* Transition the background + border + shadow trio
+             together so the state flip reads as one moment, not
+             three layered changes. transition-colors covers bg
+             and border-color; box-shadow stays on its own
+             transition with the same duration. */
+          'transition-[background-color,border-color,box-shadow] duration-300 ease-premium',
+          isScrolled
+            ? cn(
+                'bg-cream/92 backdrop-blur-md',
+                'border-b border-[var(--color-sage-hairline)]',
+                'shadow-1',
+              )
+            : cn(
+                'bg-transparent',
+                'border-b border-transparent',
+                'shadow-none',
+              ),
         )}
       >
         <Container width="default">
           <div className="flex h-16 items-center justify-between sm:h-20">
-            {/* Logo + wordmark. Visible at every viewport. */}
+            {/* Logo + wordmark. translate-y-[-1px] at sm+ corrects
+                the Fraunces serif's descender pull so the wordmark
+                optical center matches the link baseline. */}
             <Link
               href="/"
               aria-label={t('nav', 'logoAriaLabel')}
@@ -78,6 +120,7 @@ export function Nav() {
                 className={cn(
                   'font-display tracking-display-tight text-deep',
                   'text-xl sm:text-3xl',
+                  'sm:translate-y-[-1px]',
                 )}
               >
                 Furnish
@@ -85,33 +128,49 @@ export function Nav() {
             </Link>
 
             {/* DESKTOP (lg+) inline links. Hidden below lg.
-                Three primary links read equal weight. A small dot
-                separator + FAQ at body-s/muted signals secondary
-                nav, so the eye lands on the three primary first. */}
+                gap-9 is a touch wider than the Round-2 gap-7, more
+                magazine-spacious between primary links. */}
             <nav
               aria-label="Primary"
-              className="hidden lg:flex items-center gap-7"
+              className="hidden lg:flex items-center gap-9"
             >
-              {PRIMARY_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    'text-body-m font-semibold text-deep',
-                    'underline-offset-4 hover:underline',
-                  )}
-                >
-                  {t('nav', link.key)}
-                </Link>
-              ))}
+              {PRIMARY_LINKS.map((link) => {
+                const active = isActiveLink(pathname, link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'link-underline',
+                      /* Premium DTC nav reads at weight 500 with
+                         tighter tracking. Was font-semibold (600);
+                         500 reads more deliberate, less aggressive. */
+                      'text-body-m font-medium tracking-[-0.005em]',
+                      /* Active page shifts color to terracotta
+                         (Surface 2 accent). Subtle, only on the
+                         current route. */
+                      active
+                        ? 'text-[var(--color-terracotta)]'
+                        : 'text-deep',
+                    )}
+                  >
+                    {t('nav', link.key)}
+                  </Link>
+                );
+              })}
               <span aria-hidden="true" className="text-muted/40">
                 ·
               </span>
               <Link
                 href="/faq"
+                aria-current={isActiveLink(pathname, '/faq') ? 'page' : undefined}
                 className={cn(
-                  'text-body-s text-muted',
-                  'underline-offset-4 hover:underline',
+                  'link-underline',
+                  'text-body-s',
+                  isActiveLink(pathname, '/faq')
+                    ? 'text-[var(--color-terracotta)]'
+                    : 'text-muted',
                 )}
               >
                 {t('nav', 'linkFaq')}

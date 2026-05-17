@@ -40,7 +40,13 @@ const PILL_CLASSES = cn(
   'rounded-full bg-[var(--color-accent)] text-cream',
   'px-4 py-2 text-body-s font-semibold',
   'sm:px-5 sm:py-2.5 sm:text-body-m',
-  'shadow-1',
+  /* shadow-1 outer + inset deep-ink bottom edge for dimensional
+     weight. Same treatment as the hero primary CTA. Reads as a
+     raised pill rather than a flat coloured rectangle. The inset
+     stays on-tone (ink at low alpha) so it doesn't introduce a
+     new colour, just adds a darker bottom shoulder under the
+     bronze fill. */
+  'shadow-[var(--shadow-1),inset_0_-2px_0_rgba(43,30,24,0.22)]',
 );
 
 export function NavCTA({ location = 'nav', className, onClick }: NavCTAProps) {
