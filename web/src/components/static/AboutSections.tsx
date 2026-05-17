@@ -467,7 +467,18 @@ export function HowWeMakeMoneySection() {
                 className={cn(
                   'mt-3 font-display text-deep',
                   'tracking-display-tight leading-display',
-                  'text-display-s',
+                  /* text-display-s was the original spec but the
+                     'display-s' size is NOT defined in
+                     tokens.css or tailwind.config.ts, so the class
+                     generated no CSS and the element silently
+                     rendered at the inherited body-m size since
+                     this section shipped. text-display-m is the
+                     defined size closest to the intended scale,
+                     bumps the value text to clamp(2rem, 4vw,
+                     3.5rem) where the design intended a display-
+                     weight presence over the small detail prose
+                     below. */
+                  'text-display-m',
                 )}
               >
                 {t('about', card.valueKey)}
