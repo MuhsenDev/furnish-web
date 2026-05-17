@@ -4,7 +4,7 @@ import { Fraunces, Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import '../styles/globals.css';
-import { Nav } from '@/components/shared/Nav';
+import { MegaNav } from '@/components/shared/MegaNav';
 import { Footer } from '@/components/shared/Footer';
 import { WaitlistProvider } from '@/components/shared/WaitlistContext';
 import { ReferralCapture } from '@/components/shared/ReferralCapture';
@@ -147,7 +147,7 @@ export default function RootLayout({
                 inside the config's advertising.services.skimlinks
                 onAccept callback, NOT in blog/layout.tsx. */}
             <CookieConsentGate />
-            <Nav />
+            <MegaNav />
             <main id="main" className="flex-1">
               {children}
             </main>
