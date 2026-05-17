@@ -95,7 +95,7 @@ export function FounderSection() {
   return (
     <section
       ref={ref}
-      className="py-section-y border-t border-[rgba(43,30,24,0.08)]"
+      className="py-section-y border-t border-[var(--color-sage-hairline)]"
       aria-labelledby="founder-heading"
     >
       <Container width="default">
@@ -458,7 +458,7 @@ export function HowWeMakeMoneySection() {
               data-reveal
               className={cn(
                 'rounded-sm bg-[var(--color-cream)]',
-                'border border-[rgba(43,30,24,0.10)]',
+                'border border-[var(--color-sage-hairline)]',
                 'p-6 sm:p-7',
               )}
             >
@@ -557,7 +557,7 @@ export function ContactSection() {
     <section
       ref={ref}
       id="contact"
-      className="scroll-mt-24 py-section-y border-t border-[rgba(43,30,24,0.08)]"
+      className="scroll-mt-24 py-section-y border-t border-[var(--color-sage-hairline)]"
       aria-labelledby="contact-heading"
     >
       <Container width="narrow" className="text-center">
