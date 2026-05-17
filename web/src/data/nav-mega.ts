@@ -209,7 +209,10 @@ export const navSections: NavSection[] = [
         name: 'How Furnish Works',
         description: 'Photo, style, shoppable room. In that order.',
         href: '/how-it-works',
-        image: '/images/before-after/ba-1-living-room-scandinavian.jpg',
+        /* Empty/before shot signals "start of transformation".
+           Browse's featured already shows the AFTER of this same
+           pair, so the two read as a story across sections. */
+        image: '/images/before-after/ba-1-living-room-empty-v2.jpg',
       },
     ],
     categories: [
@@ -240,7 +243,9 @@ export const navSections: NavSection[] = [
         name: 'Interior Designer',
         description: '$2,000 to $10,000, weeks of back and forth.',
         href: '/#why-furnish',
-        image: '/images/gallery/gallery-dining-art-deco-01.png',
+        /* Traditional style reads as the classic/formal aesthetic
+           an in-person designer would deliver. */
+        image: '/images/gallery/gallery-dining-traditional-01.png',
       },
       {
         id: 'vs-havenly',
@@ -248,7 +253,9 @@ export const navSections: NavSection[] = [
         name: 'Havenly',
         description: '$79 to $1,599, limited iteration.',
         href: '/#why-furnish',
-        image: '/images/gallery/gallery-home-office-industrial-01.png',
+        /* Contemporary clean look reads as generic online-service
+           output, the kind a templated tier-1 plan would ship. */
+        image: '/images/gallery/gallery-home-office-contemporary-01.png',
       },
       {
         id: 'vs-pinterest',
@@ -256,7 +263,10 @@ export const navSections: NavSection[] = [
         name: 'Pinterest',
         description: 'Free, but never a real room.',
         href: '/#why-furnish',
-        image: '/images/gallery/gallery-bedroom-mid-century-01.png',
+        /* Bohemian is the quintessential Pinterest aesthetic:
+           eclectic, layered, aspirational. The image you'd pin
+           but never actually build. */
+        image: '/images/gallery/gallery-living-bohemian-01.png',
       },
     ],
   },
@@ -289,7 +299,11 @@ export const navSections: NavSection[] = [
         name: 'How It Works',
         description: 'Three steps from a photo to a shoppable room.',
         href: '/how-it-works',
-        image: '/images/before-after/ba-1-living-room-scandinavian.jpg',
+        /* Same empty-room shot as the Learn section's How Furnish
+            Works card, intentional pairing: both surfaces lead to
+            the same /how-it-works page and the empty room is the
+            "before any of this happens" signal. */
+        image: '/images/before-after/ba-1-living-room-empty-v2.jpg',
       },
       {
         id: 'faq',
@@ -297,7 +311,10 @@ export const navSections: NavSection[] = [
         name: 'Frequently Asked',
         description: 'What we collect, what costs what, when we ship.',
         href: '/faq',
-        image: '/images/gallery/gallery-bathroom-contemporary-01.png',
+        /* Mid-century dining: a dining table is the universal "sit
+           down and talk it through" image. Warm and approachable,
+           matching the FAQ tone. */
+        image: '/images/gallery/gallery-dining-mid-century-01.png',
       },
       {
         id: 'legal',
@@ -305,7 +322,11 @@ export const navSections: NavSection[] = [
         name: 'Privacy & Terms',
         description: 'How we handle your email and your data.',
         href: '/privacy',
-        image: '/images/gallery/gallery-home-office-industrial-01.png',
+        /* Minimalist walk-in closet: a private space where your
+           things are organized and kept yours. Reads as "we don't
+           hoard your data, we keep it tidy" without being literal
+           about lock/key/document cliches. */
+        image: '/images/gallery/gallery-walk-in-closet-minimalist-01.png',
       },
     ],
   },
