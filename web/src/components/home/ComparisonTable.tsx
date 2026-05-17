@@ -302,15 +302,31 @@ export function ComparisonTable() {
             <div className="bg-cream px-4 py-5 text-center font-display text-display-m font-semibold text-[var(--color-accent)] tracking-display-tight">
               {t('home', 'comparisonColFurnish')}
             </div>
-            {/* Competitor headers stepped down to body-s muted, so
-                they read as supporting context, not equal peers. */}
-            <div className="px-4 py-4 text-center text-body-s text-muted">
+            {/* Competitor headers promoted from body-s -> body-xl
+                in the same display serif as Furnish, at text-muted
+                + opacity 55. The size + family match the Furnish
+                column closely enough to read as four peers, but
+                opacity-55 + font-normal does the subordination
+                work, the data row beneath still scans cleanly.
+                Display-m (the size used on the Furnish header)
+                would overflow the ~16%-wide competitor columns
+                at the wide-container breakpoint, so body-xl is
+                the practical "as-equal-as-possible-without-
+                breaking" target.
+
+                Reference: Vercel's competitor-matrix headers on
+                vercel.com/pricing where competitor column names
+                sit roughly equal-sized to Vercel's but at a muted
+                lower opacity. The visual impact stays: Furnish
+                reads as the answer; competitors read as the
+                question. */}
+            <div className="px-4 py-5 text-center font-display text-body-xl font-normal text-muted opacity-55 tracking-display-tight">
               {t('home', 'comparisonColDesigner')}
             </div>
-            <div className="px-4 py-4 text-center text-body-s text-muted">
+            <div className="px-4 py-5 text-center font-display text-body-xl font-normal text-muted opacity-55 tracking-display-tight">
               {t('home', 'comparisonColHavenly')}
             </div>
-            <div className="px-4 py-4 text-center text-body-s text-muted">
+            <div className="px-4 py-5 text-center font-display text-body-xl font-normal text-muted opacity-55 tracking-display-tight">
               {t('home', 'comparisonColPinterest')}
             </div>
           </div>
