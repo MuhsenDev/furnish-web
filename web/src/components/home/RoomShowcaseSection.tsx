@@ -122,10 +122,9 @@ interface RoomConfig {
   label: string;
   /* Optional desktop-only (lg+) label override. When present, the
      mobile `label` is rendered for screens < lg and `labelLg` is
-     rendered for lg+. Used so the desktop solo-EVERY layout can
-     show a different headline ("Dream home in days!") below the
-     box while mobile still reads "EVERY. SINGLE. STYLE." across
-     the three stacked cards. */
+     rendered for lg+. Currently unused (no room in ROOMS supplies
+     a labelLg), the prop + Room rendering path is kept so a future
+     desktop-only caption can be reintroduced without re-plumbing. */
   labelLg?: string;
   alt: string;
 }
@@ -134,15 +133,14 @@ interface RoomConfig {
    tagline phrase: "EVERY. SINGLE. STYLE." (Hassan-specified,
    replacing the prior LIVING ROOM / KITCHEN / BEDROOM labels).
    On desktop (lg+) only the first room renders (the SINGLE and
-   STYLE rooms are CSS-hidden via lg:hidden), and the EVERY
-   room's labelLg override becomes the section's only eyebrow.
-   Alt text for accessibility still describes the actual room
-   illustration the SVG depicts. */
+   STYLE rooms are CSS-hidden via lg:hidden), so on desktop the
+   "Every." label sits as a small standalone caption under the
+   single rendered room. Alt text for accessibility still describes
+   the actual room illustration the SVG depicts. */
 const ROOMS: RoomConfig[] = [
   {
     src: '/Animations/SVG/2.svg',
     label: 'Every.',
-    labelLg: 'Dream home in days!',
     alt: 'Isometric illustration of a designed living room',
   },
   {
@@ -882,11 +880,12 @@ function Room({
 
           When `labelLg` is provided, render BOTH variants and use
           responsive visibility classes so mobile shows the small
-          `label` ("Every.") and lg+ shows the longer `labelLg`
-          ("Dream home in days!"). The eyebrow class applies
-          text-transform: uppercase automatically, so the source
-          strings are sentence-cased for readability in the
-          ROOMS table above. */}
+          `label` and lg+ shows the longer `labelLg`. No room
+          currently supplies a labelLg (the desktop-only caption
+          was removed 2026-05-16), the prop path is kept for
+          future use. The eyebrow class applies text-transform:
+          uppercase automatically, so source strings are sentence-
+          cased for readability in the ROOMS table above. */}
       {labelLg ? (
         <>
           <p className="eyebrow mt-5 lg:hidden">{label}</p>
@@ -992,53 +991,39 @@ export function RoomShowcaseSection() {
       aria-live="off"
       className={cn('relative bg-cream', 'py-section-y')}
     >
-      {/* Visual treatment refactored to match the rest of the home
-          page (hero, compare slider, gallery preview): cream
-          background, espresso headline, muted-brown eyebrow, full-
-          opacity body copy. The earlier dark espresso bg with cream
-          text broke continuity with the surrounding sections.
+      {/* Section header (eyebrow + headline + supporting line)
+          was removed 2026-05-16 per Hassan's "Surface 4" cleanup,
+          the room SVGs stand on their own now. Section opens
+          directly into the rooms grid below; the section's
+          py-section-y provides the top breathing room that the
+          header used to anchor.
 
           NOTE for follow-up: the three room SVGs are full-color
           isometric illustrations (~10–90 named groups each). A
           proper recolor to a 2–3 tone brand palette (cream / warm
           brown / accent tan) requires a programmatic pass over
-          every fill in each .svg file, out of scope for this
-          visual refactor. The cards now frame the illustrations in
-          a way that feels intentional even before the recolor;
-          revisit when there's time to script the fill remap. */}
+          every fill in each .svg file. The cards frame the
+          illustrations in a way that feels intentional even before
+          the recolor; revisit when there's time to script the fill
+          remap. */}
       {/* Container "wide" (1440px) instead of "default" (1200px) so
           the 3 rooms read as a generous gallery rather than a
           cramped strip. This matches the "wide" token's documented
           use case ("Gallery grids" per Document 2 §4.2), the
-          three-room showcase IS a gallery. The section header
-          inside still centers in max-w-3xl so the headline doesn't
-          spread too wide. */}
+          three-room showcase IS a gallery. */}
       <Container width="wide">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="eyebrow">Every room</p>
-          <h2
-            className={cn(
-              'mt-3 font-display tracking-display-tight',
-              'text-deep text-display-l lg:text-display-xl',
-              'leading-display',
-            )}
-          >
-            Designed for the way you actually live.
-          </h2>
-          <p className="mt-4 text-body-l text-ink opacity-90">
-            Take a photo. Pick a style. The AI handles the rest.
-          </p>
-        </div>
-
         <div
           className={cn(
-            'mt-12 sm:mt-16 lg:mt-20',
             /* Mobile: 3 stacked rooms (grid-cols-1). Desktop: only
                the EVERY room renders (SINGLE + STYLE are CSS-
                hidden via lg:hidden wrappers below), so the desktop
                grid drops to a single centered column. The
                justify-items-center on the grid keeps the lone
-               desktop card centered inside the wide container. */
+               desktop card centered inside the wide container.
+
+               No top margin: the section's own py-section-y is
+               enough breathing room above the first row now that
+               the previous header block is gone. */
             'grid grid-cols-1 lg:grid-cols-1',
             'gap-10 lg:gap-6 xl:gap-8',
             'items-center justify-items-center',
