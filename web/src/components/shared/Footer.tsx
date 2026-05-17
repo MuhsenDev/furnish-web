@@ -34,7 +34,11 @@ export function Footer() {
   return (
     <footer
       className={cn(
-        'mt-section-y border-t border-[rgba(43,30,24,0.08)]',
+        'mt-section-y',
+        /* Top border lifted from ink/0.08 dead grey to
+           sage-hairline. Aligns the footer's chrome edge with the
+           rest of the site's divider treatment (Surface 2 sage). */
+        'border-t border-[var(--color-sage-hairline)]',
         'bg-[var(--color-beige)]',
         'pt-section-y pb-12',
       )}
@@ -119,7 +123,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-section-y-tight border-t border-[rgba(43,30,24,0.08)] pt-6">
+        <div className="mt-section-y-tight border-t border-[var(--color-sage-hairline)] pt-6">
           {/* Provenance line above the copyright. Establishes that
               a real person in a real place built this, useful trust
               signal in the absence of social proof numbers. Same
