@@ -2,27 +2,32 @@
 
 /*
   Right pane of the MegaNav overlay. Renders the active section's
-  featured tile, card grid, and category pills.
+  featured tile + card grid + category pills.
 
   Critical pattern per spec §5.5 + §6.1: this component RE-RENDERS
   via AnimatePresence mode="wait" keyed on activeSection so the
   CONTENT cross-fades on section switch WITHOUT the overlay
-  remounting. The orchestrator's outer AnimatePresence handles the
-  overlay's mount/unmount. The inner one here handles the section
-  cross-fade. Two distinct animations, two distinct AnimatePresence
-  scopes. Don't merge them.
+  remounting. The orchestrator's outer AnimatePresence handles
+  the overlay's mount/unmount. The inner one here handles the
+  section cross-fade. Two distinct animation scopes. Do not merge.
 
-  Placeholder content for commit 3/5. Real surfaces (Featured tile,
-  AppGrid, CategoryPills) wire in commit 4/5.
+  onClose is threaded down to each child surface so card clicks
+  close the overlay before route navigation OR before opening
+  the WaitlistModal (for the Get-Started section's featured
+  tile that uses the WAITLIST_MODAL_HREF sentinel).
 */
 
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { navSectionById, type SectionId } from '@/data/nav-mega';
+import { MegaNavFeaturedTile } from './MegaNavFeaturedTile';
+import { MegaNavAppGrid } from './MegaNavAppGrid';
+import { MegaNavCategoryPills } from './MegaNavCategoryPills';
 
 export interface MegaNavSectionContentProps {
   activeSection: SectionId;
+  onClose: () => void;
 }
 
 /* Cross-fade timing: 150ms out, 200ms in, per spec §4.2. The
@@ -44,6 +49,7 @@ const paneContent = {
 
 export function MegaNavSectionContent({
   activeSection,
+  onClose,
 }: MegaNavSectionContentProps) {
   const section = navSectionById[activeSection];
 
@@ -56,80 +62,30 @@ export function MegaNavSectionContent({
           initial="initial"
           animate="animate"
           exit="exit"
-          className="space-y-8"
+          className="space-y-8 lg:space-y-10"
         >
-          {/* Placeholder for the featured tile. Real component
-              wires in commit 4/5. */}
-          <div
-            className={cn(
-              'rounded-[var(--radius)] bg-surface',
-              'border border-[var(--color-sage-hairline)]',
-              'shadow-1',
-              'p-6 sm:p-8',
-            )}
-          >
-            <p className="eyebrow">{section.featured?.eyebrow ?? 'Section'}</p>
-            <h2
-              className={cn(
-                'mt-3 font-display tracking-display-tight leading-display',
-                'text-deep text-display-m',
-              )}
-            >
-              {section.featured?.title ?? section.label}
-            </h2>
-            {section.featured?.description && (
-              <p className="mt-3 text-body-l text-ink/85 leading-relaxed">
-                {section.featured.description}
-              </p>
-            )}
-            <p className="mt-6 text-body-s text-muted italic">
-              [Featured tile + app grid + category pills land in
-              commit 4/5. This is the structural cross-fade scaffold.]
-            </p>
-          </div>
+          {section.featured && (
+            <MegaNavFeaturedTile
+              sectionId={section.id}
+              featured={section.featured}
+              onActivate={onClose}
+            />
+          )}
 
-          {/* Placeholder for the app grid. */}
-          <div
-            className={cn(
-              'grid grid-cols-2 sm:grid-cols-3 gap-4',
-            )}
-          >
-            {section.cards.map((card) => (
-              <div
-                key={card.id}
-                className={cn(
-                  'rounded-sm bg-surface',
-                  'border border-[var(--color-sage-hairline)]',
-                  'aspect-[4/3] p-4',
-                  'flex flex-col justify-end',
-                )}
-              >
-                <p className="text-body-s font-semibold text-deep">
-                  {card.name}
-                </p>
-                <p className="mt-1 text-body-s text-muted">
-                  {card.tag ?? ''}
-                </p>
-              </div>
-            ))}
-          </div>
+          {section.cards.length > 0 && (
+            <MegaNavAppGrid
+              sectionId={section.id}
+              cards={section.cards}
+              onActivate={onClose}
+            />
+          )}
 
-          {/* Placeholder for category pills. */}
           {section.categories && section.categories.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {section.categories.map((cat) => (
-                <span
-                  key={cat.label}
-                  className={cn(
-                    'inline-flex items-center rounded-full',
-                    'border border-[var(--color-sage-hairline)]',
-                    'px-3 py-1 text-body-s text-muted',
-                  )}
-                >
-                  {cat.label}
-                </span>
-              ))}
-            </div>
+            <MegaNavCategoryPills
+              sectionId={section.id}
+              categories={section.categories}
+              onActivate={onClose}
+            />
           )}
         </motion.div>
       </AnimatePresence>

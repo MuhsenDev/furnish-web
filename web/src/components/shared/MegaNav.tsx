@@ -29,6 +29,7 @@
 
 import * as React from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { usePathname } from 'next/navigation';
 import { MegaNavTopBar } from './MegaNavTopBar';
 import { MegaNavOverlay } from './MegaNavOverlay';
 import type { SectionId } from '@/data/nav-mega';
@@ -104,6 +105,20 @@ export function MegaNav() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, handleClose]);
+
+  /* Safety net: auto-close on route change. Card/featured/pill
+     clicks call onActivate (= handleClose) before navigation, but
+     if a visitor uses keyboard navigation or a third-party tool
+     bypasses the onClick, the overlay would otherwise persist
+     onto the next page. Watching pathname catches that case. */
+  const pathname = usePathname();
+  const prevPathnameRef = React.useRef(pathname);
+  React.useEffect(() => {
+    if (pathname !== prevPathnameRef.current) {
+      prevPathnameRef.current = pathname;
+      if (isOpen) handleClose();
+    }
+  }, [pathname, isOpen, handleClose]);
 
   return (
     <>

@@ -158,7 +158,10 @@ export function MegaNavOverlay({
             activeSection={activeSection}
             onSwitch={onSwitch}
           />
-          <MegaNavSectionContent activeSection={activeSection} />
+          <MegaNavSectionContent
+            activeSection={activeSection}
+            onClose={onClose}
+          />
         </div>
       </Container>
     </motion.div>
