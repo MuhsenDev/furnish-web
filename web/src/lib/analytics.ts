@@ -51,6 +51,11 @@ export type AnalyticsEvent =
   | 'blog_product_card_click'
   | 'blog_cta_click'
   | 'blog_related_post_click'
+  /* MegaNav (2026-05-17 ApeChain-pattern mega-menu) */
+  | 'mega_nav_open'
+  | 'mega_nav_featured_click'
+  | 'mega_nav_card_click'
+  | 'mega_nav_category_click'
   /* Misc */
   | 'compare_slider_engaged'
   | 'gallery_card_click';
