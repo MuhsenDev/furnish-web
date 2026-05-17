@@ -55,7 +55,12 @@ export function FounderNote() {
           className={cn(
             'rounded-[var(--radius)]',
             'bg-[var(--color-beige)]/55',
-            'border border-[rgba(43,30,24,0.06)]',
+            /* Sage-hairline border, matches ComparisonTable outer
+               frame + FinalCTA card. FounderNote was the lone home-
+               page card still using ink/0.06 dead-grey border. Now
+               every primary card on the home page shares the
+               warm-tinted hairline treatment. */
+            'border border-[var(--color-sage-hairline)]',
             'shadow-1',
             'p-8 sm:p-10 lg:p-14',
           )}
