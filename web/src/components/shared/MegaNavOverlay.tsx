@@ -41,6 +41,7 @@ import { Container } from '@/components/Container';
 import { MegaNavCloseButton } from './MegaNavCloseButton';
 import { MegaNavSectionRail } from './MegaNavSectionRail';
 import { MegaNavSectionContent } from './MegaNavSectionContent';
+import { EASE_IN, EASE_OUT } from './megaNavMotion';
 import type { SectionId } from '@/data/nav-mega';
 
 export interface MegaNavOverlayProps {
@@ -49,19 +50,9 @@ export interface MegaNavOverlayProps {
   onSwitch: (section: SectionId) => void;
 }
 
-/* Easing constants. Typed as 4-tuples (not number[]) so they
-   satisfy framer-motion 12's stricter Easing type inside
-   Variants objects. The inline transition usages elsewhere in
-   the codebase (Accordion, WaitlistConfirmation, etc.) compile
-   without this cast because the transition prop's type is more
-   permissive; Variants is the strict case. */
-const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_IN: [number, number, number, number] = [0.7, 0, 0.84, 0];
-
-/* Backdrop animation: opacity 0 -> 1 in 200ms ease-out per spec
-   §4.1 step 1. Backdrop-blur ramps in CSS (we use a static blur
-   value since blur-on-mount animation is GPU-expensive on
-   low-end devices). */
+/* Backdrop animation: opacity 0 -> 1 in 200ms ease-out. Backdrop-
+   blur is a static value (blur-on-mount animation is GPU-expensive
+   on low-end devices). Eases imported from megaNavMotion. */
 const backdrop = {
   initial: { opacity: 0 },
   animate: {

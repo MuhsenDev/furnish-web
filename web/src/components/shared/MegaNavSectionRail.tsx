@@ -23,21 +23,15 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { navSections, type SectionId } from '@/data/nav-mega';
+import { EASE_IN, EASE_OUT } from './megaNavMotion';
 
 export interface MegaNavSectionRailProps {
   activeSection: SectionId;
   onSwitch: (section: SectionId) => void;
 }
 
-/* Easing constants (4-tuple, satisfies framer-motion 12's Easing
-   type inside Variants objects). See MegaNavOverlay header for
-   why the inline transition pattern in older files doesn't need
-   this cast. */
-const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_IN: [number, number, number, number] = [0.7, 0, 0.84, 0];
-
-/* Stagger config matches the spec's "40ms between each, 250ms
-   ease-out, total ~400ms" timing. */
+/* Stagger config: 40ms between each, 250ms ease-out, total
+   ~400ms entry. Eases imported from megaNavMotion. */
 const railContainer = {
   hidden: { opacity: 1 },
   visible: {

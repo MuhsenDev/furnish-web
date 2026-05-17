@@ -19,25 +19,19 @@
 
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
 import { navSectionById, type SectionId } from '@/data/nav-mega';
 import { MegaNavFeaturedTile } from './MegaNavFeaturedTile';
 import { MegaNavAppGrid } from './MegaNavAppGrid';
 import { MegaNavCategoryPills } from './MegaNavCategoryPills';
+import { EASE_IN, EASE_OUT } from './megaNavMotion';
 
 export interface MegaNavSectionContentProps {
   activeSection: SectionId;
   onClose: () => void;
 }
 
-/* Easing constants (4-tuple, satisfies framer-motion 12's Easing
-   type inside Variants objects). */
-const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const EASE_IN: [number, number, number, number] = [0.7, 0, 0.84, 0];
-
-/* Cross-fade timing: 150ms out, 200ms in, per spec §4.2. The
-   incoming content also lifts 8px from below per spec §4.1
-   step 4. */
+/* Cross-fade timing: 150ms out, 200ms in. Incoming content lifts
+   8px from below. Eases imported from megaNavMotion. */
 const paneContent = {
   initial: { opacity: 0, y: 8 },
   animate: {
@@ -59,41 +53,39 @@ export function MegaNavSectionContent({
   const section = navSectionById[activeSection];
 
   return (
-    <div className={cn('relative w-full')}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={section.id}
-          variants={paneContent}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          className="space-y-8 lg:space-y-10"
-        >
-          {section.featured && (
-            <MegaNavFeaturedTile
-              sectionId={section.id}
-              featured={section.featured}
-              onActivate={onClose}
-            />
-          )}
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={section.id}
+        variants={paneContent}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="space-y-8 lg:space-y-10"
+      >
+        {section.featured && (
+          <MegaNavFeaturedTile
+            sectionId={section.id}
+            featured={section.featured}
+            onActivate={onClose}
+          />
+        )}
 
-          {section.cards.length > 0 && (
-            <MegaNavAppGrid
-              sectionId={section.id}
-              cards={section.cards}
-              onActivate={onClose}
-            />
-          )}
+        {section.cards.length > 0 && (
+          <MegaNavAppGrid
+            sectionId={section.id}
+            cards={section.cards}
+            onActivate={onClose}
+          />
+        )}
 
-          {section.categories && section.categories.length > 0 && (
-            <MegaNavCategoryPills
-              sectionId={section.id}
-              categories={section.categories}
-              onActivate={onClose}
-            />
-          )}
-        </motion.div>
-      </AnimatePresence>
-    </div>
+        {section.categories && section.categories.length > 0 && (
+          <MegaNavCategoryPills
+            sectionId={section.id}
+            categories={section.categories}
+            onActivate={onClose}
+          />
+        )}
+      </motion.div>
+    </AnimatePresence>
   );
 }

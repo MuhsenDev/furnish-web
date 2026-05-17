@@ -115,17 +115,15 @@ export function MegaNav() {
 
   /* Safety net: auto-close on route change. Card/featured/pill
      clicks call onActivate (= handleClose) before navigation, but
-     if a visitor uses keyboard navigation or a third-party tool
-     bypasses the onClick, the overlay would otherwise persist
-     onto the next page. Watching pathname catches that case. */
+     keyboard activation paths or future call sites could bypass
+     that. useEffect([pathname]) only fires when pathname actually
+     changes (React's bail-on-identical-deps), so the previous
+     prevPathnameRef gate was redundant. */
   const pathname = usePathname();
-  const prevPathnameRef = React.useRef(pathname);
   React.useEffect(() => {
-    if (pathname !== prevPathnameRef.current) {
-      prevPathnameRef.current = pathname;
-      if (isOpen) handleClose();
-    }
-  }, [pathname, isOpen, handleClose]);
+    if (isOpen) handleClose();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [pathname]);
 
   return (
     <>
