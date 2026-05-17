@@ -56,11 +56,18 @@ export function MegaNav() {
 
   const handleClose = React.useCallback(() => {
     setIsOpen(false);
-    /* Defer setActiveSection(null) so the section content has time
-       to animate out via AnimatePresence before unmount. The overlay
-       reads activeSection in its exit animation. */
-    setTimeout(() => setActiveSection(null), 300);
-    /* Restore focus to the element that opened the overlay. */
+    /* Intentionally do NOT reset activeSection. Leaving the last
+       opened section in state means:
+        (a) the overlay's exit animation reads the section
+            content from intact state (no flicker to placeholder
+            mid-exit), and
+        (b) a rapid reopen within 300ms doesn't race a deferred
+            setActiveSection(null) that would yank the overlay
+            shut just after the user opened it again. Original
+            iteration used a setTimeout reset; removed.
+
+       AnimatePresence guards on isOpen alone, so the overlay
+       still mounts/unmounts correctly. */
     if (triggerRef.current) {
       triggerRef.current.focus();
       triggerRef.current = null;
