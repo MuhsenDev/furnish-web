@@ -49,6 +49,12 @@ export interface NavCard {
       blends with the logo's own bg instead of showing a hard
       white rectangle on cream. */
   imageBg?: 'cream' | 'white';
+  /** Optional 2-4 short items rendered as a bullet list under
+      the description. Used to fill out text-only cards with
+      genuinely useful at-a-glance info (not a rehash of the
+      description). Items should be ~3-7 words each so they sit
+      on a single line at the card's width. */
+  bullets?: string[];
 }
 
 /* The big editorial tile at the top of each section's right pane. */
@@ -326,9 +332,15 @@ export const navSections: NavSection[] = [
         name: 'How It Works',
         description: 'Three steps from a photo to a shoppable room.',
         href: '/how-it-works',
-        /* Text-only card. About's silhouette is the only image
-           that earns its place in this row; everything else was
-           filler. */
+        /* Text-only card. Bullets fill the tile with the actual
+           three steps so the card pulls its weight visually next
+           to About's image card without being a rehash of the
+           description. */
+        bullets: [
+          'Snap any room',
+          'A 90-second style quiz',
+          'Real, shoppable products',
+        ],
       },
       {
         id: 'faq',
@@ -336,7 +348,14 @@ export const navSections: NavSection[] = [
         name: 'Frequently Asked',
         description: 'What we collect, what costs what, when we ship.',
         href: '/faq',
-        /* Text-only card. */
+        /* Text-only card. Bullets preview the three most common
+           questions so the tile reads as a useful index instead
+           of an empty placeholder. */
+        bullets: [
+          'Is Furnish free?',
+          'What about my photos?',
+          'When does it launch?',
+        ],
       },
       {
         id: 'legal',
@@ -344,7 +363,15 @@ export const navSections: NavSection[] = [
         name: 'Privacy & Terms',
         description: 'How we handle your email and your data.',
         href: '/privacy',
-        /* Text-only card. */
+        /* Text-only card. Bullets surface the three concrete
+           data-handling promises buried in the privacy page so
+           visitors can read the punchline without leaving the
+           overlay. */
+        bullets: [
+          'Photos auto-delete after 7 days',
+          'No third-party tracking',
+          'Email used only for launch news',
+        ],
       },
     ],
   },

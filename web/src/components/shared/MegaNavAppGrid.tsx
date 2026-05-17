@@ -136,6 +136,28 @@ export function MegaNavAppGrid({
             >
               {card.description}
             </p>
+            {/* Optional bullet list fills out text-only cards
+                with at-a-glance supplemental info. Each item
+                gets a small accent-colored dot prefix so the
+                list reads as a list (not as a stack of unrelated
+                lines). Skip the leading mt-3 when there's no
+                bullets to render. */}
+            {card.bullets && card.bullets.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {card.bullets.map((bullet) => (
+                  <li
+                    key={bullet}
+                    className="flex items-start gap-2 text-body-s text-ink/75 leading-snug"
+                  >
+                    <span
+                      className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent)]"
+                      aria-hidden="true"
+                    />
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </MegaNavActionWrapper>
       ))}
